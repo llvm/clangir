@@ -148,7 +148,7 @@ VoidTask silly_task() {
   co_await std::suspend_always();
 }
 
-// CHECK: cir.func coroutine @_Z10silly_taskv() -> ![[VoidTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z10silly_taskv() -> ![[VoidTask]] extra{{.*}}{
 
 // Allocate promise.
 
@@ -274,7 +274,7 @@ folly::coro::Task<int> byRef(const std::string& s) {
 }
 
 // FIXME: this could be less redundant than two allocas + reloads
-// CHECK: cir.func coroutine @_Z5byRefRKSt6string(%arg0: !cir.ptr<![[StdString]]> {{.*}} ![[IntTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z5byRefRKSt6string(%arg0: !cir.ptr<![[StdString]]> {{.*}} ![[IntTask]] extra{{.*}}{
 // CHECK: %[[#AllocaParam:]] = cir.alloca !cir.ptr<![[StdString]]>, {{.*}} ["s", init, const]
 // CHECK: %[[#AllocaFnUse:]] = cir.alloca !cir.ptr<![[StdString]]>, {{.*}} ["s", init, const]
 
@@ -291,7 +291,7 @@ folly::coro::Task<void> silly_coro() {
 // Make sure we properly handle OnFallthrough coro body sub stmt and
 // check there are not multiple co_returns emitted.
 
-// CHECK: cir.func coroutine @_Z10silly_corov() {{.*}} ![[VoidTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z10silly_corov() {{.*}} ![[VoidTask]] extra{{.*}}{
 // CHECK: cir.await(init, ready : {
 // CHECK: cir.call @_ZN5folly4coro4TaskIvE12promise_type11return_voidEv
 // CHECK-NOT: cir.call @_ZN5folly4coro4TaskIvE12promise_type11return_voidEv
@@ -303,7 +303,7 @@ folly::coro::Task<int> go1() {
   co_return co_await task;
 }
 
-// CHECK: cir.func coroutine @_Z3go1v() {{.*}} ![[IntTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z3go1v() {{.*}} ![[IntTask]] extra{{.*}}{
 // CHECK: %[[#IntTaskAddr:]] = cir.alloca ![[IntTask]], !cir.ptr<![[IntTask]]>, ["task", init]
 
 // CHECK:   cir.await(init, ready : {
@@ -338,8 +338,8 @@ folly::coro::Task<int> go1_lambda() {
   co_return co_await task;
 }
 
-// CHECK: cir.func coroutine lambda internal private @_ZZ10go1_lambdavENK3$_0clEv{{.*}} ![[IntTask]] extra{{.*}}{
-// CHECK: cir.func coroutine @_Z10go1_lambdav() {{.*}} ![[IntTask]] extra{{.*}}{
+// CHECK: cir.func coroutine lambda internal private dso_local @_ZZ10go1_lambdavENK3$_0clEv{{.*}} ![[IntTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z10go1_lambdav() {{.*}} ![[IntTask]] extra{{.*}}{
 
 folly::coro::Task<int> go4() {
   auto* fn = +[](int const& i) -> folly::coro::Task<int> { co_return i; };
@@ -347,7 +347,7 @@ folly::coro::Task<int> go4() {
   co_return co_await std::move(task);
 }
 
-// CHECK: cir.func coroutine @_Z3go4v() {{.*}} ![[IntTask]] extra{{.*}}{
+// CHECK: cir.func coroutine dso_local @_Z3go4v() {{.*}} ![[IntTask]] extra{{.*}}{
 
 // CHECK:   cir.await(init, ready : {
 // CHECK:   }, suspend : {
@@ -387,7 +387,7 @@ folly::coro::Task<void> yield1() {
   co_yield t;
 }
 
-// CHECK: cir.func coroutine @_Z6yield1v() -> !rec_folly3A3Acoro3A3ATask3Cvoid3E
+// CHECK: cir.func coroutine dso_local @_Z6yield1v() -> !rec_folly3A3Acoro3A3ATask3Cvoid3E
 
 // CHECK: cir.await(init, ready : {
 // CHECK: }, suspend : {

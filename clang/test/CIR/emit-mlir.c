@@ -32,9 +32,9 @@ int foo(int a, int b) {
 
 // LLVM: llvm.func @foo
 // CORE: func.func @foo
-// CIR: cir.func @foo
+// CIR: cir.func dso_local @foo
 // CIR: cir.scope
-// CIR_FLAT: cir.func @foo
+// CIR_FLAT: cir.func dso_local @foo
 // CIR_FLAT: ^bb1
 // CIR_FLAT-NOT: cir.scope
 // CORE_ERR: ClangIR direct lowering is incompatible with emitting of MLIR standard dialects

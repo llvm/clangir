@@ -7,7 +7,7 @@ void VLATest(_BitInt(3) A, _BitInt(42) B, _BitInt(17) C) {
   int AR3[C];
 }
 
-//      CHECK: cir.func @VLATest
+//      CHECK: cir.func dso_local @VLATest
 //      CHECK:   %[[#A:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<s, 3>>, !cir.int<s, 3>
 // CHECK-NEXT:   %[[#A_PROMOTED:]] = cir.cast(integral, %[[#A]] : !cir.int<s, 3>), !u64i
 // CHECK-NEXT:   %[[#SP:]] = cir.stack_save : !cir.ptr<!u8i>

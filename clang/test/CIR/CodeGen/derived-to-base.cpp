@@ -81,7 +81,7 @@ void C3::Layer::Initialize() {
 // CHECK-DAG: !rec_A2Ebase = !cir.record<class "A.base"
 // CHECK-DAG: !rec_B = !cir.record<class "B" {!rec_A2Ebase
 
-// CHECK: cir.func @_ZN2C35Layer10InitializeEv
+// CHECK: cir.func dso_local @_ZN2C35Layer10InitializeEv
 
 // CHECK:  cir.scope {
 // CHECK:    %2 = cir.base_class_addr(%1 : !cir.ptr<!rec_C33A3ALayer> nonnull) [0] -> !cir.ptr<!rec_C23A3ALayer>
@@ -94,7 +94,7 @@ enumy C3::Initialize() {
   return C2::Initialize();
 }
 
-// CHECK: cir.func @_ZN2C310InitializeEv(%arg0: !cir.ptr<!rec_C3>
+// CHECK: cir.func dso_local @_ZN2C310InitializeEv(%arg0: !cir.ptr<!rec_C3>
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_C3>, !cir.ptr<!cir.ptr<!rec_C3>>, ["this", init] {alignment = 8 : i64}
 
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<!rec_C3>, !cir.ptr<!cir.ptr<!rec_C3>>
@@ -108,7 +108,7 @@ void vcall(C1 &c1) {
   c1.SetStuff(e, b);
 }
 
-// CHECK: cir.func @_Z5vcallR2C1(%arg0: !cir.ptr<!rec_C1>
+// CHECK: cir.func dso_local @_Z5vcallR2C1(%arg0: !cir.ptr<!rec_C1>
 // CHECK:   %0 = cir.alloca !cir.ptr<!rec_C1>, !cir.ptr<!cir.ptr<!rec_C1>>, ["c1", init, const] {alignment = 8 : i64}
 // CHECK:   %1 = cir.alloca !rec_buffy, !cir.ptr<!rec_buffy>, ["b"] {alignment = 8 : i64}
 // CHECK:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["e"] {alignment = 4 : i64}
@@ -165,7 +165,7 @@ struct C : public A {
   C(int& x) : ref(x) {}
 };
 
-// CHECK: cir.func @_Z8test_refv()
+// CHECK: cir.func dso_local @_Z8test_refv()
 // CHECK: cir.get_member %2[1] {name = "ref"}
 int test_ref() {
   int x = 42;

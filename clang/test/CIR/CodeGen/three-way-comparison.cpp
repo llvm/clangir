@@ -14,21 +14,21 @@ auto three_way_strong(int x, int y) {
   return x <=> y;
 }
 
-// BEFORE: cir.func @_Z16three_way_strongii
+// BEFORE: cir.func dso_local @_Z16three_way_strongii
 // BEFORE:   %{{.+}} = cir.cmp3way(%{{.+}} : !s32i, %{{.+}}, #cmp3way_info_strong_ltn1eq0gt1) : !s8i
 // BEFORE: }
 
-// AFTER: cir.func @_Z16three_way_strongii
+// AFTER: cir.func dso_local @_Z16three_way_strongii
 // AFTER:   %{{.+}} = cir.cmp3way(%{{.+}} : !s32i, %{{.+}}, #cmp3way_info_strong_ltn1eq0gt1) : !s8i
 // AFTER: }
 
 // NONCANONICAL-BEFORE: #cmp3way_info_strong_lt1eq2gt3 = #cir.cmp3way_info<strong, lt = 1, eq = 2, gt = 3>
-// NONCANONICAL-BEFORE: cir.func @_Z16three_way_strongii
+// NONCANONICAL-BEFORE: cir.func dso_local @_Z16three_way_strongii
 // NONCANONICAL-BEFORE:   %{{.+}} = cir.cmp3way(%{{.+}} : !s32i, %{{.+}}, #cmp3way_info_strong_lt1eq2gt3) : !s8i
 // NONCANONICAL-BEFORE: }
 
 //      NONCANONICAL-AFTER: #cmp3way_info_strong_ltn1eq0gt1 = #cir.cmp3way_info<strong, lt = -1, eq = 0, gt = 1>
-//      NONCANONICAL-AFTER: cir.func @_Z16three_way_strongii
+//      NONCANONICAL-AFTER: cir.func dso_local @_Z16three_way_strongii
 //      NONCANONICAL-AFTER:   %[[#CMP3WAY_RESULT:]] = cir.cmp3way(%{{.+}} : !s32i, %{{.+}}, #cmp3way_info_strong_ltn1eq0gt1) : !s8i
 // NONCANONICAL-AFTER-NEXT:   %[[#NEGONE:]] = cir.const #cir.int<-1> : !s8i
 // NONCANONICAL-AFTER-NEXT:   %[[#ONE:]] = cir.const #cir.int<1> : !s8i
@@ -48,11 +48,11 @@ auto three_way_weak(float x, float y) {
   return x <=> y;
 }
 
-// BEFORE: cir.func @_Z14three_way_weakff
+// BEFORE: cir.func dso_local @_Z14three_way_weakff
 // BEFORE:   %{{.+}} = cir.cmp3way(%{{.+}} : !cir.float, %{{.+}}, #cmp3way_info_partial_ltn1eq0gt1unn127) : !s8i
 // BEFORE: }
 
-//      AFTER: cir.func @_Z14three_way_weakff
+//      AFTER: cir.func dso_local @_Z14three_way_weakff
 //      AFTER:   %[[#LHS:]] = cir.load{{.*}} %0 : !cir.ptr<!cir.float>, !cir.float
 // AFTER-NEXT:   %[[#RHS:]] = cir.load{{.*}} %1 : !cir.ptr<!cir.float>, !cir.float
 // AFTER-NEXT:   %[[#LT:]] = cir.const #cir.int<-1> : !s8i

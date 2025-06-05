@@ -9,7 +9,7 @@ void t1() {
   int *p3 = (int*)0;
 }
 
-// CIR:      cir.func @_Z2t1v()
+// CIR:      cir.func dso_local @_Z2t1v()
 // CIR-NEXT:     %[[P1:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p1", init] {alignment = 8 : i64}
 // CIR-NEXT:     %[[P2:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p2", init] {alignment = 8 : i64}
 // CIR-NEXT:     %[[P3:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p3", init] {alignment = 8 : i64}
@@ -45,7 +45,7 @@ int t2() {
 //       casting it to the required type, but a redundant constant seems less
 //       intrusive than a redundant bitcast.
 
-// CIR:       cir.func @_Z2t2v()
+// CIR:       cir.func dso_local @_Z2t2v()
 // CIR-NEXT:      %[[RETVAL_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR-NEXT:      %[[X:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR-NEXT:      %[[P:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p", init] {alignment = 8 : i64}

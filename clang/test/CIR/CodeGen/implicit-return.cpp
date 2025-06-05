@@ -5,22 +5,22 @@
 
 void ret_void() {}
 
-//      CHECK-O0: cir.func @_Z8ret_voidv()
+//      CHECK-O0: cir.func dso_local @_Z8ret_voidv()
 // CHECK-O0-NEXT:   cir.return
 // CHECK-O0-NEXT: }
 
-//      CHECK-O2: cir.func @_Z8ret_voidv()
+//      CHECK-O2: cir.func dso_local @_Z8ret_voidv()
 // CHECK-O2-NEXT:   cir.return
 // CHECK-O2-NEXT: }
 
 int ret_non_void() {}
 
-//      CHECK-O0: cir.func @_Z12ret_non_voidv() -> !s32i
+//      CHECK-O0: cir.func dso_local @_Z12ret_non_voidv() -> !s32i
 // CHECK-O0-NEXT:   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK-O0-NEXT:   cir.trap
 // CHECK-O0-NEXT: }
 
-//      CHECK-O2: cir.func @_Z12ret_non_voidv() -> !s32i
+//      CHECK-O2: cir.func dso_local @_Z12ret_non_voidv() -> !s32i
 // CHECK-O2-NEXT:   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK-O2-NEXT:   cir.unreachable
 // CHECK-O2-NEXT: }

@@ -49,7 +49,7 @@ void m() {
   yolm3 q3;
 }
 
-// CHECK:   cir.func @_Z1mv()
+// CHECK:   cir.func dso_local @_Z1mv()
 // CHECK:   cir.alloca !rec_yolm, !cir.ptr<!rec_yolm>, ["q"] {alignment = 4 : i64}
 // CHECK:   cir.alloca !rec_yolm2, !cir.ptr<!rec_yolm2>, ["q2"] {alignment = 8 : i64}
 // CHECK:   cir.alloca !rec_yolm3, !cir.ptr<!rec_yolm3>, ["q3"] {alignment = 4 : i64}

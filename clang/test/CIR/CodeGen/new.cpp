@@ -65,7 +65,7 @@ void t_new_constant_size() {
 // In this test, NUM_ELEMENTS isn't used because no cookie is needed and there
 //   are no constructor calls needed.
 
-// CHECK:   cir.func @_Z19t_new_constant_sizev()
+// CHECK:   cir.func dso_local @_Z19t_new_constant_sizev()
 // CHECK:    %0 = cir.alloca !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>, ["p", init] {alignment = 8 : i64}
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<16> : !u64i
 // CHECK:    %[[ALLOCATION_SIZE:.*]] = cir.const #cir.int<128> : !u64i
@@ -81,7 +81,7 @@ void t_new_multidim_constant_size() {
 
 // As above, NUM_ELEMENTS isn't used.
 
-// CHECK:   cir.func @_Z28t_new_multidim_constant_sizev()
+// CHECK:   cir.func dso_local @_Z28t_new_multidim_constant_sizev()
 // CHECK:    %0 = cir.alloca !cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>, !cir.ptr<!cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>>, ["p", init] {alignment = 8 : i64}
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<24> : !u64i
 // CHECK:    %[[ALLOCATION_SIZE:.*]] = cir.const #cir.int<192> : !u64i
@@ -100,7 +100,7 @@ void t_constant_size_nontrivial() {
   auto p = new C[3];
 }
 
-// CHECK:  cir.func @_Z26t_constant_size_nontrivialv()
+// CHECK:  cir.func dso_local @_Z26t_constant_size_nontrivialv()
 // CHECK:    %0 = cir.alloca !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>, ["p", init] {alignment = 8 : i64}
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[SIZE_WITHOUT_COOKIE:.*]] = cir.const #cir.int<3> : !u64i
@@ -129,7 +129,7 @@ void t_constant_size_nontrivial2() {
 // In this test SIZE_WITHOUT_COOKIE isn't used, but it would be if there were
 // an initializer.
 
-// CHECK:  cir.func @_Z27t_constant_size_nontrivial2v()
+// CHECK:  cir.func dso_local @_Z27t_constant_size_nontrivial2v()
 // CHECK:    %0 = cir.alloca !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>, ["p", init] {alignment = 8 : i64}
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[SIZE_WITHOUT_COOKIE:.*]] = cir.const #cir.int<12> : !u64i
@@ -152,7 +152,7 @@ void t_constant_size_memset_init() {
 // In this test, NUM_ELEMENTS isn't used because no cookie is needed and there
 //   are no constructor calls needed.
 
-// CHECK:  cir.func @_Z27t_constant_size_memset_initv()
+// CHECK:  cir.func dso_local @_Z27t_constant_size_memset_initv()
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<16> : !u64i
 // CHECK:    %[[ALLOCATION_SIZE:.*]] = cir.const #cir.int<64> : !u64i
 // CHECK:    %[[ALLOC_PTR:.*]] = cir.call @_Znam(%[[ALLOCATION_SIZE]]) : (!u64i) -> !cir.ptr<!void>
@@ -166,7 +166,7 @@ void t_constant_size_partial_init() {
   auto p = new int[16] { 1, 2, 3 };
 }
 
-// CHECK:  cir.func @_Z28t_constant_size_partial_initv()
+// CHECK:  cir.func dso_local @_Z28t_constant_size_partial_initv()
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<16> : !u64i
 // CHECK:    %[[ALLOCATION_SIZE:.*]] = cir.const #cir.int<64> : !u64i
 // CHECK:    %[[ALLOC_PTR:.*]] = cir.call @_Znam(%[[ALLOCATION_SIZE]]) : (!u64i) -> !cir.ptr<!void>
@@ -194,7 +194,7 @@ void t_new_var_size(size_t n) {
   auto p = new char[n];
 }
 
-// CHECK:  cir.func @_Z14t_new_var_sizem
+// CHECK:  cir.func dso_local @_Z14t_new_var_sizem
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[PTR:.*]] = cir.call @_Znam(%[[N]]) : (!u64i)
 
@@ -202,7 +202,7 @@ void t_new_var_size2(int n) {
   auto p = new char[n];
 }
 
-// CHECK:  cir.func @_Z15t_new_var_size2i
+// CHECK:  cir.func dso_local @_Z15t_new_var_size2i
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[PTR:.*]] = cir.call @_Znam(%[[N_SIZE_T]]) : (!u64i)
@@ -211,7 +211,7 @@ void t_new_var_size3(size_t n) {
   auto p = new double[n];
 }
 
-// CHECK:  cir.func @_Z15t_new_var_size3m
+// CHECK:  cir.func dso_local @_Z15t_new_var_size3m
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
 // CHECK:    %[[RESULT:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
@@ -223,7 +223,7 @@ void t_new_var_size4(int n) {
   auto p = new double[n];
 }
 
-// CHECK:  cir.func @_Z15t_new_var_size4i
+// CHECK:  cir.func dso_local @_Z15t_new_var_size4i
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
@@ -238,7 +238,7 @@ void t_new_var_size5(int n) {
 
 // NUM_ELEMENTS isn't used in this case because there is no cookie.
 
-// CHECK:  cir.func @_Z15t_new_var_size5i
+// CHECK:  cir.func dso_local @_Z15t_new_var_size5i
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<48> : !u64i
@@ -253,7 +253,7 @@ void t_new_var_size6(int n) {
   auto p = new double[n] { 1, 2, 3 };
 }
 
-// CHECK:  cir.func @_Z15t_new_var_size6i
+// CHECK:  cir.func dso_local @_Z15t_new_var_size6i
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[MIN_SIZE:.*]] = cir.const #cir.int<3> : !u64i
@@ -269,7 +269,7 @@ void t_new_var_size7(__int128 n) {
   auto p = new double[n];
 }
 
-// CHECK:  cir.func @_Z15t_new_var_size7n
+// CHECK:  cir.func dso_local @_Z15t_new_var_size7n
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s128i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
@@ -282,7 +282,7 @@ void t_new_var_size_nontrivial(size_t n) {
   auto p = new D[n];
 }
 
-// CHECK:  cir.func @_Z25t_new_var_size_nontrivialm
+// CHECK:  cir.func dso_local @_Z25t_new_var_size_nontrivialm
 // CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<4> : !u64i
 // CHECK:    %[[SIZE_WITHOUT_COOKIE:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
@@ -297,7 +297,7 @@ void t_multidim_init() {
   auto *p = new int[2][3] { {1, 2, 3}, {4, 5, 6}};
 }
 
-// CHECK:  cir.func @_Z15t_multidim_initv()
+// CHECK:  cir.func dso_local @_Z15t_multidim_initv()
 // CHECK:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<6> : !u64i
 // CHECK:    %[[ALLOCATION_SIZE:.*]] = cir.const #cir.int<24> : !u64i
 // CHECK:    %[[NEW_PTR:.*]] = cir.call @_Znam(%2) : (!u64i) -> !cir.ptr<!void>

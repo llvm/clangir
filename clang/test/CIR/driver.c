@@ -30,7 +30,7 @@
 void foo(void) {}
 
 //      CIR: module {{.*}} {
-// CIR-NEXT:   cir.func @foo()
+// CIR-NEXT:   cir.func dso_local @foo()
 // CIR-NEXT:     cir.return
 // CIR-NEXT:   }
 // CIR-NEXT: }

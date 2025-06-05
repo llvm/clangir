@@ -301,7 +301,7 @@ void statements() {
   123 + 456;
 }
 
-// CIR:      cir.func @_Z10statementsv()
+// CIR:      cir.func dso_local @_Z10statementsv()
 // CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
 // CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
 // CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
@@ -319,7 +319,7 @@ void statements() {
 
 void paren_expr() { (throw 0, 123 + 456); }
 
-// CIR:       cir.func @_Z10paren_exprv()
+// CIR:       cir.func dso_local @_Z10paren_exprv()
 // CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
 // CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
 // CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
@@ -339,7 +339,7 @@ int ternary_throw1(bool condition, int x) {
   return condition ? throw x : x;
 }
 
-// CIR:     cir.func @_Z14ternary_throw1bi(%arg0: !cir.bool
+// CIR:     cir.func dso_local @_Z14ternary_throw1bi(%arg0: !cir.bool
 // CIR-NEXT:   %[[V0:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["condition", init] {alignment = 1 : i64}
 // CIR-NEXT:   %[[V1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR-NEXT:   %[[V2:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}

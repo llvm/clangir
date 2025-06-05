@@ -3,7 +3,7 @@
 
 int foo(void) { return __extension__ 0b101010; }
 
-//CHECK: cir.func @foo()
+//CHECK: cir.func dso_local @foo()
 //CHECK-NEXT:    [[ADDR:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 //CHECK-NEXT:    [[VAL:%.*]] = cir.const #cir.int<42> : !s32i
 //CHECK-NEXT:    cir.store [[VAL]], [[ADDR]] : !s32i, !cir.ptr<!s32i>
@@ -14,6 +14,6 @@ void bar(void) {
   __extension__ bar;
 }
 
-//CHECK:  cir.func @bar()
+//CHECK:  cir.func dso_local @bar()
 //CHECK:    {{.*}} = cir.get_global @bar : !cir.ptr<!cir.func<()>>
 //CHECK:    cir.return

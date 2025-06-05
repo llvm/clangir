@@ -13,7 +13,7 @@ int go1() {
   return x;
 }
 
-// CHECK: cir.func @_Z3go1v() -> !s32i
+// CHECK: cir.func dso_local @_Z3go1v() -> !s32i
 // CHECK: %[[#XAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK: %[[#RVal:]] = cir.scope {
 // CHECK-NEXT:   %[[#TmpAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
@@ -24,7 +24,7 @@ int go1() {
 // CHECK-NEXT: }
 // CHECK-NEXT: cir.store{{.*}} %[[#RVal]], %[[#XAddr]] : !s32i, !cir.ptr<!s32i>
 
-// FLAT: cir.func @_Z3go1v() -> !s32i
+// FLAT: cir.func dso_local @_Z3go1v() -> !s32i
 // FLAT: %[[#TmpAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
 // FLAT: %[[#XAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // FLAT: cir.br ^[[before_body:.*]]{{ loc.*}}
@@ -42,7 +42,7 @@ int go1() {
 // LLVM: [[before_body]]:
 // LLVM-NEXT: store i32 1, ptr %[[#TmpAddr]], align 4
 // LLVM-NEXT: %[[#RValTmp:]] = call i32 @_Z2goRKi(ptr %[[#TmpAddr]])
-// LLVM-NEXT: br label %[[continue_block:[0-9]+]] 
+// LLVM-NEXT: br label %[[continue_block:[0-9]+]]
 
 // LLVM: [[continue_block]]:
 // LLVM-NEXT: [[PHI:%.*]] = phi i32 [ %[[#RValTmp]], %[[before_body]] ]

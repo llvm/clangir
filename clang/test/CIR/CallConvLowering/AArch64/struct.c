@@ -7,7 +7,7 @@ typedef struct {
   int a, b;
 } S;
 
-// CIR: cir.func @init(%arg0: !u64i
+// CIR: cir.func dso_local @init(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
@@ -40,7 +40,7 @@ S init(S s) {
   return s;
 }
 
-// CIR: cir.func no_proto @foo1
+// CIR: cir.func no_proto dso_local @foo1
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s"]
 // CIR: %[[#V1:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"] {alignment = 4 : i64}
 // CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
@@ -63,7 +63,7 @@ void foo1() {
   s = init(s);
 }
 
-// CIR: cir.func @foo2(%arg0: !u64i
+// CIR: cir.func dso_local @foo2(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
@@ -108,7 +108,7 @@ typedef struct {
   char b;
 } S2;
 
-// CIR: cir.func @init2(%arg0: !u16i
+// CIR: cir.func dso_local @init2(%arg0: !u16i
 // CIR: %[[#V0:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S2>), !cir.ptr<!u16i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u16i, !cir.ptr<!u16i>
@@ -143,7 +143,7 @@ S2 init2(S2 s) {
   return s;
 }
 
-// CIR: cir.func no_proto @foo3()
+// CIR: cir.func no_proto dso_local @foo3()
 // CIR: %[[#V0:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["s"]
 // CIR: %[[#V1:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["tmp"] {alignment = 1 : i64}
 // CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S2>), !cir.ptr<!u16i>

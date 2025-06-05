@@ -2,7 +2,7 @@
 // RUN: FileCheck --input-file=%t.cir %s
 
 int valueNegationInt(int i) {
-// CHECK: cir.func @valueNegationInt(
+// CHECK: cir.func dso_local @valueNegationInt(
   return !i;
   // CHECK: %[[#INT:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s32i>, !s32i
   // CHECK: %[[#INT_TO_BOOL:]] = cir.cast(int_to_bool, %[[#INT]] : !s32i), !cir.bool
@@ -10,7 +10,7 @@ int valueNegationInt(int i) {
 }
 
 short valueNegationShort(short s) {
-// CHECK: cir.func @valueNegationShort(
+// CHECK: cir.func dso_local @valueNegationShort(
   return !s;
   // CHECK: %[[#SHORT:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s16i>, !s16i
   // CHECK: %[[#SHORT_TO_BOOL:]] = cir.cast(int_to_bool, %[[#SHORT]] : !s16i), !cir.bool
@@ -18,7 +18,7 @@ short valueNegationShort(short s) {
 }
 
 long valueNegationLong(long l) {
-// CHECK: cir.func @valueNegationLong(
+// CHECK: cir.func dso_local @valueNegationLong(
   return !l;
   // CHECK: %[[#LONG:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
   // CHECK: %[[#LONG_TO_BOOL:]] = cir.cast(int_to_bool, %[[#LONG]] : !s64i), !cir.bool
@@ -26,7 +26,7 @@ long valueNegationLong(long l) {
 }
 
 float valueNegationFloat(float f) {
-// CHECK: cir.func @valueNegationFloat(
+// CHECK: cir.func dso_local @valueNegationFloat(
   return !f;
   // CHECK: %[[#FLOAT:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.float>, !cir.float
   // CHECK: %[[#FLOAT_TO_BOOL:]] = cir.cast(float_to_bool, %[[#FLOAT]] : !cir.float), !cir.bool
@@ -35,7 +35,7 @@ float valueNegationFloat(float f) {
 }
 
 double valueNegationDouble(double d) {
-// CHECK: cir.func @valueNegationDouble(
+// CHECK: cir.func dso_local @valueNegationDouble(
   return !d;
   // CHECK: %[[#DOUBLE:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.double>, !cir.double
   // CHECK: %[[#DOUBLE_TO_BOOL:]] = cir.cast(float_to_bool, %[[#DOUBLE]] : !cir.double), !cir.bool

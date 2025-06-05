@@ -67,7 +67,7 @@ void test() {
 // CHECK-NEXT:   cir.call @_ZN6StringC2EPKc(%2, %3) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
 // CHECK-NEXT:   cir.return
 
-// CHECK: cir.func @_Z4testv()
+// CHECK: cir.func dso_local @_Z4testv()
 // CHECK:   cir.call @_ZN6StringC1Ev(%0) : (!cir.ptr<!rec_String>) -> ()
 // CHECK:   cir.call @_ZN6StringC1Ei(%1, %3) : (!cir.ptr<!rec_String>, !s32i) -> ()
 // CHECK:   cir.call @_ZN6StringC1EPKc(%2, %5) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()

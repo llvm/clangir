@@ -5,6 +5,6 @@ void local_typedef() {
   Struct s;
 }
 
-//CHECK:  cir.func no_proto @local_typedef()
+//CHECK:  cir.func no_proto dso_local @local_typedef()
 //CHECK:    {{.*}} = cir.alloca !rec_Struct, !cir.ptr<!rec_Struct>, ["s"] {alignment = 4 : i64}
 //CHECK:    cir.return

@@ -18,7 +18,7 @@ int s0(int a, int b) {
 }
 
 // CIR-O0: #fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone})>
-// CIR-O0:   cir.func @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
+// CIR-O0:   cir.func dso_local @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
 
 // CIR-O2-NOT: #fn_attr ={{.*}} optnone
 

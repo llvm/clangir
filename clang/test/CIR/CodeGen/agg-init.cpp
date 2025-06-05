@@ -16,7 +16,7 @@ typedef struct yep_ {
 
 void use() { yop{}; }
 
-// CHECK: cir.func @_Z3usev()
+// CHECK: cir.func dso_local @_Z3usev()
 // CHECK:   %0 = cir.alloca !rec_yep_, !cir.ptr<!rec_yep_>, ["agg.tmp.ensured"] {alignment = 4 : i64}
 // CHECK:   %1 = cir.get_member %0[0] {name = "Status"} : !cir.ptr<!rec_yep_> -> !cir.ptr<!u32i>
 // CHECK:   %2 = cir.const #cir.int<0> : !u32i
@@ -46,7 +46,7 @@ void yo() {
   Yo ext2 = {Y, &ext};
 }
 
-// CHECK: cir.func @_Z2yov()
+// CHECK: cir.func dso_local @_Z2yov()
 // CHECK:   %0 = cir.alloca !rec_Yo, !cir.ptr<!rec_Yo>, ["ext"] {alignment = 8 : i64}
 // CHECK:   %1 = cir.alloca !rec_Yo, !cir.ptr<!rec_Yo>, ["ext2", init] {alignment = 8 : i64}
 // CHECK:   %2 = cir.const #cir.const_record<{#cir.int<1000070000> : !u32i, #cir.ptr<null> : !cir.ptr<!void>, #cir.int<0> : !u64i}> : !rec_Yo

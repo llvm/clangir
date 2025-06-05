@@ -15,9 +15,9 @@ void fn() {
 //      CHECK-DAG: !rec_anon2E8 = !cir.record<class "anon.8" {!cir.ptr<!rec_A>}>
 //  CHECK-DAG: module
 
-//      CHECK: cir.func lambda internal private @_ZZ2fnvENK3$_0clEv{{.*}}) extra
+//      CHECK: cir.func lambda internal private dso_local @_ZZ2fnvENK3$_0clEv{{.*}}) extra
 
-//      CHECK:   cir.func @_Z2fnv()
+//      CHECK:   cir.func dso_local @_Z2fnv()
 // CHECK-NEXT:     %0 = cir.alloca !rec_anon2E0, !cir.ptr<!rec_anon2E0>, ["a"]
 //      CHECK:   cir.call @_ZZ2fnvENK3$_0clEv
 
@@ -41,7 +41,7 @@ void l0() {
   a();
 }
 
-// CHECK: cir.func lambda internal private @_ZZ2l0vENK3$_0clEv({{.*}}) extra
+// CHECK: cir.func lambda internal private dso_local @_ZZ2l0vENK3$_0clEv({{.*}}) extra
 
 // CHECK: %0 = cir.alloca !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>, ["this", init] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>
@@ -197,13 +197,13 @@ int g3() {
 }
 
 // lambda operator()
-// CHECK: cir.func lambda internal private @_ZZ2g3vENK3$_0clERKi{{.*}}!s32i extra
+// CHECK: cir.func lambda internal private dso_local @_ZZ2g3vENK3$_0clERKi{{.*}}!s32i extra
 
 // lambda __invoke()
-// CHECK:   cir.func internal private @_ZZ2g3vEN3$_08__invokeERKi
+// CHECK:   cir.func internal private dso_local @_ZZ2g3vEN3$_08__invokeERKi
 
 // lambda operator int (*)(int const&)()
-// CHECK:   cir.func internal private @_ZZ2g3vENK3$_0cvPFiRKiEEv
+// CHECK:   cir.func internal private dso_local @_ZZ2g3vENK3$_0cvPFiRKiEEv
 
 // CHECK-LABEL: @_Z2g3v()
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
@@ -236,7 +236,7 @@ int g3() {
 // lambda operator()
 // LLVM-LABEL: _ZZ2g3vENK3$_0clERKi
 // FIXME: argument attributes should be emitted
-// COM: LLVM-SAME: (ptr noundef nonnull align 1 dereferenceable(1) {{%.*}}, 
+// COM: LLVM-SAME: (ptr noundef nonnull align 1 dereferenceable(1) {{%.*}},
 // COM: LLVM-SAME: ptr noundef nonnull align 4 dereferenceable(4){{%.*}}) #0 align 2
 
 // lambda __invoke()

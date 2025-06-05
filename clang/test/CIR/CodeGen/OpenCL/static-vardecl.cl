@@ -5,11 +5,11 @@
 
 kernel void test_static(int i) {
   static global int b = 15;
-  // CIR-DAG: cir.global "private" internal dsolocal addrspace(offload_global) @test_static.b = #cir.int<15> : !s32i {alignment = 4 : i64}
+  // CIR-DAG: cir.global "private" internal dso_local addrspace(offload_global) @test_static.b = #cir.int<15> : !s32i {alignment = 4 : i64}
   // LLVM-DAG: @test_static.b = internal addrspace(1) global i32 15
 
   local int c;
-  // CIR-DAG: cir.global "private" internal dsolocal addrspace(offload_local) @test_static.c : !s32i {alignment = 4 : i64}
+  // CIR-DAG: cir.global "private" internal dso_local addrspace(offload_local) @test_static.c : !s32i {alignment = 4 : i64}
   // LLVM-DAG: @test_static.c = internal addrspace(3) global i32 undef
 
   // CIR-DAG: %[[#ADDRB:]] = cir.get_global @test_static.b : !cir.ptr<!s32i, addrspace(offload_global)>

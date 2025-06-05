@@ -7,7 +7,7 @@ int c0() {
     return b + 1, a;
 }
 
-// CHECK: cir.func @_Z2c0v() -> !s32i
+// CHECK: cir.func dso_local @_Z2c0v() -> !s32i
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#B:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
@@ -23,7 +23,7 @@ void c1() {
     int &x = (foo1(), foo2());
 }
 
-// CHECK: cir.func @_Z2c1v()
+// CHECK: cir.func dso_local @_Z2c1v()
 // CHECK: %0 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK: %1 = cir.call @_Z4foo1v() : () -> !cir.ptr<!s32i>
 // CHECK: %2 = cir.call @_Z4foo2v() : () -> !cir.ptr<!s32i>

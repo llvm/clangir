@@ -9,7 +9,7 @@ struct S {
   void foo() {}
 };
 
-// CHECK: cir.func @_ZN1N1fEv() {{.*}} {
+// CHECK: cir.func dso_local @_ZN1N1fEv() {{.*}} {
 // CHECK:   cir.call @_ZN1N1S3fooEv(
 void f() { S().foo(); }
 } // namespace N

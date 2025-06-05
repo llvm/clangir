@@ -8,18 +8,18 @@ enum letter {
 };
 
 int sw1(enum letter c) {
-  switch (c) { 
+  switch (c) {
     case A ... C:
     case D:
     case E ... F:
     case G ... L:
       return 1;
-    default: 
+    default:
       return 0;
   }
 }
 
-//      CIR:  cir.func @_Z3sw16letter
+//      CIR:  cir.func dso_local @_Z3sw16letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -27,7 +27,7 @@ int sw1(enum letter c) {
 // CIR-NEXT:          cir.case(range, [#cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
 // CIR-NEXT:            cir.case(range, [#cir.int<6> : !s32i, #cir.int<10> : !s32i]) {
 //      CIR:              cir.int<1>
-//      CIR:              cir.return 
+//      CIR:              cir.return
 //      CIR:          cir.yield
 //      CIR:        cir.yield
 //      CIR:      cir.yield
@@ -64,16 +64,16 @@ int sw1(enum letter c) {
 
 
 int sw2(enum letter c) {
-  switch (c) { 
+  switch (c) {
     case A ... C:
     case L ... A:
       return 1;
-    default: 
+    default:
       return 0;
   }
 }
 
-//      CIR:  cir.func @_Z3sw26letter
+//      CIR:  cir.func dso_local @_Z3sw26letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -101,7 +101,7 @@ int sw2(enum letter c) {
 
 void sw3(enum letter c) {
   int x = 0;
-  switch (c) { 
+  switch (c) {
   case A ... C:
     x = 1;
     break;
@@ -117,7 +117,7 @@ void sw3(enum letter c) {
   }
 }
 
-//      CIR:  cir.func @_Z3sw36letter
+//      CIR:  cir.func dso_local @_Z3sw36letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -177,7 +177,7 @@ void sw4(int x) {
   }
 }
 
-//      CIR:  cir.func @_Z3sw4i
+//      CIR:  cir.func dso_local @_Z3sw4i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<66> : !s32i, #cir.int<233> : !s32i]) {
@@ -218,7 +218,7 @@ void sw5(int x) {
   }
 }
 
-//      CIR:  cir.func @_Z3sw5i
+//      CIR:  cir.func dso_local @_Z3sw5i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<100> : !s32i, #cir.int<-100> : !s32i]) {
@@ -249,7 +249,7 @@ void sw6(int x) {
   }
 }
 
-//      CIR:  cir.func @_Z3sw6i
+//      CIR:  cir.func dso_local @_Z3sw6i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<-2147483648> : !s32i, #cir.int<2147483647> : !s32i]) {
@@ -291,7 +291,7 @@ void sw7(int x) {
   }
 }
 
-//      CIR:  cir.func @_Z3sw7i
+//      CIR:  cir.func dso_local @_Z3sw7i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(equal, [#cir.int<0> : !s32i]) {
@@ -346,4 +346,3 @@ void sw7(int x) {
 // LLVM-NEXT:    br label %[[EPILOG_END:[0-9]+]]
 //      LLVM:  [[EPILOG_END]]:
 // LLVM-NEXT:    ret void
-

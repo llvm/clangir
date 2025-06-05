@@ -5,7 +5,7 @@ void foo(bool x) {
   x++;
 }
 
-// CHECK:  cir.func @_Z3foob(%arg0: !cir.bool loc({{.*}}))
+// CHECK:  cir.func dso_local @_Z3foob(%arg0: !cir.bool loc({{.*}}))
 // CHECK:    [[ALLOC_X:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["x", init] {alignment = 1 : i64}
 // CHECK:    cir.store{{.*}} %arg0, [[ALLOC_X]] : !cir.bool, !cir.ptr<!cir.bool>
 // CHECK:    {{.*}} = cir.load{{.*}} [[ALLOC_X]] : !cir.ptr<!cir.bool>, !cir.bool

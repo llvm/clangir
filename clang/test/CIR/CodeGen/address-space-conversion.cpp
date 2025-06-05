@@ -9,7 +9,7 @@ using pi2_t = int __attribute__((address_space(2))) *;
 using ri1_t = int __attribute__((address_space(1))) &;
 using ri2_t = int __attribute__((address_space(2))) &;
 
-// CIR: cir.func @{{.*test_ptr.*}}
+// CIR: cir.func dso_local @{{.*test_ptr.*}}
 // LLVM: define dso_local void @{{.*test_ptr.*}}
 void test_ptr() {
   pi1_t ptr1;
@@ -23,7 +23,7 @@ void test_ptr() {
   // LLVM-NEXT: store ptr addrspace(2) %[[#CAST]], ptr %{{[0-9]+}}, align 8
 }
 
-// CIR: cir.func @{{.*test_ref.*}}
+// CIR: cir.func dso_local @{{.*test_ref.*}}
 // LLVM: define dso_local void @{{.*test_ref.*}}
 void test_ref() {
   pi1_t ptr;
@@ -42,7 +42,7 @@ void test_ref() {
   // LLVM-NEXT: store ptr addrspace(2) %[[#CAST]], ptr %{{[0-9]+}}, align 8
 }
 
-// CIR: cir.func @{{.*test_nullptr.*}}
+// CIR: cir.func dso_local @{{.*test_nullptr.*}}
 // LLVM: define dso_local void @{{.*test_nullptr.*}}
 void test_nullptr() {
   constexpr pi1_t null1 = nullptr;

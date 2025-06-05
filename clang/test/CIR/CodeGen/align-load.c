@@ -4,7 +4,7 @@
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
- 
+
 struct S {
   char b;
   short s;
@@ -21,7 +21,7 @@ void accessStruct(struct S u) {
   u.d;
 }
 
-// CIR: cir.func @accessStruct
+// CIR: cir.func dso_local @accessStruct
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(2)
 // CIR:   cir.load align(4)
@@ -58,7 +58,7 @@ void accessUnion(union U u) {
   u.d;
 }
 
-// CIR: cir.func @accessUnion
+// CIR: cir.func dso_local @accessUnion
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(8)

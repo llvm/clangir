@@ -5,11 +5,11 @@
 
 long double i = 0;
 long double t2(long double i2) {
-    return i2 + i ; 
+    return i2 + i ;
 }
 
 // CIR: cir.global external @i = #cir.fp<0.000000e+00> : !cir.long_double<!cir.f128> {alignment = 16 : i64} loc({{.*}})
-// CIR-LABEL:   cir.func @t2(%arg0: !cir.long_double<!cir.f128> loc({{.*}})) -> !cir.long_double<!cir.f128>
+// CIR-LABEL:   cir.func dso_local @t2(%arg0: !cir.long_double<!cir.f128> loc({{.*}})) -> !cir.long_double<!cir.f128>
 // CIR-NEXT:    %[[#I2:]] = cir.alloca !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>, ["i2", init] {alignment = 16 : i64}
 // CIR-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>, ["__retval"] {alignment = 16 : i64}
 // CIR-NEXT:    cir.store %arg0, %[[#I2]] : !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>

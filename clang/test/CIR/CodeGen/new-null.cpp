@@ -45,7 +45,7 @@ namespace test15 {
     new (p) A();
   }
 
-  // CIR-LABEL:   cir.func @_ZN6test156test0bEPv(
+  // CIR-LABEL:   cir.func dso_local @_ZN6test156test0bEPv(
   // CIR-SAME:                                   %[[VAL_0:.*]]: !cir.ptr<!void>
   // CIR:           %[[VAL_1:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["p", init] {alignment = 8 : i64}
   // CIR:           cir.store %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
@@ -82,7 +82,7 @@ namespace test15 {
 
 extern "C" void test_basic() {
   __builtin_operator_delete(__builtin_operator_new(4));
-  // CIR-LABEL: cir.func @test_basic
+  // CIR-LABEL: cir.func dso_local @test_basic
   // CIR: [[P:%.*]] = cir.call @_Znwm({{%.*}}) : (!u64i) -> !cir.ptr<!void>
   // CIR: cir.call @_ZdlPv([[P]]) : (!cir.ptr<!void>) -> ()
   // CIR: cir.return
@@ -96,7 +96,7 @@ extern "C" void test_basic() {
 extern "C" void test_aligned_alloc() {
   __builtin_operator_delete(__builtin_operator_new(4, std::align_val_t(4)), std::align_val_t(4));
 
-  // CIR-LABEL: cir.func @test_aligned_alloc
+  // CIR-LABEL: cir.func dso_local @test_aligned_alloc
   // CIR: [[P:%.*]] = cir.call @_ZnwmSt11align_val_t({{%.*}}, {{%.*}}) : (!u64i, !u64i) -> !cir.ptr<!void>
   // CIR: cir.call @_ZdlPvSt11align_val_t([[P]], {{%.*}}) : (!cir.ptr<!void>, !u64i) -> ()
   // CIR: cir.return
@@ -110,7 +110,7 @@ extern "C" void test_aligned_alloc() {
 extern "C" void test_sized_delete() {
   __builtin_operator_delete(__builtin_operator_new(4), 4);
 
-  // CIR-LABEL: cir.func @test_sized_delete
+  // CIR-LABEL: cir.func dso_local @test_sized_delete
   // CIR: [[P:%.*]] = cir.call @_Znwm({{%.*}}) : (!u64i) -> !cir.ptr<!void>
   // CIR: cir.call @_ZdlPvm([[P]], {{%.*}}) : (!cir.ptr<!void>, !u64i) -> ()
   // CIR: cir.return

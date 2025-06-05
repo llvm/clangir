@@ -14,7 +14,7 @@ __device__ void printer() {
   printf("%d", 0);
 }
 
-// CIR-DEVICE: cir.func @_Z7printerv() extra({{.*}}) {
+// CIR-DEVICE: cir.func dso_local @_Z7printerv() extra({{.*}}) {
 // CIR-DEVICE:   %[[#Packed:]] = cir.alloca !rec_anon_struct
 // CIR-DEVICE:   %[[#Zero:]] = cir.const #cir.int<0> : !s32i loc(#loc5)
 // CIR-DEVICE:   %[[#Field0:]] = cir.get_member %0[0]
@@ -36,7 +36,7 @@ __device__ void no_extra() {
   printf("hello world");
 }
 
-// CIR-DEVICE: cir.func @_Z8no_extrav() extra(#fn_attr) {
+// CIR-DEVICE: cir.func dso_local @_Z8no_extrav() extra(#fn_attr) {
 // CIR-DEVICE:   %[[#NULLPTR:]] = cir.const #cir.ptr<null>
 // CIR-DEVICE:   cir.call @vprintf(%{{.+}}, %[[#NULLPTR]])
 // CIR-DEVICE:   cir.return

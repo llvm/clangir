@@ -5,7 +5,7 @@
 
 double division(int a, int b);
 
-// CHECK: cir.func @_Z2tcv()
+// CHECK: cir.func dso_local @_Z2tcv()
 unsigned long long tc() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -42,7 +42,7 @@ unsigned long long tc() {
   return z;
 }
 
-// CHECK: cir.func @_Z3tc2v
+// CHECK: cir.func dso_local @_Z3tc2v
 unsigned long long tc2() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -67,7 +67,7 @@ unsigned long long tc2() {
   return z;
 }
 
-// CHECK: cir.func @_Z3tc3v
+// CHECK: cir.func dso_local @_Z3tc3v
 unsigned long long tc3() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -84,7 +84,7 @@ unsigned long long tc3() {
   return z;
 }
 
-// CHECK: cir.func @_Z3tc4v()
+// CHECK: cir.func dso_local @_Z3tc4v()
 unsigned long long tc4() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -113,7 +113,7 @@ struct S {
   int a;
 };
 
-// CHECK: cir.func @_Z3tc5v()
+// CHECK: cir.func dso_local @_Z3tc5v()
 void tc5() {
   try {
     S s;
@@ -131,7 +131,7 @@ void tc5() {
 // CHECK:  cir.yield
 // CHECK: }]
 
-// CHECK: cir.func @_Z3tc6v()
+// CHECK: cir.func dso_local @_Z3tc6v()
 void tc6() {
   int r = 1;
   try {
@@ -152,7 +152,7 @@ void tc6() {
 // CHECK:   }
 // CHECK: }
 
-// CHECK: cir.func @_Z3tc7v()
+// CHECK: cir.func dso_local @_Z3tc7v()
 void tc7() {
   int r = 1;
   try {
@@ -191,7 +191,7 @@ void tc8() {
 // CHECK:   }
 // CHECK: }
 
-// FLAT: cir.func @_Z3tc8v()
+// FLAT: cir.func dso_local @_Z3tc8v()
 // FLAT:   %[[V0:.*]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["s"] {alignment = 4 : i64}
 // FLAT:   cir.br ^bb[[#B1:]]
 // FLAT: ^bb[[#B1]]:

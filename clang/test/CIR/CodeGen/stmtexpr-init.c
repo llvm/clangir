@@ -8,7 +8,7 @@
 
 void escape(const void *);
 
-// CIR-DAG: cir.global "private" internal dsolocal @T1._x = #cir.int<99> : !s8i
+// CIR-DAG: cir.global "private" internal dso_local @T1._x = #cir.int<99> : !s8i
 // LLVM-DAG: internal global i8 99
 
 void T1(void) {
@@ -33,11 +33,11 @@ struct outer {
 };
 
 void T2(void) {
-  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a = #cir.const_record<{#cir.int<2> : !s32i, #cir.const_array<[#cir.int<50> : !s32i, #cir.int<60> : !s32i]> : !cir.array<!s32i x 2>}>
+  // CIR-DAG: cir.global "private" constant internal dso_local @T2._a = #cir.const_record<{#cir.int<2> : !s32i, #cir.const_array<[#cir.int<50> : !s32i, #cir.int<60> : !s32i]> : !cir.array<!s32i x 2>}>
   // LLVM-DAG: internal constant { i32, [2 x i32] } { i32 2, [2 x i32] [i32 50, i32 60] }
   const struct sized_array *A = ARRAY_PTR(50, 60);
 
-  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a.1 = #cir.const_record<{#cir.int<3> : !s32i, #cir.const_array<[#cir.int<10> : !s32i, #cir.int<20> : !s32i, #cir.int<30> : !s32i]> : !cir.array<!s32i x 3>}>
+  // CIR-DAG: cir.global "private" constant internal dso_local @T2._a.1 = #cir.const_record<{#cir.int<3> : !s32i, #cir.const_array<[#cir.int<10> : !s32i, #cir.int<20> : !s32i, #cir.int<30> : !s32i]> : !cir.array<!s32i x 3>}>
   // LLVM-DAG: internal constant { i32, [3 x i32] } { i32 3, [3 x i32] [i32 10, i32 20, i32 30] }
   struct outer X = {ARRAY_PTR(10, 20, 30)};
 

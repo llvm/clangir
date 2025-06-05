@@ -18,7 +18,7 @@
 // CIR: #tbaa[[LONG_LONG:.*]] = #cir.tbaa_scalar<id = "long long", type = !s64i>
 
 void test_int_and_float(int *a, float *b) {
-  // CIR-LABEL: cir.func @test_int_and_float
+  // CIR-LABEL: cir.func dso_local @test_int_and_float
   // CIR: cir.scope
   // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s32i>, !s32i tbaa(#tbaa[[INT]])
@@ -45,7 +45,7 @@ void test_int_and_float(int *a, float *b) {
 }
 
 void test_long_and_double(long *a, double *b) {
-  // CIR-LABEL: cir.func @test_long_and_double
+  // CIR-LABEL: cir.func dso_local @test_long_and_double
   // CIR: cir.scope
   // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
   // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG]])
@@ -71,7 +71,7 @@ void test_long_and_double(long *a, double *b) {
   }
 }
 void test_long_long_and_long_double(long long *a, long double *b) {
-  // CIR-LABEL: cir.func @test_long_long_and_long_double
+  // CIR-LABEL: cir.func dso_local @test_long_long_and_long_double
   // CIR: cir.scope
   // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
   // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG_LONG]])
@@ -98,7 +98,7 @@ void test_long_long_and_long_double(long long *a, long double *b) {
 }
 
 void test_char(char *a, char* b) {
-  // CIR-LABEL: cir.func @test_char
+  // CIR-LABEL: cir.func dso_local @test_char
   // CIR: cir.scope
   // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
   // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[CHAR]])

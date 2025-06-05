@@ -15,10 +15,10 @@ void d(void) {
 }
 
 // CHECK: module {{.*}} {
-// CHECK:   cir.func @a()
+// CHECK:   cir.func dso_local @a()
 // CHECK:     cir.return
 // CHECK:   }
-// CHECK:   cir.func @b(%arg0: !s32i {{.*}}, %arg1: !s32i {{.*}}) -> !s32i
+// CHECK:   cir.func dso_local @b(%arg0: !s32i {{.*}}, %arg1: !s32i {{.*}}) -> !s32i
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK:     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
 // CHECK:     %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
@@ -31,7 +31,7 @@ void d(void) {
 // CHECK:     %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK:     cir.return %6
 // CHECK:   }
-// CHECK:   cir.func @c(%arg0: !cir.double {{.*}}, %arg1: !cir.double {{.*}}) -> !cir.double
+// CHECK:   cir.func dso_local @c(%arg0: !cir.double {{.*}}, %arg1: !cir.double {{.*}}) -> !cir.double
 // CHECK:     %0 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["a", init]
 // CHECK:     %1 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["b", init]
 // CHECK:     %2 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["__retval"]
@@ -44,7 +44,7 @@ void d(void) {
 // CHECK:     %6 = cir.load{{.*}} %2 : !cir.ptr<!cir.double>, !cir.double
 // CHECK:     cir.return %6 : !cir.double
 // CHECK:   }
-// CHECK:   cir.func @d()
+// CHECK:   cir.func dso_local @d()
 // CHECK:     call @a() : () -> ()
 // CHECK:     %0 = cir.const #cir.int<0> : !s32i
 // CHECK:     %1 = cir.const #cir.int<1> : !s32i
@@ -53,10 +53,10 @@ void d(void) {
 // CHECK:   }
 //
 // CXX: module {{.*}} {
-// CXX-NEXT:   cir.func @_Z1av()
+// CXX-NEXT:   cir.func dso_local @_Z1av()
 // CXX-NEXT:     cir.return
 // CXX-NEXT:   }
-// CXX-NEXT:   cir.func @_Z1bii(%arg0: !s32i {{.*}}, %arg1: !s32i {{.*}}) -> !s32i
+// CXX-NEXT:   cir.func dso_local @_Z1bii(%arg0: !s32i {{.*}}, %arg1: !s32i {{.*}}) -> !s32i
 // CXX-NEXT:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CXX-NEXT:     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
 // CXX-NEXT:     %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
@@ -69,7 +69,7 @@ void d(void) {
 // CXX-NEXT:     %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CXX-NEXT:     cir.return %6
 // CXX-NEXT:   }
-// CXX-NEXT:   cir.func @_Z1cdd(%arg0: !cir.double {{.*}}, %arg1: !cir.double {{.*}}) -> !cir.double
+// CXX-NEXT:   cir.func dso_local @_Z1cdd(%arg0: !cir.double {{.*}}, %arg1: !cir.double {{.*}}) -> !cir.double
 // CXX-NEXT:     %0 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["a", init]
 // CXX-NEXT:     %1 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["b", init]
 // CXX-NEXT:     %2 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["__retval"]
@@ -82,7 +82,7 @@ void d(void) {
 // CXX-NEXT:     %6 = cir.load{{.*}} %2 : !cir.ptr<!cir.double>, !cir.double
 // CXX-NEXT:     cir.return %6 : !cir.double
 // CXX-NEXT:   }
-// CXX-NEXT:   cir.func @_Z1dv()
+// CXX-NEXT:   cir.func dso_local @_Z1dv()
 // CXX-NEXT:     call @_Z1av() : () -> ()
 // CXX-NEXT:     %0 = cir.const #cir.int<0> : !s32i
 // CXX-NEXT:     %1 = cir.const #cir.int<1> : !s32i

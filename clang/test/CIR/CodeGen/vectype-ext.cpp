@@ -40,7 +40,7 @@ vi4 vec_e = { 1, 2, 3, 4 };
 
 // LLVM: @[[VEC_E:.*]] = global <4 x i32> <i32 1, i32 2, i32 3, i32 4>
 
-// CIR: cir.func {{@.*vector_int_test.*}}
+// CIR: cir.func dso_local {{@.*vector_int_test.*}}
 // LLVM: define dso_local void {{@.*vector_int_test.*}}
 void vector_int_test(int x) {
 
@@ -225,7 +225,7 @@ void vector_int_test(int x) {
   // LLVM-NEXT: store <4 x i32> %[[#INS4]], ptr %{{[0-9]+}}, align 16
 }
 
-// CIR: cir.func {{@.*vector_double_test.*}}
+// CIR: cir.func dso_local {{@.*vector_double_test.*}}
 // LLVM: define dso_local void {{@.*vector_double_test.*}}
 void vector_double_test(int x, double y) {
   // Vector constant.
@@ -339,7 +339,7 @@ void vector_double_test(int x, double y) {
   // LLVM: %{{[0-9]+}} = fptoui <2 x double> %{{[0-9]+}} to <2 x i16>
 }
 
-// CIR: cir.func {{@.*test_load.*}}
+// CIR: cir.func dso_local {{@.*test_load.*}}
 // LLVM: define dso_local void {{@.*test_load.*}}
 void test_load() {
   vi4 a = { 1, 2, 3, 4 };
@@ -367,7 +367,7 @@ void test_load() {
 
 }
 
-// CIR: cir.func {{@.*test_store.*}}
+// CIR: cir.func dso_local {{@.*test_store.*}}
 // LLVM: define dso_local void {{@.*test_store.*}}
 void test_store() {
   vi4 a;
@@ -452,7 +452,7 @@ void test_store() {
 
 }
 
-// CIR: cir.func {{@.*test_build_lvalue.*}}
+// CIR: cir.func dso_local {{@.*test_build_lvalue.*}}
 // LLVM: define dso_local void {{@.*test_build_lvalue.*}}
 void test_build_lvalue() {
   // special cases only
@@ -515,7 +515,7 @@ void test_build_lvalue() {
 
 }
 
-// CIR: cir.func {{@.*test_vec3.*}}
+// CIR: cir.func dso_local {{@.*test_vec3.*}}
 // LLVM: define dso_local void {{@.*test_vec3.*}}
 void test_vec3() {
   vi3 v = {};
