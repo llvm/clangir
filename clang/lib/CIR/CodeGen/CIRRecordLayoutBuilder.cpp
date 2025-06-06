@@ -760,11 +760,49 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::RecordType *Ty) {
 
   // Dump the layout, if requested.
   if (getContext().getLangOpts().DumpRecordLayouts) {
-    llvm_unreachable("NYI");
+    llvm::outs() << "\n*** Dumping CIRgen Record Layout\n";
+    llvm::outs() << "Record: ";
+    D->dump(llvm::outs());
+    llvm::outs() << "\nLayout: ";
+    RL->print(llvm::outs());
   }
 
   // TODO: implement verification
   return RL;
+}
+
+void CIRGenRecordLayout::print(raw_ostream &os) const {
+  os << "<CIRecordLayout\n";
+  os << "   CIR Type:" << CompleteObjectType << "\n";
+  if (BaseSubobjectType)
+    os << "   NonVirtualBaseLLVMType:" << BaseSubobjectType << "\n";
+  os << "   IsZeroInitializable:" << IsZeroInitializable << "\n";
+  os << "   BitFields:[\n";
+  std::vector<std::pair<unsigned, const CIRGenBitFieldInfo *>> bitInfo;
+  for (auto &[decl, info] : BitFields) {
+    const RecordDecl *rd = decl->getParent();
+    unsigned index = 0;
+    for (RecordDecl::field_iterator it = rd->field_begin(); *it != decl; ++it)
+      ++index;
+    bitInfo.push_back(std::make_pair(index, &info));
+  }
+  llvm::array_pod_sort(bitInfo.begin(), bitInfo.end());
+  for (auto &info : bitInfo) {
+    os.indent(4);
+    info.second->print(os);
+    os << "\n";
+  }
+  os << "]>\n";
+}
+
+void CIRGenBitFieldInfo::print(raw_ostream &os) const {
+  os << "<CIRBitFieldInfo" << " name:" << Name << " offset:" << Offset
+     << " size:" << Size << " isSigned:" << IsSigned
+     << " storageSize:" << StorageSize
+     << " storageOffset:" << StorageOffset.getQuantity()
+     << " volatileOffset:" << VolatileOffset
+     << " volatileStorageSize:" << VolatileStorageSize
+     << " volatileStorageOffset:" << VolatileStorageOffset.getQuantity() << ">";
 }
 
 CIRGenBitFieldInfo CIRGenBitFieldInfo::MakeInfo(CIRGenTypes &Types,
