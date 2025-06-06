@@ -5294,6 +5294,8 @@ def PrefetchOp : CIR_Op<"prefetch"> {
     UnitAttr:$isWrite
   );
 
+  let results = (outs VoidPtr:$result);
+
   let assemblyFormat = [{
     `(` $addr `:` qualified(type($addr)) `)`
         `locality``(` $locality `)`
