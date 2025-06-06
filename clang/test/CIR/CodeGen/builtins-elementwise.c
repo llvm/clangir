@@ -121,6 +121,27 @@ void test_builtin_elementwise_exp(float f, double d, vfloat4 vf4,
   vd4 = __builtin_elementwise_exp(vd4);
 }
 
+void test_builtin_elementwise_exp2(float f, double d, vfloat4 vf4,
+                                  vdouble4  vd4) {
+  // CIR-LABEL: test_builtin_elementwise_exp
+  // LLVM-LABEL: test_builtin_elementwise_exp
+  // CIR: {{%.*}} = cir.exp2 {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.exp2.f32(float {{%.*}})
+  f = __builtin_elementwise_exp2(f);
+
+  // CIR: {{%.*}} = cir.exp2 {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.exp2.f64(double {{%.*}})
+  d = __builtin_elementwise_exp2(d);
+
+  // CIR: {{%.*}} = cir.exp2 {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.exp2.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_exp2(vf4);
+
+  // CIR: {{%.*}} = cir.exp2 {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.exp2.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_exp2(vd4);
+}
+
 void test_builtin_elementwise_log(float f, double d, vfloat4 vf4,
                                   vdouble4  vd4) {
   // CIR-LABEL: test_builtin_elementwise_log
