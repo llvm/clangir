@@ -775,7 +775,7 @@ void CIRGenRecordLayout::print(raw_ostream &os) const {
   os << "<CIRecordLayout\n";
   os << "   CIR Type:" << CompleteObjectType << "\n";
   if (BaseSubobjectType)
-    os << "   NonVirtualBaseLLVMType:" << BaseSubobjectType << "\n";
+    os << "   NonVirtualBaseCIRType:" << BaseSubobjectType << "\n";
   os << "   IsZeroInitializable:" << IsZeroInitializable << "\n";
   os << "   BitFields:[\n";
   std::vector<std::pair<unsigned, const CIRGenBitFieldInfo *>> bitInfo;
@@ -795,6 +795,8 @@ void CIRGenRecordLayout::print(raw_ostream &os) const {
   os << "]>\n";
 }
 
+void CIRGenRecordLayout::dump() const { print(llvm::errs()); }
+
 void CIRGenBitFieldInfo::print(raw_ostream &os) const {
   os << "<CIRBitFieldInfo" << " name:" << Name << " offset:" << Offset
      << " size:" << Size << " isSigned:" << IsSigned
@@ -804,6 +806,8 @@ void CIRGenBitFieldInfo::print(raw_ostream &os) const {
      << " volatileStorageSize:" << VolatileStorageSize
      << " volatileStorageOffset:" << VolatileStorageOffset.getQuantity() << ">";
 }
+
+void CIRGenBitFieldInfo::dump() const { print(llvm::errs()); }
 
 CIRGenBitFieldInfo CIRGenBitFieldInfo::MakeInfo(CIRGenTypes &Types,
                                                 const FieldDecl *FD,
