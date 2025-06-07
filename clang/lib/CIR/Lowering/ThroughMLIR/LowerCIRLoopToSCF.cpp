@@ -63,11 +63,12 @@ public:
   SCFWhileLoop(cir::WhileOp op, cir::WhileOp::Adaptor adaptor,
                mlir::ConversionPatternRewriter *rewriter)
       : whileOp(op), adaptor(adaptor), rewriter(rewriter) {}
-  void transferToSCFWhileOp();
+  mlir::scf::WhileOp transferToSCFWhileOp();
 
 private:
   cir::WhileOp whileOp;
   cir::WhileOp::Adaptor adaptor;
+  mlir::scf::WhileOp scfWhileOp;
   mlir::ConversionPatternRewriter *rewriter;
 };
 
@@ -337,7 +338,7 @@ void SCFLoop::transformToSCFWhileOp() {
                               scfWhileOp.getAfterBody()->end());
 }
 
-void SCFWhileLoop::transferToSCFWhileOp() {
+mlir::scf::WhileOp SCFWhileLoop::transferToSCFWhileOp() {
   auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
       whileOp->getLoc(), whileOp->getResultTypes(), adaptor.getOperands());
   rewriter->createBlock(&scfWhileOp.getBefore());
@@ -348,6 +349,7 @@ void SCFWhileLoop::transferToSCFWhileOp() {
   rewriter->inlineBlockBefore(&whileOp.getBody().front(),
                               scfWhileOp.getAfterBody(),
                               scfWhileOp.getAfterBody()->end());
+  return scfWhileOp;
 }
 
 void SCFDoLoop::transferToSCFWhileOp() {
@@ -393,6 +395,44 @@ public:
 };
 
 class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
+  void rewriteContinue(mlir::scf::WhileOp whileOp,
+                       mlir::ConversionPatternRewriter &rewriter) const {
+    // Collect all ContinueOp inside this while.
+    llvm::SmallVector<cir::ContinueOp> continues;
+    whileOp->walk([&](mlir::Operation *op) {
+      if (auto continueOp = dyn_cast<ContinueOp>(op))
+        continues.push_back(continueOp);
+    });
+
+    if (continues.empty())
+      return;
+
+    for (auto continueOp : continues) {
+      // When the break is under an IfOp, a direct replacement of `scf.yield`
+      // won't work: the yield would jump out of that IfOp instead. We might
+      // need to change the whileOp itself to achieve the same effect.
+      for (mlir::Operation *parent = continueOp->getParentOp();
+           parent != whileOp; parent = parent->getParentOp()) {
+        if (isa<mlir::scf::IfOp>(parent) || isa<cir::IfOp>(parent))
+          llvm_unreachable("NYI");
+      }
+
+      // Operations after this break has to be removed.
+      for (mlir::Operation *runner = continueOp->getNextNode(); runner;) {
+        mlir::Operation *next = runner->getNextNode();
+        runner->erase();
+        runner = next;
+      }
+
+      // Blocks after this break also has to be removed.
+      for (mlir::Block *block = continueOp->getBlock()->getNextNode(); block;) {
+        mlir::Block *next = block->getNextNode();
+        block->erase();
+        block = next;
+      }
+    }
+  }
+
 public:
   using OpConversionPattern<cir::WhileOp>::OpConversionPattern;
 
@@ -400,7 +440,8 @@ public:
   matchAndRewrite(cir::WhileOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     SCFWhileLoop loop(op, adaptor, &rewriter);
-    loop.transferToSCFWhileOp();
+    auto whileOp = loop.transferToSCFWhileOp();
+    rewriteContinue(whileOp, rewriter);
     rewriter.eraseOp(op);
     return mlir::success();
   }
