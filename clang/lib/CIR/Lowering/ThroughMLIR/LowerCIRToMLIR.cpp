@@ -23,6 +23,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -104,8 +105,19 @@ public:
     if (mlir::failed(
             getTypeConverter()->convertTypes(op.getResultTypes(), types)))
       return mlir::failure();
-    rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
-        op, op.getCalleeAttr(), types, adaptor.getOperands());
+
+    if (!op.isIndirect()) {
+      if (op.getCallee()->equals_insensitive("printf")) {
+        adaptor.getOperands()[0].getDefiningOp()->getParentOfType<mlir::memref::GetGlobalOp>();
+      } else {
+        rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+            op, op.getCalleeAttr(), types, adaptor.getOperands());
+      }
+    } else {
+      // TODO: support lowering of indirect calls via func.call_indirect op
+      return op.emitError() << "lowering of indirect calls not supported yet";
+    }
+
     return mlir::LogicalResult::success();
   }
 };
@@ -557,37 +569,62 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
     auto fnType = op.getFunctionType();
-    mlir::TypeConverter::SignatureConversion signatureConversion(
-        fnType.getNumInputs());
 
-    for (const auto &argType : enumerate(fnType.getInputs())) {
-      auto convertedType = typeConverter->convertType(argType.value());
-      if (!convertedType)
+    if (fnType.isVarArg()) {
+      // TODO: once the builtin func dialect supports variadic functions rewrite
+      // this
+      //  for now only insert special handling of printf via the llvm ir dialect
+      if (op.getSymName().equals_insensitive("printf")) {
+        auto context = rewriter.getContext();
+        // Create a llvm ir dialect function declaration for printf, the
+        // signature is:
+        //   * `i32 (i8*, ...)`
+        auto llvmI32Ty = mlir::IntegerType::get(context, 32);
+        auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
+        auto llvmFnType =
+            mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmPtrTy,
+                                              /*isVarArg=*/true);
+        auto printfFunc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+            op.getLoc(), "printf", llvmFnType);
+        rewriter.replaceOp(op, printfFunc);
+      } else {
+        rewriter.eraseOp(op);
+        return op.emitError() << "lowering of variadic functions (except "
+                                 "printf) not supported yet";
+      }
+    } else {
+      mlir::TypeConverter::SignatureConversion signatureConversion(
+          fnType.getNumInputs());
+
+      for (const auto &argType : enumerate(fnType.getInputs())) {
+        auto convertedType = typeConverter->convertType(argType.value());
+        if (!convertedType)
+          return mlir::failure();
+        signatureConversion.addInputs(argType.index(), convertedType);
+      }
+
+      SmallVector<mlir::NamedAttribute, 2> passThroughAttrs;
+
+      if (auto symVisibilityAttr = op.getSymVisibilityAttr())
+        passThroughAttrs.push_back(
+            rewriter.getNamedAttr("sym_visibility", symVisibilityAttr));
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(fnType.getReturnType());
+      auto fn = rewriter.create<mlir::func::FuncOp>(
+          op.getLoc(), op.getName(),
+          rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
+                                   resultType ? mlir::TypeRange(resultType)
+                                              : mlir::TypeRange()),
+          passThroughAttrs);
+
+      if (failed(rewriter.convertRegionTypes(&op.getBody(), *typeConverter,
+                                             &signatureConversion)))
         return mlir::failure();
-      signatureConversion.addInputs(argType.index(), convertedType);
+      rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
+
+      rewriter.eraseOp(op);
     }
-
-    SmallVector<mlir::NamedAttribute, 2> passThroughAttrs;
-
-    if (auto symVisibilityAttr = op.getSymVisibilityAttr())
-      passThroughAttrs.push_back(
-          rewriter.getNamedAttr("sym_visibility", symVisibilityAttr));
-
-    mlir::Type resultType =
-        getTypeConverter()->convertType(fnType.getReturnType());
-    auto fn = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), op.getName(),
-        rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
-                                 resultType ? mlir::TypeRange(resultType)
-                                            : mlir::TypeRange()),
-        passThroughAttrs);
-
-    if (failed(rewriter.convertRegionTypes(&op.getBody(), *typeConverter,
-                                           &signatureConversion)))
-      return mlir::failure();
-    rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
-
-    rewriter.eraseOp(op);
     return mlir::LogicalResult::success();
   }
 };
