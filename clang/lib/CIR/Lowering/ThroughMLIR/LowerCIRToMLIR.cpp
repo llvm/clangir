@@ -28,6 +28,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -108,17 +109,111 @@ public:
 
     if (!op.isIndirect()) {
       if (op.getCallee()->equals_insensitive("printf")) {
-        adaptor.getOperands()[0].getDefiningOp()->getParentOfType<mlir::memref::GetGlobalOp>();
+        SmallVector<mlir::Type> operandTypes =
+            llvm::to_vector(adaptor.getOperands().getTypes());
+
+        // drop the initial memref operand type
+        operandTypes.erase(operandTypes.begin());
+
+        // check that the printf attributes can be used in llvm ir dialect (i.e
+        // they have integer/float type)
+        if (!llvm::all_of(operandTypes, [](mlir::Type ty) {
+              return mlir::LLVM::isCompatibleType(ty);
+            })) {
+          return op.emitError()
+                 << "lowering of printf attributes having a type that is "
+                    "converted to memref in cir-to-mlir lowering (e.g. "
+                    "pointers) not supported yet";
+        }
+
+        if (auto reinterpret_castOP =
+                mlir::dyn_cast_or_null<mlir::memref::ReinterpretCastOp>(
+                    adaptor.getOperands()[0].getDefiningOp())) {
+          if (auto getGlobalOp =
+                  mlir::dyn_cast_or_null<mlir::memref::GetGlobalOp>(
+                      reinterpret_castOP->getOperand(0).getDefiningOp())) {
+            // TODO: replace this with llvm dialect getGlobalOp + replace global
+            // with llvm global op
+            mlir::ModuleOp parentModule = op->getParentOfType<mlir::ModuleOp>();
+
+            auto context = rewriter.getContext();
+
+            auto globalOp = parentModule.lookupSymbol<mlir::memref::GlobalOp>(
+                getGlobalOp.getNameAttr());
+
+            rewriter.setInsertionPoint(globalOp);
+
+            auto initialvalueAttr =
+                mlir::dyn_cast_or_null<mlir::DenseIntElementsAttr>(
+                    globalOp.getInitialValueAttr());
+
+            auto type = mlir::LLVM::LLVMArrayType::get(
+                mlir::IntegerType::get(context, 8),
+                initialvalueAttr.getNumElements());
+
+            auto llvmglobalOp = rewriter.create<mlir::LLVM::GlobalOp>(
+                globalOp->getLoc(), type,
+                /*isConstant=*/true, mlir::LLVM::Linkage::Internal,
+                "printf_format_" + globalOp.getSymName().str(), initialvalueAttr,
+                /*alignment=*/0);
+
+            rewriter.setInsertionPoint(getGlobalOp);
+
+            auto globalPtrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+                getGlobalOp->getLoc(), llvmglobalOp);
+
+            mlir::Value cst0 = rewriter.create<mlir::LLVM::ConstantOp>(
+                getGlobalOp->getLoc(), rewriter.getI16Type(),
+                rewriter.getIndexAttr(0));
+            auto gepPtrOp = rewriter.create<mlir::LLVM::GEPOp>(
+                getGlobalOp->getLoc(),
+                mlir::LLVM::LLVMPointerType::get(context),
+                llvmglobalOp.getType(), globalPtrOp,
+                ArrayRef<mlir::Value>({cst0, cst0}));
+
+            mlir::ValueRange operands = adaptor.getOperands();
+
+            mlir::SmallVector<mlir::Value> newOperands;
+            newOperands.push_back(gepPtrOp);
+            newOperands.append(operands.begin() + 1, operands.end());
+
+            // Create a llvm ir dialect function declaration for printf, the
+            // signature is:
+            //   * `i32 (i8*, ...)`
+            auto llvmI32Ty = mlir::IntegerType::get(context, 32);
+            auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
+            auto llvmFnType =
+                mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmPtrTy,
+                                                  /*isVarArg=*/true);
+
+            rewriter.setInsertionPoint(op);
+
+            rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+                op, llvmFnType, op.getCalleeAttr(), newOperands);
+
+            // cleanup memref ops
+            //rewriter.eraseOp(reinterpret_castOP->getOperand(0).getDefiningOp());
+            rewriter.eraseOp(reinterpret_castOP);
+            rewriter.eraseOp(getGlobalOp);
+            rewriter.eraseOp(globalOp);
+
+            return mlir::LogicalResult::success();
+          }
+        }
+
+        return op.emitError()
+               << "lowering of printf function with Format-String"
+                  "defined outside of printf is not supported yet";
+
       } else {
         rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
             op, op.getCalleeAttr(), types, adaptor.getOperands());
+        return mlir::LogicalResult::success();
       }
     } else {
       // TODO: support lowering of indirect calls via func.call_indirect op
       return op.emitError() << "lowering of indirect calls not supported yet";
     }
-
-    return mlir::LogicalResult::success();
   }
 };
 
