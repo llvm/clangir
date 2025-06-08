@@ -792,7 +792,7 @@ void CIRGenRecordLayout::print(raw_ostream &os) const {
     info.second->print(os);
     os << "\n";
   }
-  os << "]>\n";
+  os << "   ]>\n";
 }
 
 void CIRGenRecordLayout::dump() const { print(llvm::errs()); }
