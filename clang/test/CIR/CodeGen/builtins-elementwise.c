@@ -100,6 +100,27 @@ void test_builtin_elementwise_atan(float f, double d, vfloat4 vf4,
   vd4 = __builtin_elementwise_atan(vd4);
 }
 
+void test_builtin_elementwise_atan2(float f, double d, vfloat4 vf4,
+  vdouble4  vd4) {
+  // CIR-LABEL: test_builtin_elementwise_atan2
+  // LLVM-LABEL: test_builtin_elementwise_atan2
+  // CIR: {{%.*}} = cir.atan2 {{%.*}}, {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.atan2.f32(float {{%.*}}, float {{%.*}})
+  f = __builtin_elementwise_atan2(f, f);
+
+  // CIR: {{%.*}} = cir.atan2 {{%.*}}, {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.atan2.f64(double {{%.*}}, double {{%.*}})
+  d = __builtin_elementwise_atan2(d, d);
+
+  // CIR: {{%.*}} = cir.atan2 {{%.*}}, {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.atan2.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_atan2(vf4, vf4);
+
+  // CIR: {{%.*}} = cir.atan2 {{%.*}}, {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.atan2.v4f64(<4 x double> {{%.*}}, <4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_atan2(vd4, vd4);
+}
+
 void test_builtin_elementwise_exp(float f, double d, vfloat4 vf4,
                                   vdouble4  vd4) {
   // CIR-LABEL: test_builtin_elementwise_exp
