@@ -4797,6 +4797,7 @@ def FMaximumOp : BinaryFPToFPBuiltinOp<"fmaximum", "MaximumOp">;
 def FMinimumOp : BinaryFPToFPBuiltinOp<"fminimum", "MinimumOp">;
 def FModOp : BinaryFPToFPBuiltinOp<"fmod", "FRemOp">;
 def PowOp : BinaryFPToFPBuiltinOp<"pow", "PowOp">;
+def ATan2Op : BinaryFPToFPBuiltinOp<"atan2", "ATan2Op">;
 
 def IsFPClassOp : CIR_Op<"is_fp_class"> {
   let summary = "Corresponding to the `__builtin_fpclassify` builtin function in clang";
