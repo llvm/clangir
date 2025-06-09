@@ -3362,7 +3362,7 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
     ```
     will generate
     ```mlir
-    %3 = cir.base_class_addr (%1 : !cir.ptr<!rec_Derived> nonnull) [0] -> !cir.ptr<!rec_Base>
+    %3 = cir.base_class_addr %1 : !cir.ptr<!rec_Derived> nonnull [0] -> !cir.ptr<!rec_Base>
     ```
   }];
 
@@ -3375,10 +3375,9 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
   let results = (outs Res<CIR_PointerType, "">:$base_addr);
 
   let assemblyFormat = [{
-    `(`
       $derived_addr `:` qualified(type($derived_addr))
       (`nonnull` $assume_not_null^)?
-    `)` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
+      ` ` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
   }];
 }
 
@@ -3411,8 +3410,8 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
     leads to
     ```mlir
       %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
-      %3 = cir.derived_class_addr(%2 : !cir.ptr<!rec_B> nonnull) [4] -> !cir.ptr<!rec_X>
-      %4 = cir.base_class_addr(%3 : !cir.ptr<!rec_X>) [0] -> !cir.ptr<!rec_A>
+      %3 = cir.derived_class_addr %2 : !cir.ptr<!rec_B> nonnull [4] -> !cir.ptr<!rec_X>
+      %4 = cir.base_class_addr %3 : !cir.ptr<!rec_X> [0] -> !cir.ptr<!rec_A>
       cir.return %4
     ```
   }];
@@ -3426,10 +3425,9 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
   let results = (outs Res<CIR_PointerType, "">:$derived_addr);
 
   let assemblyFormat = [{
-    `(`
       $base_addr `:` qualified(type($base_addr))
       (`nonnull` $assume_not_null^)?
-    `)` `[` $offset `]` `->` qualified(type($derived_addr)) attr-dict
+      ` ` `[` $offset `]` `->` qualified(type($derived_addr)) attr-dict
   }];
 }
 
@@ -3454,8 +3452,8 @@ def BaseDataMemberOp : CIR_Op<"base_data_member", [Pure]> {
   let results = (outs CIR_DataMemberType:$result);
 
   let assemblyFormat = [{
-    `(` $src `:` qualified(type($src)) `)`
-    `[` $offset `]` `->` qualified(type($result)) attr-dict
+    $src `:` qualified(type($src))
+    ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
   }];
 
   let hasVerifier = 1;
@@ -3478,8 +3476,8 @@ def DerivedDataMemberOp : CIR_Op<"derived_data_member", [Pure]> {
   let results = (outs CIR_DataMemberType:$result);
 
   let assemblyFormat = [{
-    `(` $src `:` qualified(type($src)) `)`
-    `[` $offset `]` `->` qualified(type($result)) attr-dict
+    $src `:` qualified(type($src))
+    ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
   }];
 
   let hasVerifier = 1;
@@ -3506,7 +3504,7 @@ def BaseMethodOp : CIR_Op<"base_method", [Pure]> {
     Example:
 
     ```mlir
-    %1 = cir.base_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base>
+    %1 = cir.base_method %0 : !cir.method<!cir.func<(!s32i)> in !rec_Derived> [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base>
     ```
   }];
 
@@ -3514,8 +3512,8 @@ def BaseMethodOp : CIR_Op<"base_method", [Pure]> {
   let results = (outs CIR_MethodType:$result);
 
   let assemblyFormat = [{
-    `(` $src `:` qualified(type($src)) `)`
-    `[` $offset `]` `->` qualified(type($result)) attr-dict
+    $src `:` qualified(type($src))
+    ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
   }];
 
   let hasVerifier = 1;
@@ -3538,7 +3536,7 @@ def DerivedMethodOp : CIR_Op<"derived_method", [Pure]> {
     Example:
 
     ```mlir
-    %1 = cir.derived_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Base>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
+    %1 = cir.derived_method %0 : !cir.method<!cir.func<(!s32i)> in !rec_Base> [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
     ```
   }];
 
@@ -3546,8 +3544,8 @@ def DerivedMethodOp : CIR_Op<"derived_method", [Pure]> {
   let results = (outs CIR_MethodType:$result);
 
   let assemblyFormat = [{
-    `(` $src `:` qualified(type($src)) `)`
-    `[` $offset `]` `->` qualified(type($result)) attr-dict
+    $src `:` qualified(type($src))
+    ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
   }];
 
   let hasVerifier = 1;
