@@ -381,6 +381,7 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
           callLoc, directFuncOp, CIRCallArgs, callingConv, sideEffect);
     }
     callOpWithExceptions->setAttr("extra_attrs", extraFnAttrs);
+    CGF.mayThrow = true;
 
     CGF.callWithExceptionCtx = callOpWithExceptions;
     auto *invokeDest = CGF.getInvokeDest(tryOp);
