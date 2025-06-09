@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o -  | FileCheck %s 
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o -  | FileCheck %s
 
-// CHECK:  cir.func @f0(%arg0: !s32i
+// CHECK:  cir.func dso_local @f0(%arg0: !s32i
 // CHECK:    [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["len", init] {alignment = 4 : i64}
 // CHECK:    [[TMP1:%.*]] = cir.alloca !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !s32i, !cir.ptr<!s32i>
@@ -15,7 +15,7 @@ void f0(int len) {
     int a[len];
 }
 
-//     CHECK: cir.func @f1
+//     CHECK: cir.func dso_local @f1
 // CHECK-NOT:   cir.stack_save
 // CHECK-NOT:   cir.stack_restore
 //     CHECK:   cir.return
@@ -23,7 +23,7 @@ int f1(int n) {
   return sizeof(int[n]);
 }
 
-// CHECK: cir.func @f2
+// CHECK: cir.func dso_local @f2
 // CHECK:   cir.stack_save
 // DONT_CHECK:   cir.stack_restore
 // CHECK:   cir.return
@@ -32,7 +32,7 @@ int f2(int x) {
   return vla[x-1];
 }
 
-// CHECK: cir.func @f3
+// CHECK: cir.func dso_local @f3
 // CHECK:   cir.stack_save
 // CHECK:   cir.stack_restore
 // CHECK:   cir.return
@@ -44,7 +44,7 @@ void f3(int count) {
 }
 
 
-//     CHECK: cir.func @f4
+//     CHECK: cir.func dso_local @f4
 // CHECK-NOT:   cir.stack_save
 // CHECK-NOT:   cir.stack_restore
 //     CHECK:   cir.return
@@ -54,7 +54,7 @@ void f4(int count) {
   int (*b)[][count];
 }
 
-// FIXME(cir): the test is commented due to stack_restore operation 
+// FIXME(cir): the test is commented due to stack_restore operation
 // is not emitted for the if branch
 // void f5(unsigned x) {
 //   while (1) {
@@ -65,13 +65,13 @@ void f4(int count) {
 // }
 
 // Check no errors happen
-void function1(short width, int data[][width]) {} 
+void function1(short width, int data[][width]) {}
 void function2(short width, int data[][width][width]) {}
 void f6(void) {
      int bork[4][13][15];
 
      function1(1, bork[2]);
-     function2(1, bork);    
+     function2(1, bork);
 }
 
 static int GLOB;

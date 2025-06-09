@@ -2,7 +2,7 @@
 // RUN: FileCheck --input-file=%t.cir %s
 
 void test(int a) {
-// CHECK: cir.func @{{.+}}test
+// CHECK: cir.func dso_local @{{.+}}test
 
   // Should generate LValue parenthesis expression.
   (a) = 1;

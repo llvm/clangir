@@ -148,7 +148,7 @@ static RValue emitBuiltinBitOp(
   }
   const mlir::Value result = op.getResult();
   if (const mlir::Type resultType = CGF.convertType(E->getType());
-      op.getResult().getType() != resultType) {
+      op.getType() != resultType) {
     return RValue::get(CGF.getBuilder().createIntCast(result, resultType));
   }
   return RValue::get(result);

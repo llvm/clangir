@@ -11,11 +11,11 @@ void *ptr_cast_to_complete(Base *ptr) {
   return dynamic_cast<void *>(ptr);
 }
 
-// BEFORE: cir.func @_Z20ptr_cast_to_completeP4Base
+// BEFORE: cir.func dso_local @_Z20ptr_cast_to_completeP4Base
 // BEFORE:   %{{.+}} = cir.dyn_cast(ptr, %{{.+}} : !cir.ptr<!rec_Base> relative_layout) -> !cir.ptr<!void>
 // BEFORE: }
 
-//      AFTER: cir.func @_Z20ptr_cast_to_completeP4Base
+//      AFTER: cir.func dso_local @_Z20ptr_cast_to_completeP4Base
 //      AFTER:   %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base>>, !cir.ptr<!rec_Base>
 // AFTER-NEXT:   %[[#SRC_IS_NOT_NULL:]] = cir.cast(ptr_to_bool, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.bool
 // AFTER-NEXT:   %{{.+}} = cir.ternary(%[[#SRC_IS_NOT_NULL]], true {

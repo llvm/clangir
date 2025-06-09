@@ -2467,7 +2467,7 @@ def GlobalOp : CIR_Op<"global",
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$comdat,
                        UnitAttr:$constant,
-                       UnitAttr:$dsolocal,
+                       UnitAttr:$dso_local,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
                        OptionalAttr<StrAttr>:$section,
@@ -2480,7 +2480,7 @@ def GlobalOp : CIR_Op<"global",
        $linkage
        (`comdat` $comdat^)?
        ($tls_model^)?
-       (`dsolocal` $dsolocal^)?
+       (`dso_local` $dso_local^)?
        (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
@@ -2868,11 +2868,6 @@ def GetMemberOp : CIR_Op<"get_member"> {
 
     /// Return the record type pointed by the base pointer.
     cir::PointerType getAddrTy() { return getAddr().getType(); }
-
-    /// Return the result type.
-    cir::PointerType getResultTy() {
-      return getResult().getType();
-    }
   }];
 
   let hasVerifier = 1;
@@ -3665,7 +3660,7 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
                        UnitAttr:$no_proto,
-                       UnitAttr:$dsolocal,
+                       UnitAttr:$dso_local,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        DefaultValuedAttr<CallingConv,
@@ -4933,6 +4928,8 @@ def PtrMaskOp : CIR_Op<"ptr_mask", [AllTypesMatch<["ptr", "result"]>]> {
   let assemblyFormat = [{
     `(` $ptr `,` $mask `:` type($mask) `)` `:` qualified(type($result)) attr-dict
   }];
+
+  let llvmOp = "PtrMaskOp";
 }
 
 //===----------------------------------------------------------------------===//

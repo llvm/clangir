@@ -12,20 +12,20 @@ int foo(void) {
 
 
 // CIR:  IR Dump After CIRCanonicalize (cir-canonicalize)
-// CIR:  cir.func @foo() -> !s32i
+// CIR:  cir.func dso_local @foo() -> !s32i
 // CIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
-// CIR:  cir.func @foo() -> !s32i
+// CIR:  cir.func dso_local @foo() -> !s32i
 // CIR-NOT: IR Dump After FlattenCFG
 // CIR-NOT: IR Dump After SCFPrepare
 // CIR:  IR Dump After DropAST (cir-drop-ast)
-// CIR:  cir.func @foo() -> !s32i
+// CIR:  cir.func dso_local @foo() -> !s32i
 // CIRFLAT:  IR Dump After CIRCanonicalize (cir-canonicalize)
-// CIRFLAT:  cir.func @foo() -> !s32i
+// CIRFLAT:  cir.func dso_local @foo() -> !s32i
 // CIRFLAT:  IR Dump After LoweringPrepare (cir-lowering-prepare)
-// CIRFLAT:  cir.func @foo() -> !s32i
+// CIRFLAT:  cir.func dso_local @foo() -> !s32i
 // CIRFLAT:  IR Dump After FlattenCFG (cir-flatten-cfg)
 // CIRFLAT:  IR Dump After DropAST (cir-drop-ast)
-// CIRFLAT:  cir.func @foo() -> !s32i
+// CIRFLAT:  cir.func dso_local @foo() -> !s32i
 // CIRMLIR:  IR Dump After CIRCanonicalize (cir-canonicalize)
 // CIRMLIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // CIRMLIR:  IR Dump After SCFPrepare (cir-mlir-scf-prepare

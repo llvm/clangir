@@ -8,7 +8,7 @@ void basic() {
   __builtin_trap();
 }
 
-//      CHECK: cir.func @_Z5basicv()
+//      CHECK: cir.func dso_local @_Z5basicv()
 // CHECK-NEXT:   cir.call @_Z3foov() : () -> ()
 // CHECK-NEXT:   cir.trap
 // CHECK-NEXT: }
@@ -19,7 +19,7 @@ void code_after_unreachable() {
   foo();
 }
 
-//      CHECK: cir.func @_Z22code_after_unreachablev()
+//      CHECK: cir.func dso_local @_Z22code_after_unreachablev()
 // CHECK-NEXT:   cir.call @_Z3foov() : () -> ()
 // CHECK-NEXT:   cir.trap
 // CHECK-NEXT: ^bb1:

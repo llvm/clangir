@@ -8,7 +8,7 @@ struct HasScalarArrayMember {
   HasScalarArrayMember(const HasScalarArrayMember &);
 };
 
-// CIR-LABEL: cir.func @_ZN20HasScalarArrayMemberC2ERKS_(
+// CIR-LABEL: cir.func dso_local @_ZN20HasScalarArrayMemberC2ERKS_(
 // CIR-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
 // CIR-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
 // CIR-NEXT:    cir.store %arg0, %[[#THIS]]
@@ -80,7 +80,7 @@ struct ManyMembers {
 // CIR-NEXT:    cir.return
 // CIR-NEXT:  }
 
-// CIR-LABEL: cir.func @_Z6doCopyR11ManyMembers(
+// CIR-LABEL: cir.func dso_local @_Z6doCopyR11ManyMembers(
 // CIR:         cir.call @_ZN11ManyMembersC1ERKS_(
 ManyMembers doCopy(ManyMembers &src) {
   return src;

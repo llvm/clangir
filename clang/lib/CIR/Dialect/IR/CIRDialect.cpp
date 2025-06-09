@@ -498,8 +498,8 @@ LogicalResult cir::AtomicCmpXchg::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::CastOp::verify() {
-  auto resType = getResult().getType();
-  auto srcType = getSrc().getType();
+  mlir::Type resType = getType();
+  mlir::Type srcType = getSrc().getType();
 
   if (mlir::isa<cir::VectorType>(srcType) &&
       mlir::isa<cir::VectorType>(resType)) {
@@ -581,7 +581,7 @@ LogicalResult cir::CastOp::verify() {
     // This is the only cast kind where we don't want vector types to decay
     // into the element type.
     if ((!mlir::isa<cir::VectorType>(getSrc().getType()) ||
-         !mlir::isa<cir::VectorType>(getResult().getType())))
+         !mlir::isa<cir::VectorType>(getType())))
       return emitOpError()
              << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
@@ -797,7 +797,7 @@ Value tryFoldCastChain(cir::CastOp op) {
 }
 
 OpFoldResult cir::CastOp::fold(FoldAdaptor adaptor) {
-  if (getSrc().getType() == getResult().getType()) {
+  if (getSrc().getType() == getType()) {
     switch (getKind()) {
     case cir::CastKind::integral: {
       // TODO: for sign differences, it's possible in certain conditions to
@@ -1023,7 +1023,7 @@ LogicalResult cir::VecCreateOp::verify() {
   // Verify that the number of arguments matches the number of elements in the
   // vector, and that the type of all the arguments matches the type of the
   // elements in the vector.
-  auto VecTy = getResult().getType();
+  auto VecTy = getType();
   if (getElements().size() != VecTy.getSize()) {
     return emitOpError() << "operand count of " << getElements().size()
                          << " doesn't match vector type " << VecTy
@@ -1065,16 +1065,15 @@ LogicalResult cir::VecTernaryOp::verify() {
 LogicalResult cir::VecShuffleOp::verify() {
   // The number of elements in the indices array must match the number of
   // elements in the result type.
-  if (getIndices().size() != getResult().getType().getSize()) {
+  if (getIndices().size() != getType().getSize()) {
     return emitOpError() << ": the number of elements in " << getIndices()
-                         << " and " << getResult().getType() << " don't match";
+                         << " and " << getType() << " don't match";
   }
   // The element types of the two input vectors and of the result type must
   // match.
-  if (getVec1().getType().getElementType() !=
-      getResult().getType().getElementType()) {
+  if (getVec1().getType().getElementType() != getType().getElementType()) {
     return emitOpError() << ": element types of " << getVec1().getType()
-                         << " and " << getResult().getType() << " don't match";
+                         << " and " << getType() << " don't match";
   }
   // The indices must all be integer constants
   if (not std::all_of(
@@ -1556,13 +1555,13 @@ void cir::TernaryOp::build(
   result.addOperands(cond);
   OpBuilder::InsertionGuard guard(builder);
   Region *trueRegion = result.addRegion();
-  auto *block = builder.createBlock(trueRegion);
+  builder.createBlock(trueRegion);
   trueBuilder(builder, result.location);
   Region *falseRegion = result.addRegion();
   builder.createBlock(falseRegion);
   falseBuilder(builder, result.location);
 
-  auto yield = dyn_cast<YieldOp>(block->getTerminator());
+  auto yield = dyn_cast<YieldOp>(trueRegion->back().getTerminator());
   assert((yield && yield.getNumOperands() <= 1) &&
          "expected zero or one result type");
   if (yield.getNumOperands() == 1)
@@ -2322,7 +2321,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
-  auto dsolocalNameAttr = getDsolocalAttrName(state.name);
+  auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
@@ -2355,9 +2354,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   parseVisibilityAttr(parser, cirVisibilityAttr);
   state.addAttribute(visibilityNameAttr, cirVisibilityAttr);
 
-  // TODO: It is unclear whether this is printed in the pretty-printer
-  if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
-    state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword(dsoLocalNameAttr).succeeded())
+    state.addAttribute(dsoLocalNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
@@ -2569,6 +2567,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     printVisibilityAttr(p, cirVisibilityAttr);
   }
 
+  if (getDsoLocal())
+    p << " dso_local";
+
   // Print function name, signature, and control.
   p << ' ';
   p.printSymbolName(getSymName());
@@ -2586,7 +2587,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       p, *this,
       // These are all omitted since they are custom printed already.
       {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsolocalAttrName(), getExtraAttrsAttrName(),
+       getDsoLocalAttrName(), getExtraAttrsAttrName(),
        getFunctionTypeAttrName(), getGlobalCtorAttrName(),
        getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
        getCallingConvAttrName(), getNoProtoAttrName(),
@@ -3607,7 +3608,7 @@ LogicalResult cir::GetMemberOp::verify() {
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
-  if (recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
+  if (recordTy.getMembers()[getIndex()] != getType().getPointee())
     return emitError() << "member type mismatch";
 
   return mlir::success();
@@ -3949,7 +3950,7 @@ LogicalResult cir::ShiftOp::verify() {
     if (op0VecTy.getSize() != op1VecTy.getSize())
       return emitOpError() << "input vector types must have the same size";
 
-    auto opResultTy = mlir::dyn_cast<cir::VectorType>(getResult().getType());
+    auto opResultTy = mlir::dyn_cast<cir::VectorType>(getType());
     if (!opResultTy)
       return emitOpError() << "the type of the result must be a vector "
                            << "if it is vector shift";

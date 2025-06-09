@@ -35,7 +35,7 @@ int foo() {
       .i;
 }
 
-// CIR:  cir.func no_proto @foo() -> !s32i
+// CIR:  cir.func no_proto dso_local @foo() -> !s32i
 // CIR:    [[RET_MEM:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR:    [[COMPLITERAL_MEM:%.*]] = cir.alloca !rec_anon2E0, !cir.ptr<!rec_anon2E0>, [".compoundliteral"] {alignment = 4 : i64}
 // CIR:    [[FIELD:%.*]] = cir.get_member [[COMPLITERAL_MEM]][0] {name = "i"} : !cir.ptr<!rec_anon2E0> -> !cir.ptr<!s32i>
@@ -51,7 +51,7 @@ struct G g(int x, int y, int z) {
   return (struct G) { x, y, z };
 }
 
-// CIR:  cir.func @g
+// CIR:  cir.func dso_local @g
 // CIR:    %[[RETVAL:.*]] = cir.alloca !rec_G, !cir.ptr<!rec_G>, ["__retval"] {alignment = 2 : i64}
 // CIR:    %[[X:.*]] = cir.get_member %[[RETVAL]][0] {name = "x"}
 // CIR:    cir.store{{.*}} {{.*}}, %[[X]] : !s16i

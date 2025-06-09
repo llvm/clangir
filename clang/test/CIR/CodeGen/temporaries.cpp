@@ -17,7 +17,7 @@ void f() {
 //      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
 // CIR-NEXT: cir.func private @_ZN1EntEv(!cir.ptr<!rec_E>) -> !rec_E
 // CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
-// CIR-NEXT: cir.func @_Z1fv() extra(#fn_attr1) {
+// CIR-NEXT: cir.func dso_local @_Z1fv() extra(#fn_attr1) {
 // CIR-NEXT:   cir.scope {
 // CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
 // CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0"] {alignment = 1 : i64}
@@ -49,4 +49,3 @@ const int &r = (const int&)n;
 
 //      LLVM: @_ZGR1r_ = internal constant i32 1234, align 4
 // LLVM-NEXT: @r = constant ptr @_ZGR1r_, align 8
-

@@ -18,7 +18,7 @@ void t() {
 
 // CHECK-NOT: cir.fun @_ZN11DummyStringC1EPKc
 
-//      CHECK:   cir.func @_Z1tv
+//      CHECK:   cir.func dso_local @_Z1tv
 // CHECK-NEXT:     %0 = cir.alloca !rec_DummyString, !cir.ptr<!rec_DummyString>, ["s4", init] {alignment = 1 : i64}
 // CHECK-NEXT:     %1 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 5>>
 // CHECK-NEXT:     %2 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s8i x 5>>), !cir.ptr<!s8i>
@@ -31,10 +31,10 @@ struct B {
 B::B() {
 }
 
-// CHECK: cir.func @_ZN1BC2Ev(%arg0: !cir.ptr<!rec_B>
+// CHECK: cir.func dso_local @_ZN1BC2Ev(%arg0: !cir.ptr<!rec_B>
 // CHECK:   %0 = cir.alloca !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>
 // CHECK:   %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.return
 // CHECK: }
-// CHECK: cir.func private @_ZN1BC1Ev(!cir.ptr<!rec_B>) alias(@_ZN1BC2Ev)
+// CHECK: cir.func private dso_local @_ZN1BC1Ev(!cir.ptr<!rec_B>) alias(@_ZN1BC2Ev)

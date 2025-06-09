@@ -28,14 +28,14 @@ void baz(void) {
 // CHECK-DAG: !rec_SLocal = !cir.record<struct "SLocal" {!s32i}>
 // CHECK-DAG: !rec_SLocal2E0 = !cir.record<struct "SLocal.0" {!cir.float}>
 //  CHECK-DAG: module {{.*}} {
-     // CHECK:   cir.func @baz()
+     // CHECK:   cir.func dso_local @baz()
 // CHECK-NEXT:     %0 = cir.alloca !rec_Bar, !cir.ptr<!rec_Bar>, ["b"] {alignment = 4 : i64}
 // CHECK-NEXT:     %1 = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["f"] {alignment = 4 : i64}
 // CHECK-NEXT:     cir.return
 // CHECK-NEXT:   }
 
 void shouldConstInitStructs(void) {
-// CHECK: cir.func @shouldConstInitStructs
+// CHECK: cir.func dso_local @shouldConstInitStructs
   struct Foo f = {1, 2, {3, 4}};
   // CHECK: %[[#V0:]] = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["f"] {alignment = 4 : i64}
   // CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_Foo>), !cir.ptr<!rec_anon_struct1>
@@ -76,7 +76,7 @@ struct S3 {
 // CHECK-DAG: cir.global external @s3 = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_S3, #cir.const_record<{#cir.int<2> : !s32i}> : !rec_S3, #cir.const_record<{#cir.int<3> : !s32i}> : !rec_S3]> : !cir.array<!rec_S3 x 3>
 
 void shouldCopyStructAsCallArg(struct S1 s) {
-// CHECK-DAG: cir.func @shouldCopyStructAsCallArg
+// CHECK-DAG: cir.func dso_local @shouldCopyStructAsCallArg
   shouldCopyStructAsCallArg(s);
   // CHECK-DAG: %[[#LV:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!rec_S1>, !rec_S1
   // CHECK-DAG: cir.call @shouldCopyStructAsCallArg(%[[#LV]]) : (!rec_S1) -> ()
@@ -86,13 +86,13 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
   struct Bar s[1] = {{3, 4}};
   return s[0];
 }
-// CHECK-DAG: cir.func @shouldGenerateAndAccessStructArrays
+// CHECK-DAG: cir.func dso_local @shouldGenerateAndAccessStructArrays
 // CHECK-DAG: %[[#STRIDE:]] = cir.const #cir.int<0> : !s32i
 // CHECK-DAG: %[[#DARR:]] = cir.cast(array_to_ptrdecay, %{{.+}} : !cir.ptr<!cir.array<!rec_Bar x 1>>), !cir.ptr<!rec_Bar>
 // CHECK-DAG: %[[#ELT:]] = cir.ptr_stride(%[[#DARR]] : !cir.ptr<!rec_Bar>, %[[#STRIDE]] : !s32i), !cir.ptr<!rec_Bar>
 // CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!rec_Bar>
 
-// CHECK-DAG: cir.func @local_decl
+// CHECK-DAG: cir.func dso_local @local_decl
 // CHECK-DAG: {{%.}} = cir.alloca !rec_Local, !cir.ptr<!rec_Local>, ["a"]
 void local_decl(void) {
   struct Local {
@@ -101,7 +101,7 @@ void local_decl(void) {
   struct Local a;
 }
 
-// CHECK-DAG: cir.func @useRecursiveType
+// CHECK-DAG: cir.func dso_local @useRecursiveType
 // CHECK-DAG: cir.get_member {{%.}}[0] {name = "next"} : !cir.ptr<!rec_Node> -> !cir.ptr<!cir.ptr<!rec_Node>>
 void useRecursiveType(NodeStru* a) {
   a->next = 0;
@@ -116,5 +116,5 @@ void local_structs(int a, float b) {
   {
     struct SLocal { float y; };
     struct SLocal loc = {b};
-  }   
+  }
 }

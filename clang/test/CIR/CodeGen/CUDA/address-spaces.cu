@@ -11,8 +11,8 @@ __global__ void fn() {
   j = i;
 }
 
-// CIR: cir.global "private" internal dsolocal addrspace(offload_local) @_ZZ2fnvE1j : !s32i
-// CIR: cir.func @_Z2fnv
+// CIR: cir.global "private" internal dso_local addrspace(offload_local) @_ZZ2fnvE1j : !s32i
+// CIR: cir.func dso_local @_Z2fnv
 // CIR: [[Local:%[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init]
 // CIR: [[Shared:%[0-9]+]] = cir.get_global @_ZZ2fnvE1j : !cir.ptr<!s32i, addrspace(offload_local)>
 // CIR: [[Tmp:%[0-9]+]] = cir.load {{.*}} [[Local]] : !cir.ptr<!s32i>, !s32i
