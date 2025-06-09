@@ -239,7 +239,6 @@ struct MissingFeatures {
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
-  static bool tryMarkNoThrow() { return false; }
   static bool indirectBranch() { return false; }
   static bool escapedLocals() { return false; }
   static bool deferredReplacements() { return false; }
@@ -251,6 +250,7 @@ struct MissingFeatures {
   static bool createLaunderInvariantGroup() { return false; }
   static bool hipModuleCtor() { return false; }
   static bool checkMacOSXTriple() { return false; }
+  static bool getSemanticInterposition() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }
