@@ -335,3 +335,7 @@ void extract_imag() {
 // LLVM:   %{{.+}} = load double, ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), align 8
 // LLVM:   %{{.+}} = load i32, ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), align 4
 // LLVM: }
+
+void complex_with_empty_init() { int _Complex c = {}; }
+
+// CHECK: {{.*}} = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
