@@ -864,10 +864,16 @@ mlir::Value ComplexExprEmitter::VisitInitListExpr(InitListExpr *E) {
   if (E->getNumInits() == 1)
     return Visit(E->getInit(0));
 
-  // Empty init list initializes to null
   assert(E->getNumInits() == 0 && "Unexpected number of inits");
-  QualType Ty = E->getType()->castAs<ComplexType>()->getElementType();
-  return Builder.getZero(CGF.getLoc(E->getExprLoc()), CGF.convertType(Ty));
+  mlir::Location loc = CGF.getLoc(E->getExprLoc());
+  QualType complexElemTy =
+      E->getType()->castAs<clang::ComplexType>()->getElementType();
+  mlir::Type complexElemLLVMTy = CGF.convertType(complexElemTy);
+  mlir::TypedAttr defaultValue = Builder.getZeroInitAttr(complexElemLLVMTy);
+  auto complexTy = cir::ComplexType::get(complexElemLLVMTy);
+  auto complexAttr =
+      cir::ComplexAttr::get(complexTy, defaultValue, defaultValue);
+  return Builder.create<cir::ConstantOp>(loc, complexAttr);
 }
 
 mlir::Value CIRGenFunction::emitPromotedComplexExpr(const Expr *E,
