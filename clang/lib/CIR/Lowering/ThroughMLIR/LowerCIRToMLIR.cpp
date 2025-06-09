@@ -108,14 +108,20 @@ public:
       return mlir::failure();
 
     if (!op.isIndirect()) {
+      // Currently variadic functions are not supported by the builtin func
+      // dialect. For now only basic call to printf are supported by using the
+      // llvmir dialect.
+      // TODO: remove this and add support for variadic function calls once
+      // TODO: supported by the func dialect
       if (op.getCallee()->equals_insensitive("printf")) {
         SmallVector<mlir::Type> operandTypes =
             llvm::to_vector(adaptor.getOperands().getTypes());
 
-        // drop the initial memref operand type
+        // Drop the initial memref operand type (we replace the memref format
+        // string with equivalent llvm.mlir ops)
         operandTypes.erase(operandTypes.begin());
 
-        // check that the printf attributes can be used in llvm ir dialect (i.e
+        // Check that the printf attributes can be used in llvmir dialect (i.e
         // they have integer/float type)
         if (!llvm::all_of(operandTypes, [](mlir::Type ty) {
               return mlir::LLVM::isCompatibleType(ty);
@@ -126,23 +132,28 @@ public:
                     "pointers) not supported yet";
         }
 
+        // Currently only versions of printf are supported where the format
+        // string is defined inside the printf ==> the lowering of the cir ops
+        // will match:
+        // %global = memref.get_global %frm_str
+        // %* = memref.reinterpret_cast (%global, 0)
         if (auto reinterpret_castOP =
                 mlir::dyn_cast_or_null<mlir::memref::ReinterpretCastOp>(
                     adaptor.getOperands()[0].getDefiningOp())) {
           if (auto getGlobalOp =
                   mlir::dyn_cast_or_null<mlir::memref::GetGlobalOp>(
                       reinterpret_castOP->getOperand(0).getDefiningOp())) {
-            // TODO: replace this with llvm dialect getGlobalOp + replace global
-            // with llvm global op
             mlir::ModuleOp parentModule = op->getParentOfType<mlir::ModuleOp>();
 
             auto context = rewriter.getContext();
 
+            // Find the memref.global op defining the frm_str
             auto globalOp = parentModule.lookupSymbol<mlir::memref::GlobalOp>(
                 getGlobalOp.getNameAttr());
 
             rewriter.setInsertionPoint(globalOp);
 
+            // Insert a equivalent llvm.mlir.global
             auto initialvalueAttr =
                 mlir::dyn_cast_or_null<mlir::DenseIntElementsAttr>(
                     globalOp.getInitialValueAttr());
@@ -152,18 +163,18 @@ public:
                 initialvalueAttr.getNumElements());
 
             auto llvmglobalOp = rewriter.create<mlir::LLVM::GlobalOp>(
-                globalOp->getLoc(), type,
-                /*isConstant=*/true, mlir::LLVM::Linkage::Internal,
-                "printf_format_" + globalOp.getSymName().str(), initialvalueAttr,
-                /*alignment=*/0);
+                globalOp->getLoc(), type, true, mlir::LLVM::Linkage::Internal,
+                "printf_format_" + globalOp.getSymName().str(),
+                initialvalueAttr, 0);
 
             rewriter.setInsertionPoint(getGlobalOp);
 
+            // Insert llvmir dialect ops to retrive the !llvm.ptr of the global
             auto globalPtrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
                 getGlobalOp->getLoc(), llvmglobalOp);
 
             mlir::Value cst0 = rewriter.create<mlir::LLVM::ConstantOp>(
-                getGlobalOp->getLoc(), rewriter.getI16Type(),
+                getGlobalOp->getLoc(), rewriter.getI8Type(),
                 rewriter.getIndexAttr(0));
             auto gepPtrOp = rewriter.create<mlir::LLVM::GEPOp>(
                 getGlobalOp->getLoc(),
@@ -173,13 +184,12 @@ public:
 
             mlir::ValueRange operands = adaptor.getOperands();
 
+            // Replace the old memref operand with the !llvm.ptr for the frm_str
             mlir::SmallVector<mlir::Value> newOperands;
             newOperands.push_back(gepPtrOp);
             newOperands.append(operands.begin() + 1, operands.end());
 
-            // Create a llvm ir dialect function declaration for printf, the
-            // signature is:
-            //   * `i32 (i8*, ...)`
+            // Create the llvmir dialect function type for printf
             auto llvmI32Ty = mlir::IntegerType::get(context, 32);
             auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
             auto llvmFnType =
@@ -188,11 +198,11 @@ public:
 
             rewriter.setInsertionPoint(op);
 
+            // Insert an llvm.call op with the updated operands to printf
             rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
                 op, llvmFnType, op.getCalleeAttr(), newOperands);
 
-            // cleanup memref ops
-            //rewriter.eraseOp(reinterpret_castOP->getOperand(0).getDefiningOp());
+            // Cleanup printf frm_str memref ops
             rewriter.eraseOp(reinterpret_castOP);
             rewriter.eraseOp(getGlobalOp);
             rewriter.eraseOp(globalOp);
@@ -204,12 +214,12 @@ public:
         return op.emitError()
                << "lowering of printf function with Format-String"
                   "defined outside of printf is not supported yet";
-
-      } else {
-        rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
-            op, op.getCalleeAttr(), types, adaptor.getOperands());
-        return mlir::LogicalResult::success();
       }
+
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+          op, op.getCalleeAttr(), types, adaptor.getOperands());
+      return mlir::LogicalResult::success();
+
     } else {
       // TODO: support lowering of indirect calls via func.call_indirect op
       return op.emitError() << "lowering of indirect calls not supported yet";
@@ -666,14 +676,12 @@ public:
     auto fnType = op.getFunctionType();
 
     if (fnType.isVarArg()) {
-      // TODO: once the builtin func dialect supports variadic functions rewrite
-      // this
-      //  for now only insert special handling of printf via the llvm ir dialect
+      // TODO: once the func dialect supports variadic functions rewrite this
+      // For now only insert special handling of printf via the llvmir dialect
       if (op.getSymName().equals_insensitive("printf")) {
         auto context = rewriter.getContext();
-        // Create a llvm ir dialect function declaration for printf, the
-        // signature is:
-        //   * `i32 (i8*, ...)`
+        // Create a llvmir dialect function declaration for printf, the
+        // signature is: i32 (!llvm.ptr, ...)
         auto llvmI32Ty = mlir::IntegerType::get(context, 32);
         auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
         auto llvmFnType =
