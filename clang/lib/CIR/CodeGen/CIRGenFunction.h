@@ -512,6 +512,10 @@ public:
   /// the constructor, but could be overwrriten to true if this is a coroutine.
   bool ShouldEmitLifetimeMarkers;
 
+  /// True if there are any operations in the body of the function that are
+  /// likely to throw an exception.
+  bool mayThrow = false;
+
   using DeclMapTy = llvm::DenseMap<const clang::Decl *, Address>;
   /// This keeps track of the CIR allocas or globals for local C
   /// delcs.

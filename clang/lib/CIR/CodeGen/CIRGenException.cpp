@@ -280,6 +280,7 @@ void CIRGenFunction::emitEHResumeBlock(bool isCleanup,
 
   getBuilder().create<cir::ResumeOp>(loc, mlir::Value{}, mlir::Value{});
   getBuilder().restoreInsertionPoint(ip);
+  mayThrow = true;
 }
 
 mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup,

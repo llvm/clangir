@@ -645,21 +645,8 @@ static bool isInterposable(cir::FuncOp fn) {
 static void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
   // LLVM treats 'nounwind' on a function as part of the type, so we
   // can't do this on functions that can be overwritten.
-  if (isInterposable(fn))
+  if (isInterposable(fn) || cgf.mayThrow)
     return;
-
-  for (auto &blk : fn.getBlocks()) {
-    bool mayThrow = false;
-    blk.walk([&](mlir::Operation *op) {
-      if (isa<ThrowOp>(op) || isa<ResumeOp>(op))
-        mayThrow = true;
-      if (auto callOp = dyn_cast<CallOp>(op))
-        if (callOp.getException())
-          mayThrow = true;
-    });
-    if (mayThrow)
-      return;
-  }
 
   mlir::NamedAttrList extraAttrs{fn.getExtraAttrs().getElements().getValue()};
   auto noThrowAttr = cir::NoThrowAttr::get(&cgf.getMLIRContext());
