@@ -210,9 +210,6 @@ public:
           action == CIRGenAction::OutputType::EmitMLIR &&
           feOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT;
 
-      bool emitCore = action == CIRGenAction::OutputType::EmitMLIR &&
-                      feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE;
-
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
       if (runCIRToCIRPasses(
@@ -220,8 +217,9 @@ public:
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
-              codeGenOptions.OptimizationLevel > 0, flattenCIR, emitCore,
-              enableCCLowering, feOptions.ClangIREnableMem2Reg)
+              codeGenOptions.OptimizationLevel > 0, flattenCIR,
+              !feOptions.ClangIRDirectLowering, enableCCLowering,
+              feOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)

@@ -28,6 +28,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Region.h"
@@ -36,6 +37,7 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -51,6 +53,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace cir;
@@ -204,18 +207,41 @@ static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
   return true;
 }
 
-// For memref.reinterpret_cast has multiple users, erasing the operation
-// after the last load or store been generated.
+// If the memref.reinterpret_cast has multiple users (i.e the original
+// cir.ptr_stride op has multiple users), only erase the operation after the
+// last load or store has been generated.
 static void eraseIfSafe(mlir::Value oldAddr, mlir::Value newAddr,
                         SmallVector<mlir::Operation *> &eraseList,
                         mlir::ConversionPatternRewriter &rewriter) {
+
   unsigned oldUsedNum =
       std::distance(oldAddr.getUses().begin(), oldAddr.getUses().end());
   unsigned newUsedNum = 0;
+  // Count the uses of the newAddr (the result of the original base alloca) in
+  // load/store ops using an forwarded offset from the current
+  // memref.reinterpret_cast op
   for (auto *user : newAddr.getUsers()) {
-    if (isa<mlir::memref::LoadOp>(*user) || isa<mlir::memref::StoreOp>(*user))
-      ++newUsedNum;
+    if (auto loadOpUser = mlir::dyn_cast_or_null<mlir::memref::LoadOp>(*user)) {
+      if (!loadOpUser.getIndices().empty()) {
+        auto strideVal = loadOpUser.getIndices()[0];
+        if (strideVal ==
+            mlir::dyn_cast<mlir::memref::ReinterpretCastOp>(eraseList.back())
+                .getOffsets()[0])
+          ++newUsedNum;
+      }
+    } else if (auto storeOpUser =
+                   mlir::dyn_cast_or_null<mlir::memref::StoreOp>(*user)) {
+      if (!storeOpUser.getIndices().empty()) {
+        auto strideVal = storeOpUser.getIndices()[0];
+        if (strideVal ==
+            mlir::dyn_cast<mlir::memref::ReinterpretCastOp>(eraseList.back())
+                .getOffsets()[0])
+          ++newUsedNum;
+      }
+    }
   }
+  // If all load/store ops using forwarded offsets from the current
+  // memref.reinterpret_cast ops erase the memref.reinterpret_cast ops
   if (oldUsedNum == newUsedNum) {
     for (auto op : eraseList)
       rewriter.eraseOp(op);
@@ -235,13 +261,13 @@ public:
     mlir::memref::LoadOp newLoad;
     if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
                            rewriter)) {
-      newLoad =
-          rewriter.create<mlir::memref::LoadOp>(op.getLoc(), base, indices);
-      // rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, base, indices);
+      newLoad = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), base, indices, op.getIsNontemporal());
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
-      newLoad =
-          rewriter.create<mlir::memref::LoadOp>(op.getLoc(), adaptor.getAddr());
+      newLoad = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), adaptor.getAddr(), mlir::ValueRange{},
+          op.getIsNontemporal());
 
     // Convert adapted result to its original type if needed.
     mlir::Value result = emitFromMemory(rewriter, op, newLoad.getResult());
@@ -265,12 +291,13 @@ public:
     mlir::Value value = emitToMemory(rewriter, op, adaptor.getValue());
     if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
                            rewriter)) {
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value, base,
-                                                         indices);
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
+          op, value, base, indices, op.getIsNontemporal());
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value,
-                                                         adaptor.getAddr());
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
+          op, value, adaptor.getAddr(), mlir::ValueRange{},
+          op.getIsNontemporal());
     return mlir::LogicalResult::success();
   }
 };
@@ -1451,7 +1478,6 @@ mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
   if (!result)
     report_fatal_error(
         "The pass manager failed to lower CIR to MLIR standard dialects!");
-
   // Now that we ran all the lowering passes, verify the final output.
   if (theModule.verify().failed())
     report_fatal_error(

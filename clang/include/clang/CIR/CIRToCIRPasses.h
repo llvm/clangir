@@ -34,7 +34,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
-    bool enableCIRSimplify, bool flattenCIR, bool emitMLIR,
+    bool enableCIRSimplify, bool flattenCIR, bool throughMLIR,
     bool enableCallConvLowering, bool enableMem2reg);
 
 } // namespace cir

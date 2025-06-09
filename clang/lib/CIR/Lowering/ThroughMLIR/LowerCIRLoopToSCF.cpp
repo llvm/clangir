@@ -14,15 +14,18 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/IR/Module.h"
 
 using namespace cir;
 using namespace llvm;
@@ -252,6 +255,14 @@ void SCFLoop::analysis() {
   if (!canonical)
     return;
 
+  // If the IV is defined before the forOp (i.e. outside the surrounding
+  // cir.scope) this is not a canonical loop as the IV would not have the
+  // correct value after the forOp
+  if (ivAddr.getDefiningOp()->getBlock() != forOp->getBlock()) {
+    canonical = false;
+    return;
+  }
+
   cmpOp = findCmpOp();
   if (!cmpOp) {
     canonical = false;
@@ -303,16 +314,24 @@ void SCFLoop::transferToSCFForOp() {
           "Not support lowering loop with break, continue or if yet");
     // Replace the IV usage to scf loop induction variable.
     if (isIVLoad(op, ivAddr)) {
-      // Replace CIR IV load with arith.addi scf.IV, 0.
-      // The replacement makes the SCF IV can be automatically propogated
-      // by OpAdaptor for individual IV user lowering.
-      // The redundant arith.addi can be removed by later MLIR passes.
-      rewriter->setInsertionPoint(op);
-      auto newIV = plusConstant(scfForOp.getInductionVar(), loc, 0);
-      rewriter->replaceOp(op, newIV.getDefiningOp());
+      // Replace CIR IV load with scf.IV
+      // (i.e. remove the load op and replace the uses of the result of the CIR
+      // IV load with the scf.IV)
+      rewriter->replaceOp(op, scfForOp.getInductionVar());
     }
     return mlir::WalkResult::advance();
   });
+
+  // All uses have been replaced by the scf.IV and we can remove the alloca +
+  // initial store operations
+
+  // The operations before the loop have been transferred to MLIR.
+  // So we need to go through getRemappedValue to find the operations.
+  auto remapAddr = rewriter->getRemappedValue(ivAddr);
+
+  // Since this is a canonical loop we can remove the alloca + initial store op
+  rewriter->eraseOp(remapAddr.getDefiningOp());
+  rewriter->eraseOp(*remapAddr.user_begin());
 }
 
 void SCFLoop::transformToSCFWhileOp() {
