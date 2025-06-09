@@ -2303,6 +2303,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
     auto loc = *CGF.currSrcLoc;
     insertThrowAndSplit(builder, loc, mlir::Value{}, mlir::FlatSymbolRefAttr{},
                         mlir::FlatSymbolRefAttr{});
+    CGF.mayThrow = true;
   } else {
     llvm_unreachable("NYI");
   }
@@ -2369,6 +2370,8 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
   // Now throw the exception.
   mlir::Location loc = CGF.getLoc(E->getSourceRange());
   insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
+
+  CGF.mayThrow = true;
 }
 
 mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
