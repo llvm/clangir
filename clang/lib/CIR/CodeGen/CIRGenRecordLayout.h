@@ -107,7 +107,7 @@ struct CIRGenBitFieldInfo {
         StorageSize(StorageSize), StorageOffset(StorageOffset) {}
 
   void print(llvm::raw_ostream &OS) const;
-  void dump() const;
+  LLVM_DUMP_METHOD void dump() const;
 
   /// Given a bit-field decl, build an appropriate helper object for
   /// accessing that field (which is expected to have the given offset and
@@ -201,6 +201,8 @@ public:
     assert(it != BitFields.end() && "Unable to find bitfield info");
     return it->second;
   }
+  void print(raw_ostream &os) const;
+  LLVM_DUMP_METHOD void dump() const;
 };
 
 } // namespace clang::CIRGen
