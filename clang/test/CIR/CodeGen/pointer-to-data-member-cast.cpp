@@ -19,7 +19,7 @@ struct Derived : Base1, Base2 {
 // LLVM-LABEL: @_Z15base_to_derivedM5Base2i
 auto base_to_derived(int Base2::*ptr) -> int Derived::* {
   return ptr;
-  // CIR: %{{.+}} = cir.derived_data_member(%{{.+}} : !cir.data_member<!s32i in !rec_Base2>) [4] -> !cir.data_member<!s32i in !rec_Derived>
+  // CIR: %{{.+}} = cir.derived_data_member %{{.+}} : !cir.data_member<!s32i in !rec_Base2> [4] -> !cir.data_member<!s32i in !rec_Derived>
 
   //      LLVM: %[[#src:]] = load i64, ptr %{{.+}}
   // LLVM-NEXT: %[[#is_null:]] = icmp eq i64 %[[#src]], -1
@@ -31,7 +31,7 @@ auto base_to_derived(int Base2::*ptr) -> int Derived::* {
 // LLVM-LABEL: @_Z15derived_to_baseM7Derivedi
 auto derived_to_base(int Derived::*ptr) -> int Base2::* {
   return static_cast<int Base2::*>(ptr);
-  // CIR: %{{.+}} = cir.base_data_member(%{{.+}} : !cir.data_member<!s32i in !rec_Derived>) [4] -> !cir.data_member<!s32i in !rec_Base2>
+  // CIR: %{{.+}} = cir.base_data_member %{{.+}} : !cir.data_member<!s32i in !rec_Derived> [4] -> !cir.data_member<!s32i in !rec_Base2>
 
   //      LLVM: %[[#src:]] = load i64, ptr %{{.+}}
   // LLVM-NEXT: %[[#is_null:]] = icmp eq i64 %[[#src]], -1
@@ -43,7 +43,7 @@ auto derived_to_base(int Derived::*ptr) -> int Base2::* {
 // LLVM-LABEL: @_Z27base_to_derived_zero_offsetM5Base1i
 auto base_to_derived_zero_offset(int Base1::*ptr) -> int Derived::* {
   return ptr;
-  // CIR: %{{.+}} = cir.derived_data_member(%{{.+}} : !cir.data_member<!s32i in !rec_Base1>) [0] -> !cir.data_member<!s32i in !rec_Derived>
+  // CIR: %{{.+}} = cir.derived_data_member %{{.+}} : !cir.data_member<!s32i in !rec_Base1> [0] -> !cir.data_member<!s32i in !rec_Derived>
 
   // No LLVM instructions emitted for performing a zero-offset cast.
   // LLVM-NEXT: %[[#src_slot:]] = alloca i64, i64 1
@@ -59,7 +59,7 @@ auto base_to_derived_zero_offset(int Base1::*ptr) -> int Derived::* {
 // LLVM-LABEL: @_Z27derived_to_base_zero_offsetM7Derivedi
 auto derived_to_base_zero_offset(int Derived::*ptr) -> int Base1::* {
   return static_cast<int Base1::*>(ptr);
-  // CIR: %{{.+}} = cir.base_data_member(%{{.+}} : !cir.data_member<!s32i in !rec_Derived>) [0] -> !cir.data_member<!s32i in !rec_Base1>
+  // CIR: %{{.+}} = cir.base_data_member %{{.+}} : !cir.data_member<!s32i in !rec_Derived> [0] -> !cir.data_member<!s32i in !rec_Base1>
 
   // No LLVM instructions emitted for performing a zero-offset cast.
   // LLVM-NEXT: %[[#src_slot:]] = alloca i64, i64 1
