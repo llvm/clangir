@@ -84,7 +84,7 @@ void C3::Layer::Initialize() {
 // CHECK: cir.func dso_local @_ZN2C35Layer10InitializeEv
 
 // CHECK:  cir.scope {
-// CHECK:    %2 = cir.base_class_addr(%1 : !cir.ptr<!rec_C33A3ALayer> nonnull) [0] -> !cir.ptr<!rec_C23A3ALayer>
+// CHECK:    %2 = cir.base_class_addr %1 : !cir.ptr<!rec_C33A3ALayer> nonnull [0] -> !cir.ptr<!rec_C23A3ALayer>
 // CHECK:    %3 = cir.get_member %2[1] {name = "m_C1"} : !cir.ptr<!rec_C23A3ALayer> -> !cir.ptr<!cir.ptr<!rec_C2>>
 // CHECK:    %4 = cir.load{{.*}} %3 : !cir.ptr<!cir.ptr<!rec_C2>>, !cir.ptr<!rec_C2>
 // CHECK:    %5 = cir.const #cir.ptr<null> : !cir.ptr<!rec_C2>
@@ -99,7 +99,7 @@ enumy C3::Initialize() {
 
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<!rec_C3>, !cir.ptr<!cir.ptr<!rec_C3>>
 // CHECK:     %2 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_C3>>, !cir.ptr<!rec_C3>
-// CHECK:     %3 = cir.base_class_addr(%2 : !cir.ptr<!rec_C3> nonnull) [0] -> !cir.ptr<!rec_C2>
+// CHECK:     %3 = cir.base_class_addr %2 : !cir.ptr<!rec_C3> nonnull [0] -> !cir.ptr<!rec_C2>
 // CHECK:     %4 = cir.call @_ZN2C210InitializeEv(%3) : (!cir.ptr<!rec_C2>) -> !s32i
 
 void vcall(C1 &c1) {
@@ -144,7 +144,7 @@ public:
 // CHECK:   %1 = cir.load{{.*}} deref %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.scope {
 // CHECK:     %2 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["ref.tmp0"] {alignment = 8 : i64}
-// CHECK:     %3 = cir.base_class_addr(%1 : !cir.ptr<!rec_B> nonnull) [0] -> !cir.ptr<!rec_A>
+// CHECK:     %3 = cir.base_class_addr %1 : !cir.ptr<!rec_B> nonnull [0] -> !cir.ptr<!rec_A>
 
 // Call @A::A(A const&)
 // CHECK:     cir.call @_ZN1AC2ERKS_(%2, %3) : (!cir.ptr<!rec_A>, !cir.ptr<!rec_A>) -> ()
@@ -181,17 +181,17 @@ void test_multi_base() {
   Derived d;
 
   Base2& bref = d; // no null check needed
-  // CHECK: %6 = cir.base_class_addr(%0 : !cir.ptr<!rec_Derived> nonnull) [4] -> !cir.ptr<!rec_Base2>
+  // CHECK: %6 = cir.base_class_addr %0 : !cir.ptr<!rec_Derived> nonnull [4] -> !cir.ptr<!rec_Base2>
 
   Base2* bptr = &d; // has null pointer check
-  // CHECK: %7 = cir.base_class_addr(%0 : !cir.ptr<!rec_Derived>) [4] -> !cir.ptr<!rec_Base2>
+  // CHECK: %7 = cir.base_class_addr %0 : !cir.ptr<!rec_Derived> [4] -> !cir.ptr<!rec_Base2>
 
   int a = d.a;
-  // CHECK: %8 = cir.base_class_addr(%0 : !cir.ptr<!rec_Derived> nonnull) [0] -> !cir.ptr<!rec_Base1>
+  // CHECK: %8 = cir.base_class_addr %0 : !cir.ptr<!rec_Derived> nonnull [0] -> !cir.ptr<!rec_Base1>
   // CHECK: %9 = cir.get_member %8[0] {name = "a"} : !cir.ptr<!rec_Base1> -> !cir.ptr<!s32i>
 
   int b = d.b;
-  // CHECK: %11 = cir.base_class_addr(%0 : !cir.ptr<!rec_Derived> nonnull) [4] -> !cir.ptr<!rec_Base2>
+  // CHECK: %11 = cir.base_class_addr %0 : !cir.ptr<!rec_Derived> nonnull [4] -> !cir.ptr<!rec_Base2>
   // CHECK: %12 = cir.get_member %11[0] {name = "b"} : !cir.ptr<!rec_Base2> -> !cir.ptr<!s32i>
 
   int c = d.c;

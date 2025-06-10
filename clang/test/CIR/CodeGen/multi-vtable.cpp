@@ -56,7 +56,7 @@ int main() {
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Child>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 1, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-// CIR:   %7 = cir.base_class_addr(%1 : !cir.ptr<!rec_Child> nonnull) [8] -> !cir.ptr<!rec_Father>
+// CIR:   %7 = cir.base_class_addr %1 : !cir.ptr<!rec_Child> nonnull [8] -> !cir.ptr<!rec_Father>
 // CIR:   %8 = cir.cast(bitcast, %7 : !cir.ptr<!rec_Father>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>> loc(#loc8)
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   cir.return
