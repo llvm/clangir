@@ -25,8 +25,8 @@ A *B::getAsA() {
 // CIR: %[[VAL_1:.*]] = cir.alloca !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>, ["this", init] {alignment = 8 : i64}
 // CIR: %[[VAL_2:.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["__retval"] {alignment = 8 : i64}
 // CIR: %[[VAL_3:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
-// CIR: %[[VAL_4:.*]] = cir.derived_class_addr(%[[VAL_3]] : !cir.ptr<!rec_B> nonnull) [4] -> !cir.ptr<!rec_X>
-// CIR: %[[VAL_5:.*]] = cir.base_class_addr(%[[VAL_4]] : !cir.ptr<!rec_X> nonnull) [0] -> !cir.ptr<!rec_A>
+// CIR: %[[VAL_4:.*]] = cir.derived_class_addr %[[VAL_3]] : !cir.ptr<!rec_B> nonnull [4] -> !cir.ptr<!rec_X>
+// CIR: %[[VAL_5:.*]] = cir.base_class_addr %[[VAL_4]] : !cir.ptr<!rec_X> nonnull [0] -> !cir.ptr<!rec_A>
 // CIR: cir.store %[[VAL_5]], %[[VAL_2]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CIR: %[[VAL_6:.*]] = cir.load %[[VAL_2]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CIR: cir.return %[[VAL_6]] : !cir.ptr<!rec_A>
