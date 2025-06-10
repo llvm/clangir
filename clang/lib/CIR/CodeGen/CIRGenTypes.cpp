@@ -810,14 +810,14 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
   // from the cache. This allows function types and other things that may be
   // derived from the enum to be recomputed.
   if (const auto *ED = dyn_cast<EnumDecl>(TD)) {
-    // Only flush the cache if we've actually already converted this type.
-    if (TypeCache.count(ED->getTypeForDecl())) {
-      // Okay, we formed some types based on this.  We speculated that the enum
-      // would be lowered to i32, so we only need to flush the cache if this
-      // didn't happen.
-      if (!convertType(ED->getIntegerType()).isInteger(32))
-        TypeCache.clear();
-    }
+    // Classic codegen clears the type cache if it contains an entry for this
+    // enum type that doesn't use i32 as the underlying type, but I can't find
+    // a test case that meets that condition. C++ doesn't allow forward
+    // declaration of enums, and C doesn't allow an incomplete forward
+    // declaration with a non-default type.
+    assert(
+        !TypeCache.count(ED->getTypeForDecl()) ||
+        (convertType(ED->getIntegerType()) == TypeCache[ED->getTypeForDecl()]));
     // If necessary, provide the full definition of a type only used with a
     // declaration so far.
     assert(!cir::MissingFeatures::generateDebugInfo());
