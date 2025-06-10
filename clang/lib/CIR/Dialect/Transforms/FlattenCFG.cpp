@@ -209,13 +209,13 @@ public:
     rewriter.replaceOpWithNewOp<cir::CatchParamOp>(
         paramOp, catchType, exceptionPtr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
-                                     cir::CatchParamKind::begin));
+                                     cir::CatchParamKind::Begin));
 
     rewriter.setInsertionPoint(yieldOp);
     rewriter.create<cir::CatchParamOp>(
         catchLoc, mlir::Type{}, nullptr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
-                                     cir::CatchParamKind::end));
+                                     cir::CatchParamKind::End));
 
     rewriter.setInsertionPointToEnd(yieldOp->getBlock());
     rewriter.replaceOpWithNewOp<cir::BrOp>(yieldOp, afterTry);
@@ -264,13 +264,13 @@ public:
     rewriter.replaceOpWithNewOp<cir::CatchParamOp>(
         paramOp, catchType, exceptionPtr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
-                                     cir::CatchParamKind::begin));
+                                     cir::CatchParamKind::Begin));
 
     rewriter.setInsertionPoint(yieldOp);
     rewriter.create<cir::CatchParamOp>(
         catchLoc, mlir::Type{}, nullptr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
-                                     cir::CatchParamKind::end));
+                                     cir::CatchParamKind::End));
 
     rewriter.setInsertionPointToEnd(yieldOp->getBlock());
     rewriter.replaceOpWithNewOp<cir::BrOp>(yieldOp, afterTry);
