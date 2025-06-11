@@ -35,8 +35,7 @@ jobs specified within a workflow:
       if: github.repository_owner == 'llvm'
 
 We choose to use ``github.repository_owner`` rather than ``github.repository``
-to enable these workflows to run in forks inside the LLVM organization, such as
-the ClangIR fork.
+to enable these workflows to run in forks inside the LLVM organization.
 
 There are some exceptions to this rule where ``github.repository`` might be
 used when it makes sense to limit a workflow to only running in the main

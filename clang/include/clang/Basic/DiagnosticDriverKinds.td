@@ -889,11 +889,6 @@ def warn_missing_include_dirs : Warning<
 def err_drv_malformed_warning_suppression_mapping : Error<
   "failed to process suppression mapping file '%0': %1">;
 
-def warn_drv_openacc_without_cir
-    : Warning<"OpenACC directives will result in no runtime behavior; use "
-              "-fclangir to enable runtime effect">,
-      InGroup<SourceUsesOpenACC>;
-
 def warn_drv_gcc_install_dir_libstdcxx : Warning<
     "future releases of the clang compiler will prefer GCC installations "
     "containing libstdc++ include directories; '%0' would be chosen over '%1'">,

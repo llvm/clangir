@@ -1,12 +1,6 @@
 BOLT:
   - bolt/**/*
 
-ClangIR:
-  - clang/include/clang/CIR/**/*
-  - clang/lib/CIR/**/*
-  - clang/tools/cir-*/**/*
-  - clang/test/CIR/**/*
-
 clang:bytecode:
   - clang/docs/ConstantInterpreter.rst
   - clang/lib/AST/ByteCode/**/*

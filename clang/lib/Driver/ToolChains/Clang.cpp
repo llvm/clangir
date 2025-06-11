@@ -4983,9 +4983,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  if (Args.hasArg(options::OPT_fclangir))
-    CmdArgs.push_back("-fclangir");
-
   if (IsOpenMPDevice) {
     // We have to pass the triple of the host if compiling for an OpenMP device.
     std::string NormalizedTriple =
@@ -5153,8 +5150,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     } else if (JA.getType() == types::TY_RewrittenLegacyObjC) {
       CmdArgs.push_back("-rewrite-objc");
       rewriteKind = RK_Fragile;
-    } else if (JA.getType() == types::TY_CIR) {
-      CmdArgs.push_back("-emit-cir");
     } else {
       assert(JA.getType() == types::TY_PP_Asm && "Unexpected output type!");
     }
@@ -5290,7 +5285,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         options::OPT_Wa_COMMA,
         options::OPT_Xassembler,
         options::OPT_mllvm,
-        options::OPT_mmlir,
     };
     for (const auto &A : Args)
       if (llvm::is_contained(kBitcodeOptionIgnorelist, A->getOption().getID()))
@@ -7581,15 +7575,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   SanitizeArgs.addArgs(TC, Args, CmdArgs, InputType);
 
   Args.AddLastArg(CmdArgs, options::OPT_falloc_token_max_EQ);
-
-#if CLANG_ENABLE_CIR
-  // Forward -mmlir arguments to to the MLIR option parser.
-  for (const Arg *A : Args.filtered(options::OPT_mmlir)) {
-    A->claim();
-    A->render(Args, CmdArgs);
-  }
-#endif // CLANG_ENABLE_CIR
-
   // With -save-temps, we want to save the unoptimized bitcode output from the
   // CompileJobAction, use -disable-llvm-passes to get pristine IR generated
   // by the frontend.

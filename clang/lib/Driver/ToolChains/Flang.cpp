@@ -1088,11 +1088,6 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
     A->render(Args, CmdArgs);
   }
 
-  for (const Arg *A : Args.filtered(options::OPT_mmlir)) {
-    A->claim();
-    A->render(Args, CmdArgs);
-  }
-
   // Remove any unsupported gfortran diagnostic options
   for (const Arg *A : Args.filtered(options::OPT_flang_ignored_w_Group)) {
     A->claim();

@@ -30,14 +30,6 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
 
-#if CLANG_ENABLE_CIR
-#include "mlir/IR/AsmState.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/Pass/PassManager.h"
-#include "clang/CIR/Dialect/Passes.h"
-#include "clang/CIR/FrontendAction/CIRGenAction.h"
-#endif
-
 using namespace clang;
 using namespace llvm::opt;
 
@@ -49,13 +41,6 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   StringRef Action("unknown");
   (void)Action;
 
-  unsigned UseCIR = CI.getFrontendOpts().UseClangIRPipeline;
-  frontend::ActionKind Act = CI.getFrontendOpts().ProgramAction;
-  bool EmitsCIR = Act == EmitCIR;
-
-  if (!UseCIR && EmitsCIR)
-    llvm::report_fatal_error("-emit-cir and only valid when using -fclangir");
-
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();
   case ASTDump:                return std::make_unique<ASTDumpAction>();
@@ -66,39 +51,16 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case DumpRawTokens:          return std::make_unique<DumpRawTokensAction>();
   case DumpTokens:             return std::make_unique<DumpTokensAction>();
   case EmitAssembly:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitAssemblyAction>();
-#endif
     return std::make_unique<EmitAssemblyAction>();
   case EmitBC:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitBCAction>();
-#endif
     return std::make_unique<EmitBCAction>();
-  case EmitCIR:
-#if CLANG_ENABLE_CIR
-    return std::make_unique<cir::EmitCIRAction>();
-#else
-    CI.getDiagnostics().Report(diag::err_fe_cir_not_built);
-    return nullptr;
-#endif
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
   case EmitLLVM: {
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitLLVMAction>();
-#endif
     return std::make_unique<EmitLLVMAction>();
   }
   case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
   case EmitCodeGenOnly:        return std::make_unique<EmitCodeGenOnlyAction>();
   case EmitObj:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitObjAction>();
-#endif
     return std::make_unique<EmitObjAction>();
   case ExtractAPI:
     return std::make_unique<ExtractAPIAction>();
@@ -211,8 +173,6 @@ CreateFrontendAction(CompilerInstance &CI) {
 }
 
 bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
-  unsigned NumErrorsBefore = Clang->getDiagnostics().getNumErrors();
-
   // Honor -help.
   if (Clang->getFrontendOpts().ShowHelp) {
     driver::getDriverOptTable().printHelp(
@@ -281,26 +241,8 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
   }
 #endif
 
-#if CLANG_ENABLE_CIR
-  if (!Clang->getFrontendOpts().MLIRArgs.empty()) {
-    mlir::registerCIRPasses();
-    mlir::registerMLIRContextCLOptions();
-    mlir::registerPassManagerCLOptions();
-    mlir::registerAsmPrinterCLOptions();
-    unsigned NumArgs = Clang->getFrontendOpts().MLIRArgs.size();
-    auto Args = std::make_unique<const char *[]>(NumArgs + 2);
-    Args[0] = "clang (MLIR option parsing)";
-    for (unsigned i = 0; i != NumArgs; ++i)
-      Args[i + 1] = Clang->getFrontendOpts().MLIRArgs[i].c_str();
-    Args[NumArgs + 1] = nullptr;
-    llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
-  }
-#endif
-
-  // If there were errors in the above, don't do anything else.
-  // This intentionally ignores errors emitted before this function to
-  // accommodate lenient callers that decided to make progress despite errors.
-  if (Clang->getDiagnostics().getNumErrors() != NumErrorsBefore)
+  // If there were errors in processing arguments, don't do anything else.
+  if (Clang->getDiagnostics().hasErrorOccurred())
     return false;
 
   // Create and execute the frontend action.

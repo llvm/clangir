@@ -218,11 +218,6 @@ what to add to your calendar invite.
      - `ics <https://calendar.google.com/calendar/ical/jvceakm3kbpku3f4jrsv1lkigo%40group.calendar.google.com/public/basic.ics>`__
        `gcal <https://calendar.google.com/calendar/embed?src=jvceakm3kbpku3f4jrsv1lkigo%40group.calendar.google.com&ctz=America%2FLos_Angeles>`__
      - `Minutes/docs <https://docs.google.com/document/d/1-flHK3TjQUrkSO2Fdt4webZ2zCyeXxpTLMiRQbMW7hE>`__
-   * - ClangIR Upstreaming Coordination Meeting
-     - Every 2 weeks on Mondays
-     - `ics <https://calendar.google.com/calendar/ical/c_673c6cd64474c0aff173bf8fa609559f93d654e0984d9d91d71abd32d28c0486%40group.calendar.google.com/public/basic.ics>`__
-       `gcal <https://calendar.google.com/calendar/embed?src=c_673c6cd64474c0aff173bf8fa609559f93d654e0984d9d91d71abd32d28c0486%40group.calendar.google.com&ctz=America%2FLos_Angeles>`__
-     -
    * - GlobalISel
      - Every 2nd Tuesday of the month
      - `gcal <https://calendar.google.com/calendar/u/0?cid=YWZjNzhmMzE4MDNlNTAyNGY1NmE1MDIyODY0YTYwZmJmYzRjYTEwNTE1NmUxODA2NzBkYTliY2ZhYTVkNjk0NUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t>`__
