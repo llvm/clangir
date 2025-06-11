@@ -9,7 +9,6 @@ llvm_canonicalize_cmake_booleans(
   CLANG_ENABLE_STATIC_ANALYZER
   CLANG_PLUGIN_SUPPORT
   CLANG_SPAWN_CC1
-  CLANG_ENABLE_CIR
   CLANG_ENABLE_OBJC_REWRITER
   CLANG_LINK_CLANG_DYLIB
   ENABLE_BACKTRACES
@@ -109,14 +108,6 @@ list(APPEND CLANG_TEST_DEPS
   diagtool
   hmaptool
   )
-
-if(CLANG_ENABLE_CIR)
-  list(APPEND CLANG_TEST_DEPS
-    cir-opt
-    cir-translate
-    mlir-translate
-    )
-endif()
 
 if(CLANG_ENABLE_STATIC_ANALYZER)
   list(APPEND CLANG_TEST_DEPS

@@ -3054,25 +3054,6 @@ def flimited_precision_EQ : Joined<["-"], "flimited-precision=">, Group<f_Group>
 def fapple_link_rtlib : Flag<["-"], "fapple-link-rtlib">, Group<f_Group>,
   HelpText<"Force linking the clang builtins runtime library">;
 
-/// ClangIR-specific options - BEGIN
-def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Disable CIR transformations pipeline">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDisablePasses">>;
-def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"ClangIR: Disable MLIR module verifier">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
-
-defm clangir : BoolFOption<"clangir",
-  FrontendOpts<"UseClangIRPipeline">, DefaultFalse,
-  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use the ClangIR pipeline to compile">,
-  NegFlag<SetFalse, [], [ClangOption, CC1Option], "Use the AST -> LLVM pipeline to compile">,
-  BothFlags<[], [ClangOption, CC1Option], "">>;
-def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
-  Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR">;
-/// ClangIR-specific options - END
-
 def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,

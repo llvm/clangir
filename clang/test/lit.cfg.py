@@ -29,7 +29,6 @@ config.suffixes = [
     ".c",
     ".cpp",
     ".i",
-    ".cir",
     ".cppm",
     ".m",
     ".mm",
@@ -88,7 +87,6 @@ tool_dirs = [config.clang_tools_dir, config.llvm_tools_dir]
 tools = [
     "apinotes-test",
     "c-index-test",
-    "cir-opt",
     "clang-diff",
     "clang-format",
     "clang-repl",
