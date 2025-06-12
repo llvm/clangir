@@ -12,6 +12,7 @@
 #include "mlir/IR/Region.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Basic/Module.h"
@@ -89,6 +90,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   void lowerArrayDtor(ArrayDtor op);
   void lowerArrayCtor(ArrayCtor op);
   void lowerThrowOp(ThrowOp op);
+  void lowerTrivialConstructorCall(cir::CallOp op);
 
   /// Collect annotations of global values in the module
   void addGlobalAnnotations(mlir::Operation *op, mlir::ArrayAttr annotations);
@@ -1183,7 +1185,8 @@ std::optional<FuncOp> LoweringPreparePass::buildCUDARegisterGlobals() {
   auto cudaPrefix = getCUDAPrefix(astCtx);
 
   auto voidTy = VoidType::get(&getContext());
-  auto voidPtrPtrTy = PointerType::get(PointerType::get(voidTy));
+  auto voidPtrTy = PointerType::get(voidTy);
+  auto voidPtrPtrTy = PointerType::get(voidPtrTy);
 
   // Create the function:
   //      void __cuda_register_globals(void **fatbinHandle)
@@ -1510,6 +1513,44 @@ void LoweringPreparePass::lowerThrowOp(ThrowOp op) {
   }
 }
 
+void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
+  // Use the existing helper to get the called function
+  FuncOp funcOp = getCalledFunction(op);
+  if (!funcOp)
+    return;
+  Attribute astAttr = funcOp.getAstAttr();
+  if (!astAttr)
+    return;
+  auto ctorDecl = dyn_cast<cir::ASTCXXConstructorDeclInterface>(astAttr);
+  if (!ctorDecl)
+    return;
+
+  // TODO: handle this later
+  if (ctorDecl.isDefaultConstructor()) {
+    return;
+  }
+  // For now, only handle copy constructors
+  if (!ctorDecl.isCopyConstructor()) {
+    return;
+  }
+
+  // Additional safety checks: constructor calls should have no return value
+  if (op.getNumResults() > 0) {
+    return;
+  }
+  auto operands = op.getOperands();
+  if (operands.size() != 2) {
+    return;
+  }
+  // Replace the trivial copy constructor call with a copy op
+  CIRBaseBuilderTy builder(getContext());
+  mlir::Value dest = operands[0];
+  mlir::Value src = operands[1];
+  builder.setInsertionPoint(op);
+  builder.createCopy(dest, src);
+  op.erase();
+}
+
 void LoweringPreparePass::addGlobalAnnotations(mlir::Operation *op,
                                                mlir::ArrayAttr annotations) {
   auto globalValue = cast<mlir::SymbolOpInterface>(op);
@@ -1532,6 +1573,9 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {
+
+  // llvm::outs() << "Lowering operation: " << "\n";
+
   if (auto unary = dyn_cast<UnaryOp>(op)) {
     lowerUnaryOp(unary);
   } else if (auto bin = dyn_cast<BinOp>(op)) {
@@ -1580,6 +1624,8 @@ void LoweringPreparePass::runOnOp(Operation *op) {
       addGlobalAnnotations(fnOp, annotations.value());
   } else if (auto throwOp = dyn_cast<cir::ThrowOp>(op)) {
     lowerThrowOp(throwOp);
+  } else if (auto callOp = dyn_cast<CallOp>(op)) {
+    lowerTrivialConstructorCall(callOp);
   }
 }
 
@@ -1596,7 +1642,7 @@ void LoweringPreparePass::runOnOperation() {
   op->walk([&](Operation *op) {
     if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,
             GlobalOp, DynamicCastOp, StdFindOp, IterEndOp, IterBeginOp,
-            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp>(op))
+            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
       opsToTransform.push_back(op);
   });
 
