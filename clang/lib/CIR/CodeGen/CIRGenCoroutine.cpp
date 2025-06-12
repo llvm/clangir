@@ -23,7 +23,7 @@ struct clang::CIRGen::CGCoroData {
   // What is the current await expression kind and how many
   // await/yield expressions were encountered so far.
   // These are used to generate pretty labels for await expressions in LLVM IR.
-  cir::AwaitKind CurrentAwaitKind = cir::AwaitKind::init;
+  cir::AwaitKind CurrentAwaitKind = cir::AwaitKind::Init;
 
   // Stores the __builtin_coro_id emitted in the function so that we can supply
   // it as the first argument to other builtins.
@@ -337,11 +337,11 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
     }
 
     // FIXME(cir): EHStack.pushCleanup<CallCoroEnd>(EHCleanup);
-    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::init;
+    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::Init;
     if (emitStmt(S.getInitSuspendStmt(), /*useCurrentScope=*/true).failed())
       return mlir::failure();
 
-    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::user;
+    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::User;
 
     // FIXME(cir): wrap emitBodyAndFallthrough with try/catch bits.
     if (S.getExceptionHandler())
@@ -360,7 +360,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
     const bool CanFallthrough = currLexScope->hasCoreturn();
     const bool HasCoreturns = CurCoro.Data->CoreturnCount > 0;
     if (CanFallthrough || HasCoreturns) {
-      CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::final;
+      CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::Final;
       {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPoint(CurCoro.Data->FinalSuspendInsPoint);
@@ -453,7 +453,7 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
         // function is marked as 'noexcept', we avoid generating this additional
         // IR.
         CXXTryStmt *TryStmt = nullptr;
-        if (Coro.ExceptionHandler && Kind == cir::AwaitKind::init &&
+        if (Coro.ExceptionHandler && Kind == cir::AwaitKind::Init &&
             memberCallExpressionCanThrow(S.getResumeExpr())) {
           llvm_unreachable("NYI");
         }
@@ -539,7 +539,7 @@ RValue CIRGenFunction::emitCoawaitExpr(const CoawaitExpr &E,
 RValue CIRGenFunction::emitCoyieldExpr(const CoyieldExpr &E,
                                        AggValueSlot aggSlot,
                                        bool ignoreResult) {
-  return emitSuspendExpr(*this, E, cir::AwaitKind::yield, aggSlot,
+  return emitSuspendExpr(*this, E, cir::AwaitKind::Yield, aggSlot,
                          ignoreResult);
 }
 

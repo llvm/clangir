@@ -690,8 +690,8 @@ module {
 
 // -----
 
-// expected-error@below {{invalid Source language specification: dummy}}
-// expected-error@below {{failed to parse CIR_LangAttr parameter 'lang'}}
+// expected-error@below {{expected ::cir::SourceLanguage to be one of: c, cxx, opencl_c}}
+// expected-error@below {{failed to parse CIR_SourceLanguageAttr parameter 'value'}}
 module attributes {cir.lang = #cir.lang<dummy>} { }
 
 // -----

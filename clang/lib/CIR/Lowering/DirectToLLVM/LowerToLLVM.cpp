@@ -408,9 +408,8 @@ static mlir::Value emitToMemory(mlir::ConversionPatternRewriter &rewriter,
 std::optional<llvm::StringRef>
 getLLVMSyncScope(std::optional<cir::MemScopeKind> syncScope) {
   if (syncScope.has_value())
-    return syncScope.value() == cir::MemScopeKind::MemScope_SingleThread
-               ? "singlethread"
-               : "";
+    return syncScope.value() == cir::MemScopeKind::SingleThread ? "singlethread"
+                                                                : "";
   return std::nullopt;
 }
 } // namespace
@@ -3212,7 +3211,7 @@ mlir::LogicalResult CIRToLLVMObjSizeOpLowering::matchAndRewrite(
   replaceOpWithCallLLVMIntrinsicOp(
       rewriter, op, "llvm.objectsize", llvmResTy,
       mlir::ValueRange{adaptor.getPtr(),
-                       kindInfo == cir::SizeInfoType::max ? falseValue
+                       kindInfo == cir::SizeInfoType::Max ? falseValue
                                                           : trueValue,
                        trueValue, op.getDynamic() ? trueValue : falseValue});
 
@@ -4778,7 +4777,7 @@ void ConvertCIRToLLVMPass::processCIRAttrs(mlir::ModuleOp module) {
 
   // Strip the CIR attributes.
   module->removeAttr(cir::CIRDialect::getSOBAttrName());
-  module->removeAttr(cir::CIRDialect::getLangAttrName());
+  module->removeAttr(cir::CIRDialect::getSourceLanguageAttrName());
   module->removeAttr(cir::CIRDialect::getTripleAttrName());
 }
 

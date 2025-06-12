@@ -166,19 +166,11 @@ template <typename Ty> struct EnumTraits {};
     }                                                                          \
     static unsigned getMaxEnumVal() { return cir::getMaxEnumValFor##Ty(); }    \
   }
-#define REGISTER_ENUM_TYPE_WITH_NS(NS, Ty)                                     \
-  template <> struct EnumTraits<NS::Ty> {                                      \
-    static llvm::StringRef stringify(NS::Ty value) {                           \
-      return NS::stringify##Ty(value);                                         \
-    }                                                                          \
-    static unsigned getMaxEnumVal() { return NS::getMaxEnumValFor##Ty(); }     \
-  }
 
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE(SideEffect);
-REGISTER_ENUM_TYPE_WITH_NS(cir::sob, SignedOverflowBehavior);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -3504,35 +3496,6 @@ void cir::ConstVectorAttr::print(::mlir::AsmPrinter &printer) const {
   printer << ">";
 }
 
-::mlir::Attribute
-cir::SignedOverflowBehaviorAttr::parse(::mlir::AsmParser &parser,
-                                       ::mlir::Type type) {
-  if (parser.parseLess())
-    return {};
-  auto behavior = parseOptionalCIRKeyword(
-      parser, cir::sob::SignedOverflowBehavior::undefined);
-  if (parser.parseGreater())
-    return {};
-
-  return SignedOverflowBehaviorAttr::get(parser.getContext(), behavior);
-}
-
-void cir::SignedOverflowBehaviorAttr::print(::mlir::AsmPrinter &printer) const {
-  printer << "<";
-  switch (getBehavior()) {
-  case sob::SignedOverflowBehavior::undefined:
-    printer << "undefined";
-    break;
-  case sob::SignedOverflowBehavior::defined:
-    printer << "defined";
-    break;
-  case sob::SignedOverflowBehavior::trapping:
-    printer << "trapping";
-    break;
-  }
-  printer << ">";
-}
-
 LogicalResult cir::TypeInfoAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::ArrayAttr typeinfoData) {
@@ -4011,7 +3974,7 @@ cir::EhTypeIdOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 LogicalResult cir::CatchParamOp::verify() {
   if (getExceptionPtr()) {
     auto kind = getKind();
-    if (!kind || *kind != cir::CatchParamKind::begin)
+    if (!kind || *kind != cir::CatchParamKind::Begin)
       return emitOpError("needs 'begin' to work with exception pointer");
     return success();
   }
