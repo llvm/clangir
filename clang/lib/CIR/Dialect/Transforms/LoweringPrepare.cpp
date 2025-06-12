@@ -1529,26 +1529,27 @@ void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
   if (ctorDecl.isDefaultConstructor()) {
     return;
   }
-  // For now, only handle copy constructors
-  if (!ctorDecl.isCopyConstructor()) {
-    return;
-  }
 
-  // Additional safety checks: constructor calls should have no return value
-  if (op.getNumResults() > 0) {
+  if (ctorDecl.isCopyConstructor()) {
+    // Additional safety checks: constructor calls should have no return value
+    if (op.getNumResults() > 0) {
+      return;
+    }
+    auto operands = op.getOperands();
+    if (operands.size() != 2) {
+      return;
+    }
+    // Replace the trivial copy constructor call with a copy op
+    CIRBaseBuilderTy builder(getContext());
+    mlir::Value dest = operands[0];
+    mlir::Value src = operands[1];
+    builder.setInsertionPoint(op);
+    builder.createCopy(dest, src);
+    op.erase();
+  } else {
+    // TODO handle std::move or another trivial copy
     return;
   }
-  auto operands = op.getOperands();
-  if (operands.size() != 2) {
-    return;
-  }
-  // Replace the trivial copy constructor call with a copy op
-  CIRBaseBuilderTy builder(getContext());
-  mlir::Value dest = operands[0];
-  mlir::Value src = operands[1];
-  builder.setInsertionPoint(op);
-  builder.createCopy(dest, src);
-  op.erase();
 }
 
 void LoweringPreparePass::addGlobalAnnotations(mlir::Operation *op,
