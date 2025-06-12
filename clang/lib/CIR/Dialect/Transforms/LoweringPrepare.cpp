@@ -1573,9 +1573,6 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {
-
-  // llvm::outs() << "Lowering operation: " << "\n";
-
   if (auto unary = dyn_cast<UnaryOp>(op)) {
     lowerUnaryOp(unary);
   } else if (auto bin = dyn_cast<BinOp>(op)) {
