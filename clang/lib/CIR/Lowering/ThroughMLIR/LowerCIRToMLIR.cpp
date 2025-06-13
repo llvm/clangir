@@ -1412,10 +1412,10 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                          mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
                          mlir::math::MathDialect, mlir::vector::VectorDialect,
                          mlir::LLVM::LLVMDialect>();
-  target.addIllegalDialect<cir::CIRDialect>();
+  // target.addIllegalDialect<cir::CIRDialect>();
 
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
-    signalPassFailure();
+    module.dump(), signalPassFailure();
 }
 
 mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
@@ -1473,6 +1473,7 @@ mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
   mlir::PassManager pm(mlirCtx);
 
   pm.addPass(createConvertCIRToMLIRPass());
+  pm.getContext()->printOpOnDiagnostic(true);
 
   auto result = !mlir::failed(pm.run(theModule));
   if (!result)
