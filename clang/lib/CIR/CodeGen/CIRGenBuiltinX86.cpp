@@ -144,6 +144,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
         .getResult();
   }
+  case X86::BI__builtin_ia32_stmxcsr:
   case X86::BI_mm_getcsr: {
     // note that _mm_getcsr() returns uint, but llvm.x86.sse.stmxcsr takes i32
     // pointer and returns void. So needs alloc extra memory to store the
@@ -162,6 +163,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
         builder.createAlignedLoad(loc, i32Ty, alloca, llvm::Align(4));
     return loadResult;
   }
+  case X86::BI__builtin_ia32_ldmxcsr:
   case X86::BI_mm_setcsr: {
     auto loc = getLoc(E->getExprLoc());
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());

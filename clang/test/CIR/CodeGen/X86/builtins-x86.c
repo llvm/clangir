@@ -65,10 +65,28 @@ unsigned int test_mm_getcsr() {
   // LLVM: call void @llvm.x86.sse.stmxcsr(ptr {{%.*}})
 }
 
+unsigned int test__builtin_ia32_stmxcsr() {
+  // CIR-LABEL: test__builtin_ia32_stmxcsr
+  // LLVM-LABEL: test__builtin_ia32_stmxcsr
+  return __builtin_ia32_stmxcsr();
+  // CIR: %{{.*}} = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"] {alignment = 4 : i64}
+  // CIR: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["csrRes"] {alignment = 4 : i64}
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.stmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
+  // LLVM: call void @llvm.x86.sse.stmxcsr(ptr {{%.*}})
+}
+
 void test_mm_setcsr() {
   // CIR-LABEL: test_mm_setcsr
   // LLVM-LABEL: test_mm_setcsr
   _mm_setcsr(0);
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.ldmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
+  // LLVM: call void @llvm.x86.sse.ldmxcsr(ptr {{%.*}})
+}
+
+void test__builtin_ia32_ldmxcsr() {
+  // CIR-LABEL: test__builtin_ia32_ldmxcsr
+  // LLVM-LABEL: test__builtin_ia32_ldmxcsr
+  __builtin_ia32_ldmxcsr(0);
   // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.ldmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
   // LLVM: call void @llvm.x86.sse.ldmxcsr(ptr {{%.*}})
 }
