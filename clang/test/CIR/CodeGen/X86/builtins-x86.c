@@ -64,3 +64,11 @@ unsigned int test_mm_getcsr() {
   // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.stmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
   // LLVM: call void @llvm.x86.sse.stmxcsr(ptr {{%.*}})
 }
+
+void test_mm_setcsr() {
+  // CIR-LABEL: test_mm_setcsr
+  // LLVM-LABEL: test_mm_setcsr
+  _mm_setcsr(0);
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.ldmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
+  // LLVM: call void @llvm.x86.sse.ldmxcsr(ptr {{%.*}})
+}

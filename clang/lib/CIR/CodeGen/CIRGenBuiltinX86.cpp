@@ -162,5 +162,20 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
         builder.createAlignedLoad(loc, i32Ty, alloca, llvm::Align(4));
     return loadResult;
   }
+  case X86::BI_mm_setcsr: {
+    auto loc = getLoc(E->getExprLoc());
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    mlir::Type i32Ty = cir::IntType::get(&getMLIRContext(), 32, true);
+    auto i32PtrTy = builder.getPointerTo(i32Ty);
+    // Allocate memory for the argument
+    auto alloca = builder.createAlloca(loc, i32PtrTy, i32Ty, "csrVal",
+                                       builder.getAlignmentAttr(4));
+    // Store the value to be set
+    builder.createAlignedStore(loc, Ops[0], alloca, CharUnits::fromQuantity(4));
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            loc, builder.getStringAttr("x86.sse.ldmxcsr"), voidTy, alloca)
+        .getResult();
+  }
   }
 }
