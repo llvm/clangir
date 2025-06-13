@@ -54,3 +54,13 @@ unsigned long long test_rdtsc() {
   // LLVM: call i64 @llvm.x86.rdtsc
 }
 
+unsigned int test_mm_getcsr() {
+  // CIR-LABEL: test_mm_getcsr
+  // LLVM-LABEL: test_mm_getcsr
+  return _mm_getcsr();
+  // 2 allocas: 1. for the return value, 1. for the csr result
+  // CIR: %{{.*}} = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"] {alignment = 4 : i64}
+  // CIR: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["csrRes"] {alignment = 4 : i64}
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.stmxcsr" {{%.*}} : (!cir.ptr<!s32i>) -> !void
+  // LLVM: call void @llvm.x86.sse.stmxcsr(ptr {{%.*}})
+}

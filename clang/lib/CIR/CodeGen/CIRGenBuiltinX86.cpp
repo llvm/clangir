@@ -144,5 +144,23 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
         .getResult();
   }
+  case X86::BI_mm_getcsr: {
+    // note that _mm_getcsr() returns uint, but llvm.x86.sse.stmxcsr takes i32
+    // pointer and returns void. So needs alloc extra memory to store the
+    // result.
+    auto loc = getLoc(E->getExprLoc());
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    mlir::Type i32Ty = cir::IntType::get(&getMLIRContext(), 32, true);
+    auto i32PtrTy = builder.getPointerTo(i32Ty);
+    // Allocate memory for the result
+    auto alloca = builder.createAlloca(loc, i32PtrTy, i32Ty, "csrRes",
+                                       builder.getAlignmentAttr(4));
+    builder.create<cir::LLVMIntrinsicCallOp>(
+        loc, builder.getStringAttr("x86.sse.stmxcsr"), voidTy, alloca);
+    // Load the value from the allocated memory
+    auto loadResult =
+        builder.createAlignedLoad(loc, i32Ty, alloca, llvm::Align(4));
+    return loadResult;
+  }
   }
 }
