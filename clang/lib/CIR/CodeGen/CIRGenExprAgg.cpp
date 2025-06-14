@@ -1252,9 +1252,8 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
     return;
   }
 #endif
-
-  AggValueSlot Dest = EnsureSlot(CGF.getLoc(ExprToVisit->getSourceRange()),
-                                 ExprToVisit->getType());
+  const mlir::Location loc = CGF.getLoc(ExprToVisit->getSourceRange());
+  AggValueSlot Dest = EnsureSlot(loc, ExprToVisit->getType());
 
   LValue DestLV = CGF.makeAddrLValue(Dest.getAddress(), ExprToVisit->getType());
 
@@ -1294,8 +1293,20 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
   if (auto *CXXRD = dyn_cast<CXXRecordDecl>(record)) {
     assert(NumInitElements >= CXXRD->getNumBases() &&
            "missing initializer for base class");
-    for ([[maybe_unused]] auto &Base : CXXRD->bases()) {
-      llvm_unreachable("NYI");
+    for (auto &Base : CXXRD->bases()) {
+      assert(!Base.isVirtual() && "should not see vbases here");
+      auto *BaseRD = Base.getType()->getAsCXXRecordDecl();
+      Address address = CGF.getAddressOfDirectBaseInCompleteClass(
+          loc, Dest.getAddress(), CXXRD, BaseRD,
+          /*isBaseVirtual*/ false);
+      AggValueSlot aggSlot = AggValueSlot::forAddr(
+          address, Qualifiers(), AggValueSlot::IsDestructed,
+          AggValueSlot::DoesNotNeedGCBarriers, AggValueSlot::IsNotAliased,
+          CGF.getOverlapForBaseInit(CXXRD, BaseRD, false));
+      CGF.emitAggExpr(InitExprs[curInitIndex++], aggSlot);
+      if (QualType::DestructionKind dtorKind =
+              Base.getType().isDestructedType())
+        CGF.pushDestroyAndDeferDeactivation(dtorKind, address, Base.getType());
     }
   }
 
@@ -1329,8 +1340,7 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
       emitInitializationToLValue(InitExprs[0], FieldLoc);
     } else {
       // Default-initialize to null.
-      emitNullInitializationToLValue(CGF.getLoc(ExprToVisit->getSourceRange()),
-                                     FieldLoc);
+      emitNullInitializationToLValue(loc, FieldLoc);
     }
 
     return;
