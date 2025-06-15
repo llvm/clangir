@@ -144,5 +144,30 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
         .getResult();
   }
+  case X86::BI__builtin_ia32_rdtscp: {
+
+    // For rdtscp, we need to create a proper struct type to hold {i64, i32}
+    mlir::Type i64Ty = cir::IntType::get(&getMLIRContext(), 64, false);
+    mlir::Type i32Ty = cir::IntType::get(&getMLIRContext(), 32, false);
+
+    mlir::Type ResTy = cir::RecordType::get(&getMLIRContext(), {i64Ty, i32Ty},
+                                            mlir::StringAttr(), false, false,
+                                            cir::RecordType::Struct);
+
+    auto Call = builder
+                    .create<cir::LLVMIntrinsicCallOp>(
+                        getLoc(E->getExprLoc()),
+                        builder.getStringAttr("x86.rdtscp"), ResTy)
+                    .getResult();
+
+    // Store processor ID in address param
+    mlir::Value PID = builder.create<cir::ExtractMemberOp>(
+        getLoc(E->getExprLoc()), i32Ty, Call, 1);
+    builder.create<cir::StoreOp>(getLoc(E->getExprLoc()), PID, Ops[0]);
+
+    // Return the timestamp at index 0
+    return builder.create<cir::ExtractMemberOp>(getLoc(E->getExprLoc()), i64Ty,
+                                                Call, 0);
+  }
   }
 }
