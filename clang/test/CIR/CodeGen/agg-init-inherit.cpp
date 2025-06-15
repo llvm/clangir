@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++17 -fclangir -Wno-unused-value -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++17 -fclangir -Wno-unused-value -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
 struct A1 {
@@ -48,5 +48,5 @@ void f3() {
 // CHECK:     %0 = cir.alloca !rec_D, !cir.ptr<!rec_D>, ["v", init]
 // CHECK:     %1 = cir.base_class_addr %0 : !cir.ptr<!rec_D> nonnull [0] -> !cir.ptr<!rec_A3>
 // CHECK:     cir.call @_ZN2A3C2Ev(%1) : (!cir.ptr<!rec_A3>) -> ()
-// CHECK:     cir.call @_ZN1DD2Ev(%0) : (!cir.ptr<!rec_D>) -> ()
+// CHECK:     cir.call @_ZN1DD1Ev(%0) : (!cir.ptr<!rec_D>) -> ()
 // CHECK:     cir.return
