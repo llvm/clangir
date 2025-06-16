@@ -30,14 +30,14 @@ struct BitfieldsInOrder {
 } bitfield_order;
 
 // CHECK: Layout: <CIRecordLayout
-// CHECK:  CIR Type:!cir.record<struct "BitfieldsInOrder" padded {!cir.int<s, 8>, !cir.int<u, 8>, !cir.array<!cir.int<u, 8> x 2>, !cir.array<!cir.int<u, 8> x 3>, !cir.int<u, 8>} #cir.record.decl.ast>
-// CHECK:  NonVirtualBaseCIRType:!cir.record<struct "BitfieldsInOrder" padded {!cir.int<s, 8>, !cir.int<u, 8>, !cir.array<!cir.int<u, 8> x 2>, !cir.array<!cir.int<u, 8> x 3>, !cir.int<u, 8>} #cir.record.decl.ast>
+// CHECK:  CIR Type:!cir.record<struct "BitfieldsInOrder" padded {!cir.int<s, 8>, !cir.array<!cir.int<u, 8> x 6>, !cir.int<u, 8>} #cir.record.decl.ast>
+// CHECK:  NonVirtualBaseCIRType:!cir.record<struct "BitfieldsInOrder" padded {!cir.int<s, 8>, !cir.array<!cir.int<u, 8> x 6>, !cir.int<u, 8>} #cir.record.decl.ast>
 // CHECK:  IsZeroInitializable:1
 // CHECK:  BitFields:[
-// CHECK-NEXT:  <CIRBitFieldInfo name:bit offset:0 size:8 isSigned:0 storageSize:8 storageOffset:1 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
-// CHECK-NEXT:   <CIRBitFieldInfo name:should offset:0 size:20 isSigned:0 storageSize:24 storageOffset:4 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
-// CHECK-NEXT:   <CIRBitFieldInfo name:have offset:20 size:3 isSigned:0 storageSize:24 storageOffset:4 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
-// CHECK-NEXT:   <CIRBitFieldInfo name:order offset:23 size:1 isSigned:0 storageSize:24 storageOffset:4 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
+// CHECK-NEXT:  <CIRBitFieldInfo name:bit offset:0 size:8 isSigned:0 storageSize:48 storageOffset:1 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
+// CHECK-NEXT:   <CIRBitFieldInfo name:should offset:24 size:20 isSigned:0 storageSize:48 storageOffset:1 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
+// CHECK-NEXT:   <CIRBitFieldInfo name:have offset:44 size:3 isSigned:0 storageSize:48 storageOffset:1 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
+// CHECK-NEXT:   <CIRBitFieldInfo name:order offset:47 size:1 isSigned:0 storageSize:48 storageOffset:1 volatileOffset:0 volatileStorageSize:0 volatileStorageOffset:0>
 // CHECK:]>
 
 struct Inner {
