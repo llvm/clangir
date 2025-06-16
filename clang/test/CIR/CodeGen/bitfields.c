@@ -77,7 +77,7 @@ void store_field() {
 
 // CHECK: cir.func {{.*@load_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init]
-// CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
+// CHECK:   [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
 // CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP1]] : !cir.ptr<!rec_S>), !cir.ptr<!cir.array<!u8i x 7>>
 // CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!cir.array<!u8i x 7>>) -> !s32i
 int load_field(S* s) {

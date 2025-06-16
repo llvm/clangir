@@ -52,7 +52,7 @@ int load_field(S& s) {
   return s.d;
 }
 
-// CHECK: cir.func @_Z17load_non_bitfield
+// CHECK: cir.func dso_local @_Z17load_non_bitfield
 // CHECK:   cir.get_member {{%.}}[2] {name = "f"} : !cir.ptr<!rec_S> -> !cir.ptr<!u32i>
 unsigned load_non_bitfield(S& s) {
   return s.f;
