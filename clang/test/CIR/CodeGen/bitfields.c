@@ -33,8 +33,8 @@ typedef struct {
   int e : 15;
   unsigned f; // type other than int above, not a bitfield
 } S;
-// CHECK-DAG: !rec_S = !cir.record<struct "S" {!cir.array<!u8i x 7>, !u16i, !u32i}>
-// CHECK-DAG: #bfi_d = #cir.bitfield_info<name = "d", storage_type = !cir.array<!u8i x 7>, size = 2, offset = 49, is_signed = true>
+// CHECK-DAG: !rec_S = !cir.record<struct "S" {!u64i, !u16i, !u32i}>
+// CHECK-DAG: #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u64i, size = 2, offset = 49, is_signed = true>
 // CHECK-DAG: #bfi_e = #cir.bitfield_info<name = "e", storage_type = !u16i, size = 15, offset = 0, is_signed = true>
 typedef struct {
   int a : 3;  // one bitfield with size < 8
@@ -58,10 +58,9 @@ typedef struct {
     int j: 3;
     int k: 8;
 
-    int l: 14; // need to be a part of the new storage
-               // because (tail - startOffset) is 65 after 'l' field
+    int l: 14;
 } U;
-// CHECK-DAG: !rec_U = !cir.record<struct "U" {!s8i, !s8i, !s8i, !cir.array<!u8i x 5>, !u32i}>
+// CHECK-DAG: !cir.record<struct "U" packed {!s8i, !s8i, !s8i, !u8i, !u64i}>
 
 // CHECK-DAG: !rec_G = !cir.record<struct "G" {!u16i, !s32i} #cir.record.decl.ast>
 
@@ -78,27 +77,27 @@ void store_field() {
 // CHECK: cir.func {{.*@load_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init]
 // CHECK:   [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
-// CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP1]] : !cir.ptr<!rec_S>), !cir.ptr<!cir.array<!u8i x 7>>
-// CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!cir.array<!u8i x 7>>) -> !s32i
+// CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP1]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
+// CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!u64i>) -> !s32i
 int load_field(S* s) {
   return s->d;
 }
 
 // CHECK: cir.func {{.*@unOp}}
-// CHECK:   [[TMP0:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!cir.array<!u8i x 7>>
-// CHECK:   [[TMP1:%.*]] = cir.get_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 7>>) -> !s32i
+// CHECK:   [[TMP0:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
+// CHECK:   [[TMP1:%.*]] = cir.get_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!u64i>) -> !s32i
 // CHECK:   [[TMP2:%.*]] = cir.unary(inc, [[TMP1]]) nsw : !s32i, !s32i
-// CHECK:   cir.set_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 7>>, [[TMP2]] : !s32i)
+// CHECK:   cir.set_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!u64i>, [[TMP2]] : !s32i)
 void unOp(S* s) {
   s->d++;
 }
 
 // CHECK: cir.func {{.*@binOp}}
 // CHECK:   [[TMP0:%.*]] = cir.const #cir.int<42> : !s32i
-// CHECK:   [[TMP1:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!cir.array<!u8i x 7>>
-// CHECK:   [[TMP2:%.*]] = cir.get_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!cir.array<!u8i x 7>>) -> !s32i
+// CHECK:   [[TMP1:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
+// CHECK:   [[TMP2:%.*]] = cir.get_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!u64i>) -> !s32i
 // CHECK:   [[TMP3:%.*]] = cir.binop(or, [[TMP2]], [[TMP0]]) : !s32i
-// CHECK:   cir.set_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!cir.array<!u8i x 7>>, [[TMP3]] : !s32i)
+// CHECK:   cir.set_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!u64i>, [[TMP3]] : !s32i)
 void binOp(S* s) {
    s->d |= 42;
 }

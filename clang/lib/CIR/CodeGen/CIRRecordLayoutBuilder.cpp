@@ -616,7 +616,7 @@ CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
       if (!InstallBest) {
         // Determine if accumulating the just-seen span will create an expensive
         // access unit or not.
-        mlir::Type Type = getBitfieldStorageType(astContext.toBits(AccessSize));
+        mlir::Type Type = getUIntNType(astContext.toBits(AccessSize));
         if (!astContext.getTargetInfo().hasCheapUnalignedBitFieldAccess())
           llvm_unreachable("NYI");
 
@@ -674,12 +674,12 @@ CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
         // remain there after a stable sort.
         mlir::Type Type;
         if (BestClipped) {
-          assert(getSize(getBitfieldStorageType(
-                     astContext.toBits(AccessSize))) > AccessSize &&
+          assert(getSize(getUIntNType(astContext.toBits(AccessSize))) >
+                     AccessSize &&
                  "Clipped access need not be clipped");
           Type = getByteArrayType(AccessSize);
         } else {
-          Type = getBitfieldStorageType(astContext.toBits(AccessSize));
+          Type = getUIntNType(astContext.toBits(AccessSize));
           assert(getSize(Type) == AccessSize &&
                  "Unclipped access must be clipped");
         }
