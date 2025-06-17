@@ -314,26 +314,55 @@ void extract_imag() {
 
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-BEFORE-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#IMAG:]] = cir.complex.imag %[[COMPLEX]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-BEFORE:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-BEFORE-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[#IMAG:]] = cir.complex.imag %[[COMPLEX]] : !cir.complex<!s32i> -> !s32i
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-AFTER-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#IMAG:]] = cir.complex.imag %[[COMPLEX]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-AFTER:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-AFTER-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[#IMAG:]] = cir.complex.imag %[[COMPLEX]] : !cir.complex<!s32i> -> !s32i
 //      CHECK-AFTER: }
 
-// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: define dso_local void @extract_imag()
-// LLVM:   %{{.+}} = load double, ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), align 8
-// LLVM:   %{{.+}} = load i32, ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), align 4
+// LLVM:   %[[COMPLEX_D:.*]] = load { double, double }, ptr @c, align 8
+// LLVM:   %[[I1:.*]] = extractvalue { double, double } %[[COMPLEX_D]], 1
+// LLVM:   %[[COMPLEX_I:.*]] = load { i32, i32 }, ptr @ci, align 4
+// LLVM:   %[[I2:.*]] = extractvalue { i32, i32 } %[[COMPLEX_I]], 1
+// LLVM: }
+
+int extract_imag_and_add(int _Complex a, int _Complex b) {
+  return __imag__ a + __imag__ b;
+}
+
+//      CHECK-BEFORE: cir.func
+//      CHECK-BEFORE:   %[[COMPLEX_A:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[IMAG_A:.*]] = cir.complex.imag %[[COMPLEX_A]] : !cir.complex<!s32i> -> !s32i
+// CHECK-BEFORE-NEXT:   %[[COMPLEX_B:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[IMAG_B:.*]] = cir.complex.imag %[[COMPLEX_B]] : !cir.complex<!s32i> -> !s32i
+// CHECK-BEFORE-NEXT:   %[[ADD:.*]] = cir.binop(add, %[[IMAG_A]], %[[IMAG_B]]) nsw : !s32i
+//      CHECK-BEFORE: }
+
+//      CHECK-AFTER: cir.func
+//      CHECK-AFTER:   %[[COMPLEX_A:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[IMAG_A:.*]] = cir.complex.imag %[[COMPLEX_A]] : !cir.complex<!s32i> -> !s32i
+// CHECK-AFTER-NEXT:   %[[COMPLEX_B:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[IMAG_B:.*]] = cir.complex.imag %[[COMPLEX_B]] : !cir.complex<!s32i> -> !s32i
+// CHECK-AFTER-NEXT:   %[[ADD:.*]] = cir.binop(add, %[[IMAG_A]], %[[IMAG_B]]) nsw : !s32i
+//      CHECK-AFTER: }
+
+// LLVM: define dso_local i32 @extract_imag_and_add
+// LLVM:   %[[COMPLEX_A:.*]] = load { i32, i32 }, ptr {{.*}}, align 4
+// LLVM:   %[[IMAG_A:.*]] = extractvalue { i32, i32 } %[[COMPLEX_A]], 1
+// LLVM:   %[[COMPLEX_B:.*]] = load { i32, i32 }, ptr {{.*}}, align 4
+// LLVM:   %[[IMAG_B:.*]] = extractvalue { i32, i32 } %[[COMPLEX_B]], 1
+// LLVM:   %10 = add nsw i32 %[[IMAG_A]], %[[IMAG_B]]
 // LLVM: }
 
 void complex_with_empty_init() { int _Complex c = {}; }
