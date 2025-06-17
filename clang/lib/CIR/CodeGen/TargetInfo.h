@@ -25,6 +25,16 @@
 
 namespace clang::CIRGen {
 
+/// isEmptyFieldForLayout - Return true if the field is "empty", that is,
+/// either a zero-width bit-field or an isEmptyRecordForLayout.
+bool isEmptyFieldForLayout(const ASTContext &Context, const FieldDecl *FD);
+
+/// isEmptyRecordForLayout - Return true if a structure contains only empty
+/// base classes (per  isEmptyRecordForLayout) and fields (per
+/// isEmptyFieldForLayout). Note, C++ record fields are considered empty
+/// if the [[no_unique_address]] attribute would have made them empty.
+bool isEmptyRecordForLayout(const ASTContext &Context, QualType T);
+
 class CIRGenFunction;
 class CIRGenModule;
 class CIRGenBuilderTy;
