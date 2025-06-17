@@ -1,12 +1,11 @@
 #include "PassDetail.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/IR/PatternMatch.h"
-#include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace mlir;
@@ -23,12 +22,13 @@ struct GotoSolverPass : public GotoSolverBase<GotoSolverPass> {
 static void process(cir::FuncOp func) {
 
   mlir::OpBuilder rewriter(func.getContext());
-  std::map<std::string, Block *> labels;
-  std::vector<cir::GotoOp> gotos;
+  llvm::StringMap<Block *> labels;
+  llvm::SmallVector<cir::GotoOp, 4> gotos;
 
   func.getBody().walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
-      labels.emplace(lab.getLabel().str(), lab->getBlock());
+      // Will construct a string copy inplace. Safely erase the label
+      labels.try_emplace(lab.getLabel(), lab->getBlock());
       lab.erase();
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.push_back(goTo);
@@ -38,7 +38,7 @@ static void process(cir::FuncOp func) {
   for (auto goTo : gotos) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(goTo);
-    auto dest = labels[goTo.getLabel().str()];
+    Block *dest = labels[goTo.getLabel()];
     rewriter.create<cir::BrOp>(goTo.getLoc(), dest);
     goTo.erase();
   }
