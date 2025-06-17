@@ -414,6 +414,62 @@ public:
 };
 
 class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
+  void rewriteContinueInIf(cir::IfOp ifOp, cir::ContinueOp continueOp,
+                           mlir::scf::WhileOp whileOp,
+                           mlir::ConversionPatternRewriter &rewriter) const {
+    auto loc = ifOp->getLoc();
+
+    rewriter.setInsertionPointToStart(whileOp.getAfterBody());
+    auto boolTy = rewriter.getType<BoolType>();
+    auto boolPtrTy = rewriter.getType<PointerType>(boolTy);
+    auto alignment = rewriter.getI64IntegerAttr(4);
+    auto condAlloca = rewriter.create<AllocaOp>(loc, boolPtrTy, boolTy,
+                                                "condition", alignment);
+
+    rewriter.setInsertionPoint(ifOp);
+    auto negated = rewriter.create<UnaryOp>(loc, boolTy, UnaryOpKind::Not,
+                                            ifOp.getCondition());
+    rewriter.create<StoreOp>(loc, negated, condAlloca);
+
+    // On each layer, surround everything after runner in its parent with a
+    // guard: `if (!condAlloca)`.
+    for (mlir::Operation *runner = ifOp; runner != whileOp;
+         runner = runner->getParentOp()) {
+      rewriter.setInsertionPointAfter(runner);
+      auto cond = rewriter.create<LoadOp>(
+          loc, boolTy, condAlloca, /*isDeref=*/false,
+          /*volatile=*/false, /*nontemporal=*/false, alignment,
+          /*memorder=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
+      auto ifnot =
+          rewriter.create<IfOp>(loc, cond, /*withElseRegion=*/false,
+                                [&](mlir::OpBuilder &, mlir::Location) {
+                                  /* Intentionally left empty */
+                                });
+
+      auto &region = ifnot.getThenRegion();
+      rewriter.setInsertionPointToEnd(&region.back());
+      auto terminator = rewriter.create<YieldOp>(loc);
+
+      bool inserted = false;
+      for (mlir::Operation *op = ifnot->getNextNode(); op;) {
+        // Don't move terminators in.
+        if (isa<YieldOp>(op) || isa<ReturnOp>(op))
+          break;
+
+        mlir::Operation *next = op->getNextNode();
+        op->moveBefore(terminator);
+        op = next;
+        inserted = true;
+      }
+      // Don't retain `if (!condAlloca)` when it's empty.
+      if (!inserted)
+        rewriter.eraseOp(ifnot);
+    }
+    rewriter.setInsertionPoint(continueOp);
+    rewriter.create<mlir::scf::YieldOp>(continueOp->getLoc());
+    rewriter.eraseOp(continueOp);
+  }
+
   void rewriteContinue(mlir::scf::WhileOp whileOp,
                        mlir::ConversionPatternRewriter &rewriter) const {
     // Collect all ContinueOp inside this while.
@@ -427,23 +483,29 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
       return;
 
     for (auto continueOp : continues) {
-      // When the break is under an IfOp, a direct replacement of `scf.yield`
-      // won't work: the yield would jump out of that IfOp instead. We might
-      // need to change the whileOp itself to achieve the same effect.
+      // When the ContinueOp is under an IfOp, a direct replacement of
+      // `scf.yield` won't work: the yield would jump out of that IfOp instead.
+      // We might need to change the WhileOp itself to achieve the same effect.
+      bool rewritten = false;
       for (mlir::Operation *parent = continueOp->getParentOp();
            parent != whileOp; parent = parent->getParentOp()) {
-        if (isa<mlir::scf::IfOp>(parent) || isa<cir::IfOp>(parent))
-          llvm_unreachable("NYI");
+        if (auto ifOp = dyn_cast<cir::IfOp>(parent)) {
+          rewriteContinueInIf(ifOp, continueOp, whileOp, rewriter);
+          rewritten = true;
+          break;
+        }
       }
+      if (rewritten)
+        continue;
 
-      // Operations after this break has to be removed.
+      // Operations after this ContinueOp has to be removed.
       for (mlir::Operation *runner = continueOp->getNextNode(); runner;) {
         mlir::Operation *next = runner->getNextNode();
         runner->erase();
         runner = next;
       }
 
-      // Blocks after this break also has to be removed.
+      // Blocks after this ContinueOp also has to be removed.
       for (mlir::Block *block = continueOp->getBlock()->getNextNode(); block;) {
         mlir::Block *next = block->getNextNode();
         block->erase();
