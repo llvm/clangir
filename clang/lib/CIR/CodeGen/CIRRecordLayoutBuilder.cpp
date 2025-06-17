@@ -651,8 +651,7 @@ CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
           } else if (cirGenTypes.getModule()
                          .getCodeGenOpts()
                          .FineGrainedBitfieldAccesses) {
-            // Fine-grained access, so no merging of spans.
-            InstallBest = true;
+            llvm_unreachable("NYI");
           } else {
             // Otherwise, we're not installing. Update the bit size
             // of the current span to go all the way to LimitOffset, which is
