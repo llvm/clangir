@@ -529,7 +529,8 @@ public:
 
   bool isSized(mlir::Type ty) {
     if (mlir::isa<cir::PointerType, cir::RecordType, cir::ArrayType,
-                  cir::BoolType, cir::IntType, cir::CIRFPTypeInterface>(ty))
+                  cir::BoolType, cir::IntType, cir::CIRFPTypeInterface,
+                  cir::ComplexType>(ty))
       return true;
     if (mlir::isa<cir::VectorType>(ty)) {
       return isSized(mlir::cast<cir::VectorType>(ty).getElementType());
