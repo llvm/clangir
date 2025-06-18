@@ -87,8 +87,9 @@ mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod) {
   auto *ctx = rewriter.getContext();
-  auto langAttr = mlir::cast<cir::LangAttr>(
-      lowerMod->getModule()->getAttr(cir::CIRDialect::getLangAttrName()));
+  auto langAttr =
+      mlir::cast<cir::SourceLanguageAttr>(lowerMod->getModule()->getAttr(
+          cir::CIRDialect::getSourceLanguageAttrName()));
   CIRToLLVMTBAAAttrLowering lower(ctx, langAttr.isCXX());
   if (auto tbaaTag = mlir::dyn_cast<cir::TBAATagAttr>(tbaa)) {
     mlir::LLVM::TBAATypeDescriptorAttr accessType =

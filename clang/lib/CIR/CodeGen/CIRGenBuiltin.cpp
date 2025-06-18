@@ -370,8 +370,7 @@ static mlir::Value makeAtomicCmpXchgValue(CIRGenFunction &cgf,
                         cir::MemOrder::SequentiallyConsistent),
       MemOrderAttr::get(&cgf.getMLIRContext(),
                         cir::MemOrder::SequentiallyConsistent),
-      MemScopeKindAttr::get(&cgf.getMLIRContext(),
-                            cir::MemScopeKind::MemScope_System),
+      MemScopeKindAttr::get(&cgf.getMLIRContext(), cir::MemScopeKind::System),
       builder.getI64IntegerAttr(destAddr.getAlignment().getAsAlign().value()));
 
   return returnBool ? op.getResult(1) : op.getResult(0);
@@ -2033,10 +2032,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__atomic_thread_fence:
     return RValue::get(
-        makeAtomicFenceValue(*this, E, cir::MemScopeKind::MemScope_System));
+        makeAtomicFenceValue(*this, E, cir::MemScopeKind::System));
   case Builtin::BI__atomic_signal_fence:
-    return RValue::get(makeAtomicFenceValue(
-        *this, E, cir::MemScopeKind::MemScope_SingleThread));
+    return RValue::get(
+        makeAtomicFenceValue(*this, E, cir::MemScopeKind::SingleThread));
   case Builtin::BI__c11_atomic_thread_fence:
   case Builtin::BI__c11_atomic_signal_fence:
     llvm_unreachable("BI__c11_atomic_thread_fence like NYI");
@@ -2872,7 +2871,7 @@ mlir::Value CIRGenFunction::emitBuiltinObjectSize(const Expr *E, unsigned Type,
   // LLVM intrinsics (which CIR lowers to at some point, only supports 0
   // and 2, account for that right now.
   cir::SizeInfoType sizeInfoTy =
-      ((Type & 2) != 0) ? cir::SizeInfoType::min : cir::SizeInfoType::max;
+      ((Type & 2) != 0) ? cir::SizeInfoType::Min : cir::SizeInfoType::Max;
   // TODO(cir): Heads up for LLVM lowering, For GCC compatibility,
   // __builtin_object_size treat NULL as unknown size.
   return builder.create<cir::ObjSizeOp>(getLoc(E->getSourceRange()), ResType,
