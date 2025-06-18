@@ -3257,54 +3257,6 @@ LogicalResult cir::AwaitOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// CIR defined traits
-//===----------------------------------------------------------------------===//
-
-LogicalResult
-mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 1)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto type = op->getResult(0).getType();
-  auto opType = op->getOperand(0).getType();
-
-  if (type != opType)
-    return op->emitOpError()
-           << "requires the same type for first operand and result";
-
-  return success();
-}
-
-LogicalResult
-mlir::OpTrait::impl::verifySameSecondOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 2)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto type = op->getResult(0).getType();
-  auto opType = op->getOperand(1).getType();
-
-  if (type != opType)
-    return op->emitOpError()
-           << "requires the same type for second operand and result";
-
-  return success();
-}
-
-LogicalResult
-mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 3)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto checkType = op->getResult(0).getType();
-  if (checkType != op->getOperand(0).getType() &&
-      checkType != op->getOperand(1).getType())
-    return op->emitOpError()
-           << "requires the same type for first, second operand and result";
-
-  return success();
-}
-
-//===----------------------------------------------------------------------===//
 // CIR attributes
 // FIXME: move all of these to CIRAttrs.cpp
 //===----------------------------------------------------------------------===//
