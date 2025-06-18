@@ -53,7 +53,7 @@ class CIRStdOp<string functionName, dag args, dag res, list<Trait> traits = []>:
 def StdFindOp : CIRStdOp<"find",
   (ins CIR_AnyType:$first, CIR_AnyType:$last, CIR_AnyType:$pattern),
   (outs CIR_AnyType:$result),
-  [SameFirstSecondOperandAndResultType]>;
+  [AllTypesMatch<["first", "last", "result"]>]>;
 def IterBeginOp: CIRStdOp<"begin",
   (ins CIR_AnyType:$container),
   (outs CIR_AnyType:$result)>;
