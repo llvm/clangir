@@ -699,7 +699,7 @@ public:
                             cir::PointerType destType, bool isRefCast,
                             cir::DynamicCastInfoAttr info) {
     auto castKind =
-        isRefCast ? cir::DynamicCastKind::ref : cir::DynamicCastKind::ptr;
+        isRefCast ? cir::DynamicCastKind::Ref : cir::DynamicCastKind::Ptr;
     return create<cir::DynamicCastOp>(loc, destType, castKind, src, info,
                                       /*relative_layout=*/false);
   }
@@ -709,7 +709,7 @@ public:
     // TODO(cir): consider address space here.
     assert(!cir::MissingFeatures::addressSpace());
     auto destTy = getVoidPtrTy();
-    return create<cir::DynamicCastOp>(loc, destTy, cir::DynamicCastKind::ptr,
+    return create<cir::DynamicCastOp>(loc, destTy, cir::DynamicCastKind::Ptr,
                                       src, cir::DynamicCastInfoAttr{},
                                       vtableUseRelativeLayout);
   }

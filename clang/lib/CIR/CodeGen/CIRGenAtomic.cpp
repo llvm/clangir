@@ -800,7 +800,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *Expr, Address Dest,
   if (!ScopeModel) {
     assert(!cir::MissingFeatures::syncScopeID());
     emitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
-                 Order, cir::MemScopeKind::MemScope_System);
+                 Order, cir::MemScopeKind::System);
     return;
   }
 

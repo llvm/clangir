@@ -44,6 +44,21 @@ class CIR_TypedAttr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = [{}];
 }
 
+class CIR_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
+    : I32EnumAttr<name, summary, cases> {
+  let cppNamespace = "::cir";
+}
+
+class CIR_I64EnumAttr<string name, string summary, list<I64EnumAttrCase> cases>
+    : I64EnumAttr<name, summary, cases> {
+  let cppNamespace = "::cir";
+}
+
+class CIR_EnumAttr<EnumAttrInfo info, string name = "", list<Trait> traits = []>
+    : EnumAttr<CIR_Dialect, info, name, traits> {
+  let assemblyFormat = "`<` $value `>`";
+}
+
 class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
     : CIR_Attr<name, attrMnemonic, traits> {
   let returnType = "bool";
@@ -53,18 +68,21 @@ class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 //===----------------------------------------------------------------------===//
-// LangAttr
+// SourceLanguageAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
+def CIR_SourceLanguage : CIR_I32EnumAttr<"SourceLanguage", "source language", [
   I32EnumAttrCase<"C", 1, "c">,
   I32EnumAttrCase<"CXX", 2, "cxx">,
   I32EnumAttrCase<"OpenCLC", 3, "opencl_c">
 ]> {
-  let cppNamespace = "::cir";
+  // The enum attr class is defined in `CIR_SourceLanguageAttr` below,
+  // so that it can define extra class methods.
+  let genSpecializedAttr = 0;
 }
 
-def CIR_LangAttr : CIR_Attr<"Lang", "lang"> {
+def CIR_SourceLanguageAttr : CIR_EnumAttr<CIR_SourceLanguage, "lang"> {
+
   let summary = "Module source language";
   let description = [{
     Represents the source language used to generate the module.
@@ -76,17 +94,15 @@ def CIR_LangAttr : CIR_Attr<"Lang", "lang"> {
     // Module compiled from C++.
     module attributes {cir.lang = cir.lang<cxx>} {}
     ```
-  }];
 
-  let parameters = (ins "SourceLanguage":$lang);
-
-  let assemblyFormat = [{
-    `<` $lang `>`
+    Module source language attribute name is `cir.lang` is defined by
+    `getSourceLanguageAttrName` method in CIRDialect class.
   }];
 
   let extraClassDeclaration = [{
-    bool isC() const { return getLang() == SourceLanguage::C; };
-    bool isCXX() const { return getLang() == SourceLanguage::CXX; };
+    bool isC() const { return getValue() == SourceLanguage::C; }
+    bool isCXX() const { return getValue() == SourceLanguage::CXX; }
+    bool isOpenCLC() const { return getValue() == SourceLanguage::OpenCLC; }
   }];
 }
 
@@ -516,14 +532,12 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
 // CmpThreeWayInfoAttr
 //===----------------------------------------------------------------------===//
 
-def CmpOrdering_Strong : I32EnumAttrCase<"Strong", 1, "strong">;
-def CmpOrdering_Partial : I32EnumAttrCase<"Partial", 2, "partial">;
-
-def CmpOrdering : I32EnumAttr<
-  "CmpOrdering", "three-way comparison ordering kind",
-  [CmpOrdering_Strong, CmpOrdering_Partial]
-> {
-  let cppNamespace = "::cir";
+def CIR_CmpOrdering : CIR_I32EnumAttr<
+  "CmpOrdering", "three-way comparison ordering kind", [
+    I32EnumAttrCase<"Strong", 0, "strong">,
+    I32EnumAttrCase<"Partial", 1, "partial">
+]> {
+  let genSpecializedAttr = 0;
 }
 
 def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
@@ -542,9 +556,11 @@ def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
     or neither, respectively.
   }];
 
-  let parameters = (ins "CmpOrdering":$ordering, "int64_t":$lt, "int64_t":$eq,
-                        "int64_t":$gt,
-                        OptionalParameter<"std::optional<int64_t>">:$unordered);
+  let parameters = (ins
+    EnumParameter<CIR_CmpOrdering>:$ordering,
+    "int64_t":$lt, "int64_t":$eq, "int64_t":$gt,
+    OptionalParameter<"std::optional<int64_t>">:$unordered
+  );
 
   let builders = [
     AttrBuilder<(ins "int64_t":$lt, "int64_t":$eq, "int64_t":$gt), [{
@@ -680,18 +696,6 @@ def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
       return getVtableOffset().has_value();
     }
   }];
-}
-
-//===----------------------------------------------------------------------===//
-// SignedOverflowBehaviorAttr
-//===----------------------------------------------------------------------===//
-
-def SignedOverflowBehaviorAttr : AttrDef<CIR_Dialect, "SignedOverflowBehavior"> {
-  let mnemonic = "signed_overflow_behavior";
-  let parameters = (ins
-    "sob::SignedOverflowBehavior":$behavior
-  );
-  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1133,37 +1137,32 @@ def ASTCallExprAttr : AST<"CallExpr", "call.expr",
 // VisibilityAttr
 //===----------------------------------------------------------------------===//
 
-def VK_Default : I32EnumAttrCase<"Default", 1, "default">;
-def VK_Hidden : I32EnumAttrCase<"Hidden", 2, "hidden">;
-def VK_Protected : I32EnumAttrCase<"Protected", 3, "protected">;
-
-def VisibilityKind : I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
-  VK_Default, VK_Hidden, VK_Protected
+def CIR_VisibilityKind : CIR_I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
+  I32EnumAttrCase<"Default", 1, "default">,
+  I32EnumAttrCase<"Hidden", 2, "hidden">,
+  I32EnumAttrCase<"Protected", 3, "protected">
 ]> {
-  let cppNamespace = "::cir";
+  let genSpecializedAttr = 0;
 }
 
-def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
+def CIR_VisibilityAttr : CIR_EnumAttr<CIR_VisibilityKind, "visibility"> {
   let summary = "Visibility attribute";
   let description = [{
     Visibility attributes.
   }];
-  let parameters = (ins "VisibilityKind":$value);
 
-  let assemblyFormat = [{
-    $value
-  }];
+  let cppClassName = "VisibilityAttr";
 
+  let skipDefaultBuilders = 1;
   let builders = [
     AttrBuilder<(ins CArg<"VisibilityKind", "cir::VisibilityKind::Default">:$value), [{
       return $_get($_ctxt, value);
     }]>
   ];
 
-  let skipDefaultBuilders = 1;
-
-  // Make DefaultValuedAttr accept VisibilityKind as default value ($0).
-  let constBuilderCall = "cir::VisibilityAttr::get($_builder.getContext(), $0)";
+  let assemblyFormat = [{
+    $value
+  }];
 
   let extraClassDeclaration = [{
     bool isDefault() const { return getValue() == VisibilityKind::Default; };
@@ -1171,7 +1170,6 @@ def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
     bool isProtected() const { return getValue() == VisibilityKind::Protected; };
   }];
 }
-
 
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr
@@ -1197,27 +1195,25 @@ def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
   // Printing and parsing also available in CIRDialect.cpp
 }
 
-def NoInline : I32EnumAttrCase<"NoInline", 1, "no">;
-def AlwaysInline : I32EnumAttrCase<"AlwaysInline", 2, "always">;
-def InlineHint : I32EnumAttrCase<"InlineHint", 3, "hint">;
+//===----------------------------------------------------------------------===//
+// InlineAttr
+//===----------------------------------------------------------------------===//
 
-def InlineKind : I32EnumAttr<"InlineKind", "inlineKind", [
-  NoInline, AlwaysInline, InlineHint
+def CIR_InlineKind : CIR_I32EnumAttr<"InlineKind", "inlineKind", [
+  I32EnumAttrCase<"NoInline", 1, "no">,
+  I32EnumAttrCase<"AlwaysInline", 2, "always">,
+  I32EnumAttrCase<"InlineHint", 3, "hint">
 ]> {
-  let cppNamespace = "::cir";
+  let genSpecializedAttr = 0;
 }
 
-def InlineAttr : CIR_Attr<"Inline", "inline"> {
+def CIR_InlineAttr : CIR_EnumAttr<CIR_InlineKind, "inline"> {
   let summary = "Inline attribute";
   let description = [{
     Inline attributes represents user directives.
   }];
 
-  let parameters = (ins "InlineKind":$value);
-
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
+  let cppClassName = "InlineAttr";
 
   let extraClassDeclaration = [{
     bool isNoInline() const { return getValue() == InlineKind::NoInline; };
@@ -1225,6 +1221,10 @@ def InlineAttr : CIR_Attr<"Inline", "inline"> {
     bool isInlineHint() const { return getValue() == InlineKind::InlineHint; };
   }];
 }
+
+//===----------------------------------------------------------------------===//
+// Unit Function Attributes
+//===----------------------------------------------------------------------===//
 
 def OptNoneAttr : CIRUnitAttr<"OptNone", "optnone"> {
   let storageType = [{ OptNoneAttr }];
@@ -1238,21 +1238,19 @@ def ConvergentAttr : CIRUnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }
 
-def UWTableKindNone
-    : I32EnumAttrCase<"None", 0, "none">;
-def UWTableKindSync
-    : I32EnumAttrCase<"Sync", 1, "sync">;
-def UWTableKindAsync
-    : I32EnumAttrCase<"Async", 2, "async">;
+//===----------------------------------------------------------------------===//
+// UWTableAttr
+//===----------------------------------------------------------------------===//
 
-def UWTableKind : I32EnumAttr<"UWTableKind", "Unwind table kind", [
-  UWTableKindNone, UWTableKindSync, UWTableKindAsync
+def CIR_UWTableKind : CIR_I32EnumAttr<"UWTableKind", "Unwind table kind", [
+  I32EnumAttrCase<"None", 0, "none">,
+  I32EnumAttrCase<"Sync", 1, "sync">,
+  I32EnumAttrCase<"Async", 2, "async">
 ]> {
-  let cppNamespace = "::cir";
   let genSpecializedAttr = 0;
 }
 
-def UWTableAttr : EnumAttr<CIR_Dialect, UWTableKind, "uwtable"> {
+def CIR_UWTableAttr : CIR_EnumAttr<CIR_UWTableKind, "uwtable"> {
   let summary = "Unwind table kind attribute";
   let description = [{
     The kind of unwind tables to generate for a function. `none` means no unwind
@@ -1263,9 +1261,6 @@ def UWTableAttr : EnumAttr<CIR_Dialect, UWTableKind, "uwtable"> {
   }];
 
   let cppClassName = "UWTableAttr";
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
 }
 
 class CIR_GlobalCtorDtor<string name, string attrMnemonic,

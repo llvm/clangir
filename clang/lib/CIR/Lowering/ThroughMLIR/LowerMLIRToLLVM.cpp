@@ -71,7 +71,7 @@ void ConvertMLIRToLLVMPass::runOnOperation() {
 
   // Strip the CIR attributes.
   module->removeAttr(cir::CIRDialect::getSOBAttrName());
-  module->removeAttr(cir::CIRDialect::getLangAttrName());
+  module->removeAttr(cir::CIRDialect::getSourceLanguageAttrName());
   module->removeAttr(cir::CIRDialect::getTripleAttrName());
 
   if (failed(applyFullConversion(module, target, std::move(patterns))))
