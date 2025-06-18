@@ -4397,9 +4397,6 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vmul_n_f64: {
     llvm_unreachable("NEON::BI__builtin_neon_vmul_n_f64 NYI");
   }
-  case NEON::BI__builtin_neon_vaddlv_u8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vaddlv_u8 NYI");
-  }
   case NEON::BI__builtin_neon_vaddlvq_u8: {
     llvm_unreachable("NEON::BI__builtin_neon_vaddlvq_u8 NYI");
   }
@@ -4413,8 +4410,16 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                         usgn ? "aarch64.neon.uaddlv" : "aarch64.neon.saddlv",
                         usgn ? UInt32Ty : SInt32Ty, getLoc(E->getExprLoc()));
   }
+  case NEON::BI__builtin_neon_vaddlv_u8:
+    usgn = true;
+    [[fallthrough]];
   case NEON::BI__builtin_neon_vaddlv_s8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vaddlv_s8 NYI");
+    cir::VectorType vTy = cir::VectorType::get(usgn ? UInt8Ty : SInt8Ty, 8);
+    Ops.push_back(emitScalarExpr(E->getArg(0)));
+    Ops[0] = emitNeonCall(builder, {vTy}, Ops,
+                          usgn ? "aarch64.neon.uaddlv" : "aarch64.neon.saddlv",
+                          usgn ? UInt32Ty : SInt32Ty, getLoc(E->getExprLoc()));
+    return builder.createIntCast(Ops[0], usgn ? UInt16Ty : SInt16Ty);
   }
   case NEON::BI__builtin_neon_vaddlv_u16:
     usgn = true;
