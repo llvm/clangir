@@ -144,5 +144,16 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
         .getResult();
   }
+  case X86::BI__builtin_ia32_tzcnt_u16:
+  case X86::BI__builtin_ia32_tzcnt_u32:
+  case X86::BI__builtin_ia32_tzcnt_u64: {
+    mlir::Value V = builder.create<cir::ConstantOp>(
+        getLoc(E->getExprLoc()), cir::BoolAttr::get(&getMLIRContext(), false));
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("cttz"),
+            Ops[0].getType(), mlir::ValueRange{Ops[0], V})
+        .getResult();
+  }
   }
 }
