@@ -88,17 +88,6 @@ def CIRReturnLike : TraitList<[
 ]>;
 
 //===----------------------------------------------------------------------===//
-// CIR Op Traits
-//===----------------------------------------------------------------------===//
-
-def SameFirstOperandAndResultType :
-  NativeOpTrait<"SameFirstOperandAndResultType">;
-def SameSecondOperandAndResultType :
-  NativeOpTrait<"SameSecondOperandAndResultType">;
-def SameFirstSecondOperandAndResultType :
-  NativeOpTrait<"SameFirstSecondOperandAndResultType">;
-
-//===----------------------------------------------------------------------===//
 // CastOp
 //===----------------------------------------------------------------------===//
 
@@ -334,7 +323,7 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 
 def PtrStrideOp : CIR_Op<"ptr_stride",
-                         [Pure, SameFirstOperandAndResultType]> {
+                         [Pure, AllTypesMatch<["base", "result"]>]> {
   let summary = "Pointer access with stride";
   let description = [{
     Given a base pointer as first operand, provides a new pointer after applying
