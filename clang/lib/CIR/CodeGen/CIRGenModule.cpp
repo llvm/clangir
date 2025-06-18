@@ -175,16 +175,16 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
     createOpenCLRuntime();
   }
 
-  cir::sob::SignedOverflowBehavior sob;
+  cir::SignedOverflowBehavior sob;
   switch (langOpts.getSignedOverflowBehavior()) {
   case clang::LangOptions::SignedOverflowBehaviorTy::SOB_Defined:
-    sob = sob::SignedOverflowBehavior::defined;
+    sob = cir::SignedOverflowBehavior::Defined;
     break;
   case clang::LangOptions::SignedOverflowBehaviorTy::SOB_Undefined:
-    sob = sob::SignedOverflowBehavior::undefined;
+    sob = cir::SignedOverflowBehavior::Undefined;
     break;
   case clang::LangOptions::SignedOverflowBehaviorTy::SOB_Trapping:
-    sob = sob::SignedOverflowBehavior::trapping;
+    sob = cir::SignedOverflowBehavior::Trapping;
     break;
   }
 
@@ -192,8 +192,9 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   // MLIR features.
   theModule->setAttr(cir::CIRDialect::getSOBAttrName(),
                      cir::SignedOverflowBehaviorAttr::get(&mlirContext, sob));
-  theModule->setAttr(cir::CIRDialect::getLangAttrName(),
-                     cir::LangAttr::get(&mlirContext, getCIRSourceLanguage()));
+  theModule->setAttr(
+      cir::CIRDialect::getSourceLanguageAttrName(),
+      cir::SourceLanguageAttr::get(&mlirContext, getCIRSourceLanguage()));
   theModule->setAttr(cir::CIRDialect::getTripleAttrName(),
                      builder.getStringAttr(getTriple().str()));
 
