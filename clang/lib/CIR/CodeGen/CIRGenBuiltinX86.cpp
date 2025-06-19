@@ -145,7 +145,24 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
         .getResult();
   }
   case X86::BI__builtin_ia32_rdtscp: {
-    llvm_unreachable("__rdtscp NYI");
+    // For rdtscp, we need to create a proper struct type to hold {i64, i32}
+    cir::RecordType resTy = builder.getAnonRecordTy(
+        {builder.getUInt64Ty(), builder.getUInt32Ty()}, false, false);
+
+    auto call = builder
+                    .create<cir::LLVMIntrinsicCallOp>(
+                        getLoc(E->getExprLoc()),
+                        builder.getStringAttr("x86.rdtscp"), resTy)
+                    .getResult();
+
+    // Store processor ID in address param
+    mlir::Value pID = builder.create<cir::ExtractMemberOp>(
+        getLoc(E->getExprLoc()), builder.getUInt32Ty(), call, 1);
+    builder.create<cir::StoreOp>(getLoc(E->getExprLoc()), pID, Ops[0]);
+
+    // Return the timestamp at index 0
+    return builder.create<cir::ExtractMemberOp>(getLoc(E->getExprLoc()),
+                                                builder.getUInt64Ty(), call, 0);
   }
   case X86::BI__builtin_ia32_lzcnt_u16:
   case X86::BI__builtin_ia32_lzcnt_u32:
