@@ -2050,9 +2050,11 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
-    if (E->isGLValue())
-      return CGF.emitLoadOfLValue(CGF.emitLValue(E), E->getExprLoc())
-          .getScalarVal();
+    if (E->isGLValue()) {
+      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+      mlir::Value Complex = CGF.emitComplexExpr(Op);
+      return CGF.builder.createComplexReal(Loc, Complex);
+    }
     // Otherwise, calculate and project.
     llvm_unreachable("NYI");
   }
