@@ -3,13 +3,6 @@
 // RUN: %clang_cc1 -ffreestanding -triple x86_64-unknown-linux -Wno-implicit-function-declaration -fclangir -emit-llvm -o %t.ll %s
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
-// Intel and AMD use different names for the same BMI intrinsics:
-// Intel uses single underscores (e.g. _tzcnt_u16),
-// AMD uses double underscores (e.g. __tzcnt_u16).
-// Unlike the traditinal tests in clang/test/CodeGen/X86/bmi-builtins.c
-// which combines both, we split them into separate files to avoid symbol 
-// conflicts and keep tests isolated.
-
 #include <immintrin.h>
 
 unsigned short test__tzcnt_u16(unsigned short __X) {
