@@ -25,7 +25,6 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "llvm/ADT/TypeSwitch.h"
-#include "llvm/IR/Module.h"
 
 using namespace cir;
 using namespace llvm;
@@ -483,6 +482,19 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
       return;
 
     for (auto continueOp : continues) {
+      bool nested = false;
+      // When there is another loop between this WhileOp and the ContinueOp,
+      // we shouldn't change that loop instead.
+      for (mlir::Operation *parent = continueOp->getParentOp();
+           parent != whileOp; parent = parent->getParentOp()) {
+        if (isa<WhileOp>(parent)) {
+          nested = true;
+          break;
+        }
+      }
+      if (nested)
+        continue;
+
       // When the ContinueOp is under an IfOp, a direct replacement of
       // `scf.yield` won't work: the yield would jump out of that IfOp instead.
       // We might need to change the WhileOp itself to achieve the same effect.

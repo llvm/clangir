@@ -68,3 +68,38 @@ void while_continue_2() {
   // CHECK:   scf.yield
   // CHECK: }
 }
+
+void while_continue_nested() {
+  int i = 0;
+  while (i < 10) {
+    while (true) {
+      continue;
+      i--;
+    }
+    i++;
+  }
+  // The continue will only work on the inner while.
+
+  // CHECK: scf.while : () -> () {
+  // CHECK:   %[[IV:.+]] = memref.load %alloca[]
+  // CHECK:   %[[TEN:.+]] = arith.constant 10
+  // CHECK:   %[[LT:.+]] = arith.cmpi slt, %[[IV]], %[[TEN]]
+  // CHECK:   scf.condition(%[[LT]])
+  // CHECK: } do {
+  // CHECK:   memref.alloca_scope  {
+  // CHECK:     memref.alloca_scope  {
+  // CHECK:       scf.while : () -> () {
+  // CHECK:         %[[TRUE:.+]] = arith.constant true
+  // CHECK:         scf.condition(%[[TRUE]])
+  // CHECK:       } do {
+  // CHECK:         scf.yield
+  // CHECK:       }
+  // CHECK:     }
+  // CHECK:     %[[IV2:.+]] = memref.load %alloca[]
+  // CHECK:     %[[ONE:.+]] = arith.constant 1
+  // CHECK:     %[[ADD:.+]] = arith.addi %[[IV2]], %[[ONE]]
+  // CHECK:     memref.store %[[ADD]], %alloca[]
+  // CHECK:   }
+  // CHECK:   scf.yield
+  // CHECK: }
+}
