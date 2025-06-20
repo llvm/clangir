@@ -166,19 +166,11 @@ template <typename Ty> struct EnumTraits {};
     }                                                                          \
     static unsigned getMaxEnumVal() { return cir::getMaxEnumValFor##Ty(); }    \
   }
-#define REGISTER_ENUM_TYPE_WITH_NS(NS, Ty)                                     \
-  template <> struct EnumTraits<NS::Ty> {                                      \
-    static llvm::StringRef stringify(NS::Ty value) {                           \
-      return NS::stringify##Ty(value);                                         \
-    }                                                                          \
-    static unsigned getMaxEnumVal() { return NS::getMaxEnumValFor##Ty(); }     \
-  }
 
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE(SideEffect);
-REGISTER_ENUM_TYPE_WITH_NS(cir::sob, SignedOverflowBehavior);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -3265,54 +3257,6 @@ LogicalResult cir::AwaitOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// CIR defined traits
-//===----------------------------------------------------------------------===//
-
-LogicalResult
-mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 1)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto type = op->getResult(0).getType();
-  auto opType = op->getOperand(0).getType();
-
-  if (type != opType)
-    return op->emitOpError()
-           << "requires the same type for first operand and result";
-
-  return success();
-}
-
-LogicalResult
-mlir::OpTrait::impl::verifySameSecondOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 2)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto type = op->getResult(0).getType();
-  auto opType = op->getOperand(1).getType();
-
-  if (type != opType)
-    return op->emitOpError()
-           << "requires the same type for second operand and result";
-
-  return success();
-}
-
-LogicalResult
-mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
-  if (failed(verifyAtLeastNOperands(op, 3)) || failed(verifyOneResult(op)))
-    return failure();
-
-  auto checkType = op->getResult(0).getType();
-  if (checkType != op->getOperand(0).getType() &&
-      checkType != op->getOperand(1).getType())
-    return op->emitOpError()
-           << "requires the same type for first, second operand and result";
-
-  return success();
-}
-
-//===----------------------------------------------------------------------===//
 // CIR attributes
 // FIXME: move all of these to CIRAttrs.cpp
 //===----------------------------------------------------------------------===//
@@ -3501,35 +3445,6 @@ LogicalResult cir::ConstVectorAttr::verify(
 void cir::ConstVectorAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getElts());
-  printer << ">";
-}
-
-::mlir::Attribute
-cir::SignedOverflowBehaviorAttr::parse(::mlir::AsmParser &parser,
-                                       ::mlir::Type type) {
-  if (parser.parseLess())
-    return {};
-  auto behavior = parseOptionalCIRKeyword(
-      parser, cir::sob::SignedOverflowBehavior::undefined);
-  if (parser.parseGreater())
-    return {};
-
-  return SignedOverflowBehaviorAttr::get(parser.getContext(), behavior);
-}
-
-void cir::SignedOverflowBehaviorAttr::print(::mlir::AsmPrinter &printer) const {
-  printer << "<";
-  switch (getBehavior()) {
-  case sob::SignedOverflowBehavior::undefined:
-    printer << "undefined";
-    break;
-  case sob::SignedOverflowBehavior::defined:
-    printer << "defined";
-    break;
-  case sob::SignedOverflowBehavior::trapping:
-    printer << "trapping";
-    break;
-  }
   printer << ">";
 }
 
@@ -4011,7 +3926,7 @@ cir::EhTypeIdOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 LogicalResult cir::CatchParamOp::verify() {
   if (getExceptionPtr()) {
     auto kind = getKind();
-    if (!kind || *kind != cir::CatchParamKind::begin)
+    if (!kind || *kind != cir::CatchParamKind::Begin)
       return emitOpError("needs 'begin' to work with exception pointer");
     return success();
   }

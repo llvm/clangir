@@ -99,7 +99,7 @@ cir.func @s1() {
 
 cir.func @badstride(%x: !cir.ptr<!cir.int<s, 32>>) {
   %idx = cir.const #cir.int<2> : !cir.int<s, 32>
-  %4 = cir.ptr_stride(%x : !cir.ptr<!cir.int<s, 32>>, %idx : !cir.int<s, 32>), !cir.ptr<!cir.float> // expected-error {{requires the same type for first operand and result}}
+  %4 = cir.ptr_stride(%x : !cir.ptr<!cir.int<s, 32>>, %idx : !cir.int<s, 32>), !cir.ptr<!cir.float> // expected-error {{op failed to verify that all of {base, result} have same type}}
   cir.return
 }
 
@@ -690,8 +690,8 @@ module {
 
 // -----
 
-// expected-error@below {{invalid Source language specification: dummy}}
-// expected-error@below {{failed to parse CIR_LangAttr parameter 'lang'}}
+// expected-error@below {{expected ::cir::SourceLanguage to be one of: c, cxx, opencl_c}}
+// expected-error@below {{failed to parse CIR_SourceLanguageAttr parameter 'value'}}
 module attributes {cir.lang = #cir.lang<dummy>} { }
 
 // -----

@@ -90,3 +90,7 @@ void testPointerDecayedArrayMultiDimSubscriptAccess(int arr[][3]) {
   // CHECK: %[[#V5:]] = cir.cast(array_to_ptrdecay, %[[#V3]] : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
   // CHECK: cir.ptr_stride(%[[#V5]] : !cir.ptr<!s32i>, %[[#V4]] : !s32i), !cir.ptr<!s32i>
 }
+
+void testArrayOfComplexType() { int _Complex a[4]; }
+
+// CHECK: %[[ARR:.*]] = cir.alloca !cir.array<!cir.complex<!s32i> x 4>, !cir.ptr<!cir.array<!cir.complex<!s32i> x 4>>, ["a"]

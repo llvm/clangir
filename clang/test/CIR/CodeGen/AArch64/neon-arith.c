@@ -905,6 +905,29 @@ int32_t test_vaddlvq_s16(int16x8_t a) {
   // LLVM: ret i32 [[VADDLV_I]]
 }
 
+int16_t test_vaddlv_s8(int8x8_t a) {
+  return vaddlv_s8(a);
+
+  // CIR-LABEL: vaddlv_s8
+  // CIR: cir.llvm.intrinsic "aarch64.neon.saddlv" {{%.*}}: (!cir.vector<!s8i x 8>) -> !s32i
+
+  // LLVM: {{.*}}test_vaddlv_s8(<8 x i8>{{.*}}[[A:%.*]])
+  // LLVM: [[VADDLV_I:%.*]] = call i32 @llvm.aarch64.neon.saddlv.i32.v8i8(<8 x i8> [[A]])
+  // LLVM-NEXT: [[TMP0:%.*]] = trunc i32 [[VADDLV_I]] to i16
+  // LLVM-NEXT: ret i16 [[TMP0]]
+}
+
+uint16_t test_vaddlv_u8(uint8x8_t a) {
+  return vaddlv_u8(a);
+
+  // CIR-LABEL: vaddlv_u8
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uaddlv" {{%.*}}: (!cir.vector<!u8i x 8>) -> !u32i
+
+  // LLVM: {{.*}}test_vaddlv_u8(<8 x i8>{{.*}}[[A:%.*]])
+  // LLVM: [[VADDLV_I:%.*]] = call i32 @llvm.aarch64.neon.uaddlv.i32.v8i8(<8 x i8> [[A]])
+  // LLVM-NEXT: [[TMP0:%.*]] = trunc i32 [[VADDLV_I]] to i16
+  // LLVM-NEXT: ret i16 [[TMP0]]
+}
 
 int32_t test_vaddlv_s16(int16x4_t a) {
   return vaddlv_s16(a);

@@ -83,63 +83,37 @@ class CIR_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIR_Dialect, mnemonic, traits>, LLVMLoweringInfo;
 
 //===----------------------------------------------------------------------===//
-// CIR Op Traits
-//===----------------------------------------------------------------------===//
-
-def SameFirstOperandAndResultType :
-  NativeOpTrait<"SameFirstOperandAndResultType">;
-def SameSecondOperandAndResultType :
-  NativeOpTrait<"SameSecondOperandAndResultType">;
-def SameFirstSecondOperandAndResultType :
-  NativeOpTrait<"SameFirstSecondOperandAndResultType">;
-
-//===----------------------------------------------------------------------===//
 // CastOp
 //===----------------------------------------------------------------------===//
 
-// The enumaration value isn't in sync with clang.
-def CK_IntegralToBoolean : I32EnumAttrCase<"int_to_bool", 1>;
-def CK_ArrayToPointerDecay : I32EnumAttrCase<"array_to_ptrdecay", 2>;
-def CK_IntegralCast : I32EnumAttrCase<"integral", 3>;
-def CK_BitCast : I32EnumAttrCase<"bitcast", 4>;
-def CK_FloatingCast : I32EnumAttrCase<"floating", 5>;
-def CK_PtrToBoolean : I32EnumAttrCase<"ptr_to_bool", 6>;
-def CK_FloatToIntegral : I32EnumAttrCase<"float_to_int", 7>;
-def CK_IntegralToPointer : I32EnumAttrCase<"int_to_ptr", 8>;
-def CK_PointerToIntegral : I32EnumAttrCase<"ptr_to_int", 9>;
-def CK_FloatToBoolean : I32EnumAttrCase<"float_to_bool", 10>;
-def CK_BooleanToIntegral : I32EnumAttrCase<"bool_to_int", 11>;
-def CK_IntegralToFloat : I32EnumAttrCase<"int_to_float", 12>;
-def CK_BooleanToFloat : I32EnumAttrCase<"bool_to_float", 13>;
-def CK_AddressSpaceConversion : I32EnumAttrCase<"address_space", 14>;
-def CK_FloatToComplex : I32EnumAttrCase<"float_to_complex", 15>;
-def CK_IntegralToComplex : I32EnumAttrCase<"int_to_complex", 16>;
-def CK_FloatComplexToReal : I32EnumAttrCase<"float_complex_to_real", 17>;
-def CK_IntegralComplexToReal : I32EnumAttrCase<"int_complex_to_real", 18>;
-def CK_FloatComplexToBoolean : I32EnumAttrCase<"float_complex_to_bool", 19>;
-def CK_IntegralComplexToBoolean : I32EnumAttrCase<"int_complex_to_bool", 20>;
-def CK_FloatComplexCast : I32EnumAttrCase<"float_complex", 21>;
-def CK_FloatComplexToIntegralComplex
-    : I32EnumAttrCase<"float_complex_to_int_complex", 22>;
-def CK_IntegralComplexCast : I32EnumAttrCase<"int_complex", 23>;
-def CK_IntegralComplexToFloatComplex
-    : I32EnumAttrCase<"int_complex_to_float_complex", 24>;
-def CK_MemberPtrToBoolean : I32EnumAttrCase<"member_ptr_to_bool", 25>;
-
-def CastKind : I32EnumAttr<
-    "CastKind",
-    "cast kind",
-    [CK_IntegralToBoolean, CK_ArrayToPointerDecay, CK_IntegralCast,
-     CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral,
-     CK_IntegralToPointer, CK_PointerToIntegral, CK_FloatToBoolean,
-     CK_BooleanToIntegral, CK_IntegralToFloat, CK_BooleanToFloat,
-     CK_AddressSpaceConversion, CK_FloatToComplex, CK_IntegralToComplex,
-     CK_FloatComplexToReal, CK_IntegralComplexToReal, CK_FloatComplexToBoolean,
-     CK_IntegralComplexToBoolean, CK_FloatComplexCast,
-     CK_FloatComplexToIntegralComplex, CK_IntegralComplexCast,
-     CK_IntegralComplexToFloatComplex, CK_MemberPtrToBoolean]> {
-  let cppNamespace = "::cir";
-}
+def CIR_CastKind : CIR_I32EnumAttr<"CastKind", "cast kind", [
+  // The enumaration value isn't in sync with clang.
+  I32EnumAttrCase<"int_to_bool", 0>,
+  I32EnumAttrCase<"array_to_ptrdecay", 1>,
+  I32EnumAttrCase<"integral", 2>,
+  I32EnumAttrCase<"bitcast", 3>,
+  I32EnumAttrCase<"floating", 4>,
+  I32EnumAttrCase<"ptr_to_bool", 5>,
+  I32EnumAttrCase<"float_to_int", 6>,
+  I32EnumAttrCase<"int_to_ptr", 7>,
+  I32EnumAttrCase<"ptr_to_int", 8>,
+  I32EnumAttrCase<"float_to_bool", 9>,
+  I32EnumAttrCase<"bool_to_int", 10>,
+  I32EnumAttrCase<"int_to_float", 11>,
+  I32EnumAttrCase<"bool_to_float", 12>,
+  I32EnumAttrCase<"address_space", 13>,
+  I32EnumAttrCase<"float_to_complex", 14>,
+  I32EnumAttrCase<"int_to_complex", 15>,
+  I32EnumAttrCase<"float_complex_to_real", 16>,
+  I32EnumAttrCase<"int_complex_to_real", 17>,
+  I32EnumAttrCase<"float_complex_to_bool", 18>,
+  I32EnumAttrCase<"int_complex_to_bool", 19>,
+  I32EnumAttrCase<"float_complex", 20>,
+  I32EnumAttrCase<"float_complex_to_int_complex", 21>,
+  I32EnumAttrCase<"int_complex", 22>,
+  I32EnumAttrCase<"int_complex_to_float_complex", 23>,
+  I32EnumAttrCase<"member_ptr_to_bool", 24>
+]>;
 
 def CastOp : CIR_Op<"cast",
              [Pure,
@@ -185,7 +159,7 @@ def CastOp : CIR_Op<"cast",
     ```
   }];
 
-  let arguments = (ins CastKind:$kind, CIR_AnyType:$src);
+  let arguments = (ins CIR_CastKind:$kind, CIR_AnyType:$src);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -202,13 +176,11 @@ def CastOp : CIR_Op<"cast",
 // DynamicCastOp
 //===----------------------------------------------------------------------===//
 
-def DCK_PtrCast : I32EnumAttrCase<"ptr", 1>;
-def DCK_RefCast : I32EnumAttrCase<"ref", 2>;
-
-def DynamicCastKind : I32EnumAttr<
-    "DynamicCastKind", "dynamic cast kind", [DCK_PtrCast, DCK_RefCast]> {
-  let cppNamespace = "::cir";
-}
+def CIR_DynamicCastKind : CIR_I32EnumAttr<
+  "DynamicCastKind", "dynamic cast kind", [
+    I32EnumAttrCase<"Ptr", 0, "ptr">,
+    I32EnumAttrCase<"Ref", 1, "ref">
+]>;
 
 def DynamicCastOp : CIR_Op<"dyn_cast"> {
   let summary = "Perform dynamic cast on record pointers";
@@ -247,7 +219,7 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
   }];
 
   let arguments = (ins
-    DynamicCastKind:$kind,
+    CIR_DynamicCastKind:$kind,
     CIR_PtrToRecordType:$src,
     OptionalAttr<DynamicCastInfoAttr>:$info,
     UnitAttr:$relative_layout
@@ -269,7 +241,7 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
   let extraClassDeclaration = [{
     /// Determine whether this operation models reference casting in C++.
     bool isRefcast() {
-      return getKind() == ::cir::DynamicCastKind::ref;
+      return getKind() == ::cir::DynamicCastKind::Ref;
     }
 
     /// Determine whether this operation represents a dynamic cast to a void
@@ -284,23 +256,22 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
 // ObjSizeOp
 //===----------------------------------------------------------------------===//
 
-def SizeInfoTypeMin : I32EnumAttrCase<"min", 0>;
-def SizeInfoTypeMax : I32EnumAttrCase<"max", 1>;
-
-def SizeInfoType : I32EnumAttr<
-    "SizeInfoType",
-    "size info type",
-    [SizeInfoTypeMin, SizeInfoTypeMax]> {
-  let cppNamespace = "::cir";
-}
+def CIR_SizeInfoType : CIR_I32EnumAttr< "SizeInfoType", "size info type", [
+  I32EnumAttrCase<"Min", 0, "min">,
+  I32EnumAttrCase<"Max", 1, "max">
+]>;
 
 def ObjSizeOp : CIR_Op<"objsize", [Pure]> {
   let summary = "Conversion between values of different types";
   let description = [{
   }];
 
-  let arguments = (ins CIR_PointerType:$ptr, SizeInfoType:$kind,
-                   UnitAttr:$dynamic);
+  let arguments = (ins
+    CIR_PointerType:$ptr,
+    CIR_SizeInfoType:$kind,
+    UnitAttr:$dynamic
+  );
+
   let results = (outs CIR_AnyFundamentalIntType:$result);
 
   let assemblyFormat = [{
@@ -347,7 +318,7 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 
 def PtrStrideOp : CIR_Op<"ptr_stride",
-                         [Pure, SameFirstOperandAndResultType]> {
+                         [Pure, AllTypesMatch<["base", "result"]>]> {
   let summary = "Pointer access with stride";
   let description = [{
     Given a base pointer as first operand, provides a new pointer after applying
@@ -425,20 +396,15 @@ def ConstantOp : CIR_Op<"const",
 // C/C++ memory order definitions
 //===----------------------------------------------------------------------===//
 
-def MemOrderRelaxed : I32EnumAttrCase<"Relaxed", 0, "relaxed">;
-def MemOrderConsume : I32EnumAttrCase<"Consume", 1, "consume">;
-def MemOrderAcquire : I32EnumAttrCase<"Acquire", 2, "acquire">;
-def MemOrderRelease : I32EnumAttrCase<"Release", 3, "release">;
-def MemOrderAcqRel : I32EnumAttrCase<"AcquireRelease", 4, "acq_rel">;
-def MemOrderSeqCst : I32EnumAttrCase<"SequentiallyConsistent", 5, "seq_cst">;
-
-def MemOrder : I32EnumAttr<
-    "MemOrder",
-    "Memory order according to C++11 memory model",
-    [MemOrderRelaxed, MemOrderConsume, MemOrderAcquire,
-     MemOrderRelease, MemOrderAcqRel, MemOrderSeqCst]> {
-  let cppNamespace = "::cir";
-}
+def CIR_MemOrder : CIR_I32EnumAttr<
+  "MemOrder", "Memory order according to C++11 memory model", [
+    I32EnumAttrCase<"Relaxed", 0, "relaxed">,
+    I32EnumAttrCase<"Consume", 1, "consume">,
+    I32EnumAttrCase<"Acquire", 2, "acquire">,
+    I32EnumAttrCase<"Release", 3, "release">,
+    I32EnumAttrCase<"AcquireRelease", 4, "acq_rel">,
+    I32EnumAttrCase<"SequentiallyConsistent", 5, "seq_cst">
+]>;
 
 //===----------------------------------------------------------------------===//
 // AllocaOp
@@ -586,7 +552,7 @@ def LoadOp : CIR_Op<"load", [
                        UnitAttr:$is_volatile,
                        UnitAttr:$is_nontemporal,
                        OptionalAttr<I64Attr>:$alignment,
-                       OptionalAttr<MemOrder>:$mem_order,
+                       OptionalAttr<CIR_MemOrder>:$mem_order,
                        OptionalAttr<CIR_AnyTBAAAttr>:$tbaa
                        );
   let results = (outs CIR_AnyType:$result);
@@ -657,7 +623,7 @@ def StoreOp : CIR_Op<"store", [
                        UnitAttr:$is_volatile,
                        UnitAttr:$is_nontemporal,
                        OptionalAttr<I64Attr>:$alignment,
-                       OptionalAttr<MemOrder>:$mem_order,
+                       OptionalAttr<CIR_MemOrder>:$mem_order,
                        OptionalAttr<CIR_AnyTBAAAttr>:$tbaa);
 
   let assemblyFormat = [{
@@ -1104,23 +1070,13 @@ def ScopeOp : CIR_Op<"scope", [
 // UnaryOp
 //===----------------------------------------------------------------------===//
 
-def UnaryOpKind_Inc   : I32EnumAttrCase<"Inc",   1, "inc">;
-def UnaryOpKind_Dec   : I32EnumAttrCase<"Dec",   2, "dec">;
-def UnaryOpKind_Plus  : I32EnumAttrCase<"Plus",  3, "plus">;
-def UnaryOpKind_Minus : I32EnumAttrCase<"Minus", 4, "minus">;
-def UnaryOpKind_Not   : I32EnumAttrCase<"Not",   5, "not">;
-
-def UnaryOpKind : I32EnumAttr<
-    "UnaryOpKind",
-    "unary operation kind",
-    [UnaryOpKind_Inc,
-     UnaryOpKind_Dec,
-     UnaryOpKind_Plus,
-     UnaryOpKind_Minus,
-     UnaryOpKind_Not,
-     ]> {
-  let cppNamespace = "::cir";
-}
+def CIR_UnaryOpKind : CIR_I32EnumAttr<"UnaryOpKind", "unary operation kind", [
+  I32EnumAttrCase<"Inc",   0, "inc">,
+  I32EnumAttrCase<"Dec",   1, "dec">,
+  I32EnumAttrCase<"Plus",  2, "plus">,
+  I32EnumAttrCase<"Minus", 3, "minus">,
+  I32EnumAttrCase<"Not",   4, "not">
+]>;
 
 // FIXME: Pure won't work when we add overloading.
 def UnaryOp : CIR_Op<"unary", [Pure, SameOperandsAndResultType]> {
@@ -1138,10 +1094,13 @@ def UnaryOp : CIR_Op<"unary", [Pure, SameOperandsAndResultType]> {
     ```
   }];
 
+  let arguments = (ins
+    Arg<CIR_UnaryOpKind, "unary op kind">:$kind,
+    Arg<CIR_AnyType>:$input,
+    UnitAttr:$no_signed_wrap
+  );
+
   let results = (outs CIR_AnyType:$result);
-  let arguments = (ins Arg<UnaryOpKind, "unary op kind">:$kind,
-                       Arg<CIR_AnyType>:$input,
-                       UnitAttr:$no_signed_wrap);
 
   let assemblyFormat = [{
       `(` $kind `,` $input `)`
@@ -1158,25 +1117,18 @@ def UnaryOp : CIR_Op<"unary", [Pure, SameOperandsAndResultType]> {
 //===----------------------------------------------------------------------===//
 
 // FIXME: represent Commutative, Idempotent traits for appropriate binops
-def BinOpKind_Mul : I32EnumAttrCase<"Mul", 1, "mul">;
-def BinOpKind_Div : I32EnumAttrCase<"Div", 2, "div">;
-def BinOpKind_Rem : I32EnumAttrCase<"Rem", 3, "rem">;
-def BinOpKind_Add : I32EnumAttrCase<"Add", 4, "add">;
-def BinOpKind_Sub : I32EnumAttrCase<"Sub", 5, "sub">;
-def BinOpKind_And : I32EnumAttrCase<"And", 8, "and">;
-def BinOpKind_Xor : I32EnumAttrCase<"Xor", 9, "xor">;
-def BinOpKind_Or  : I32EnumAttrCase<"Or", 10, "or">;
-def BinOpKind_Max : I32EnumAttrCase<"Max", 11, "max">;
-
-def BinOpKind : I32EnumAttr<
-    "BinOpKind",
-    "binary operation (arith and logic) kind",
-    [BinOpKind_Mul, BinOpKind_Div, BinOpKind_Rem,
-     BinOpKind_Add, BinOpKind_Sub,
-     BinOpKind_And, BinOpKind_Xor,
-     BinOpKind_Or, BinOpKind_Max]> {
-  let cppNamespace = "::cir";
-}
+def CIR_BinOpKind : CIR_I32EnumAttr<
+  "BinOpKind", "binary operation (arith and logic) kind", [
+    I32EnumAttrCase<"Mul", 0, "mul">,
+    I32EnumAttrCase<"Div", 1, "div">,
+    I32EnumAttrCase<"Rem", 2, "rem">,
+    I32EnumAttrCase<"Add", 3, "add">,
+    I32EnumAttrCase<"Sub", 4, "sub">,
+    I32EnumAttrCase<"And", 5, "and">,
+    I32EnumAttrCase<"Xor", 6, "xor">,
+    I32EnumAttrCase<"Or", 7, "or">,
+    I32EnumAttrCase<"Max", 8, "max">
+]>;
 
 // FIXME: Pure won't work when we add overloading.
 def BinOp : CIR_Op<"binop", [Pure,
@@ -1197,13 +1149,16 @@ def BinOp : CIR_Op<"binop", [Pure,
     ```
   }];
 
+  let arguments = (ins
+    CIR_BinOpKind:$kind,
+    CIR_AnyType:$lhs, CIR_AnyType:$rhs,
+    UnitAttr:$no_unsigned_wrap,
+    UnitAttr:$no_signed_wrap,
+    UnitAttr:$saturated
+  );
+
   // TODO: get more accurate than CIR_AnyType
   let results = (outs CIR_AnyType:$result);
-  let arguments = (ins Arg<BinOpKind, "binop kind">:$kind,
-                       CIR_AnyType:$lhs, CIR_AnyType:$rhs,
-                       UnitAttr:$no_unsigned_wrap,
-                       UnitAttr:$no_signed_wrap,
-                       UnitAttr:$saturated);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)`
@@ -1259,20 +1214,14 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
 // CmpOp
 //===----------------------------------------------------------------------===//
 
-def CmpOpKind_LT : I32EnumAttrCase<"lt", 1>;
-def CmpOpKind_LE : I32EnumAttrCase<"le", 2>;
-def CmpOpKind_GT : I32EnumAttrCase<"gt", 3>;
-def CmpOpKind_GE : I32EnumAttrCase<"ge", 4>;
-def CmpOpKind_EQ : I32EnumAttrCase<"eq", 5>;
-def CmpOpKind_NE : I32EnumAttrCase<"ne", 6>;
-
-def CmpOpKind : I32EnumAttr<
-    "CmpOpKind",
-    "compare operation kind",
-    [CmpOpKind_LT, CmpOpKind_LE, CmpOpKind_GT,
-     CmpOpKind_GE, CmpOpKind_EQ, CmpOpKind_NE]> {
-  let cppNamespace = "::cir";
-}
+def CIR_CmpOpKind : CIR_I32EnumAttr<"CmpOpKind", "compare operation kind", [
+  I32EnumAttrCase<"lt", 0>,
+  I32EnumAttrCase<"le", 1>,
+  I32EnumAttrCase<"gt", 2>,
+  I32EnumAttrCase<"ge", 3>,
+  I32EnumAttrCase<"eq", 4>,
+  I32EnumAttrCase<"ne", 5>
+]>;
 
 // FIXME: Pure might not work when we add overloading.
 def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
@@ -1288,9 +1237,13 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
     ```
   }];
 
+  let arguments = (ins
+    CIR_CmpOpKind:$kind,
+    CIR_AnyType:$lhs,
+    CIR_AnyType:$rhs
+  );
+
   let results = (outs CIR_BoolType:$result);
-  let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind,
-                       CIR_AnyType:$lhs, CIR_AnyType:$rhs);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type($result) attr-dict
@@ -1301,12 +1254,12 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
 // BinOpOverflowOp
 //===----------------------------------------------------------------------===//
 
-def BinOpOverflowKind : I32EnumAttr<
-    "BinOpOverflowKind",
-    "checked binary arithmetic operation kind",
-    [BinOpKind_Add, BinOpKind_Sub, BinOpKind_Mul]> {
-  let cppNamespace = "::cir";
-}
+def CIR_BinOpOverflowKind : CIR_I32EnumAttr<
+  "BinOpOverflowKind", "checked binary arithmetic operation kind", [
+    I32EnumAttrCase<"Add", 0, "add">,
+    I32EnumAttrCase<"Sub", 1, "sub">,
+    I32EnumAttrCase<"Mul", 2, "mul">
+]>;
 
 def BinOpOverflowOp : CIR_Op<"binop.overflow", [Pure, SameTypeOperands]> {
   let summary = "Perform binary integral arithmetic with overflow checking";
@@ -1334,8 +1287,12 @@ def BinOpOverflowOp : CIR_Op<"binop.overflow", [Pure, SameTypeOperands]> {
         is assigned to false. Otherwise, `overflow` is assigned to true.
   }];
 
-  let arguments = (ins Arg<BinOpOverflowKind, "arithmetic kind">:$kind,
-                       CIR_IntType:$lhs, CIR_IntType:$rhs);
+  let arguments = (ins
+    CIR_BinOpOverflowKind:$kind,
+    CIR_IntType:$lhs,
+    CIR_IntType:$rhs
+  );
+
   let results = (outs CIR_IntType:$result, CIR_BoolType:$overflow);
 
   let assemblyFormat = [{
@@ -1501,27 +1458,20 @@ def ComplexImagPtrOp : CIR_Op<"complex.imag_ptr", [Pure]> {
 // ComplexBinOp
 //===----------------------------------------------------------------------===//
 
-def ComplexBinOpKind : I32EnumAttr<
-    "ComplexBinOpKind",
-    "complex number binary operation kind",
-    [BinOpKind_Mul, BinOpKind_Div]> {
-  let cppNamespace = "::cir";
-}
+def CIR_ComplexBinOpKind : CIR_I32EnumAttr<
+  "ComplexBinOpKind", "complex number binary operation kind", [
+    I32EnumAttrCase<"Mul", 0, "mul">,
+    I32EnumAttrCase<"Div", 1, "div">
+]>;
 
-def ComplexRangeKind_Full : I32EnumAttrCase<"Full", 1, "full">;
-def ComplexRangeKind_Improved : I32EnumAttrCase<"Improved", 2, "improved">;
-def ComplexRangeKind_Promoted : I32EnumAttrCase<"Promoted", 3, "promoted">;
-def ComplexRangeKind_Basic : I32EnumAttrCase<"Basic", 4, "basic">;
-def ComplexRangeKind_None : I32EnumAttrCase<"None", 5, "none">;
-
-def ComplexRangeKind : I32EnumAttr<
-    "ComplexRangeKind",
-    "complex multiplication and division implementation",
-    [ComplexRangeKind_Full, ComplexRangeKind_Improved,
-     ComplexRangeKind_Promoted, ComplexRangeKind_Basic,
-     ComplexRangeKind_None]> {
-  let cppNamespace = "::cir";
-}
+def CIR_ComplexRangeKind : CIR_I32EnumAttr<
+  "ComplexRangeKind", "complex multiplication and division implementation", [
+    I32EnumAttrCase<"Full", 0, "full">,
+    I32EnumAttrCase<"Improved", 1, "improved">,
+    I32EnumAttrCase<"Promoted", 2, "promoted">,
+    I32EnumAttrCase<"Basic", 3, "basic">,
+    I32EnumAttrCase<"None", 4, "none">
+]>;
 
 def ComplexBinOp : CIR_Op<"complex.binop",
     [Pure, SameTypeOperands, SameOperandsAndResultType]> {
@@ -1547,11 +1497,15 @@ def ComplexBinOp : CIR_Op<"complex.binop",
     ```
   }];
 
+  let arguments = (ins
+    CIR_ComplexBinOpKind:$kind,
+    CIR_ComplexType:$lhs,
+    CIR_ComplexType:$rhs,
+    CIR_ComplexRangeKind:$range,
+    UnitAttr:$promoted
+  );
+
   let results = (outs CIR_ComplexType:$result);
-  let arguments = (ins Arg<ComplexBinOpKind, "operation kind">:$kind,
-                       CIR_ComplexType:$lhs, CIR_ComplexType:$rhs,
-                       Arg<ComplexRangeKind, "complex range kind">:$range,
-                       UnitAttr:$promoted);
 
   let assemblyFormat = [{
     $kind $lhs `,` $rhs `range` `(` $range `)` (`promoted` $promoted^)?
@@ -1891,17 +1845,12 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
 // SwitchOp
 //===----------------------------------------------------------------------===//
 
-def CaseOpKind_DT : I32EnumAttrCase<"Default", 1, "default">;
-def CaseOpKind_EQ : I32EnumAttrCase<"Equal", 2, "equal">;
-def CaseOpKind_AO : I32EnumAttrCase<"Anyof", 3, "anyof">;
-def CaseOpKind_RG : I32EnumAttrCase<"Range", 4, "range">;
-
-def CaseOpKind : I32EnumAttr<
-    "CaseOpKind",
-    "case kind",
-    [CaseOpKind_DT, CaseOpKind_EQ, CaseOpKind_AO, CaseOpKind_RG]> {
-  let cppNamespace = "::cir";
-}
+def CIR_CaseOpKind : CIR_I32EnumAttr<"CaseOpKind", "case kind", [
+  I32EnumAttrCase<"Default", 1, "default">,
+  I32EnumAttrCase<"Equal", 2, "equal">,
+  I32EnumAttrCase<"Anyof", 3, "anyof">,
+  I32EnumAttrCase<"Range", 4, "range">
+]>;
 
 def CaseOp : CIR_Op<"case", [
        DeclareOpInterfaceMethods<RegionBranchOpInterface>,
@@ -1922,7 +1871,7 @@ def CaseOp : CIR_Op<"case", [
     Each case region must be explicitly terminated.
   }];
 
-  let arguments = (ins ArrayAttr:$value, CaseOpKind:$kind);
+  let arguments = (ins ArrayAttr:$value, CIR_CaseOpKind:$kind);
   let regions = (region AnyRegion:$caseRegion);
 
   let assemblyFormat = "`(` $kind `,` $value `)` $caseRegion attr-dict";
@@ -2341,82 +2290,54 @@ def ForOp : CIR_Op<"for", [CIR_LoopOpInterface, NoRegionArguments]> {
 // currently handy as part of forwarding appropriate linkage types for LLVM
 // lowering, specially useful for C++ support.
 
-// Externally visible function
-def Global_ExternalLinkage :
-  I32EnumAttrCase<"ExternalLinkage", 0, "external">;
-// Available for inspection, not emission.
-def Global_AvailableExternallyLinkage :
-  I32EnumAttrCase<"AvailableExternallyLinkage", 1, "available_externally">;
-// Keep one copy of function when linking (inline)
-def Global_LinkOnceAnyLinkage :
-  I32EnumAttrCase<"LinkOnceAnyLinkage", 2, "linkonce">;
-// Same, but only replaced by something equivalent.
-def Global_LinkOnceODRLinkage :
-  I32EnumAttrCase<"LinkOnceODRLinkage", 3, "linkonce_odr">;
-// Keep one copy of named function when linking (weak)
-def Global_WeakAnyLinkage :
-  I32EnumAttrCase<"WeakAnyLinkage", 4, "weak">;
-// Same, but only replaced by something equivalent.
-def Global_WeakODRLinkage :
-  I32EnumAttrCase<"WeakODRLinkage", 5, "weak_odr">;
-// TODO: should we add something like appending linkage too?
-// Special purpose, only applies to global arrays
-// def Global_AppendingLinkage :
-//   I32EnumAttrCase<"AppendingLinkage", 6, "appending">;
-// Rename collisions when linking (static functions).
-def Global_InternalLinkage :
-  I32EnumAttrCase<"InternalLinkage", 7, "internal">;
-// Like Internal, but omit from symbol table, prefix it with
-// "cir_" to prevent clash with MLIR's symbol "private".
-def Global_PrivateLinkage :
-  I32EnumAttrCase<"PrivateLinkage", 8, "cir_private">;
-// ExternalWeak linkage description.
-def Global_ExternalWeakLinkage :
-  I32EnumAttrCase<"ExternalWeakLinkage", 9, "extern_weak">;
-// Tentative definitions.
-def Global_CommonLinkage :
-  I32EnumAttrCase<"CommonLinkage", 10, "common">;
 
 /// An enumeration for the kinds of linkage for global values.
-def GlobalLinkageKind : I32EnumAttr<
-    "GlobalLinkageKind",
-    "Linkage type/kind",
-    [Global_ExternalLinkage, Global_AvailableExternallyLinkage,
-     Global_LinkOnceAnyLinkage, Global_LinkOnceODRLinkage,
-     Global_WeakAnyLinkage, Global_WeakODRLinkage,
-     Global_InternalLinkage, Global_PrivateLinkage,
-     Global_ExternalWeakLinkage, Global_CommonLinkage
-     ]> {
-  let cppNamespace = "::cir";
+def CIR_GlobalLinkageKind : CIR_I32EnumAttr<
+  "GlobalLinkageKind", "linkage kind", [
+    // Externally visible function
+    I32EnumAttrCase<"ExternalLinkage", 0, "external">,
+    // Available for inspection, not emission.
+    I32EnumAttrCase<"AvailableExternallyLinkage", 1, "available_externally">,
+    // Keep one copy of function when linking (inline)
+    I32EnumAttrCase<"LinkOnceAnyLinkage", 2, "linkonce">,
+    // Same, but only replaced by something equivalent.
+    I32EnumAttrCase<"LinkOnceODRLinkage", 3, "linkonce_odr">,
+    // Keep one copy of named function when linking (weak)
+    I32EnumAttrCase<"WeakAnyLinkage", 4, "weak">,
+    // Same, but only replaced by something equivalent.
+    I32EnumAttrCase<"WeakODRLinkage", 5, "weak_odr">,
+    // TODO: should we add something like appending linkage too?
+    // Special purpose, only applies to global arrays
+    // I32EnumAttrCase<"AppendingLinkage", 6, "appending">,
+    // Rename collisions when linking (static functions).
+    I32EnumAttrCase<"InternalLinkage", 7, "internal">,
+    // Like Internal, but omit from symbol table, prefix it with
+    // "cir_" to prevent clash with MLIR's symbol "private".
+    I32EnumAttrCase<"PrivateLinkage", 8, "cir_private">,
+    // ExternalWeak linkage description.
+    I32EnumAttrCase<"ExternalWeakLinkage", 9, "extern_weak">,
+    // Tentative definitions.
+    I32EnumAttrCase<"CommonLinkage", 10, "common">
+]>;
+
+def CIR_SignedOverflowBehavior : CIR_I32EnumAttr<
+  "SignedOverflowBehavior", "behavior for signed overflow", [
+    I32EnumAttrCase<"Undefined", 0, "undefined">,
+    I32EnumAttrCase<"Defined", 1, "defined">,
+    I32EnumAttrCase<"Trapping", 2, "trapping">
+]> {
+  let genSpecializedAttr = 0;
 }
 
-def SOB_Undefined : I32EnumAttrCase<"undefined", 1>;
-def SOB_Defined : I32EnumAttrCase<"defined", 2>;
-def SOB_Trapping : I32EnumAttrCase<"trapping", 3>;
+def CIR_SignedOverflowBehaviorAttr : CIR_EnumAttr<
+    CIR_SignedOverflowBehavior, "signed_overflow_behavior">;
 
-def SignedOverflowBehaviorEnum : I32EnumAttr<
-    "SignedOverflowBehavior",
-    "the behavior for signed overflow",
-    [SOB_Undefined, SOB_Defined, SOB_Trapping]> {
-  let cppNamespace = "::cir::sob";
-}
-
-/// Definition of TLS related kinds.
-def TLS_GeneralDynamic :
-  I32EnumAttrCase<"GeneralDynamic", 0, "tls_dyn">;
-def TLS_LocalDynamic :
-  I32EnumAttrCase<"LocalDynamic", 1, "tls_local_dyn">;
-def TLS_InitialExec :
-  I32EnumAttrCase<"InitialExec", 2, "tls_init_exec">;
-def TLS_LocalExec :
-  I32EnumAttrCase<"LocalExec", 3, "tls_local_exec">;
-
-def TLSModel : I32EnumAttr<
-    "TLS_Model",
-    "TLS model",
-    [TLS_GeneralDynamic, TLS_LocalDynamic, TLS_InitialExec, TLS_LocalExec]> {
-  let cppNamespace = "::cir";
-}
+def CIR_TLSModel : CIR_I32EnumAttr<"TLS_Model", "TLS model", [
+  I32EnumAttrCase<"GeneralDynamic", 0, "tls_dyn">,
+  I32EnumAttrCase<"LocalDynamic", 1, "tls_local_dyn">,
+  I32EnumAttrCase<"InitialExec", 2, "tls_init_exec">,
+  I32EnumAttrCase<"LocalExec", 3, "tls_local_exec">
+]>;
 
 def GlobalOp : CIR_Op<"global",
                       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
@@ -2455,14 +2376,14 @@ def GlobalOp : CIR_Op<"global",
   // necessary Symbol's interface in terms of linkage instead.
   let arguments = (ins SymbolNameAttr:$sym_name,
                        DefaultValuedAttr<
-                        VisibilityAttr,
+                        CIR_VisibilityAttr,
                         "VisibilityKind::Default"
                        >:$global_visibility,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        TypeAttr:$sym_type,
-                       Arg<GlobalLinkageKind, "linkage type">:$linkage,
+                       CIR_GlobalLinkageKind:$linkage,
                        OptionalAttr<AddressSpaceAttr>:$addr_space,
-                       OptionalAttr<TLSModel>:$tls_model,
+                       OptionalAttr<CIR_TLSModel>:$tls_model,
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$comdat,
@@ -3229,8 +3150,12 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
     element type of the operands.  The values in the result are 0 or -1.
   }];
 
-  let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind, CIR_VectorType:$lhs,
-                       CIR_VectorType:$rhs);
+  let arguments = (ins
+    CIR_CmpOpKind:$kind,
+    CIR_VectorType:$lhs,
+    CIR_VectorType:$rhs
+  );
+
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -3557,18 +3482,13 @@ def DerivedMethodOp : CIR_Op<"derived_method", [Pure]> {
 
 // The enumeration values are not necessarily in sync with `clang::CallingConv`
 // or `llvm::CallingConv`.
-def CC_C : I32EnumAttrCase<"C", 1, "c">;
-def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">;
-def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 3, "spir_function">;
-def CC_OpenCLKernel : I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">;
-def CC_PTXKernel : I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">;
-
-def CallingConv : I32EnumAttr<
-    "CallingConv",
-    "calling convention",
-    [CC_C, CC_SpirKernel, CC_SpirFunction, CC_OpenCLKernel, CC_PTXKernel]> {
-  let cppNamespace = "::cir";
-}
+def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", [
+  I32EnumAttrCase<"C", 1, "c">,
+  I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">,
+  I32EnumAttrCase<"SpirFunction", 3, "spir_function">,
+  I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">,
+  I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">
+]>;
 
 def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
@@ -3651,28 +3571,33 @@ def FuncOp : CIR_Op<"func", [
     ```
   }];
 
-  let arguments = (ins SymbolNameAttr:$sym_name,
-                       VisibilityAttr:$global_visibility,
-                       TypeAttrOf<CIR_FuncType>:$function_type,
-                       UnitAttr:$builtin,
-                       UnitAttr:$coroutine,
-                       UnitAttr:$lambda,
-                       UnitAttr:$no_proto,
-                       UnitAttr:$dso_local,
-                       DefaultValuedAttr<GlobalLinkageKind,
-                                         "GlobalLinkageKind::ExternalLinkage">:$linkage,
-                       DefaultValuedAttr<CallingConv,
-                                         "CallingConv::C">:$calling_conv,
-                       ExtraFuncAttr:$extra_attrs,
-                       OptionalAttr<StrAttr>:$sym_visibility,
-                       UnitAttr:$comdat,
-                       OptionalAttr<DictArrayAttr>:$arg_attrs,
-                       OptionalAttr<DictArrayAttr>:$res_attrs,
-                       OptionalAttr<FlatSymbolRefAttr>:$aliasee,
-                       OptionalAttr<GlobalCtorAttr>:$global_ctor,
-                       OptionalAttr<GlobalDtorAttr>:$global_dtor,
-                       OptionalAttr<ArrayAttr>:$annotations,
-                       OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
+  let arguments = (ins
+    SymbolNameAttr:$sym_name,
+    CIR_VisibilityAttr:$global_visibility,
+    TypeAttrOf<CIR_FuncType>:$function_type,
+    UnitAttr:$builtin,
+    UnitAttr:$coroutine,
+    UnitAttr:$lambda,
+    UnitAttr:$no_proto,
+    UnitAttr:$dso_local,
+    DefaultValuedAttr<
+      CIR_GlobalLinkageKind, "GlobalLinkageKind::ExternalLinkage"
+    >:$linkage,
+    DefaultValuedAttr<
+      CIR_CallingConv, "CallingConv::C"
+    >:$calling_conv,
+    ExtraFuncAttr:$extra_attrs,
+    OptionalAttr<StrAttr>:$sym_visibility,
+    UnitAttr:$comdat,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs,
+    OptionalAttr<FlatSymbolRefAttr>:$aliasee,
+    OptionalAttr<GlobalCtorAttr>:$global_ctor,
+    OptionalAttr<GlobalDtorAttr>:$global_dtor,
+    OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<AnyASTFunctionDeclAttr>:$ast
+  );
+
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 
@@ -3839,13 +3764,12 @@ def DeleteArrayOp : CIR_Op<"delete.array">,
 // CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 
-def SE_All : I32EnumAttrCase<"All", 1, "all">;
-def SE_Pure : I32EnumAttrCase<"Pure", 2, "pure">;
-def SE_Const : I32EnumAttrCase<"Const", 3, "const">;
-
-def SideEffect : I32EnumAttr<
-    "SideEffect", "allowed side effects of a function",
-    [SE_All, SE_Pure, SE_Const]> {
+def CIR_SideEffect : CIR_I32EnumAttr<
+    "SideEffect", "allowed side effects of a function",[
+      I32EnumAttrCase<"All", 1, "all">,
+      I32EnumAttrCase<"Pure", 2, "pure">,
+      I32EnumAttrCase<"Const", 3, "const">
+    ]> {
   let description = [{
     The side effect attribute specifies the possible side effects of the callee
     of a call operation. This is an enumeration attribute and all possible
@@ -3869,7 +3793,6 @@ def SideEffect : I32EnumAttr<
     %2 = cir.call @add(%0, %1) : (!s32i, !s32i) -> !s32i side_effect(const)
     ```
   }];
-  let cppNamespace = "::cir";
 }
 
 class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
@@ -3929,8 +3852,8 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
   dag commonArgs = (ins
     OptionalAttr<FlatSymbolRefAttr>:$callee,
     Variadic<CIR_AnyType>:$arg_ops,
-    DefaultValuedAttr<CallingConv, "CallingConv::C">:$calling_conv,
-    DefaultValuedAttr<SideEffect, "SideEffect::All">:$side_effect,
+    DefaultValuedAttr<CIR_CallingConv, "CallingConv::C">:$calling_conv,
+    DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect,
     ExtraFuncAttr:$extra_attrs,
     OptionalAttr<ASTCallExprInterface>:$ast
   );
@@ -4121,17 +4044,12 @@ def TryCallOp : CIR_CallOp<"try_call",
 // AwaitOp
 //===----------------------------------------------------------------------===//
 
-def AK_Initial : I32EnumAttrCase<"init", 1>;
-def AK_User    : I32EnumAttrCase<"user", 2>;
-def AK_Yield   : I32EnumAttrCase<"yield", 3>;
-def AK_Final   : I32EnumAttrCase<"final", 4>;
-
-def AwaitKind : I32EnumAttr<
-    "AwaitKind",
-    "await kind",
-    [AK_Initial, AK_User, AK_Yield, AK_Final]> {
-  let cppNamespace = "::cir";
-}
+def CIR_AwaitKind : CIR_I32EnumAttr<"AwaitKind", "await kind", [
+  I32EnumAttrCase<"Init", 0, "init">,
+  I32EnumAttrCase<"User", 1, "user">,
+  I32EnumAttrCase<"Yield", 2, "yield">,
+  I32EnumAttrCase<"Final", 3, "final">
+]>;
 
 def AwaitOp : CIR_Op<"await",
        [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
@@ -4188,7 +4106,7 @@ def AwaitOp : CIR_Op<"await",
     as part of the enclosing await scope.
   }];
 
-  let arguments = (ins AwaitKind:$kind);
+  let arguments = (ins CIR_AwaitKind:$kind);
   let regions = (region SizedRegion<1>:$ready,
                         SizedRegion<1>:$suspend,
                         SizedRegion<1>:$resume);
@@ -4288,14 +4206,11 @@ def TryOp : CIR_Op<"try",
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
-def CatchParamBegin : I32EnumAttrCase<"begin",  0>;
-def CatchParamEnd   : I32EnumAttrCase<"end",  1>;
-def CatchParamKind  : I32EnumAttr<
-    "CatchParamKind",
-    "Designate limits for begin/end of catch param handling",
-    [CatchParamBegin, CatchParamEnd]> {
-  let cppNamespace = "::cir";
-}
+def CIR_CatchParamKind  : CIR_I32EnumAttr<
+  "CatchParamKind", "Designate limits for begin/end of catch param handling", [
+    I32EnumAttrCase<"Begin", 0, "begin">,
+    I32EnumAttrCase<"End",  1, "end">
+]>;
 
 def CatchParamOp : CIR_Op<"catch_param"> {
   let summary = "Represents catch clause formal parameter";
@@ -4310,8 +4225,11 @@ def CatchParamOp : CIR_Op<"catch_param"> {
     ```
   }];
 
-  let arguments = (ins Optional<CIR_VoidPtrType>:$exception_ptr,
-                       OptionalAttr<CatchParamKind>:$kind);
+  let arguments = (ins
+    Optional<CIR_VoidPtrType>:$exception_ptr,
+    OptionalAttr<CIR_CatchParamKind>:$kind
+  );
+
   let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
     ($kind^)?
@@ -4321,8 +4239,8 @@ def CatchParamOp : CIR_Op<"catch_param"> {
   }];
 
   let extraClassDeclaration = [{
-    bool isBegin() { return getKind() == cir::CatchParamKind::begin; }
-    bool isEnd() { return getKind() == cir::CatchParamKind::end; }
+    bool isBegin() { return getKind() == cir::CatchParamKind::Begin; }
+    bool isEnd() { return getKind() == cir::CatchParamKind::End; }
   }];
 
   let hasVerifier = 1;
@@ -5141,15 +5059,10 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
   let llvmOp = "StackRestoreOp";
 }
 
-def AsmATT : I32EnumAttrCase<"x86_att", 0>;
-def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
-
-def AsmFlavor : I32EnumAttr<
-  "AsmFlavor",
-  "ATT or Intel",
-  [AsmATT, AsmIntel]> {
-  let cppNamespace = "::cir";
-}
+def CIR_AsmFlavor : CIR_I32EnumAttr<"AsmFlavor", "ATT or Intel", [
+  I32EnumAttrCase<"x86_att", 0>,
+  I32EnumAttrCase<"x86_intel", 1>
+]>;
 
 def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let description = [{
@@ -5215,7 +5128,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
         StrAttr:$asm_string,
         StrAttr:$constraints,
         UnitAttr:$side_effects,
-        AsmFlavor:$asm_flavor,
+        CIR_AsmFlavor:$asm_flavor,
         ArrayAttr:$operand_attrs,
         DenseI32ArrayAttr:$operands_segments
         );
@@ -5492,23 +5405,17 @@ def LabelOp : CIR_Op<"label", [AlwaysSpeculatable]> {
 // Atomic operations
 //===----------------------------------------------------------------------===//
 
-// Binary opcodes for atomic fetch.
-def Atomic_Add  : I32EnumAttrCase<"Add",  0, "add">;
-def Atomic_Sub  : I32EnumAttrCase<"Sub",  1, "sub">;
-def Atomic_And  : I32EnumAttrCase<"And",  2, "and">;
-def Atomic_Xor  : I32EnumAttrCase<"Xor",  3, "xor">;
-def Atomic_Or   : I32EnumAttrCase<"Or",   4, "or">;
-def Atomic_Nand : I32EnumAttrCase<"Nand", 5, "nand">;
-def Atomic_Max  : I32EnumAttrCase<"Max",  6, "max">;
-def Atomic_Min  : I32EnumAttrCase<"Min",  7, "min">;
-
-def AtomicFetchKind : I32EnumAttr<
-    "AtomicFetchKind",
-    "Binary opcode for atomic fetch operations",
-    [Atomic_Add, Atomic_Sub, Atomic_And, Atomic_Xor, Atomic_Or, Atomic_Nand,
-     Atomic_Max, Atomic_Min]> {
-  let cppNamespace = "::cir";
-}
+def CIR_AtomicFetchKind : CIR_I32EnumAttr<
+  "AtomicFetchKind", "Binary opcode for atomic fetch operations", [
+    I32EnumAttrCase<"Add",  0, "add">,
+    I32EnumAttrCase<"Sub",  1, "sub">,
+    I32EnumAttrCase<"And",  2, "and">,
+    I32EnumAttrCase<"Xor",  3, "xor">,
+    I32EnumAttrCase<"Or",   4, "or">,
+    I32EnumAttrCase<"Nand", 5, "nand">,
+    I32EnumAttrCase<"Max",  6, "max">,
+    I32EnumAttrCase<"Min",  7, "min">
+]>;
 
 def AtomicFetch : CIR_Op<"atomic.fetch",
                          [AllTypesMatch<["result", "val"]>]> {
@@ -5535,15 +5442,14 @@ def AtomicFetch : CIR_Op<"atomic.fetch",
   let arguments = (ins
     Arg<CIR_PtrToIntOrFloatType, "", [MemRead, MemWrite]>:$ptr,
     CIR_AnyIntOrFloatType:$val,
-    AtomicFetchKind:$binop,
-    Arg<MemOrder, "memory order">:$mem_order,
+    CIR_AtomicFetchKind:$binop,
+    Arg<CIR_MemOrder, "memory order">:$mem_order,
     UnitAttr:$is_volatile,
     UnitAttr:$fetch_first
   );
 
   let assemblyFormat = [{
-    `(`
-    $binop `,`
+    `(`$binop `,`
     $ptr `:` qualified(type($ptr)) `,`
     $val `:` type($val) `,`
     $mem_order `)`
@@ -5568,7 +5474,7 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
   let results = (outs CIR_AnyType:$result);
   let arguments = (ins Arg<CIR_PointerType, "", [MemRead, MemWrite]>:$ptr,
                        CIR_AnyType:$val,
-                       Arg<MemOrder, "memory order">:$mem_order,
+                       Arg<CIR_MemOrder, "memory order">:$mem_order,
                        UnitAttr:$is_volatile);
 
   let assemblyFormat = [{
@@ -5583,17 +5489,10 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
   let hasVerifier = 1;
 }
 
-def MemScope_SingleThread : I32EnumAttrCase<"MemScope_SingleThread",
-                                            0, "single_thread">;
-def MemScope_System       : I32EnumAttrCase<"MemScope_System",
-                                            1, "system">;
-
-def MemScopeKind : I32EnumAttr<
-    "MemScopeKind",
-    "Memory Scope Enumeration",
-    [MemScope_SingleThread, MemScope_System]> {
-  let cppNamespace = "::cir";
-}
+def CIR_MemScopeKind : CIR_I32EnumAttr<"MemScopeKind", "memory scope kind", [
+  I32EnumAttrCase<"SingleThread", 0, "single_thread">,
+  I32EnumAttrCase<"System", 1, "system">
+]>;
 
 def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
                            [AllTypesMatch<["old", "expected", "desired"]>]> {
@@ -5615,9 +5514,9 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
   let arguments = (ins Arg<CIR_PointerType, "", [MemRead, MemWrite]>:$ptr,
                        CIR_AnyType:$expected,
                        CIR_AnyType:$desired,
-                       Arg<MemOrder, "success memory order">:$succ_order,
-                       Arg<MemOrder, "failure memory order">:$fail_order,
-                       OptionalAttr<MemScopeKind>:$syncscope,
+                       Arg<CIR_MemOrder, "success memory order">:$succ_order,
+                       Arg<CIR_MemOrder, "failure memory order">:$fail_order,
+                       OptionalAttr<CIR_MemScopeKind>:$syncscope,
                        OptionalAttr<I64Attr>:$alignment,
                        UnitAttr:$weak,
                        UnitAttr:$is_volatile);
@@ -5660,8 +5559,11 @@ def AtomicFence : CIR_Op<"atomic.fence"> {
     ```
 
   }];
-  let arguments = (ins Arg<MemOrder, "memory order">:$ordering,
-                       OptionalAttr<MemScopeKind>:$syncscope);
+
+  let arguments = (ins
+    Arg<CIR_MemOrder, "memory order">:$ordering,
+    OptionalAttr<CIR_MemScopeKind>:$syncscope
+  );
 
   let assemblyFormat = [{
     (`syncscope` `(` $syncscope^ `)`)? $ordering attr-dict
