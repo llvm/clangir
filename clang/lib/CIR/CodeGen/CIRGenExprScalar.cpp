@@ -772,7 +772,11 @@ public:
   mlir::Value VisitBlockExpr(const BlockExpr *E) { llvm_unreachable("NYI"); }
   mlir::Value
   VisitAbstractConditionalOperator(const AbstractConditionalOperator *E);
-  mlir::Value VisitChooseExpr(ChooseExpr *E) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitChooseExpr(ChooseExpr *E) {
+    return Visit(E->getChosenSubExpr());
+  }
+
   mlir::Value VisitVAArgExpr(VAArgExpr *VE);
   mlir::Value VisitObjCStringLiteral(const ObjCStringLiteral *E) {
     llvm_unreachable("NYI");
