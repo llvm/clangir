@@ -2190,6 +2190,11 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     cir::FuncOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
 
+  mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
+  if (module->hasAttr("cir.global_annotations")) {
+    op->removeAttr("annotations");
+  }
+
   auto fnType = op.getFunctionType();
   auto isDsoLocal = op.getDsoLocal();
   mlir::TypeConverter::SignatureConversion signatureConversion(
