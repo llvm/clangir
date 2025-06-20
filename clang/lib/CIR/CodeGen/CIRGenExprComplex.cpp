@@ -318,7 +318,7 @@ public:
   mlir::Value VisitInitListExpr(InitListExpr *E);
 
   mlir::Value VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-    llvm_unreachable("NYI");
+    return emitLoadOfLValue(E);
   }
 
   mlir::Value VisitVAArgExpr(VAArgExpr *E) { llvm_unreachable("NYI"); }
