@@ -655,7 +655,8 @@ public:
   void emitAliasForGlobal(llvm::StringRef mangledName, mlir::Operation *op,
                           GlobalDecl aliasGD, cir::FuncOp aliasee,
                           cir::GlobalLinkageKind linkage);
-
+cir::LLVMIntrinsicCallOp getIntrinsic(unsigned IID,
+                                            ArrayRef<mlir::Type> Tys);
   mlir::Type convertType(clang::QualType type);
 
   /// Set the visibility for the given global.
