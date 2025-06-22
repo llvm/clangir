@@ -3291,7 +3291,9 @@ def VecShuffleOp : CIR_Op<"vec.shuffle",
     `(` $vec1 `,` $vec2 `:` qualified(type($vec1)) `)` $indices `:`
      qualified(type($result)) attr-dict
   }];
+
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
