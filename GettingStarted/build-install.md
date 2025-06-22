@@ -32,7 +32,7 @@ $ /Applications/CMake.app/Contents/bin/cmake -GNinja \
  -DLLVM_ENABLE_PROJECTS="clang;mlir" \
  -DCLANG_ENABLE_CIR=ON \
  -DCMAKE_CXX_COMPILER=${CLANG}++ \
- -DCMAKE_C_COMPILER=${CLANG} ../
+ -DCMAKE_C_COMPILER=${CLANG} ../llvm
 $ ninja install
 ```
 
