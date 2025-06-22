@@ -3320,7 +3320,9 @@ def VecShuffleDynamicOp : CIR_Op<"vec.shuffle.dynamic",
     $vec `:` qualified(type($vec)) `,` $indices `:` qualified(type($indices))
     attr-dict
   }];
+
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
