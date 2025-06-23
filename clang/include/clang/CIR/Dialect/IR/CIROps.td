@@ -3821,11 +3821,11 @@ def DeleteArrayOp : CIR_Op<"delete.array">,
 //===----------------------------------------------------------------------===//
 
 def CIR_SideEffect : CIR_I32EnumAttr<
-    "SideEffect", "allowed side effects of a function",[
-      I32EnumAttrCase<"All", 1, "all">,
-      I32EnumAttrCase<"Pure", 2, "pure">,
-      I32EnumAttrCase<"Const", 3, "const">
-    ]> {
+    "SideEffect", "allowed side effects of a function", [
+      I32EnumAttrCase<"All", 0, "all">,
+      I32EnumAttrCase<"Pure", 1, "pure">,
+      I32EnumAttrCase<"Const", 2, "const">
+]> {
   let description = [{
     The side effect attribute specifies the possible side effects of the callee
     of a call operation. This is an enumeration attribute and all possible
