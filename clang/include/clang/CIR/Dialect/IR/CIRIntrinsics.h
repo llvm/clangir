@@ -50,7 +50,7 @@ class LLVMIntrinsicCallOp;
 class FuncOp;
 // FIXME: Unsure if we need a proper function type
 
-namespace Intrinsic {
+namespace CIRIntrinsic {
 
 // Abstraction for the arguments of the noalias intrinsics
 static const int NoAliasScopeDeclScopeArg = 0;
@@ -66,6 +66,26 @@ enum IndependentIntrinsics : unsigned {
 #define GET_INTRINSIC_ENUM_VALUES
 #include "llvm/IR/IntrinsicEnums.inc"
 #undef GET_INTRINSIC_ENUM_VALUES
+};
+
+// Simple descriptor struct that holds essential intrinsic information
+// In order to build CIRIntrinsicCallOp
+struct IntrinsicDescriptor {
+  mlir::StringAttr name; // Mangled name attribute
+  mlir::Type resultType; // Return type for the intrinsic
+  ID id;                 // Original intrinsic ID (optional)
+
+  // Basic constructor
+  IntrinsicDescriptor(mlir::StringAttr name, mlir::Type resultType,
+                      ID id = not_intrinsic)
+      : name(name), resultType(resultType), id(id) {}
+
+  // Default constructor for empty/invalid descriptors
+  IntrinsicDescriptor()
+      : name(nullptr), resultType(nullptr), id(not_intrinsic) {}
+
+  // Check if descriptor is valid
+  bool isValid() const { return name && resultType; }
 };
 
 /// Return the LLVM name for an intrinsic, such as "llvm.ppc.altivec.lvx".
@@ -92,11 +112,15 @@ std::string getName(ID Id, llvm::ArrayRef<mlir::Type> Tys, mlir::ModuleOp M,
 std::string getNameNoUnnamedTypes(ID Id, llvm::ArrayRef<mlir::Type> Tys);
 
 /// Return the function type for an intrinsic.
-mlir::Type *getType(mlir::MLIRContext& Context, ID id,
-                    llvm::ArrayRef<mlir::Type> Tys = {});
+// mlir::Type getType(mlir::MLIRContext &Context, ID id,
+//                    llvm::ArrayRef<mlir::Type> Tys = {});
+
+// Get both return type and parameter types in one call
+mlir::Type getType(mlir::MLIRContext &Context, ID id,
+                   llvm::ArrayRef<mlir::Type> Tys);
 
 /// Returns true if the intrinsic can be overloaded.
-bool isOverloaded(ID id);
+bool isOverloaded(ID id); // NYI
 
 ID lookupIntrinsicID(llvm::StringRef Name);
 
@@ -117,18 +141,18 @@ ID lookupIntrinsicID(llvm::StringRef Name);
 /// using iAny, fAny, vAny, or pAny).  For a declaration of an overloaded
 /// intrinsic, Tys must provide exactly one type for each overloaded type in
 /// the intrinsic.
-LLVMIntrinsicCallOp getOrInsertDeclaration(mlir::ModuleOp M, ID id,
-                               llvm::ArrayRef<mlir::Type> Tys = {});
+IntrinsicDescriptor getOrInsertDeclaration(mlir::ModuleOp M, ID id,
+                                           llvm::ArrayRef<mlir::Type> Tys = {});
 
 /// Look up the Function declaration of the intrinsic \p id in the Module
 /// \p M and return it if it exists. Otherwise, return nullptr. This version
 /// supports non-overloaded intrinsics.
-LLVMIntrinsicCallOp getDeclarationIfExists(const mlir::ModuleOp *M, ID id);
+IntrinsicDescriptor getDeclarationIfExists(const mlir::ModuleOp *M, ID id);
 
 /// This version supports overloaded intrinsics.
-LLVMIntrinsicCallOp getDeclarationIfExists(mlir::ModuleOp M, ID id,
-                               llvm::ArrayRef<mlir::Type> Tys,
-                               mlir::Type FT = nullptr);
+IntrinsicDescriptor getDeclarationIfExists(mlir::ModuleOp M, ID id,
+                                           llvm::ArrayRef<mlir::Type> Tys,
+                                           mlir::Type FT = nullptr);
 
 /// Map a Clang builtin name to an intrinsic ID.
 ID getIntrinsicForClangBuiltin(llvm::StringRef TargetPrefix,
@@ -182,7 +206,7 @@ bool matchIntrinsicVarArg(
 ///
 /// Returns false if the given ID and function type combination is not a
 /// valid intrinsic call.
-bool getIntrinsicSignature(Intrinsic::ID, mlir::Type FT,
+bool getIntrinsicSignature(ID, mlir::Type FT,
                            llvm::SmallVectorImpl<mlir::Type> &ArgTys);
 
 /// Same as previous, but accepts a Function instead of ID and FunctionType.
@@ -194,7 +218,7 @@ bool getIntrinsicSignature(FuncOp F, llvm::SmallVectorImpl<mlir::Type> &ArgTys);
 // or of the wrong kind will be renamed by adding ".renamed" to the name.
 std::optional<LLVMIntrinsicCallOp> remangleIntrinsicFunction(FuncOp F);
 
-} // namespace Intrinsic
+} // namespace CIRIntrinsic
 } // namespace cir
 
 #endif // LLVM_CLANG_CIR_DIALECT_INTRINSICS_H

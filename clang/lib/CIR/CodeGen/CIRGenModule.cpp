@@ -2478,9 +2478,10 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   setCommonAttributes(aliasGD, alias);
 }
 
-cir::LLVMIntrinsicCallOp
+cir::CIRIntrinsic::IntrinsicDescriptor
 CIRGenModule::getIntrinsic(unsigned IID, ArrayRef<mlir::Type> Tys) {
-  return cir::Intrinsic::getOrInsertDeclaration(getModule(), (cir::Intrinsic::ID)IID, Tys);
+  return cir::CIRIntrinsic::getOrInsertDeclaration(
+      getModule(), (cir::CIRIntrinsic::ID)IID, Tys);
 }
 
 mlir::Type CIRGenModule::convertType(QualType type) {

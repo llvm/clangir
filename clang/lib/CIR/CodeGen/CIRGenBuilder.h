@@ -12,6 +12,7 @@
 #include "Address.h"
 #include "CIRGenRecordLayout.h"
 #include "CIRGenTypeCache.h"
+#include "clang/CIR/Dialect/IR/CIRIntrinsics.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/Decl.h"
@@ -747,6 +748,17 @@ public:
   mlir::Value createVTTAddrPoint(mlir::Location loc, mlir::Type retTy,
                                  mlir::FlatSymbolRefAttr sym, uint64_t offset) {
     return create<cir::VTTAddrPointOp>(loc, retTy, sym, mlir::Value{}, offset);
+  }
+
+  mlir::Value
+  createIntrinsicCall(mlir::Location loc,
+                      cir::CIRIntrinsic::IntrinsicDescriptor descriptor,
+                      llvm::ArrayRef<mlir::Value> args = {}) {
+    assert(descriptor.isValid() && "invalid intrinsic descriptor");
+
+    return create<cir::LLVMIntrinsicCallOp>(loc, descriptor.name,
+                                            descriptor.resultType, args)
+        .getResult();
   }
 
   // FIXME(cir): CIRGenBuilder class should have an attribute with a reference
