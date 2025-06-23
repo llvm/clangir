@@ -261,25 +261,55 @@ void extract_real() {
 
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-BEFORE-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#REAL:]] = cir.complex.real %[[COMPLEX]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-BEFORE:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-BEFORE-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[#REAL:]] = cir.complex.real %[[COMPLEX]] : !cir.complex<!s32i> -> !s32i
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-AFTER-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#REAL:]] = cir.complex.real %[[COMPLEX]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-AFTER:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-AFTER-NEXT:   %[[COMPLEX:.*]] = cir.load{{.*}} %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[#REAL:]] = cir.complex.real %[[COMPLEX]] : !cir.complex<!s32i> -> !s32i
 //      CHECK-AFTER: }
 
 // LLVM: define dso_local void @extract_real()
-// LLVM:   %{{.+}} = load double, ptr @c, align 8
-// LLVM:   %{{.+}} = load i32, ptr @ci, align 4
+// LLVM:   %[[COMPLEX_D:.*]] = load { double, double }, ptr @c, align 8
+// LLVM:   %[[R1:.*]] = extractvalue { double, double } %[[COMPLEX_D]], 0
+// LLVM:   %[[COMPLEX_I:.*]] = load { i32, i32 }, ptr @ci, align 4
+// LLVM:   %[[R2:.*]] = extractvalue { i32, i32 } %[[COMPLEX_I]], 0
+// LLVM: }
+
+int extract_real_and_add(int _Complex a, int _Complex b) {
+  return __real__ a + __real__ b;
+}
+
+//      CHECK-BEFORE: cir.func
+//      CHECK-BEFORE:   %[[COMPLEX_A:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[REAL_A:.*]] = cir.complex.real %[[COMPLEX_A]] : !cir.complex<!s32i> -> !s32i
+// CHECK-BEFORE-NEXT:   %[[COMPLEX_B:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[REAL_B:.*]] = cir.complex.real %[[COMPLEX_B]] : !cir.complex<!s32i> -> !s32i
+// CHECK-BEFORE-NEXT:   %[[ADD:.*]] = cir.binop(add, %[[REAL_A]], %[[REAL_B]]) nsw : !s32i
+//      CHECK-BEFORE: }
+
+//      CHECK-AFTER: cir.func
+//      CHECK-AFTER:   %[[COMPLEX_A:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[REAL_A:.*]] = cir.complex.real %[[COMPLEX_A]] : !cir.complex<!s32i> -> !s32i
+// CHECK-AFTER-NEXT:   %[[COMPLEX_B:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[REAL_B:.*]] = cir.complex.real %[[COMPLEX_B]] : !cir.complex<!s32i> -> !s32i
+// CHECK-AFTER-NEXT:   %[[ADD:.*]] = cir.binop(add, %[[REAL_A]], %[[REAL_B]]) nsw : !s32i
+//      CHECK-AFTER: }
+
+// LLVM: define dso_local i32 @extract_real_and_add
+// LLVM:   %[[COMPLEX_A:.*]] = load { i32, i32 }, ptr {{.*}}, align 4
+// LLVM:   %[[REAL_A:.*]] = extractvalue { i32, i32 } %[[COMPLEX_A]], 0
+// LLVM:   %[[COMPLEX_B:.*]] = load { i32, i32 }, ptr {{.*}}, align 4
+// LLVM:   %[[REAL_B:.*]] = extractvalue { i32, i32 } %[[COMPLEX_B]], 0
+// LLVM:   %10 = add nsw i32 %[[REAL_A]], %[[REAL_B]]
 // LLVM: }
 
 void imag_ptr() {
