@@ -1138,9 +1138,9 @@ def ASTCallExprAttr : AST<"CallExpr", "call.expr",
 //===----------------------------------------------------------------------===//
 
 def CIR_VisibilityKind : CIR_I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
-  I32EnumAttrCase<"Default", 1, "default">,
-  I32EnumAttrCase<"Hidden", 2, "hidden">,
-  I32EnumAttrCase<"Protected", 3, "protected">
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"Hidden", 1, "hidden">,
+  I32EnumAttrCase<"Protected", 2, "protected">
 ]> {
   let genSpecializedAttr = 0;
 }
@@ -1155,7 +1155,8 @@ def CIR_VisibilityAttr : CIR_EnumAttr<CIR_VisibilityKind, "visibility"> {
 
   let skipDefaultBuilders = 1;
   let builders = [
-    AttrBuilder<(ins CArg<"VisibilityKind", "cir::VisibilityKind::Default">:$value), [{
+    AttrBuilder<(ins CArg<"VisibilityKind",
+                          "cir::VisibilityKind::Default">:$value), [{
       return $_get($_ctxt, value);
     }]>
   ];
