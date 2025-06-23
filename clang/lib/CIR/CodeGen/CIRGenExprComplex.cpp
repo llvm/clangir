@@ -313,7 +313,10 @@ public:
   VisitAbstractConditionalOperator(const AbstractConditionalOperator *CO) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitChooseExpr(ChooseExpr *CE) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitChooseExpr(ChooseExpr *CE) {
+    return Visit(CE->getChosenSubExpr());
+  }
 
   mlir::Value VisitInitListExpr(InitListExpr *E);
 
