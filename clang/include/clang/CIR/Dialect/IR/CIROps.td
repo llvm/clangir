@@ -1901,10 +1901,10 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 
 def CIR_CaseOpKind : CIR_I32EnumAttr<"CaseOpKind", "case kind", [
-  I32EnumAttrCase<"Default", 1, "default">,
-  I32EnumAttrCase<"Equal", 2, "equal">,
-  I32EnumAttrCase<"Anyof", 3, "anyof">,
-  I32EnumAttrCase<"Range", 4, "range">
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"Equal", 1, "equal">,
+  I32EnumAttrCase<"Anyof", 2, "anyof">,
+  I32EnumAttrCase<"Range", 3, "range">
 ]>;
 
 def CaseOp : CIR_Op<"case", [
