@@ -1573,7 +1573,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                          mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
                          mlir::math::MathDialect, mlir::vector::VectorDialect,
                          mlir::LLVM::LLVMDialect>();
-  target.addIllegalDialect<cir::CIRDialect>();
+  // We cannot mark cir dialect as illegal before conversion.
+  // The conversion of WhileOp relies on partially preserving operations from
+  // cir dialect, for example the `cir.continue`. If we marked cir as illegal
+  // here, then MLIR would think any remaining `cir.continue` indicates a
+  // failure, which is not what we want.
   
   patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(converter, context);
 
