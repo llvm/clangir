@@ -33,6 +33,7 @@
 #include "mlir/IR/Verifier.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Cuda.h"
+#include "clang/CIR/Dialect/IR/CIRIntrinsics.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 
@@ -2475,6 +2476,12 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
 
   // Finally, set up the alias with its proper name and attributes.
   setCommonAttributes(aliasGD, alias);
+}
+
+cir::CIRIntrinsic::IntrinsicDescriptor
+CIRGenModule::getIntrinsic(unsigned IID, ArrayRef<mlir::Type> Tys) {
+  return cir::CIRIntrinsic::getOrInsertDeclaration(
+      getModule(), (cir::CIRIntrinsic::ID)IID, Tys);
 }
 
 mlir::Type CIRGenModule::convertType(QualType type) {

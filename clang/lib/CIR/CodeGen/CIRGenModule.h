@@ -32,6 +32,7 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRIntrinsics.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
@@ -655,7 +656,8 @@ public:
   void emitAliasForGlobal(llvm::StringRef mangledName, mlir::Operation *op,
                           GlobalDecl aliasGD, cir::FuncOp aliasee,
                           cir::GlobalLinkageKind linkage);
-
+  cir::CIRIntrinsic::IntrinsicDescriptor
+  getIntrinsic(unsigned IID, ArrayRef<mlir::Type> Tys = {});
   mlir::Type convertType(clang::QualType type);
 
   /// Set the visibility for the given global.

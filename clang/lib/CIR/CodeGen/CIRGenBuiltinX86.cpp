@@ -25,6 +25,8 @@
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
@@ -98,51 +100,33 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     llvm_unreachable("_mm_prefetch NYI");
   }
   case X86::BI_mm_clflush: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.clflush"),
-            voidTy, Ops[0])
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()),
+        CGM.getIntrinsic(llvm::Intrinsic::x86_sse2_clflush), Ops[0]);
   }
   case X86::BI_mm_lfence: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.lfence"),
-            voidTy)
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()),
+        CGM.getIntrinsic(llvm::Intrinsic::x86_sse2_lfence));
   }
   case X86::BI_mm_pause: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.pause"),
-            voidTy)
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()),
+        CGM.getIntrinsic(llvm::Intrinsic::x86_sse2_pause));
   }
   case X86::BI_mm_mfence: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.mfence"),
-            voidTy)
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()),
+        CGM.getIntrinsic(llvm::Intrinsic::x86_sse2_mfence));
   }
   case X86::BI_mm_sfence: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse.sfence"),
-            voidTy)
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()),
+        CGM.getIntrinsic(llvm::Intrinsic::x86_sse_sfence));
   }
   case X86::BI__rdtsc: {
-    mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 64, false);
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
-        .getResult();
+    return builder.createIntrinsicCall(
+        getLoc(E->getExprLoc()), CGM.getIntrinsic(llvm::Intrinsic::x86_rdtsc));
   }
   case X86::BI__builtin_ia32_rdtscp: {
     // For rdtscp, we need to create a proper struct type to hold {i64, i32}
