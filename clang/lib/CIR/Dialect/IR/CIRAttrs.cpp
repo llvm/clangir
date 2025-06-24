@@ -43,7 +43,7 @@ static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
 static mlir::ParseResult
 parseFloatLiteral(mlir::AsmParser &parser,
                   mlir::FailureOr<llvm::APFloat> &value,
-                  cir::CIRFPTypeInterface fpType);
+                  cir::FPTypeInterface fpType);
 
 static mlir::ParseResult parseConstPtr(mlir::AsmParser &parser,
                                        mlir::IntegerAttr &value);
@@ -276,7 +276,7 @@ static void printFloatLiteral(AsmPrinter &p, APFloat value, Type ty) {
 
 static ParseResult parseFloatLiteral(AsmParser &parser,
                                      FailureOr<APFloat> &value,
-                                     CIRFPTypeInterface fpType) {
+                                     cir::FPTypeInterface fpType) {
 
   APFloat parsedValue(0.0);
   if (parser.parseFloat(fpType.getFloatSemantics(), parsedValue))
@@ -289,11 +289,11 @@ static ParseResult parseFloatLiteral(AsmParser &parser,
 FPAttr FPAttr::getZero(Type type) {
   return get(type,
              APFloat::getZero(
-                 mlir::cast<CIRFPTypeInterface>(type).getFloatSemantics()));
+                 mlir::cast<cir::FPTypeInterface>(type).getFloatSemantics()));
 }
 
 LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                             CIRFPTypeInterface fpType, APFloat value) {
+                             cir::FPTypeInterface fpType, APFloat value) {
   if (APFloat::SemanticsToEnum(fpType.getFloatSemantics()) !=
       APFloat::SemanticsToEnum(value.getSemantics()))
     return emitError() << "floating-point semantics mismatch";

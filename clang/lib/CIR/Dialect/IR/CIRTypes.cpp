@@ -26,7 +26,7 @@
 #include "mlir/Support/LogicalResult.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -732,8 +732,7 @@ uint64_t FP128Type::getABIAlignment(const mlir::DataLayout &dataLayout,
 }
 
 const llvm::fltSemantics &LongDoubleType::getFloatSemantics() const {
-  return mlir::cast<cir::CIRFPTypeInterface>(getUnderlying())
-      .getFloatSemantics();
+  return mlir::cast<cir::FPTypeInterface>(getUnderlying()).getFloatSemantics();
 }
 
 llvm::TypeSize
