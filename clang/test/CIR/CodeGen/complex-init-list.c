@@ -3,8 +3,8 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fclangir -emit-llvm %s -o %t-cir.ll
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
 
-void foo() { 
-   int _Complex c = (int _Complex){1, 2}; 
+void foo() {
+   int _Complex c = (int _Complex){1, 2};
 }
 
 // CIR: %[[INIT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["c", init]
@@ -20,8 +20,8 @@ void foo() {
 // LLVM: %[[TMP:.*]] = load { i32, i32 }, ptr %[[COMPOUND:.*]], align 4
 // LLVM: store { i32, i32 } %[[TMP]], ptr %[[INIT]], align 4
 
-void foo2(float a, float b) { 
-  float _Complex c = (float _Complex){a, b}; 
+void foo2(float a, float b) {
+  float _Complex c = (float _Complex){a, b};
 }
 
 // CIR: %[[INIT:.*]] = cir.alloca !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>, ["c", init]
@@ -37,7 +37,7 @@ void foo2(float a, float b) {
 // LLVM: %[[COMPOUND:.*]] = alloca { float, float }, i64 1, align 4
 // LLVM: %[[A:.*]] = load float, ptr {{.*}}, align 4
 // LLVM: %[[B:.*]] = load float, ptr {{.*}}, align 4
-// LLVM: %[[INSERT:.*]] = insertvalue { float, float } undef, float %[[A]], 0
+// LLVM: %[[INSERT:.*]] = insertvalue { float, float } {{.*}}, float %[[A]], 0
 // LLVM: %[[INSERT_2:.*]] = insertvalue { float, float } %[[INSERT]], float %[[B]], 1
 // LLVM: store { float, float } %[[INSERT_2]], ptr %[[COMPOUND]], align 4
 // LLVM: %[[TMP:.*]] = load { float, float }, ptr %[[COMPOUND]], align 4
