@@ -8,18 +8,15 @@ union EmptyUnion {
 };
 
 void f0() {
-  EmptyUnion e{};
+  EmptyUnion e;
 };
 
 // CIR: !rec_EmptyUnion = !cir.record<union "EmptyUnion" padded {!u8i}>
 // CIR: cir.func dso_local @_Z2f0v()
 // CIR:   %0 = cir.alloca !rec_EmptyUnion, !cir.ptr<!rec_EmptyUnion>, ["e"] {alignment = 1 : i64}
-// CIR:   %1 = cir.const #cir.undef : !rec_EmptyUnion
-// CIR:   cir.store align(1) %1, %0 : !rec_EmptyUnion, !cir.ptr<!rec_EmptyUnion>
 // CIR:   cir.return
 
 // LLVM: %union.EmptyUnion = type { i8 }
 // LLVM: define dso_local void @_Z2f0v()
 // LLVM:   %1 = alloca %union.EmptyUnion, i64 1, align 1
-// LLVM:   store %union.EmptyUnion undef, ptr %1, align 1
 // LLVM:   ret void
