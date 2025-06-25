@@ -1514,7 +1514,6 @@ void LoweringPreparePass::lowerThrowOp(ThrowOp op) {
 }
 
 void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
-  // Use the existing helper to get the called function
   FuncOp funcOp = getCalledFunction(op);
   if (!funcOp)
     return;
@@ -1524,21 +1523,16 @@ void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
   auto ctorDecl = dyn_cast<cir::ASTCXXConstructorDeclInterface>(astAttr);
   if (!ctorDecl)
     return;
-
-  // TODO: handle this later
-  if (ctorDecl.isDefaultConstructor()) {
+  if (ctorDecl.isDefaultConstructor())
     return;
-  }
 
   if (ctorDecl.isCopyConstructor()) {
     // Additional safety checks: constructor calls should have no return value
-    if (op.getNumResults() > 0) {
+    if (op.getNumResults() > 0)
       return;
-    }
     auto operands = op.getOperands();
-    if (operands.size() != 2) {
+    if (operands.size() != 2)
       return;
-    }
     // Replace the trivial copy constructor call with a copy op
     CIRBaseBuilderTy builder(getContext());
     mlir::Value dest = operands[0];
@@ -1546,9 +1540,6 @@ void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
     builder.setInsertionPoint(op);
     builder.createCopy(dest, src);
     op.erase();
-  } else {
-    // TODO handle std::move or another trivial copy
-    return;
   }
 }
 
