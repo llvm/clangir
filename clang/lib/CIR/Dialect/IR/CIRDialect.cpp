@@ -2679,14 +2679,16 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
-      {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorAttrName(),
-       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
-       getCallingConvAttrName(), getNoProtoAttrName(),
-       getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName(), getCxxCtorAttrName(), getCxxDtorAttrName()});
+      {getAliaseeAttrName(),          getBuiltinAttrName(),
+       getCoroutineAttrName(),        getDsoLocalAttrName(),
+       getExtraAttrsAttrName(),       getFunctionTypeAttrName(),
+       getGlobalCtorAttrName(),       getGlobalDtorAttrName(),
+       getLambdaAttrName(),           getLinkageAttrName(),
+       getCallingConvAttrName(),      getNoProtoAttrName(),
+       getSymVisibilityAttrName(),    getArgAttrsAttrName(),
+       getResAttrsAttrName(),         getComdatAttrName(),
+       getGlobalVisibilityAttrName(), getAnnotationsAttrName(),
+       getCxxCtorAttrName(),          getCxxDtorAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
