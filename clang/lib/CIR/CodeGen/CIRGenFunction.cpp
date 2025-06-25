@@ -780,10 +780,10 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
       emitConstructorBody(args);
     } else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
-               fd->hasAttr<CUDAGlobalAttr>())
+               fd->hasAttr<CUDAGlobalAttr>()) {
       CGM.getCUDARuntime().emitDeviceStub(*this, fn, args);
-    else if (isa<CXXMethodDecl>(fd) &&
-             cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
+    } else if (isa<CXXMethodDecl>(fd) &&
+               cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
       // The lambda static invoker function is special, because it forwards or
       // clones the body of the function call operator (but is actually
       // static).
@@ -799,8 +799,9 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         fn.erase();
         return nullptr;
       }
-    } else
+    } else {
       llvm_unreachable("no definition for emitted function");
+    }
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
