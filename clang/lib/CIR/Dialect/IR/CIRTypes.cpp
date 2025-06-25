@@ -519,8 +519,8 @@ RecordType::computeStructAlignment(const mlir::DataLayout &dataLayout) const {
 uint64_t
 RecordType::computeUnionAlignment(const mlir::DataLayout &dataLayout) const {
   Type largestMember = getLargestMember(dataLayout);
+  // use 1 byte alignment for empty union
   if (!largestMember)
-    // use 1 byte alignment for empty union
     return 1;
   return dataLayout.getTypeABIAlignment(largestMember);
 }
