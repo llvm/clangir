@@ -1011,6 +1011,16 @@ void cir::StoreOp::setAtomic(cir::MemOrder order) {
 // VecCreateOp
 //===----------------------------------------------------------------------===//
 
+OpFoldResult cir::VecCreateOp::fold(FoldAdaptor adaptor) {
+  if (llvm::any_of(getElements(), [](mlir::Value value) {
+        return !mlir::isa<cir::ConstantOp>(value.getDefiningOp());
+      }))
+    return {};
+
+  return cir::ConstVectorAttr::get(
+      getType(), mlir::ArrayAttr::get(getContext(), adaptor.getElements()));
+}
+
 LogicalResult cir::VecCreateOp::verify() {
   // Verify that the number of arguments matches the number of elements in the
   // vector, and that the type of all the arguments matches the type of the
@@ -1036,16 +1046,48 @@ LogicalResult cir::VecCreateOp::verify() {
 // VecTernaryOp
 //===----------------------------------------------------------------------===//
 
+OpFoldResult cir::VecTernaryOp::fold(FoldAdaptor adaptor) {
+  mlir::Attribute cond = adaptor.getCond();
+  mlir::Attribute lhs = adaptor.getLhs();
+  mlir::Attribute rhs = adaptor.getRhs();
+
+  if (!mlir::isa_and_nonnull<cir::ConstVectorAttr>(cond) ||
+      !mlir::isa_and_nonnull<cir::ConstVectorAttr>(lhs) ||
+      !mlir::isa_and_nonnull<cir::ConstVectorAttr>(rhs))
+    return {};
+  auto condVec = mlir::cast<cir::ConstVectorAttr>(cond);
+  auto lhsVec = mlir::cast<cir::ConstVectorAttr>(lhs);
+  auto rhsVec = mlir::cast<cir::ConstVectorAttr>(rhs);
+
+  mlir::ArrayAttr condElts = condVec.getElts();
+
+  SmallVector<mlir::Attribute, 16> elements;
+  elements.reserve(condElts.size());
+
+  for (const auto &[idx, condAttr] :
+       llvm::enumerate(condElts.getAsRange<cir::IntAttr>())) {
+    if (condAttr.getSInt()) {
+      elements.push_back(lhsVec.getElts()[idx]);
+    } else {
+      elements.push_back(rhsVec.getElts()[idx]);
+    }
+  }
+
+  cir::VectorType vecTy = getLhs().getType();
+  return cir::ConstVectorAttr::get(
+      vecTy, mlir::ArrayAttr::get(getContext(), elements));
+}
+
 LogicalResult cir::VecTernaryOp::verify() {
   // Verify that the condition operand has the same number of elements as the
   // other operands.  (The automatic verification already checked that all
   // operands are vector types and that the second and third operands are the
   // same type.)
   if (mlir::cast<cir::VectorType>(getCond().getType()).getSize() !=
-      getVec1().getType().getSize()) {
+      getLhs().getType().getSize()) {
     return emitOpError() << ": the number of elements in "
-                         << getCond().getType() << " and "
-                         << getVec1().getType() << " don't match";
+                         << getCond().getType() << " and " << getLhs().getType()
+                         << " don't match";
   }
   return success();
 }
@@ -2324,6 +2366,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxCtorAttr = getCxxCtorAttrName(state.name);
+  auto cxxDtorAttr = getCxxDtorAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2402,6 +2446,41 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Add CXXSpecialMember attributes.
+  if (mlir::succeeded(parser.parseOptionalKeyword("ctor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+
+    mlir::Type type;
+    bool defaultCtor = false, copyCtor = false;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (mlir::succeeded(parser.parseOptionalComma()))
+      if (mlir::succeeded(parser.parseOptionalKeyword("default_ctor")))
+        defaultCtor = true;
+    if (mlir::succeeded(parser.parseOptionalComma()))
+      if (mlir::succeeded(parser.parseOptionalKeyword("copy_ctor")))
+        copyCtor = true;
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxCtorAttr,
+                       CXXCtorAttr::get(type, defaultCtor, copyCtor));
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("dtor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxDtorAttr, CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2584,6 +2663,19 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (auto cxxCtor = getCxxCtorAttr()) {
+    p << " ctor<" << cxxCtor.getType();
+    if (cxxCtor.getIsDefaultConstructor())
+      p << ", default_ctor";
+    if (cxxCtor.getIsCopyConstructor())
+      p << ", copy_ctor";
+    p << '>';
+  }
+
+  if (auto cxxDtor = getCxxDtorAttr()) {
+    p << " dtor<" << cxxDtor.getType() << ">";
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2594,7 +2686,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+       getAnnotationsAttrName(), getCxxCtorAttrName(), getCxxDtorAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

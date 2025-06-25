@@ -32,7 +32,7 @@ struct B : A {
 // LLVM: call void @_ZN1AD2Ev
 
 // Complete dtor: just an alias because there are no virtual bases.
-// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) alias(@_ZN1BD2Ev)
+// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) dtor<!rec_B> alias(@_ZN1BD2Ev)
 // FIXME: LLVM output should be: @_ZN1BD1Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1BD2Ev
 // LLVM: declare dso_local void @_ZN1BD1Ev(ptr)
 
@@ -43,11 +43,11 @@ struct B : A {
 
 // (aliases from C)
 // CIR: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
-// CIR: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) alias(@_ZN1CD2Ev)
+// CIR: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) dtor<!rec_C> alias(@_ZN1CD2Ev)
 
 // CIR_O1-NOT: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
-// CIR_O1: cir.func private dso_local @_ZN1CD2Ev(!cir.ptr<!rec_C>) alias(@_ZN1BD2Ev)
-// CIR_O1: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) alias(@_ZN1CD2Ev)
+// CIR_O1: cir.func private dso_local @_ZN1CD2Ev(!cir.ptr<!rec_C>) dtor<!rec_C> alias(@_ZN1BD2Ev)
+// CIR_O1: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) dtor<!rec_C> alias(@_ZN1CD2Ev)
 
 // FIXME: LLVM output should be: @_ZN1CD2Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1BD2Ev
 // LLVM: define dso_local void @_ZN1CD2Ev(ptr

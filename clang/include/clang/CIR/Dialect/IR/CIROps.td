@@ -87,32 +87,78 @@ class CIR_Op<string mnemonic, list<Trait> traits = []> :
 //===----------------------------------------------------------------------===//
 
 def CIR_CastKind : CIR_I32EnumAttr<"CastKind", "cast kind", [
-  // The enumaration value isn't in sync with clang.
-  I32EnumAttrCase<"int_to_bool", 0>,
-  I32EnumAttrCase<"array_to_ptrdecay", 1>,
-  I32EnumAttrCase<"integral", 2>,
-  I32EnumAttrCase<"bitcast", 3>,
-  I32EnumAttrCase<"floating", 4>,
-  I32EnumAttrCase<"ptr_to_bool", 5>,
-  I32EnumAttrCase<"float_to_int", 6>,
-  I32EnumAttrCase<"int_to_ptr", 7>,
-  I32EnumAttrCase<"ptr_to_int", 8>,
-  I32EnumAttrCase<"float_to_bool", 9>,
-  I32EnumAttrCase<"bool_to_int", 10>,
-  I32EnumAttrCase<"int_to_float", 11>,
-  I32EnumAttrCase<"bool_to_float", 12>,
-  I32EnumAttrCase<"address_space", 13>,
-  I32EnumAttrCase<"float_to_complex", 14>,
-  I32EnumAttrCase<"int_to_complex", 15>,
-  I32EnumAttrCase<"float_complex_to_real", 16>,
-  I32EnumAttrCase<"int_complex_to_real", 17>,
-  I32EnumAttrCase<"float_complex_to_bool", 18>,
-  I32EnumAttrCase<"int_complex_to_bool", 19>,
-  I32EnumAttrCase<"float_complex", 20>,
-  I32EnumAttrCase<"float_complex_to_int_complex", 21>,
-  I32EnumAttrCase<"int_complex", 22>,
-  I32EnumAttrCase<"int_complex_to_float_complex", 23>,
-  I32EnumAttrCase<"member_ptr_to_bool", 24>
+  I32EnumAttrCase<"bitcast", 1>,
+  // CK_LValueBitCast
+  // CK_LValueToRValueBitCast
+  // CK_LValueToRValue
+  // CK_NoOp
+  // CK_BaseToDerived
+  // CK_DerivedToBase
+  // CK_UncheckedDerivedToBase
+  // CK_Dynamic
+  // CK_ToUnion
+  I32EnumAttrCase<"array_to_ptrdecay", 11>,
+  // CK_FunctionToPointerDecay
+  // CK_NullToPointer
+  // CK_NullToMemberPointer
+  // CK_BaseToDerivedMemberPointer
+  // CK_DerivedToBaseMemberPointer
+  I32EnumAttrCase<"member_ptr_to_bool", 17>,
+  // CK_ReinterpretMemberPointer
+  // CK_UserDefinedConversion
+  // CK_ConstructorConversion
+  I32EnumAttrCase<"int_to_ptr", 21>,
+  I32EnumAttrCase<"ptr_to_int", 22>,
+  I32EnumAttrCase<"ptr_to_bool", 23>,
+  // CK_ToVoid
+  // CK_MatrixCast
+  // CK_VectorSplat
+  I32EnumAttrCase<"integral", 27>,
+  I32EnumAttrCase<"int_to_bool", 28>,
+  I32EnumAttrCase<"int_to_float", 29>,
+  // CK_FloatingToFixedPoint
+  // CK_FixedPointToFloating
+  // CK_FixedPointCast
+  // CK_FixedPointToIntegral
+  // CK_IntegralToFixedPoint
+  // CK_FixedPointToBoolean
+  I32EnumAttrCase<"float_to_int", 36>,
+  I32EnumAttrCase<"float_to_bool", 37>,
+  I32EnumAttrCase<"bool_to_int", 38>,
+  I32EnumAttrCase<"floating", 39>,
+  // CK_CPointerToObjCPointerCast
+  // CK_BlockPointerToObjCPointerCast
+  // CK_AnyPointerToBlockPointerCast
+  // CK_ObjCObjectLValueCast
+  I32EnumAttrCase<"float_to_complex", 44>,
+  I32EnumAttrCase<"float_complex_to_real", 45>,
+  I32EnumAttrCase<"float_complex_to_bool", 46>,
+  I32EnumAttrCase<"float_complex", 47>,
+  I32EnumAttrCase<"float_complex_to_int_complex", 48>,
+  I32EnumAttrCase<"int_to_complex", 49>,
+  I32EnumAttrCase<"int_complex_to_real", 50>,
+  I32EnumAttrCase<"int_complex_to_bool", 51>,
+  I32EnumAttrCase<"int_complex", 52>,
+  I32EnumAttrCase<"int_complex_to_float_complex", 53>,
+  // CK_ARCProduceObject
+  // CK_ARCConsumeObject
+  // CK_ARCReclaimReturnedObject
+  // CK_ARCExtendBlockObject
+  // CK_AtomicToNonAtomic
+  // CK_NonAtomicToAtomic
+  // CK_CopyAndAutoreleaseBlockObject
+  // CK_BuiltinFnToFnPtr
+  // CK_ZeroToOCLOpaqueType
+  I32EnumAttrCase<"address_space", 63>,
+  // CK_IntToOCLSampler
+  // CK_HLSLVectorTruncation
+  // CK_HLSLArrayRValue
+  // CK_HLSLElementwiseCast
+  // CK_HLSLAggregateSplatCast
+
+  // Enums below are specific to CIR and don't have a correspondence to classic
+  // codegen:
+  I32EnumAttrCase<"bool_to_float", 1000>,
 ]>;
 
 def CastOp : CIR_Op<"cast",
@@ -121,39 +167,48 @@ def CastOp : CIR_Op<"cast",
   // FIXME: not all conversions are free of side effects.
   let summary = "Conversion between values of different types";
   let description = [{
-    Apply C/C++ usual conversions rules between values. Currently supported kinds:
+    Apply the usual C/C++ conversion rules between values. This operation models
+    a subset of conversions as defined in Clang's `OperationKinds.def`
+    (`llvm-project/clang/include/clang/AST/OperationKinds.def`).
 
-    - `array_to_ptrdecay`
+    Note: not all conversions are implemented using `cir.cast`. For instance,
+    lvalue-to-rvalue conversion is modeled as a `cir.load` instead.  Currently
+    supported kinds:
+
     - `bitcast`
+    - `array_to_ptrdecay`
+    - `member_ptr_to_bool
+    - `int_to_ptr`
+    - `ptr_to_int`
+    - `ptr_to_bool`
     - `integral`
     - `int_to_bool`
     - `int_to_float`
-    - `floating`
     - `float_to_int`
     - `float_to_bool`
-    - `ptr_to_int`
-    - `ptr_to_bool`
     - `bool_to_int`
-    - `bool_to_float`
-    - `address_space`
+    - `floating`
     - `float_to_complex`
-    - `int_to_complex`
     - `float_complex_to_real`
-    - `int_complex_to_real`
     - `float_complex_to_bool`
-    - `int_complex_to_bool`
     - `float_complex`
     - `float_complex_to_int_complex`
+    - `int_to_complex`
+    - `int_complex_to_real`
+    - `int_complex_to_bool`
     - `int_complex`
     - `int_complex_to_float_complex`
+    - `address_space`
 
-    This is effectively a subset of the rules from
-    `llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
-    of the conversions aren't implemented in terms of `cir.cast`, `lvalue-to-rvalue`
-    for instance is modeled as a regular `cir.load`.
+    CIR also supports some additional conversions that are not part of the classic
+    Clang codegen:
+
+    - `bool_to_float`
+
+    Example:
 
     ```mlir
-    %4 = cir.cast (int_to_bool, %3 : i32), !cir.bool
+    %4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
     ...
     %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
     ```
@@ -1846,10 +1901,10 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 
 def CIR_CaseOpKind : CIR_I32EnumAttr<"CaseOpKind", "case kind", [
-  I32EnumAttrCase<"Default", 1, "default">,
-  I32EnumAttrCase<"Equal", 2, "equal">,
-  I32EnumAttrCase<"Anyof", 3, "anyof">,
-  I32EnumAttrCase<"Range", 4, "range">
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"Equal", 1, "equal">,
+  I32EnumAttrCase<"Anyof", 2, "anyof">,
+  I32EnumAttrCase<"Range", 3, "range">
 ]>;
 
 def CaseOp : CIR_Op<"case", [
@@ -3107,6 +3162,7 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
   }];
 
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3169,7 +3225,7 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 
 def VecTernaryOp : CIR_Op<"vec.ternary",
-                   [Pure, AllTypesMatch<["result", "vec1", "vec2"]>]> {
+                   [Pure, AllTypesMatch<["result", "lhs", "rhs"]>]> {
   let summary = "The `cond ? a : b` ternary operator for vector types";
   let description = [{
     The `cir.vec.ternary` operation represents the C/C++ ternary operator,
@@ -3188,16 +3244,18 @@ def VecTernaryOp : CIR_Op<"vec.ternary",
 
   let arguments = (ins
     CIR_VectorOfIntType:$cond,
-    CIR_VectorType:$vec1,
-		CIR_VectorType:$vec2
+    CIR_VectorType:$lhs,
+    CIR_VectorType:$rhs
   );
 
   let results = (outs CIR_VectorType:$result);
   let assemblyFormat = [{
-    `(` $cond `,` $vec1 `,` $vec2 `)` `:` qualified(type($cond)) `,`
-    qualified(type($vec1)) attr-dict
+    `(` $cond `,` $lhs `,` $rhs `)` `:` qualified(type($cond)) `,`
+    qualified(type($lhs)) attr-dict
   }];
+
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3595,7 +3653,9 @@ def FuncOp : CIR_Op<"func", [
     OptionalAttr<GlobalCtorAttr>:$global_ctor,
     OptionalAttr<GlobalDtorAttr>:$global_dtor,
     OptionalAttr<ArrayAttr>:$annotations,
-    OptionalAttr<AnyASTFunctionDeclAttr>:$ast
+    OptionalAttr<AnyASTFunctionDeclAttr>:$ast,
+    OptionalAttr<CXXCtorAttr>:$cxx_ctor,
+    OptionalAttr<CXXDtorAttr>:$cxx_dtor
   );
 
   let regions = (region AnyRegion:$body);
@@ -3765,11 +3825,11 @@ def DeleteArrayOp : CIR_Op<"delete.array">,
 //===----------------------------------------------------------------------===//
 
 def CIR_SideEffect : CIR_I32EnumAttr<
-    "SideEffect", "allowed side effects of a function",[
-      I32EnumAttrCase<"All", 1, "all">,
-      I32EnumAttrCase<"Pure", 2, "pure">,
-      I32EnumAttrCase<"Const", 3, "const">
-    ]> {
+    "SideEffect", "allowed side effects of a function", [
+      I32EnumAttrCase<"All", 0, "all">,
+      I32EnumAttrCase<"Pure", 1, "pure">,
+      I32EnumAttrCase<"Const", 2, "const">
+]> {
   let description = [{
     The side effect attribute specifies the possible side effects of the callee
     of a call operation. This is an enumeration attribute and all possible

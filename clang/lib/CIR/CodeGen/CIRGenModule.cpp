@@ -2739,6 +2739,27 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     f.setExtraAttrsAttr(
         cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
+    if (fd) {
+      CIRGenFunction cgf{*this, builder};
+
+      if (isa<CXXDestructorDecl>(fd)) {
+        auto dtor = dyn_cast<CXXDestructorDecl>(fd);
+        auto cxxDtor = cir::CXXDtorAttr::get(
+            &getMLIRContext(),
+            convertType(cgf.getContext().getRecordType(dtor->getParent())));
+        f.setCxxDtorAttr(cxxDtor);
+      }
+
+      if (isa<CXXConstructorDecl>(fd)) {
+        auto ctor = dyn_cast<CXXConstructorDecl>(fd);
+        auto cxxCtor = cir::CXXCtorAttr::get(
+            &getMLIRContext(),
+            convertType(cgf.getContext().getRecordType(ctor->getParent())),
+            ctor->isDefaultConstructor(), ctor->isCopyConstructor());
+        f.setCxxCtorAttr(cxxCtor);
+      }
+    }
+
     if (!curCGF)
       theModule.push_back(f);
   }

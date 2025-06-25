@@ -764,12 +764,25 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
-    if (isa<CXXDestructorDecl>(fd))
+    if (isa<CXXDestructorDecl>(fd)) {
+      auto dtor = dyn_cast<CXXDestructorDecl>(fd);
+      auto cxxDtor = cir::CXXDtorAttr::get(
+          &getMLIRContext(),
+          convertType(getContext().getRecordType(dtor->getParent())));
+      fn.setCxxDtorAttr(cxxDtor);
+
       emitDestructorBody(args);
-    else if (isa<CXXConstructorDecl>(fd))
+    } else if (isa<CXXConstructorDecl>(fd)) {
+      auto ctor = dyn_cast<CXXConstructorDecl>(fd);
+      auto cxxCtor = cir::CXXCtorAttr::get(
+          &getMLIRContext(),
+          convertType(getContext().getRecordType(ctor->getParent())),
+          ctor->isDefaultConstructor(), ctor->isCopyConstructor());
+      fn.setCxxCtorAttr(cxxCtor);
+
       emitConstructorBody(args);
-    else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
-             fd->hasAttr<CUDAGlobalAttr>())
+    } else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
+               fd->hasAttr<CUDAGlobalAttr>())
       CGM.getCUDARuntime().emitDeviceStub(*this, fn, args);
     else if (isa<CXXMethodDecl>(fd) &&
              cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {

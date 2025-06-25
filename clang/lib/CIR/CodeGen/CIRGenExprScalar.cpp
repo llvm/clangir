@@ -772,7 +772,11 @@ public:
   mlir::Value VisitBlockExpr(const BlockExpr *E) { llvm_unreachable("NYI"); }
   mlir::Value
   VisitAbstractConditionalOperator(const AbstractConditionalOperator *E);
-  mlir::Value VisitChooseExpr(ChooseExpr *E) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitChooseExpr(ChooseExpr *E) {
+    return Visit(E->getChosenSubExpr());
+  }
+
   mlir::Value VisitVAArgExpr(VAArgExpr *VE);
   mlir::Value VisitObjCStringLiteral(const ObjCStringLiteral *E) {
     llvm_unreachable("NYI");
@@ -2050,9 +2054,11 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
-    if (E->isGLValue())
-      return CGF.emitLoadOfLValue(CGF.emitLValue(E), E->getExprLoc())
-          .getScalarVal();
+    if (E->isGLValue()) {
+      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+      mlir::Value Complex = CGF.emitComplexExpr(Op);
+      return CGF.builder.createComplexReal(Loc, Complex);
+    }
     // Otherwise, calculate and project.
     llvm_unreachable("NYI");
   }
@@ -2068,9 +2074,11 @@ mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
-    if (E->isGLValue())
-      return CGF.emitLoadOfLValue(CGF.emitLValue(E), E->getExprLoc())
-          .getScalarVal();
+    if (E->isGLValue()) {
+      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+      mlir::Value Complex = CGF.emitComplexExpr(Op);
+      return CGF.builder.createComplexImag(Loc, Complex);
+    }
     // Otherwise, calculate and project.
     llvm_unreachable("NYI");
   }

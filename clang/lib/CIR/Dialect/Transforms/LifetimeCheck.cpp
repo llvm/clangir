@@ -76,7 +76,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkLambdaCaptureStore(StoreOp storeOp);
   void trackCallToCoroutine(CallOp callOp);
 
-  void checkCtor(CallOp callOp, ASTCXXConstructorDeclInterface ctor);
+  void checkCtor(CallOp callOp, cir::CXXCtorAttr ctor);
   void checkMoveAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkCopyAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkNonConstUseOfOwner(mlir::Value ownerAddr, mlir::Location loc);
@@ -1549,8 +1549,7 @@ bool LifetimeCheckPass::isCtorInitPointerFromOwner(CallOp callOp) {
   return false;
 }
 
-void LifetimeCheckPass::checkCtor(CallOp callOp,
-                                  ASTCXXConstructorDeclInterface ctor) {
+void LifetimeCheckPass::checkCtor(CallOp callOp, cir::CXXCtorAttr ctor) {
   // TODO: zero init
   // 2.4.2 if the initialization is default initialization or zero
   // initialization, example:
@@ -1559,7 +1558,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   //    string_view p;
   //
   // both results in pset(p) == {null}
-  if (ctor.isDefaultConstructor()) {
+  if (ctor.getIsDefaultConstructor()) {
     // First argument passed is always the alloca for the 'this' ptr.
 
     // Currently two possible actions:
@@ -1583,7 +1582,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   }
 
   // User defined copy ctor calls ...
-  if (ctor.isCopyConstructor()) {
+  if (ctor.getIsCopyConstructor()) {
     llvm_unreachable("NYI");
   }
 
@@ -1788,8 +1787,11 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
-  if (auto ctor = dyn_cast<ASTCXXConstructorDeclInterface>(methodDecl))
-    return checkCtor(callOp, ctor);
+  if (auto fnName = callOp.getCallee()) {
+    auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
+    if (calleeFuncOp && calleeFuncOp.getCxxCtorAttr())
+      return checkCtor(callOp, calleeFuncOp.getCxxCtorAttr());
+  }
   if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);
   if (methodDecl.isCopyAssignmentOperator())
