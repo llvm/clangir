@@ -116,7 +116,7 @@ void vcall(C1 &c1) {
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_C1>, !cir.ptr<!cir.ptr<!rec_C1>>
 // CHECK:   %4 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_C1>>, !cir.ptr<!rec_C1>
 // CHECK:   %5 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
-// CHECK:   cir.call @_ZN5buffyC2ERKS_(%3, %1) : (!cir.ptr<!rec_buffy>, !cir.ptr<!rec_buffy>) -> ()
+// CHECK:   cir.copy %1 to %3 : !cir.ptr<!rec_buffy>
 // CHECK:   %6 = cir.load{{.*}} %3 : !cir.ptr<!rec_buffy>, !rec_buffy
 // CHECK:   %7 = cir.cast(bitcast, %4 : !cir.ptr<!rec_C1>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>>
 // CHECK:   %8 = cir.load{{.*}} %7 : !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>
@@ -147,7 +147,7 @@ public:
 // CHECK:     %3 = cir.base_class_addr %1 : !cir.ptr<!rec_B> nonnull [0] -> !cir.ptr<!rec_A>
 
 // Call @A::A(A const&)
-// CHECK:     cir.call @_ZN1AC2ERKS_(%2, %3) : (!cir.ptr<!rec_A>, !cir.ptr<!rec_A>) -> ()
+// CHECK:     cir.copy %3 to %2 : !cir.ptr<!rec_A>
 
 // Call @A::foo()
 // CHECK:     cir.call @_ZN1A3fooEv(%2) : (!cir.ptr<!rec_A>) -> ()
