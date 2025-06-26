@@ -30,6 +30,6 @@ void foo() {
 // CHECK:  %0 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s", init] {alignment = 8 : i64}
 // CHECK:  %1 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s1", init] {alignment = 8 : i64}
 // CHECK:  cir.call @_ZN6StringC2Ev(%0) : (!cir.ptr<!rec_String>) -> ()
-// CHECK:  cir.call @_ZN6StringC2ERKS_(%1, %0) : (!cir.ptr<!rec_String>, !cir.ptr<!rec_String>) -> ()
+// CHECK:  cir.copy %0 to %1 : !cir.ptr<!rec_String>
 // CHECK:  cir.return
 // }

@@ -354,7 +354,7 @@ void d() {
 // CIR: %[[V1:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["b"] {alignment = 1 : i64}
 // CIR: cir.scope {
 // CIR:   %[[V2:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["agg.tmp0"] {alignment = 1 : i64}
-// CIR:   cir.call @_ZN1CC2ERKS_(%[[V2]], %[[V1]]) : (!cir.ptr<!rec_C>, !cir.ptr<!rec_C>) -> () extra(#fn_attr)
+// CIR:   cir.copy %[[V1]] to %[[V2]] : !cir.ptr<!rec_C>
 // CIR:   %[[V3:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!rec_C>, !rec_C
 // CIR:   cir.try synthetic cleanup {
 // CIR:     cir.call exception @_ZN1CaSES_(%[[V0]], %[[V3]]) : (!cir.ptr<!rec_C>, !rec_C) -> () cleanup {

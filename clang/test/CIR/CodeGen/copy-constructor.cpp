@@ -58,7 +58,7 @@ struct ManyMembers {
 // CIR-NEXT:    %[[#THIS_K:]] = cir.get_member %[[#THIS_LOAD]][2] {name = "k"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_K:]] = cir.get_member %[[#OTHER_LOAD]][2] {name = "k"}
-// CIR-NEXT:    cir.call @_ZN7TrivialC1ERKS_(%[[#THIS_K]], %[[#OTHER_K]])
+// CIR-NEXT:    cir.copy %[[#OTHER_K]] to %[[#THIS_K]] : !cir.ptr<!rec_Trivial>
 // CIR-NEXT:    %[[#THIS_L:]] = cir.get_member %[[#THIS_LOAD]][3] {name = "l"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_L:]] = cir.get_member %[[#OTHER_LOAD]][3] {name = "l"}
@@ -69,7 +69,7 @@ struct ManyMembers {
 // CIR-NEXT:    %[[#THIS_N:]] = cir.get_member %[[#THIS_LOAD]][5] {name = "n"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_N:]] = cir.get_member %[[#OTHER_LOAD]][5] {name = "n"}
-// CIR-NEXT:    cir.call @_ZN7TrivialC1ERKS_(%[[#THIS_N]], %[[#OTHER_N]])
+// CIR-NEXT:    cir.copy %[[#OTHER_N]] to %[[#THIS_N]] : !cir.ptr<!rec_Trivial>
 // CIR-NEXT:    %[[#THIS_O:]] = cir.get_member %[[#THIS_LOAD]][6] {name = "o"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_O:]] = cir.get_member %[[#OTHER_LOAD]][6] {name = "o"}
@@ -80,8 +80,14 @@ struct ManyMembers {
 // CIR-NEXT:    cir.return
 // CIR-NEXT:  }
 
+// CIR-LABEL: cir.func dso_local @_Z9forceCopyR11ManyMembers(
+// CIR:         cir.copy
+void forceCopy(ManyMembers &m) {
+  ManyMembers copy(m);
+}
+
 // CIR-LABEL: cir.func dso_local @_Z6doCopyR11ManyMembers(
-// CIR:         cir.call @_ZN11ManyMembersC1ERKS_(
+// CIR:         cir.copy
 ManyMembers doCopy(ManyMembers &src) {
   return src;
 }
