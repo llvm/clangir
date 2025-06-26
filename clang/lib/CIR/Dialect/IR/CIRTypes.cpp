@@ -453,8 +453,9 @@ RecordType::computeUnionSize(const mlir::DataLayout &dataLayout) const {
   unsigned recordSize = 0;
   llvm::Align recordAlignment{1};
 
-  auto largestMember = getLargestMember(dataLayout);
-  recordSize = dataLayout.getTypeSize(largestMember);
+  Type largestMember = getLargestMember(dataLayout);
+  if (largestMember)
+    recordSize = dataLayout.getTypeSize(largestMember);
 
   // If the union is padded, add the padding to the size.
   if (getPadded()) {
@@ -517,7 +518,10 @@ RecordType::computeStructAlignment(const mlir::DataLayout &dataLayout) const {
 
 uint64_t
 RecordType::computeUnionAlignment(const mlir::DataLayout &dataLayout) const {
-  auto largestMember = getLargestMember(dataLayout);
+  Type largestMember = getLargestMember(dataLayout);
+  // use 1 byte alignment for empty union
+  if (!largestMember)
+    return 1;
   return dataLayout.getTypeABIAlignment(largestMember);
 }
 

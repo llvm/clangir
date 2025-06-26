@@ -364,7 +364,7 @@ void CIRRecordLowering::lowerUnion() {
   }
   // If we have no storage type just pad to the appropriate size and return.
   if (!StorageType)
-    llvm_unreachable("no-storage union NYI");
+    return appendPaddingBytes(LayoutSize);
   // If our storage size was bigger than our required size (can happen in the
   // case of packed bitfields on Itanium) then just use an I8 array.
   if (LayoutSize < getSize(StorageType))
