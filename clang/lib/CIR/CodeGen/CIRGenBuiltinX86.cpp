@@ -25,6 +25,7 @@
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
@@ -186,5 +187,130 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             Ops[0].getType(), mlir::ValueRange{Ops[0], V})
         .getResult();
   }
+  case X86::BI__builtin_ia32_undef128:
+  case X86::BI__builtin_ia32_undef256:
+  case X86::BI__builtin_ia32_undef512:
+    // The x86 definition of "undef" is not the same as the LLVM definition
+    // (PR32176). We leave optimizing away an unnecessary zero constant to the
+    // IR optimizer and backend.
+    // TODO: If we had a "freeze" IR instruction to generate a fixed undef
+    // value, we should use that here instead of a zero.
+    llvm_unreachable("__builtin_ia32_undefXX NYI");
+  case X86::BI__builtin_ia32_vec_ext_v4hi:
+  case X86::BI__builtin_ia32_vec_ext_v16qi:
+  case X86::BI__builtin_ia32_vec_ext_v8hi:
+  case X86::BI__builtin_ia32_vec_ext_v4si:
+  case X86::BI__builtin_ia32_vec_ext_v4sf:
+  case X86::BI__builtin_ia32_vec_ext_v2di:
+  case X86::BI__builtin_ia32_vec_ext_v32qi:
+  case X86::BI__builtin_ia32_vec_ext_v16hi:
+  case X86::BI__builtin_ia32_vec_ext_v8si:
+  case X86::BI__builtin_ia32_vec_ext_v4di: {
+    llvm_unreachable("__builtin_ia32_vec_ext_vXX NYI");
+  }
+  case X86::BI__builtin_ia32_vec_set_v4hi:
+  case X86::BI__builtin_ia32_vec_set_v16qi:
+  case X86::BI__builtin_ia32_vec_set_v8hi:
+  case X86::BI__builtin_ia32_vec_set_v4si:
+  case X86::BI__builtin_ia32_vec_set_v2di:
+  case X86::BI__builtin_ia32_vec_set_v32qi:
+  case X86::BI__builtin_ia32_vec_set_v16hi:
+  case X86::BI__builtin_ia32_vec_set_v8si:
+  case X86::BI__builtin_ia32_vec_set_v4di: {
+    llvm_unreachable("__builtin_ia32_vec_set_vXX NYI");
+  }
+  case X86::BI_mm_setcsr:
+  case X86::BI__builtin_ia32_ldmxcsr: {
+    llvm_unreachable("mm_setcsr NYI");
+  }
+  case X86::BI_mm_getcsr:
+  case X86::BI__builtin_ia32_stmxcsr: {
+    llvm_unreachable("mm_getcsr NYI");
+  }
+
+  case X86::BI__builtin_ia32_xsave:
+  case X86::BI__builtin_ia32_xsave64:
+  case X86::BI__builtin_ia32_xrstor:
+  case X86::BI__builtin_ia32_xrstor64:
+  case X86::BI__builtin_ia32_xsaveopt:
+  case X86::BI__builtin_ia32_xsaveopt64:
+  case X86::BI__builtin_ia32_xrstors:
+  case X86::BI__builtin_ia32_xrstors64:
+  case X86::BI__builtin_ia32_xsavec:
+  case X86::BI__builtin_ia32_xsavec64:
+  case X86::BI__builtin_ia32_xsaves:
+  case X86::BI__builtin_ia32_xsaves64:
+  case X86::BI__builtin_ia32_xsetbv:
+  case X86::BI_xsetbv: {
+    std::string intrinsicName;
+
+    // TODO(cir): Refactor this once we have the proper
+    // infrastructure that handles `getIntrinsic` similar to OG CodeGen.
+    switch (BuiltinID) {
+    default:
+      llvm_unreachable("Unsupported intrinsic!");
+    case X86::BI__builtin_ia32_xsave:
+      intrinsicName = "x86.xsave";
+      break;
+    case X86::BI__builtin_ia32_xsave64:
+      intrinsicName = "x86.xsave64";
+      break;
+    case X86::BI__builtin_ia32_xrstor:
+      intrinsicName = "x86.xrstor";
+      break;
+    case X86::BI__builtin_ia32_xrstor64:
+      intrinsicName = "x86.xrstor64";
+      break;
+    case X86::BI__builtin_ia32_xsaveopt:
+      intrinsicName = "x86.xsaveopt";
+      break;
+    case X86::BI__builtin_ia32_xsaveopt64:
+      intrinsicName = "x86.xsaveopt64";
+      break;
+    case X86::BI__builtin_ia32_xrstors:
+      intrinsicName = "x86.xrstors";
+      break;
+    case X86::BI__builtin_ia32_xrstors64:
+      intrinsicName = "x86.xrstors64";
+      break;
+    case X86::BI__builtin_ia32_xsavec:
+      intrinsicName = "x86.xsavec";
+      break;
+    case X86::BI__builtin_ia32_xsavec64:
+      intrinsicName = "x86.xsavec64";
+      break;
+    case X86::BI__builtin_ia32_xsaves:
+      intrinsicName = "x86.xsaves";
+      break;
+    case X86::BI__builtin_ia32_xsaves64:
+      intrinsicName = "x86.xsaves64";
+      break;
+    case X86::BI__builtin_ia32_xsetbv:
+    case X86::BI_xsetbv:
+      intrinsicName = "x86.xsetbv";
+      break;
+    }
+    auto loc = getLoc(E->getExprLoc());
+
+    mlir::Value mhi = builder.createShift(Ops[1], 32, false);
+    mhi = builder.createIntCast(mhi, builder.getSInt32Ty());
+
+    mlir::Value mlo = builder.createIntCast(Ops[1], builder.getSInt32Ty());
+
+    Ops[1] = mhi;
+    Ops.push_back(mlo);
+
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            loc, builder.getStringAttr(intrinsicName), builder.getVoidTy(), Ops)
+        .getResult();
+  }
+  case X86::BI__builtin_ia32_xgetbv:
+  case X86::BI_xgetbv:
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(getLoc(E->getExprLoc()),
+                                          builder.getStringAttr("x86.xgetbv"),
+                                          builder.getUInt64Ty(), Ops)
+        .getResult();
   }
 }
