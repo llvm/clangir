@@ -2608,9 +2608,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // can move this up to the beginning of the function.
   //   checkTargetFeatures(E, FD);
 
-  if ([[maybe_unused]] unsigned VectorWidth =
-          getContext().BuiltinInfo.getRequiredVectorWidth(BuiltinID))
-    llvm_unreachable("NYI");
+  if ([[maybe_unused]] unsigned vectorWidth =
+          getContext().BuiltinInfo.getRequiredVectorWidth(BuiltinID)) {
+    // Track the vector width - NYI.
+  }
 
   // See if we have a target specific intrinsic.
   std::string Name = getContext().BuiltinInfo.getName(BuiltinID);
