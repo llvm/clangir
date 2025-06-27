@@ -37,4 +37,4 @@ B::B() {
 // CHECK:   %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.return
 // CHECK: }
-// CHECK: cir.func private dso_local @_ZN1BC1Ev(!cir.ptr<!rec_B>) ctor<!rec_B, default_ctor> alias(@_ZN1BC2Ev)
+// CHECK: cir.func private dso_local @_ZN1BC1Ev(!cir.ptr<!rec_B>) ctor<!rec_B, default> alias(@_ZN1BC2Ev)

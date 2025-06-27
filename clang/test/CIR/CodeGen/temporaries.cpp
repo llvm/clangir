@@ -14,7 +14,7 @@ void f() {
   !E();
 }
 
-//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) ctor<!rec_E, default_ctor> extra(#fn_attr)
+//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) ctor<!rec_E, default> extra(#fn_attr)
 // CIR-NEXT: cir.func private @_ZN1EntEv(!cir.ptr<!rec_E>) -> !rec_E
 // CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!rec_E>) dtor<!rec_E> extra(#fn_attr)
 // CIR-NEXT: cir.func dso_local @_Z1fv() extra(#fn_attr1) {

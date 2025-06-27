@@ -2457,11 +2457,14 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     bool defaultCtor = false, copyCtor = false;
     if (parser.parseType(type).failed())
       return failure();
-    if (mlir::succeeded(parser.parseOptionalComma()))
-      if (mlir::succeeded(parser.parseOptionalKeyword("default_ctor")))
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (mlir::succeeded(parser.parseOptionalKeyword("default")))
         defaultCtor = true;
+      if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
+        copyCtor = true;
+    }
     if (mlir::succeeded(parser.parseOptionalComma()))
-      if (mlir::succeeded(parser.parseOptionalKeyword("copy_ctor")))
+      if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
         copyCtor = true;
     if (parser.parseGreater().failed())
       return failure();
@@ -2666,9 +2669,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (auto cxxCtor = getCxxCtorAttr()) {
     p << " ctor<" << cxxCtor.getType();
     if (cxxCtor.getIsDefaultConstructor())
-      p << ", default_ctor";
+      p << ", default";
     if (cxxCtor.getIsCopyConstructor())
-      p << ", copy_ctor";
+      p << ", copy";
     p << '>';
   }
 

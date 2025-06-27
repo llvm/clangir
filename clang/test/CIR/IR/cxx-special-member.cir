@@ -1,0 +1,10 @@
+// RUN: cir-opt %s
+
+!s32i = !cir.int<s, 32>
+!rec_S = !cir.record<struct "S" {!s32i}>
+module {
+  cir.func private @_ZN1SC1ERKS_(!cir.ptr<!rec_S>, !cir.ptr<!rec_S>) ctor<!rec_S, copy>
+  cir.func private @_ZN1SC2Ei(!cir.ptr<!rec_S>, !cir.ptr<!rec_S>) ctor<!rec_S>
+  cir.func private @_ZN1SC2Ev(!cir.ptr<!rec_S>) ctor<!rec_S, default>
+  cir.func private @_ZN1SD2Ev(!cir.ptr<!rec_S>) dtor<!rec_S>
+}

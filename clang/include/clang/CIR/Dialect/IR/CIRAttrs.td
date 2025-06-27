@@ -1301,17 +1301,22 @@ def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor",
   "A function with this attribute excutes before module unloading"
 >;
 
-class CIR_CXXSpecialMember<string name, string attrMnemonic, string sum,
-                           string desc> : CIR_Attr<name, attrMnemonic> {
+class CIR_CXXSpecialMember<string name, string attrMnemonic, string sum>
+                            : CIR_Attr<name, attrMnemonic> {
   let summary = sum;
-  let description = desc;
   let skipDefaultBuilders = 1;
 }
 
 def CXXCtorAttr
     : CIR_CXXSpecialMember<
-          "CXXCtor", "cxx_ctor", "Marks a function as a CXX constructor",
-          "Functions with this attribute are CXX constructors"> {
+          "CXXCtor", "cxx_ctor", "Marks a function as a CXX constructor"> {
+  let description = [{
+    Functions with this attribute are CXX constructors.
+    The `is_default_constructor` parameter is a boolean which is set to
+    true if the constructor is a default constructor and false otherwise.
+    The `is_copy_constructor` parameter is a boolean which is set to
+    true if the constructor is a copy constructor and false otherwise.
+  }];
   let parameters = (ins "mlir::Type":$type,
                         "bool":$is_default_constructor,
                         "bool":$is_copy_constructor);
@@ -1337,8 +1342,10 @@ def CXXCtorAttr
 
 def CXXDtorAttr
     : CIR_CXXSpecialMember<
-          "CXXDtor", "cxx_dtor", "Marks a function as a CXX destructor",
-          "Functions with this attribute are CXX destructors"> {
+          "CXXDtor", "cxx_dtor", "Marks a function as a CXX destructor"> {
+  let description = [{
+    Functions with this attribute are CXX destructors
+  }];
   let parameters = (ins "mlir::Type":$type);
   let assemblyFormat = [{
     `<`
