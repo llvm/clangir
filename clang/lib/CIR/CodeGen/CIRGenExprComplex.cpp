@@ -2,7 +2,7 @@
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
 #include "clang/Basic/LangOptions.h"
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "mlir/IR/Location.h"
@@ -844,7 +844,7 @@ ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *IL) {
     auto ImagValue = cast<IntegerLiteral>(IL->getSubExpr())->getValue();
     RealValueAttr = cir::IntAttr::get(ElementTy, 0);
     ImagValueAttr = cir::IntAttr::get(ElementTy, ImagValue);
-  } else if (mlir::isa<cir::CIRFPTypeInterface>(ElementTy)) {
+  } else if (mlir::isa<cir::FPTypeInterface>(ElementTy)) {
     auto ImagValue = cast<FloatingLiteral>(IL->getSubExpr())->getValue();
     RealValueAttr = cir::FPAttr::get(
         ElementTy, llvm::APFloat::getZero(ImagValue.getSemantics()));

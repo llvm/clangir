@@ -18,7 +18,7 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 
 namespace cir {
 namespace detail {

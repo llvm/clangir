@@ -225,7 +225,7 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
   if (mlir::isa<cir::IntType>(type))
     return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
         constArr, dims, type, converter->convertType(type));
-  if (mlir::isa<cir::CIRFPTypeInterface>(type))
+  if (mlir::isa<cir::FPTypeInterface>(type))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constArr, dims, type, converter->convertType(type));
 
@@ -246,7 +246,7 @@ lowerConstComplexAttr(cir::ComplexAttr constComplex,
   if (mlir::isa<cir::IntType>(type))
     return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
         constComplex, dims, type, converter->convertType(type));
-  if (mlir::isa<cir::CIRFPTypeInterface>(type))
+  if (mlir::isa<cir::FPTypeInterface>(type))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constComplex, dims, type, converter->convertType(type));
 
@@ -276,7 +276,7 @@ lowerConstVectorAttr(cir::ConstVectorAttr constArr,
   if (mlir::isa<cir::IntType>(type))
     return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
         constArr, dims, type, converter->convertType(type));
-  if (mlir::isa<cir::CIRFPTypeInterface>(type))
+  if (mlir::isa<cir::FPTypeInterface>(type))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constArr, dims, type, converter->convertType(type));
 
