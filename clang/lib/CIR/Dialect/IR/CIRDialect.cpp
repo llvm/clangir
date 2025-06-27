@@ -2454,18 +2454,25 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       return failure();
 
     mlir::Type type;
-    bool defaultCtor = false, copyCtor = false;
     if (parser.parseType(type).failed())
       return failure();
+
+    bool defaultCtor = false, copyCtor = false;
     if (mlir::succeeded(parser.parseOptionalComma())) {
-      if (mlir::succeeded(parser.parseOptionalKeyword("default")))
-        defaultCtor = true;
-      if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
-        copyCtor = true;
+      if (parser
+              .parseCommaSeparatedList([&]() {
+                if (mlir::succeeded(parser.parseOptionalKeyword("default")))
+                  defaultCtor = true;
+                else if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
+                  copyCtor = true;
+                else
+                  return failure();
+                return success();
+              })
+              .failed())
+        return failure();
     }
-    if (mlir::succeeded(parser.parseOptionalComma()))
-      if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
-        copyCtor = true;
+
     if (parser.parseGreater().failed())
       return failure();
 

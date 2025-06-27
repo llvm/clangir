@@ -1,4 +1,5 @@
-// RUN: cir-opt %s
+// RUN: cir-opt %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s
 
 !s32i = !cir.int<s, 32>
 !rec_S = !cir.record<struct "S" {!s32i}>
@@ -8,3 +9,12 @@ module {
   cir.func private @_ZN1SC2Ev(!cir.ptr<!rec_S>) ctor<!rec_S, default>
   cir.func private @_ZN1SD2Ev(!cir.ptr<!rec_S>) dtor<!rec_S>
 }
+
+// CHECK: !s32i = !cir.int<s, 32>
+// CHECK: !rec_S = !cir.record<struct "S" {!s32i}>
+// CHECK: module {
+// CHECK:   cir.func private @_ZN1SC1ERKS_(!cir.ptr<!rec_S>, !cir.ptr<!rec_S>) ctor<!rec_S, copy>
+// CHECK:   cir.func private @_ZN1SC2Ei(!cir.ptr<!rec_S>, !cir.ptr<!rec_S>) ctor<!rec_S>
+// CHECK:   cir.func private @_ZN1SC2Ev(!cir.ptr<!rec_S>) ctor<!rec_S, default>
+// CHECK:   cir.func private @_ZN1SD2Ev(!cir.ptr<!rec_S>) dtor<!rec_S>
+// CHECK: }
