@@ -61,7 +61,7 @@ void f(A &a) {
 
   auto [x2, y2, z2] = a;
   (x2, y2, z2);
-  // CIR: cir.call @_ZN1AC1ERKS_(%2, {{.*}}) : (!cir.ptr<!rec_A>, !cir.ptr<!rec_A>) -> ()
+  // CIR: cir.copy %[[a:.*]] to %2 : !cir.ptr<!rec_A>
   // CIR: {{.*}} = cir.get_member %2[0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_B>
   // CIR: {{.*}} = cir.get_member %2[2] {name = "b"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i>
   // CIR: {{.*}} = cir.get_member %2[3] {name = "c"} : !cir.ptr<!rec_A> -> !cir.ptr<!s8i>
@@ -84,14 +84,14 @@ void g(C &c) {
 
   auto [x8, y8] = c;
   (x8, y8);
-  // CIR: cir.call @_ZN1CC1ERKS_(%[[c:.*]], %7) : (!cir.ptr<!rec_C>, !cir.ptr<!rec_C>) -> ()
+  // CIR: cir.copy %7 to %[[c:.*]] : !cir.ptr<!rec_C>
   // CIR: %[[x8:.*]] = cir.call @_Z3getILj0EERKiRK1C(%[[c]]) : (!cir.ptr<!rec_C>) -> !cir.ptr<!s32i>
   // CIR: cir.store{{.*}} %[[x8]], %[[x8p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   // CIR: %[[x9:.*]] = cir.call @_Z3getILj1EERKiRK1C(%[[c]]) : (!cir.ptr<!rec_C>) -> !cir.ptr<!s32i>
   // CIR: cir.store{{.*}} %[[x9]], %[[x9p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   // CIR: {{.*}} = cir.load %[[x8p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: {{.*}} = cir.load %[[x9p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-  // LLVM: call void @_ZN1CC1ERKS_(ptr {{.*}}, ptr {{.*}})
+  // LLVM: call void @llvm.memcpy.p0.p0.i32(ptr {{.*}}, ptr {{.*}}, i32 8, i1 false)
   // LLVM: {{.*}} = call ptr @_Z3getILj0EERKiRK1C(ptr {{.*}})
   // LLVM: {{.*}} = call ptr @_Z3getILj1EERKiRK1C(ptr {{.*}})
 

@@ -26,7 +26,7 @@
 #include "mlir/Support/LogicalResult.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -37,6 +37,18 @@
 #include <optional>
 
 using cir::MissingFeatures;
+
+//===----------------------------------------------------------------------===//
+// CIR Helpers
+//===----------------------------------------------------------------------===//
+
+bool cir::isSized(mlir::Type ty) {
+  if (auto sizedTy = mlir::dyn_cast<cir::SizedTypeInterface>(ty))
+    return sizedTy.isSized();
+  // TODO: Remove this once all sized types are annotated.
+  assert(0 && "Unimplemented size for type");
+  return false;
+}
 
 //===----------------------------------------------------------------------===//
 // CIR Custom Parser/Printer Signatures
@@ -453,8 +465,9 @@ RecordType::computeUnionSize(const mlir::DataLayout &dataLayout) const {
   unsigned recordSize = 0;
   llvm::Align recordAlignment{1};
 
-  auto largestMember = getLargestMember(dataLayout);
-  recordSize = dataLayout.getTypeSize(largestMember);
+  Type largestMember = getLargestMember(dataLayout);
+  if (largestMember)
+    recordSize = dataLayout.getTypeSize(largestMember);
 
   // If the union is padded, add the padding to the size.
   if (getPadded()) {
@@ -517,7 +530,10 @@ RecordType::computeStructAlignment(const mlir::DataLayout &dataLayout) const {
 
 uint64_t
 RecordType::computeUnionAlignment(const mlir::DataLayout &dataLayout) const {
-  auto largestMember = getLargestMember(dataLayout);
+  Type largestMember = getLargestMember(dataLayout);
+  // use 1 byte alignment for empty union
+  if (!largestMember)
+    return 1;
   return dataLayout.getTypeABIAlignment(largestMember);
 }
 
@@ -732,8 +748,7 @@ uint64_t FP128Type::getABIAlignment(const mlir::DataLayout &dataLayout,
 }
 
 const llvm::fltSemantics &LongDoubleType::getFloatSemantics() const {
-  return mlir::cast<cir::CIRFPTypeInterface>(getUnderlying())
-      .getFloatSemantics();
+  return mlir::cast<cir::FPTypeInterface>(getUnderlying()).getFloatSemantics();
 }
 
 llvm::TypeSize

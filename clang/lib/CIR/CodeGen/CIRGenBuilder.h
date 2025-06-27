@@ -527,18 +527,6 @@ public:
       return getCompleteRecordTy(members, name, packed, padded, ast);
   }
 
-  bool isSized(mlir::Type ty) {
-    if (mlir::isa<cir::PointerType, cir::RecordType, cir::ArrayType,
-                  cir::BoolType, cir::IntType, cir::CIRFPTypeInterface,
-                  cir::ComplexType>(ty))
-      return true;
-    if (mlir::isa<cir::VectorType>(ty)) {
-      return isSized(mlir::cast<cir::VectorType>(ty).getElementType());
-    }
-    assert(0 && "Unimplemented size for type");
-    return false;
-  }
-
   //
   // Constant creation helpers
   // -------------------------

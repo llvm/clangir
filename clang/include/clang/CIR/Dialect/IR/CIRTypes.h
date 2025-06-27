@@ -18,7 +18,7 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 
 namespace cir {
 namespace detail {
@@ -26,6 +26,9 @@ struct RecordTypeStorage;
 } // namespace detail
 
 bool isValidFundamentalIntWidth(unsigned width);
+
+// Returns true if the type is a CIR sized type.
+bool isSized(mlir::Type ty);
 
 } // namespace cir
 

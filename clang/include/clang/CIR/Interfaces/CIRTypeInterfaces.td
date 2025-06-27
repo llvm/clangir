@@ -1,17 +1,21 @@
-//===- CIRFPTypeInterface.td - CIR FP Interface Definitions -----*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+// Defines cir type interfaces.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE
-#define MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE
+#ifndef CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_TD
+#define CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_TD
 
 include "mlir/IR/OpBase.td"
 
-def CIRFPTypeInterface : TypeInterface<"CIRFPTypeInterface"> {
+def CIR_FPTypeInterface : TypeInterface<"FPTypeInterface"> {
   let description = [{
     Contains helper functions to query properties about a floating-point type.
   }];
@@ -49,4 +53,32 @@ def CIRFPTypeInterface : TypeInterface<"CIRFPTypeInterface"> {
   ];
 }
 
-#endif // MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE
+def CIR_SizedTypeInterface : TypeInterface<"SizedTypeInterface"> {
+  let description = [{
+    Annotates types that have known size. Types that don't have a size are
+    abstract types and void.
+  }];
+
+  let cppNamespace = "::cir";
+
+  let methods = [
+    InterfaceMethod<[{
+        Returns true if this is a sized type. This mirrors sizedness from the
+        clang AST, where a type is sized if it has a known size.
+
+        By default type defining this interface returns true,
+        but this can be overridden if sizedness depends on properties of the type.
+        For example, whether a struct is not sized if it is incomplete.
+      }],
+      /*retTy=*/"bool",
+      /*methodName=*/"isSized",
+      /*args=*/(ins),
+      /*methodBody=*/"",
+      /*defaultImplementation=*/[{
+        return true;
+      }]
+    >,
+  ];
+}
+
+#endif // CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_TD

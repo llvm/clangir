@@ -881,7 +881,7 @@ public:
       auto kind = convertCmpKindToCmpIPredicate(op.getKind(), ty.isSigned());
       rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
           op, kind, adaptor.getLhs(), adaptor.getRhs());
-    } else if (auto ty = mlir::dyn_cast<cir::CIRFPTypeInterface>(type)) {
+    } else if (auto ty = mlir::dyn_cast<cir::FPTypeInterface>(type)) {
       auto kind = convertCmpKindToCmpFPredicate(op.getKind());
       rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
           op, kind, adaptor.getLhs(), adaptor.getRhs());
@@ -1210,7 +1210,7 @@ public:
           op.getLoc(),
           convertCmpKindToCmpIPredicate(op.getKind(), intType.isSigned()),
           adaptor.getLhs(), adaptor.getRhs());
-    } else if (mlir::isa<cir::CIRFPTypeInterface>(elementType)) {
+    } else if (mlir::isa<cir::FPTypeInterface>(elementType)) {
       bitResult = rewriter.create<mlir::arith::CmpFOp>(
           op.getLoc(), convertCmpKindToCmpFPredicate(op.getKind()),
           adaptor.getLhs(), adaptor.getRhs());
@@ -1269,12 +1269,12 @@ public:
       auto srcTy = op.getSrc().getType();
       auto dstTy = op.getType();
 
-      if (!mlir::isa<cir::CIRFPTypeInterface>(dstTy) ||
-          !mlir::isa<cir::CIRFPTypeInterface>(srcTy))
+      if (!mlir::isa<cir::FPTypeInterface>(dstTy) ||
+          !mlir::isa<cir::FPTypeInterface>(srcTy))
         return op.emitError() << "NYI cast from " << srcTy << " to " << dstTy;
 
       auto getFloatWidth = [](mlir::Type ty) -> unsigned {
-        return mlir::cast<cir::CIRFPTypeInterface>(ty).getWidth();
+        return mlir::cast<cir::FPTypeInterface>(ty).getWidth();
       };
 
       if (getFloatWidth(srcTy) > getFloatWidth(dstTy))
