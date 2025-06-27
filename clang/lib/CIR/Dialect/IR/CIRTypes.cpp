@@ -39,6 +39,18 @@
 using cir::MissingFeatures;
 
 //===----------------------------------------------------------------------===//
+// CIR Helpers
+//===----------------------------------------------------------------------===//
+
+bool cir::isSized(mlir::Type ty) {
+  if (auto sizedTy = mlir::dyn_cast<cir::SizedTypeInterface>(ty))
+    return sizedTy.isSized();
+  // TODO: Remove this once all sized types are annotated.
+  assert(0 && "Unimplemented size for type");
+  return false;
+}
+
+//===----------------------------------------------------------------------===//
 // CIR Custom Parser/Printer Signatures
 //===----------------------------------------------------------------------===//
 

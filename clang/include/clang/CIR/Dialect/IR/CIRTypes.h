@@ -27,6 +27,9 @@ struct RecordTypeStorage;
 
 bool isValidFundamentalIntWidth(unsigned width);
 
+// Returns true if the type is a CIR sized type.
+bool isSized(mlir::Type ty);
+
 } // namespace cir
 
 mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
