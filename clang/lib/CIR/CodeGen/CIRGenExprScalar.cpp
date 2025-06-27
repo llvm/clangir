@@ -183,8 +183,7 @@ public:
   }
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
-    assert(mlir::isa<cir::CIRFPTypeInterface>(Ty) &&
-           "expect floating-point type");
+    assert(mlir::isa<cir::FPTypeInterface>(Ty) && "expect floating-point type");
     return Builder.create<cir::ConstantOp>(
         CGF.getLoc(E->getExprLoc()),
         Builder.getAttr<cir::FPAttr>(Ty, E->getValue()));
@@ -1047,7 +1046,7 @@ public:
     if (SrcType->isHalfType() &&
         !CGF.getContext().getLangOpts().NativeHalfType) {
       // Cast to FP using the intrinsic if the half type itself isn't supported.
-      if (mlir::isa<cir::CIRFPTypeInterface>(DstTy)) {
+      if (mlir::isa<cir::FPTypeInterface>(DstTy)) {
         if (CGF.getContext().getTargetInfo().useFP16ConversionIntrinsics())
           llvm_unreachable("cast via llvm.convert.from.fp16 is NYI");
       } else {
@@ -1118,7 +1117,7 @@ public:
     if (DstType->isHalfType() &&
         !CGF.getContext().getLangOpts().NativeHalfType) {
       // Make sure we cast in a single step if from another FP type.
-      if (mlir::isa<cir::CIRFPTypeInterface>(SrcTy)) {
+      if (mlir::isa<cir::FPTypeInterface>(SrcTy)) {
         // Use the intrinsic if the half type itself isn't supported
         // (as opposed to operations on half, available with NativeHalfType).
         if (CGF.getContext().getTargetInfo().useFP16ConversionIntrinsics())
@@ -2118,7 +2117,7 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
       llvm_unreachable("NYI: signed bool");
     if (CGF.getBuilder().isInt(DstTy)) {
       CastKind = cir::CastKind::bool_to_int;
-    } else if (mlir::isa<cir::CIRFPTypeInterface>(DstTy)) {
+    } else if (mlir::isa<cir::FPTypeInterface>(DstTy)) {
       CastKind = cir::CastKind::bool_to_float;
     } else {
       llvm_unreachable("Internal error: Cast to unexpected type");
@@ -2126,12 +2125,12 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
   } else if (CGF.getBuilder().isInt(SrcTy)) {
     if (CGF.getBuilder().isInt(DstTy)) {
       CastKind = cir::CastKind::integral;
-    } else if (mlir::isa<cir::CIRFPTypeInterface>(DstTy)) {
+    } else if (mlir::isa<cir::FPTypeInterface>(DstTy)) {
       CastKind = cir::CastKind::int_to_float;
     } else {
       llvm_unreachable("Internal error: Cast to unexpected type");
     }
-  } else if (mlir::isa<cir::CIRFPTypeInterface>(SrcTy)) {
+  } else if (mlir::isa<cir::FPTypeInterface>(SrcTy)) {
     if (CGF.getBuilder().isInt(DstTy)) {
       // If we can't recognize overflow as undefined behavior, assume that
       // overflow saturates. This protects against normal optimizations if we
@@ -2141,7 +2140,7 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
       if (Builder.getIsFPConstrained())
         llvm_unreachable("NYI");
       CastKind = cir::CastKind::float_to_int;
-    } else if (mlir::isa<cir::CIRFPTypeInterface>(DstTy)) {
+    } else if (mlir::isa<cir::FPTypeInterface>(DstTy)) {
       // TODO: split this to createFPExt/createFPTrunc
       return Builder.createFloatingCast(Src, FullDstTy);
     } else {

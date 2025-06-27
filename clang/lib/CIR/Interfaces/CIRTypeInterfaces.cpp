@@ -1,4 +1,4 @@
-//====- CIRFPTypeInterface.cpp - Interface for floating-point types -------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 
 using namespace cir;
 
 /// Include the generated interfaces.
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.cpp.inc"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.cpp.inc"
