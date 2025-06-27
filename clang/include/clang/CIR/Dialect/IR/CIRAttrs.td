@@ -1301,6 +1301,66 @@ def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor",
   "A function with this attribute excutes before module unloading"
 >;
 
+class CIR_CXXSpecialMember<string name, string attrMnemonic, string sum>
+                            : CIR_Attr<name, attrMnemonic> {
+  let summary = sum;
+  let skipDefaultBuilders = 1;
+}
+
+def CXXCtorAttr
+    : CIR_CXXSpecialMember<
+          "CXXCtor", "cxx_ctor", "Marks a function as a CXX constructor"> {
+  let description = [{
+    Functions with this attribute are CXX constructors.
+    The `is_default_constructor` parameter is a boolean which is set to
+    true if the constructor is a default constructor and false otherwise.
+    The `is_copy_constructor` parameter is a boolean which is set to
+    true if the constructor is a copy constructor and false otherwise.
+  }];
+  let parameters = (ins "mlir::Type":$type,
+                        "bool":$is_default_constructor,
+                        "bool":$is_copy_constructor);
+  let assemblyFormat = [{
+    `<`
+      $type `,` $is_default_constructor `,` $is_copy_constructor
+    `>`
+  }];
+  let builders =
+    [AttrBuilder<(ins "mlir::Type":$type,
+                      "bool":$is_default_constructor,
+                      "bool":$is_copy_constructor), [{
+      return $_get($_ctxt, type, is_default_constructor,
+                    is_copy_constructor);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+                                        "bool":$is_default_constructor,
+                                        "bool":$is_copy_constructor), [{
+      return $_get(type.getContext(), type,
+                    is_default_constructor, is_copy_constructor);
+    }]>];
+}
+
+def CXXDtorAttr
+    : CIR_CXXSpecialMember<
+          "CXXDtor", "cxx_dtor", "Marks a function as a CXX destructor"> {
+  let description = [{
+    Functions with this attribute are CXX destructors
+  }];
+  let parameters = (ins "mlir::Type":$type);
+  let assemblyFormat = [{
+    `<`
+      $type
+    `>`
+  }];
+  let builders =
+    [AttrBuilder<(ins "mlir::Type":$type), [{
+      return $_get($_ctxt, type);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>];
+}
+
 def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let summary = "Represents a bit field info";
   let description = [{

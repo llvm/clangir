@@ -2366,6 +2366,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxCtorAttr = getCxxCtorAttrName(state.name);
+  auto cxxDtorAttr = getCxxDtorAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2444,6 +2446,51 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Add CXXSpecialMember attributes.
+  if (mlir::succeeded(parser.parseOptionalKeyword("ctor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+
+    bool defaultCtor = false, copyCtor = false;
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser
+              .parseCommaSeparatedList([&]() {
+                if (mlir::succeeded(parser.parseOptionalKeyword("default")))
+                  defaultCtor = true;
+                else if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
+                  copyCtor = true;
+                else
+                  return failure();
+                return success();
+              })
+              .failed())
+        return failure();
+    }
+
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxCtorAttr,
+                       CXXCtorAttr::get(type, defaultCtor, copyCtor));
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("dtor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxDtorAttr, CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2626,17 +2673,32 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (auto cxxCtor = getCxxCtorAttr()) {
+    p << " ctor<" << cxxCtor.getType();
+    if (cxxCtor.getIsDefaultConstructor())
+      p << ", default";
+    if (cxxCtor.getIsCopyConstructor())
+      p << ", copy";
+    p << '>';
+  }
+
+  if (auto cxxDtor = getCxxDtorAttr()) {
+    p << " dtor<" << cxxDtor.getType() << ">";
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
-      {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorAttrName(),
-       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
-       getCallingConvAttrName(), getNoProtoAttrName(),
-       getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+      {getAliaseeAttrName(),          getBuiltinAttrName(),
+       getCoroutineAttrName(),        getDsoLocalAttrName(),
+       getExtraAttrsAttrName(),       getFunctionTypeAttrName(),
+       getGlobalCtorAttrName(),       getGlobalDtorAttrName(),
+       getLambdaAttrName(),           getLinkageAttrName(),
+       getCallingConvAttrName(),      getNoProtoAttrName(),
+       getSymVisibilityAttrName(),    getArgAttrsAttrName(),
+       getResAttrsAttrName(),         getComdatAttrName(),
+       getGlobalVisibilityAttrName(), getAnnotationsAttrName(),
+       getCxxCtorAttrName(),          getCxxDtorAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
