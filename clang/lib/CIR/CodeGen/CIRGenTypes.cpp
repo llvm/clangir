@@ -646,7 +646,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     // int X[] -> [0 x int], unless the element type is not sized.  If it is
     // unsized (e.g. an incomplete record) just use [0 x i8].
     ResultType = convertTypeForMem(A->getElementType());
-    if (!Builder.isSized(ResultType)) {
+    if (!cir::isSized(ResultType)) {
       SkippedLayout = true;
       ResultType = Builder.getUInt8Ty();
     }
@@ -659,7 +659,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
     // FIXME: In LLVM, "lower arrays of undefined struct type to arrays of
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
-    assert(Builder.isSized(EltTy) && "not implemented");
+    assert(cir::isSized(EltTy) && "not implemented");
     ResultType = cir::ArrayType::get(EltTy, A->getSize().getZExtValue());
     break;
   }
