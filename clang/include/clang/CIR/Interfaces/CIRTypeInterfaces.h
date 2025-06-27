@@ -1,4 +1,4 @@
-//===- CIRFPTypeInterface.h - Interface for CIR FP types -------*- C++ -*-===//
+//===---------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,17 +6,17 @@
 //
 //===---------------------------------------------------------------------===//
 //
-// Defines the interface to generically handle CIR floating-point types.
+// Defines cir type interfaces.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_INTERFACES_CIR_CIR_FPTYPEINTERFACE_H
-#define CLANG_INTERFACES_CIR_CIR_FPTYPEINTERFACE_H
+#ifndef CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_H
+#define CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_H
 
 #include "mlir/IR/Types.h"
 #include "llvm/ADT/APFloat.h"
 
 /// Include the tablegen'd interface declarations.
-#include "clang/CIR/Interfaces/CIRFPTypeInterface.h.inc"
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h.inc"
 
-#endif // CLANG_INTERFACES_CIR_CIR_FPTYPEINTERFACE_H
+#endif // CLANG_CIR_INTERFACES_CIRTYPEINTERFACES_H

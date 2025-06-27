@@ -591,7 +591,7 @@ static mlir::Value buildComplexBinOpLibCall(
     llvm::StringRef (*libFuncNameGetter)(llvm::APFloat::Semantics),
     mlir::Location loc, cir::ComplexType ty, mlir::Value lhsReal,
     mlir::Value lhsImag, mlir::Value rhsReal, mlir::Value rhsImag) {
-  auto elementTy = mlir::cast<cir::CIRFPTypeInterface>(ty.getElementType());
+  auto elementTy = mlir::cast<cir::FPTypeInterface>(ty.getElementType());
 
   auto libFuncName = libFuncNameGetter(
       llvm::APFloat::SemanticsToEnum(elementTy.getFloatSemantics()));
@@ -809,7 +809,7 @@ static mlir::Value lowerComplexDiv(LoweringPreparePass &pass,
                                    mlir::Value lhsReal, mlir::Value lhsImag,
                                    mlir::Value rhsReal, mlir::Value rhsImag) {
   auto ty = op.getType();
-  if (mlir::isa<cir::CIRFPTypeInterface>(ty.getElementType())) {
+  if (mlir::isa<cir::FPTypeInterface>(ty.getElementType())) {
     auto range = op.getRange();
     if (range == cir::ComplexRangeKind::Improved ||
         (range == cir::ComplexRangeKind::Promoted && !op.getPromoted()))

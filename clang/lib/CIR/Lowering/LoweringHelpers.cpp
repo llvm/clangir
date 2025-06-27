@@ -237,7 +237,7 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
   if (mlir::isa<cir::IntType>(type))
     return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
         constArr, dims, type, converter->convertType(type));
-  if (mlir::isa<cir::CIRFPTypeInterface>(type))
+  if (mlir::isa<cir::FPTypeInterface>(type))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constArr, dims, type, converter->convertType(type));
 
@@ -273,7 +273,7 @@ lowerConstComplexAttr(cir::ComplexAttr constComplex,
     return mlir::ArrayAttr::get(constComplex.getContext(), components);
   }
 
-  if (mlir::isa<cir::CIRFPTypeInterface>(elementType)) {
+  if (mlir::isa<cir::FPTypeInterface>(elementType)) {
     auto real = mlir::cast<cir::FPAttr>(constComplex.getReal());
     auto imag = mlir::cast<cir::FPAttr>(constComplex.getImag());
     components.push_back(
@@ -310,7 +310,7 @@ lowerConstVectorAttr(cir::ConstVectorAttr constVec,
   if (mlir::isa<cir::IntType>(elementType))
     return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
         constVec, dims, elementType, converter->convertType(elementType));
-  if (mlir::isa<cir::CIRFPTypeInterface>(elementType))
+  if (mlir::isa<cir::FPTypeInterface>(elementType))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constVec, dims, elementType, converter->convertType(elementType));
 
