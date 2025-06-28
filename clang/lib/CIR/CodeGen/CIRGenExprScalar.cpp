@@ -158,7 +158,7 @@ public:
     return Visit(E->getReplacement());
   }
   mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
-    llvm_unreachable("NYI");
+    return Visit(GE->getResultExpr());
   }
   mlir::Value VisitCoawaitExpr(CoawaitExpr *S) {
     return CGF.emitCoawaitExpr(*S).getScalarVal();
