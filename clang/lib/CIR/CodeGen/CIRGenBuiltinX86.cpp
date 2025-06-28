@@ -96,7 +96,21 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   default:
     return nullptr;
   case X86::BI_mm_prefetch: {
-    llvm_unreachable("_mm_prefetch NYI");
+    mlir::Location loc = getLoc(E->getExprLoc());
+    auto C = dyn_cast<cir::IntAttr>(
+        cast<cir::ConstantOp>(Ops[1].getDefiningOp()).getValue());
+    auto Locality = mlir::IntegerAttr::get(
+        mlir::IntegerType::get(builder.getContext(), 32), C.getUInt() & 0x3);
+    bool ReadWrite = ((C.getUInt() >> 2) & 0x1) == 1;
+    mlir::UnitAttr isWrite =
+        ReadWrite ? mlir::UnitAttr::get(&getMLIRContext()) : nullptr;
+    mlir::Type voidPtrType =
+        cir::PointerType::get(cir::VoidType::get(&getMLIRContext()));
+    auto CastToVoid = builder.create<cir::CastOp>(
+        loc, voidPtrType, cir::CastKind::bitcast, Ops[0]);
+    auto res =
+        builder.create<cir::PrefetchOp>(loc, CastToVoid, Locality, isWrite);
+    return res->getResult(0);
   }
   case X86::BI_mm_clflush: {
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
