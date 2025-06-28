@@ -127,7 +127,7 @@ void pseudo_dtor() {
 // CHECK:     cir.call @_ZN1BD2Ev(%0) : (!cir.ptr<!rec_B>) -> ()
 
 // operator delete(void*) declaration
-// CHECK:   cir.func private @_ZdlPvm(!cir.ptr<!void>, !u64i)
+// CHECK:   cir.func "private" @_ZdlPvm(!cir.ptr<!void>, !u64i)
 
 // B dtor => @B::~B() #2
 // Calls dtor #1
@@ -173,7 +173,7 @@ public:
 int j;
 void m() { G l(j); }
 
-// CHECK: cir.func private @_ZN1G1kE2A2(!cir.ptr<!rec_G>, !rec_A2) -> !s64i
+// CHECK: cir.func "private" @_ZN1G1kE2A2(!cir.ptr<!rec_G>, !rec_A2) -> !s64i
 // CHECK: cir.func linkonce_odr @_ZN1G1iEv(%arg0: !cir.ptr<!rec_G>
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   %[[V1:.*]] = cir.alloca !s64i, !cir.ptr<!s64i>, ["__retval"] {alignment = 8 : i64}

@@ -7,7 +7,7 @@ int main (void) {
     return 0;
 }
 
-// CHECK: cir.func private @printf(!cir.ptr<!s8i>, ...) -> !s32i
+// CHECK: cir.func "private" @printf(!cir.ptr<!s8i>, ...) -> !s32i
 // CHECK: cir.global "private" constant cir_private dso_local @".str" = #cir.const_array<"Hello, world!\0A\00" : !cir.array<!s8i x 15>> : !cir.array<!s8i x 15> {alignment = 1 : i64}
 // CHECK: cir.func dso_local @main() -> !s32i
 // CHECK:   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}

@@ -55,7 +55,7 @@ int foo(Data* d) {
     return f(d);
 }
 
-// CIR:  cir.func private {{@.*test.*}}() -> !cir.ptr<!cir.func<()>>
+// CIR:  cir.func "private" {{@.*test.*}}() -> !cir.ptr<!cir.func<()>>
 // CIR:  cir.func dso_local {{@.*bar.*}}()
 // CIR:    [[RET:%.*]] = cir.call {{@.*test.*}}() : () -> !cir.ptr<!cir.func<()>>
 // CIR:    cir.call [[RET]]() : (!cir.ptr<!cir.func<()>>) -> ()

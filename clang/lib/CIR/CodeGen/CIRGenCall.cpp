@@ -602,7 +602,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
     CannotThrow = Attrs.getNamed(noThrowAttr.getMnemonic()).has_value();
 
     if (auto fptr = dyn_cast<cir::FuncOp>(CalleePtr))
-      if (fptr.getExtraAttrs().getElements().contains(
+      if (fptr.getExtraAttrs()->getElements().contains(
               noThrowAttr.getMnemonic()))
         CannotThrow = true;
   }

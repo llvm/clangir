@@ -14,7 +14,7 @@ int foo(void) {
   return bar(5);
 }
 
-// CIR:   cir.func internal private dso_local @bar(
+// CIR:   cir.func internal "private" dso_local @bar(
 // CIR:   cir.func dso_local @foo(
 
 // LLVM: define internal i32 @bar(

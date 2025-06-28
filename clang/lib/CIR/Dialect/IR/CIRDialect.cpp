@@ -36,6 +36,7 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/Region.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -2516,63 +2517,19 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                                             getResAttrsAttrName(result.name));
 }
 
-ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
-  llvm::SMLoc loc = parser.getCurrentLocation();
+void initFunctionBodyArgs(
+    mlir::Region &body, mlir::OperationState &state,
+    llvm::SmallVectorImpl<mlir::OpAsmParser::Argument> &arguments) {}
 
-  auto builtinNameAttr = getBuiltinAttrName(state.name);
-  auto coroutineNameAttr = getCoroutineAttrName(state.name);
-  auto lambdaNameAttr = getLambdaAttrName(state.name);
-  auto visNameAttr = getSymVisibilityAttrName(state.name);
-  auto noProtoNameAttr = getNoProtoAttrName(state.name);
-  auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
-  auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
-  auto annotationsNameAttr = getAnnotationsAttrName(state.name);
-  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
-  if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
-    state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
-  if (::mlir::succeeded(
-          parser.parseOptionalKeyword(coroutineNameAttr.strref())))
-    state.addAttribute(coroutineNameAttr, parser.getBuilder().getUnitAttr());
-  if (::mlir::succeeded(parser.parseOptionalKeyword(lambdaNameAttr.strref())))
-    state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
-  if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
-    state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
-
-  // TODO: Missing comdat
-  assert(!cir::MissingFeatures::setComdat());
-
-  // Default to external linkage if no keyword is provided.
-  state.addAttribute(getLinkageAttrNameString(),
-                     GlobalLinkageKindAttr::get(
-                         parser.getContext(),
-                         parseOptionalCIRKeyword<GlobalLinkageKind>(
-                             parser, GlobalLinkageKind::ExternalLinkage)));
-
-  ::llvm::StringRef visAttrStr;
-  if (parser.parseOptionalKeyword(&visAttrStr, {"private", "public", "nested"})
-          .succeeded()) {
-    state.addAttribute(visNameAttr,
-                       parser.getBuilder().getStringAttr(visAttrStr));
-  }
-
-  cir::VisibilityAttr cirVisibilityAttr;
-  parseVisibilityAttr(parser, cirVisibilityAttr);
-  state.addAttribute(visibilityNameAttr, cirVisibilityAttr);
-
-  if (parser.parseOptionalKeyword(dsoLocalNameAttr).succeeded())
-    state.addAttribute(dsoLocalNameAttr, parser.getBuilder().getUnitAttr());
-
-  StringAttr nameAttr;
+mlir::ParseResult parseFunctionProtoType(mlir::OpAsmParser &parser,
+                                         mlir::StringAttr &name,
+                                         mlir::TypeAttr &type,
+                                         mlir::Region &body,
+                                         mlir::OperationState &state) {
   llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
   llvm::SmallVector<DictionaryAttr, 1> resultAttrs;
   llvm::SmallVector<Type, 8> argTypes;
   llvm::SmallVector<Type, 4> resultTypes;
-  auto &builder = parser.getBuilder();
-
-  // Parse the name as a symbol.
-  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
-                             state.attributes))
-    return failure();
 
   // Parse the function signature.
   bool isVariadic = false;
@@ -2585,148 +2542,287 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     argTypes.push_back(arg.type);
 
   if (resultTypes.size() > 1)
-    return parser.emitError(loc, "functions only supports zero or one results");
+    return parser.emitError(parser.getCurrentLocation(),
+                            "functions only supports zero or one results");
 
   // Fetch return type or set it to void if empty/ommited.
+  // TODO: maybe can be defaulted?
   mlir::Type returnType =
-      (resultTypes.empty() ? cir::VoidType::get(builder.getContext())
+      (resultTypes.empty() ? cir::VoidType::get(parser.getContext())
                            : resultTypes.front());
 
   // Build the function type.
   auto fnType = cir::FuncType::get(argTypes, returnType, isVariadic);
   if (!fnType)
     return failure();
-  state.addAttribute(getFunctionTypeAttrName(state.name),
-                     TypeAttr::get(fnType));
-
-  {
-    // Parse an OptionalAttr<ArrayAttr>:$annotations
-    mlir::ArrayAttr annotations;
-    // TODO: Is there a way to restrict the element type to cir.annotation?
-    // parseOptionalAttribute takes a type, but unclear how to use this.
-    if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
-      state.addAttribute(annotationsNameAttr, annotations);
-  }
-
-  // Parse CXXSpecialMember attribute
-  if (parser.parseOptionalKeyword("special_member").succeeded()) {
-    cir::CXXCtorAttr ctorAttr;
-    cir::CXXDtorAttr dtorAttr;
-    if (parser.parseLess().failed())
-      return failure();
-    if (parser.parseOptionalAttribute(ctorAttr).has_value())
-      state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
-    if (parser.parseOptionalAttribute(dtorAttr).has_value())
-      state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
-    if (parser.parseGreater().failed())
-      return failure();
-  }
-
-  // If additional attributes are present, parse them.
-  if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
-    return failure();
+  type = TypeAttr::get(fnType);
 
   // Add the attributes to the function arguments.
   assert(resultAttrs.size() == resultTypes.size());
-  call_interface_impl::addArgAndResultAttrs(
-      builder, state, arguments, resultAttrs, getArgAttrsAttrName(state.name),
-      getResAttrsAttrName(state.name));
-
-  bool hasAlias = false;
-  auto aliaseeNameAttr = getAliaseeAttrName(state.name);
-  if (::mlir::succeeded(parser.parseOptionalKeyword("alias"))) {
-    if (parser.parseLParen().failed())
-      return failure();
-    StringAttr aliaseeAttr;
-    if (parser.parseOptionalSymbolName(aliaseeAttr).failed())
-      return failure();
-    state.addAttribute(aliaseeNameAttr, FlatSymbolRefAttr::get(aliaseeAttr));
-    if (parser.parseRParen().failed())
-      return failure();
-    hasAlias = true;
+  auto &builder = parser.getBuilder();
+  auto argAttrsName = builder.getStringAttr("arg_attrs");
+  auto resAttrsName = builder.getStringAttr("res_attrs");
+  call_interface_impl::addArgAndResultAttrs(parser.getBuilder(), state,
+                                            arguments, resultAttrs,
+                                            argAttrsName, resAttrsName);
+  // Declare function arguments for region, it will be parsed and finalized
+  // later in parseFunctionBody.
+  if (!arguments.empty()) {
+    body = parse.addRegion();
+    region.addArguments(arguments
+        parser, state, arguments,
+        /*allowVariadic=*/true,
+        /*allowBlockArguments=*/true,
+        /*allowResultNumber=*/false);
+    auto asmState = parser.getState();
+    asmState.startRegionDefinition();
+    initFunctionBodyArgs(body, state, arguments);
   }
 
-  // Default to C calling convention if no keyword is provided.
-  auto callConvNameAttr = getCallingConvAttrName(state.name);
-  CallingConv callConv = CallingConv::C;
-  if (parser.parseOptionalKeyword("cc").succeeded()) {
-    if (parser.parseLParen().failed())
-      return failure();
-    if (parseCIRKeyword<CallingConv>(parser, callConv).failed())
-      return parser.emitError(loc) << "unknown calling convention";
-    if (parser.parseRParen().failed())
-      return failure();
-  }
-  state.addAttribute(callConvNameAttr,
-                     CallingConvAttr::get(parser.getContext(), callConv));
-
-  auto parseGlobalDtorCtor =
-      [&](llvm::StringRef keyword,
-          llvm::function_ref<void(std::optional<int> prio)> createAttr)
-      -> mlir::LogicalResult {
-    if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
-      std::optional<int> priority;
-      if (mlir::succeeded(parser.parseOptionalLParen())) {
-        auto parsedPrio = mlir::FieldParser<int>::parse(parser);
-        if (mlir::failed(parsedPrio))
-          return parser.emitError(parser.getCurrentLocation(),
-                                  "failed to parse 'priority', of type 'int'");
-        priority = parsedPrio.value_or(int());
-        // Parse literal ')'
-        if (parser.parseRParen())
-          return failure();
-      }
-      createAttr(priority);
-    }
-    return success();
-  };
-
-  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> priority) {
-        auto globalCtorPriorityAttr = builder.getI32IntegerAttr(
-            priority ? *priority : DefaultGlobalCtorDtorPriority);
-        state.addAttribute(getGlobalCtorPriorityAttrName(state.name),
-                           globalCtorPriorityAttr);
-      }).failed())
-    return failure();
-
-  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> priority) {
-        auto globalDtorPriorityAttr = builder.getI32IntegerAttr(
-            priority ? *priority : DefaultGlobalCtorDtorPriority);
-        state.addAttribute(getGlobalDtorPriorityAttrName(state.name),
-                           globalDtorPriorityAttr);
-      }).failed())
-    return failure();
-
-  Attribute extraAttrs;
-  if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
-    if (parser.parseLParen().failed())
-      return failure();
-    if (parser.parseAttribute(extraAttrs).failed())
-      return failure();
-    if (parser.parseRParen().failed())
-      return failure();
-  } else {
-    NamedAttrList empty;
-    extraAttrs = cir::ExtraFuncAttributesAttr::get(
-        empty.getDictionary(builder.getContext()));
-  }
-  state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
-
-  // Parse the optional function body.
-  auto *body = state.addRegion();
-  OptionalParseResult parseResult = parser.parseOptionalRegion(
-      *body, arguments, /*enableNameShadowing=*/false);
-  if (parseResult.has_value()) {
-    if (hasAlias)
-      return parser.emitError(loc, "function alias shall not have a body");
-    if (failed(*parseResult))
-      return failure();
-    // Function body was parsed, make sure its not empty.
-    if (body->empty())
-      return parser.emitError(loc, "expected non-empty function body");
-  }
   return success();
 }
+
+mlir::ParseResult parseFunctionBody(mlir::OpAsmParser &parser,
+                                    mlir::Region &body) {
+  OptionalParseResult parseResult = parser.parseOptionalRegion(body);
+  if (parseResult.has_value() && failed(*parseResult))
+    return failure();
+  return success();
+}
+
+void printFunctionProtoType(mlir::OpAsmPrinter &p, cir::FuncOp op,
+                            mlir::StringAttr symbol, mlir::TypeAttr type,
+                            mlir::Region &body,
+                            cir::FuncOp::Properties /* properties */) {
+  p.printSymbolName(symbol);
+  auto fnType = mlir::cast<cir::FuncType>(type.getValue());
+  function_interface_impl::printFunctionSignature(
+      p, op, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
+}
+
+void printFunctionBody(mlir::OpAsmPrinter &p, cir::FuncOp op,
+                       mlir::Region &body) {
+  if (body.empty())
+    return;
+  p.printRegion(body, /*printEntryBlockArgs=*/false,
+                /*printBlockTerminators=*/true);
+}
+
+// ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState
+// &state) {
+//   llvm::SMLoc loc = parser.getCurrentLocation();
+
+//   auto builtinNameAttr = getBuiltinAttrName(state.name);
+//   auto coroutineNameAttr = getCoroutineAttrName(state.name);
+//   auto lambdaNameAttr = getLambdaAttrName(state.name);
+//   auto visNameAttr = getSymVisibilityAttrName(state.name);
+//   auto noProtoNameAttr = getNoProtoAttrName(state.name);
+//   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
+//   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
+//   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+//   if
+//   (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
+//     state.addAttribute(builtinNameAttr,
+//     parser.getBuilder().getUnitAttr());
+//   if (::mlir::succeeded(
+//           parser.parseOptionalKeyword(coroutineNameAttr.strref())))
+//     state.addAttribute(coroutineNameAttr,
+//     parser.getBuilder().getUnitAttr());
+//   if
+//   (::mlir::succeeded(parser.parseOptionalKeyword(lambdaNameAttr.strref())))
+//     state.addAttribute(lambdaNameAttr,
+//     parser.getBuilder().getUnitAttr());
+//   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
+//     state.addAttribute(noProtoNameAttr,
+//     parser.getBuilder().getUnitAttr());
+
+//   // TODO: Missing comdat
+//   assert(!cir::MissingFeatures::setComdat());
+
+//   // Default to external linkage if no keyword is provided.
+//   state.addAttribute(getLinkageAttrNameString(),
+//                      GlobalLinkageKindAttr::get(
+//                          parser.getContext(),
+//                          parseOptionalCIRKeyword<GlobalLinkageKind>(
+//                              parser,
+//                              GlobalLinkageKind::ExternalLinkage)));
+
+//   ::llvm::StringRef visAttrStr;
+//   if (parser.parseOptionalKeyword(&visAttrStr, {"private", "public",
+//   "nested"})
+//           .succeeded()) {
+//     state.addAttribute(visNameAttr,
+//                        parser.getBuilder().getStringAttr(visAttrStr));
+//   }
+
+//   cir::VisibilityAttr cirVisibilityAttr;
+//   parseVisibilityAttr(parser, cirVisibilityAttr);
+//   state.addAttribute(visibilityNameAttr, cirVisibilityAttr);
+
+//   if (parser.parseOptionalKeyword(dsoLocalNameAttr).succeeded())
+//     state.addAttribute(dsoLocalNameAttr,
+//     parser.getBuilder().getUnitAttr());
+
+//   StringAttr nameAttr;
+//   llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
+//   llvm::SmallVector<DictionaryAttr, 1> resultAttrs;
+//   llvm::SmallVector<Type, 8> argTypes;
+//   llvm::SmallVector<Type, 4> resultTypes;
+//   auto &builder = parser.getBuilder();
+
+//   // Parse the name as a symbol.
+//   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+//                              state.attributes))
+//     return failure();
+
+//   // Parse the function signature.
+//   bool isVariadic = false;
+//   if (function_interface_impl::parseFunctionSignatureWithArguments(
+//           parser, /*allowVariadic=*/true, arguments, isVariadic,
+//           resultTypes, resultAttrs))
+//     return failure();
+
+//   for (auto &arg : arguments)
+//     argTypes.push_back(arg.type);
+
+//   if (resultTypes.size() > 1)
+//     return parser.emitError(loc, "functions only supports zero or one
+//     results");
+
+//   // Fetch return type or set it to void if empty/ommited.
+//   mlir::Type returnType =
+//       (resultTypes.empty() ? cir::VoidType::get(builder.getContext())
+//                            : resultTypes.front());
+
+//   // Build the function type.
+//   auto fnType = cir::FuncType::get(argTypes, returnType, isVariadic);
+//   if (!fnType)
+//     return failure();
+//   state.addAttribute(getFunctionTypeAttrName(state.name),
+//                      TypeAttr::get(fnType));
+
+//   {
+//     // Parse an OptionalAttr<ArrayAttr>:$annotations
+//     mlir::ArrayAttr annotations;
+//     // TODO: Is there a way to restrict the element type to
+//     cir.annotation?
+//     // parseOptionalAttribute takes a type, but unclear how to use this.
+//     if (auto oa = parser.parseOptionalAttribute(annotations);
+//     oa.has_value())
+//       state.addAttribute(annotationsNameAttr, annotations);
+//   }
+
+//   // If additional attributes are present, parse them.
+//   if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
+//     return failure();
+
+//   // Add the attributes to the function arguments.
+//   assert(resultAttrs.size() == resultTypes.size());
+//   call_interface_impl::addArgAndResultAttrs(
+//       builder, state, arguments, resultAttrs,
+//       getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
+
+//   bool hasAlias = false;
+//   auto aliaseeNameAttr = getAliaseeAttrName(state.name);
+//   if (::mlir::succeeded(parser.parseOptionalKeyword("alias"))) {
+//     if (parser.parseLParen().failed())
+//       return failure();
+//     StringAttr aliaseeAttr;
+//     if (parser.parseOptionalSymbolName(aliaseeAttr).failed())
+//       return failure();
+//     state.addAttribute(aliaseeNameAttr,
+//     FlatSymbolRefAttr::get(aliaseeAttr)); if
+//     (parser.parseRParen().failed())
+//       return failure();
+//     hasAlias = true;
+//   }
+
+//   // Default to C calling convention if no keyword is provided.
+//   auto callConvNameAttr = getCallingConvAttrName(state.name);
+//   CallingConv callConv = CallingConv::C;
+//   if (parser.parseOptionalKeyword("cc").succeeded()) {
+//     if (parser.parseLParen().failed())
+//       return failure();
+//     if (parseCIRKeyword<CallingConv>(parser, callConv).failed())
+//       return parser.emitError(loc) << "unknown calling convention";
+//     if (parser.parseRParen().failed())
+//       return failure();
+//   }
+//   state.addAttribute(callConvNameAttr,
+//                      CallingConvAttr::get(parser.getContext(),
+//                      callConv));
+
+//   auto parseGlobalDtorCtor =
+//       [&](llvm::StringRef keyword,
+//           llvm::function_ref<void(std::optional<int> prio)> createAttr)
+//       -> mlir::LogicalResult {
+//     if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
+//       std::optional<int> prio;
+//       if (mlir::succeeded(parser.parseOptionalLParen())) {
+//         auto parsedPrio = mlir::FieldParser<int>::parse(parser);
+//         if (mlir::failed(parsedPrio))
+//           return parser.emitError(parser.getCurrentLocation(),
+//                                   "failed to parse 'priority', of type
+//                                   'int'");
+//         prio = parsedPrio.value_or(int());
+//         // Parse literal ')'
+//         if (parser.parseRParen())
+//           return failure();
+//       }
+//       createAttr(prio);
+//     }
+//     return success();
+//   };
+
+//   if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> prio) {
+//         cir::GlobalCtorAttr globalCtorAttr =
+//             prio ? cir::GlobalCtorAttr::get(nameAttr, *prio)
+//                  : cir::GlobalCtorAttr::get(nameAttr);
+//         state.addAttribute(getGlobalCtorAttrName(state.name),
+//         globalCtorAttr);
+//       }).failed())
+//     return failure();
+
+//   if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> prio) {
+//         cir::GlobalDtorAttr globalDtorAttr =
+//             prio ? cir::GlobalDtorAttr::get(nameAttr, *prio)
+//                  : cir::GlobalDtorAttr::get(nameAttr);
+//         state.addAttribute(getGlobalDtorAttrName(state.name),
+//         globalDtorAttr);
+//       }).failed())
+//     return failure();
+
+//   Attribute extraAttrs;
+//   if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
+//     if (parser.parseLParen().failed())
+//       return failure();
+//     if (parser.parseAttribute(extraAttrs).failed())
+//       return failure();
+//     if (parser.parseRParen().failed())
+//       return failure();
+//   } else {
+//     NamedAttrList empty;
+//     extraAttrs = cir::ExtraFuncAttributesAttr::get(
+//         empty.getDictionary(builder.getContext()));
+//   }
+//   state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
+
+//   // Parse the optional function body.
+//   auto *body = state.addRegion();
+//   OptionalParseResult parseResult = parser.parseOptionalRegion(
+//       *body, arguments, /*enableNameShadowing=*/false);
+//   if (parseResult.has_value()) {
+//     if (hasAlias)
+//       return parser.emitError(loc, "function alias shall not have a
+//       body");
+//     if (failed(*parseResult))
+//       return failure();
+//     // Function body was parsed, make sure its not empty.
+//     if (body->empty())
+//       return parser.emitError(loc, "expected non-empty function body");
+//   }
+//   return success();
+// }
 
 bool cir::FuncOp::isDeclaration() {
   auto aliasee = getAliasee();
@@ -2754,111 +2850,43 @@ bool cir::FuncOp::isDeclaration() {
   return targetFn.getCallableRegion();
 }
 
-void cir::FuncOp::print(OpAsmPrinter &p) {
-  // When adding a specific keyword here, do not forget to omit it in
-  // printFunctionAttributes below or there will be a syntax error when
-  // parsing
-  if (getBuiltin())
-    p << " builtin";
+// void cir::FuncOp::print(OpAsmPrinter &p) {
 
-  if (getCoroutine())
-    p << " coroutine";
+//   // Print function name, signature, and control.
+//   p << ' ';
+//   p.printSymbolName(getSymName());
+//   auto fnType = getFunctionType();
+//   llvm::SmallVector<Type, 1> resultTypes;
+//   function_interface_impl::printFunctionSignature(
+//       p, *this, fnType.getInputs(), fnType.isVarArg(),
+//       fnType.getReturnTypes());
 
-  if (getLambda())
-    p << " lambda";
+//   if (auto globalCtor = getGlobalCtorAttr()) {
+//     p << " global_ctor";
+//     if (!globalCtor.isDefaultPriority())
+//       p << "(" << globalCtor.getPriority() << ")";
+//   }
 
-  if (getNoProto())
-    p << " no_proto";
+//   if (auto globalDtor = getGlobalDtorAttr()) {
+//     p << " global_dtor";
+//     if (!globalDtor.isDefaultPriority())
+//       p << "(" << globalDtor.getPriority() << ")";
+//   }
 
-  if (getComdat())
-    p << " comdat";
+//   if (!getExtraAttrs().getElements().empty()) {
+//     p << " extra(";
+//     p.printAttributeWithoutType(getExtraAttrs());
+//     p << ")";
+//   }
 
-  if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
-    p << ' ' << stringifyGlobalLinkageKind(getLinkage());
-
-  auto vis = getVisibility();
-  if (vis != mlir::SymbolTable::Visibility::Public)
-    p << ' ' << vis;
-
-  auto cirVisibilityAttr = getGlobalVisibilityAttr();
-  if (!cirVisibilityAttr.isDefault()) {
-    p << ' ';
-    printVisibilityAttr(p, cirVisibilityAttr);
-  }
-
-  if (getDsoLocal())
-    p << " dso_local";
-
-  // Print function name, signature, and control.
-  p << ' ';
-  p.printSymbolName(getSymName());
-  auto fnType = getFunctionType();
-  llvm::SmallVector<Type, 1> resultTypes;
-  function_interface_impl::printFunctionSignature(
-      p, *this, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
-
-  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
-    p << ' ';
-    p.printAttribute(annotations);
-  }
-
-  if (auto specialMemberAttr = getCxxSpecialMember()) {
-    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr>(*specialMemberAttr)));
-    p << " special_member<";
-    p.printAttribute(*specialMemberAttr);
-    p << '>';
-  }
-
-  function_interface_impl::printFunctionAttributes(
-      p, *this,
-      // These are all omitted since they are custom printed already.
-      {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorPriorityAttrName(),
-       getGlobalDtorPriorityAttrName(), getLambdaAttrName(),
-       getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
-       getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
-
-  if (auto aliaseeName = getAliasee()) {
-    p << " alias(";
-    p.printSymbolName(*aliaseeName);
-    p << ")";
-  }
-
-  if (getCallingConv() != CallingConv::C) {
-    p << " cc(";
-    p << stringifyCallingConv(getCallingConv());
-    p << ")";
-  }
-
-  if (auto globalCtorPriority = getGlobalCtorPriority()) {
-    p << " global_ctor";
-    if (globalCtorPriority.value() != DefaultGlobalCtorDtorPriority)
-      p << "(" << globalCtorPriority.value() << ")";
-  }
-
-  if (auto globalDtorPriority = getGlobalDtorPriority()) {
-    p << " global_dtor";
-    if (globalDtorPriority.value() != DefaultGlobalCtorDtorPriority)
-      p << "(" << globalDtorPriority.value() << ")";
-  }
-
-  if (!getExtraAttrs().getElements().empty()) {
-    p << " extra(";
-    p.printAttributeWithoutType(getExtraAttrs());
-    p << ")";
-  }
-
-  // Print the body if this is not an external function.
-  Region &body = getOperation()->getRegion(0);
-  if (!body.empty()) {
-    p << ' ';
-    p.printRegion(body, /*printEntryBlockArgs=*/false,
-                  /*printBlockTerminators=*/true);
-  }
-}
+//   // Print the body if this is not an external function.
+//   Region &body = getOperation()->getRegion(0);
+//   if (!body.empty()) {
+//     p << ' ';
+//     p.printRegion(body, /*printEntryBlockArgs=*/false,
+//                   /*printBlockTerminators=*/true);
+//   }
+// }
 
 // Verifies linkage types
 // - functions don't have 'common' linkage

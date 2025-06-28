@@ -32,8 +32,8 @@ module {
     #cir.global_view<@type_info_name_B> : !cir.ptr<!s8i>,
     #cir.global_view<@type_info_A> : !cir.ptr<!s8i>}>
   : !cir.record<struct {!cir.ptr<!s8i>, !cir.ptr<!s8i>, !cir.ptr<!s8i>}>
-  cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !s8i)
-  cir.func private @_ZN4InitD1Ev(!cir.ptr<!rec_Init>)
+  cir.func "private" @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !s8i)
+  cir.func "private" @_ZN4InitD1Ev(!cir.ptr<!rec_Init>)
   cir.global "private" internal @_ZL8__ioinit = ctor : !rec_Init {
     %0 = cir.get_global @_ZL8__ioinit : !cir.ptr<!rec_Init>
     %1 = cir.const #cir.int<3> : !s8i

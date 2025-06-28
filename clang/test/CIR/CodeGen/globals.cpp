@@ -40,7 +40,7 @@ int use_func() { return func<int>(); }
 // CHECK-NEXT: cir.global external @c = #cir.int<2> : !u64i
 // CHECK-NEXT: cir.global external @d = #cir.int<0> : !s32i
 
-// CHECK-NEXT: cir.func internal private @__cxx_global_var_init()
+// CHECK-NEXT: cir.func internal "private" @__cxx_global_var_init()
 // CHECK-NEXT:   [[TMP0:%.*]] = cir.get_global @d : !cir.ptr<!s32i>
 // CHECK-NEXT:   [[TMP1:%.*]] = cir.get_global @a : !cir.ptr<!s32i>
 // CHECK-NEXT:   [[TMP2:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!s32i>, !s32i

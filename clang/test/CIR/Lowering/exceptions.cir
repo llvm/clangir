@@ -11,7 +11,7 @@
 module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.signed_overflow_behavior<undefined>} {
   cir.global "private" constant external @_ZTIi : !cir.ptr<!u8i>
   cir.global "private" constant external @_ZTIPKc : !cir.ptr<!u8i>
-  cir.func private @_Z8divisionii(!s32i, !s32i) -> !cir.double
+  cir.func "private" @_Z8divisionii(!s32i, !s32i) -> !cir.double
   // LLVM: @_Z2tcv() personality ptr @__gxx_personality_v0
   cir.func @_Z2tcv() -> !u64i {
     %0 = cir.alloca !u64i, !cir.ptr<!u64i>, ["__retval"] {alignment = 8 : i64}

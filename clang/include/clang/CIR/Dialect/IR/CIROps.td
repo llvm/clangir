@@ -3769,7 +3769,9 @@ def FuncOp : CIR_Op<"func", [
 
   let arguments = (ins
     SymbolNameAttr:$sym_name,
-    CIR_VisibilityAttr:$global_visibility,
+    DefaultValuedAttr<
+      CIR_VisibilityAttr, "cir::VisibilityKind::Default"
+    >:$global_visibility,
     TypeAttrOf<CIR_FuncType>:$function_type,
     UnitAttr:$builtin,
     UnitAttr:$coroutine,
@@ -3782,8 +3784,8 @@ def FuncOp : CIR_Op<"func", [
     DefaultValuedAttr<
       CIR_CallingConv, "CallingConv::C"
     >:$calling_conv,
-    CIR_ExtraFuncAttr:$extra_attrs,
-    OptionalAttr<StrAttr>:$sym_visibility,
+    OptionalAttr<CIR_ExtraFuncAttr>:$extra_attrs,
+    DefaultValuedOptionalStrAttr<StrAttr, "public">:$sym_visibility,
     UnitAttr:$comdat,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs,
@@ -3805,6 +3807,35 @@ def FuncOp : CIR_Op<"func", [
     CArg<"llvm::ArrayRef<mlir::NamedAttribute>", "{}">:$attrs,
     CArg<"llvm::ArrayRef<mlir::DictionaryAttr>", "{}">:$argAttrs)
   >];
+
+  let assemblyFormat = [{
+    (`builtin` $builtin^)?
+    (`coroutine` $coroutine^)?
+    (`lambda` $lambda^)?
+    (`no_proto` $no_proto^)?
+    (`comdat` $comdat^)?
+
+    ($linkage^)?
+    ($sym_visibility^)?
+    ($global_visibility^)?
+    (`dso_local` $dso_local^)?
+
+    custom<FunctionProtoType>($sym_name, $function_type, $body, prop-dict)
+
+    ($annotations^)?
+
+    attr-dict-with-keyword
+
+    (`alias` `(` $aliasee^ `)`)?
+    (`cc` `(` $calling_conv^ `)`)?
+
+    (`global_ctor` `(` $global_ctor_priority^ `)`)?
+    (`global_dtor` `(` $global_dtor_priority^ `)`)?
+
+    (`extra` `(` $extra_attrs^ `)`)?
+
+    custom<FunctionBody>(ref($body))
+  }];
 
   let extraClassDeclaration = [{
     /// Returns the region on the current operation that is callable. This may
@@ -3848,7 +3879,6 @@ def FuncOp : CIR_Op<"func", [
     bool isDeclaration();
   }];
 
-  let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
 }
 

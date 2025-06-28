@@ -174,7 +174,7 @@ void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
         builder.getArrayAttr(accessQuals), builder.getArrayAttr(argTypeNames),
         builder.getArrayAttr(argBaseTypeNames),
         builder.getArrayAttr(argTypeQuals), resArgNames);
-    mlir::NamedAttrList items{Fn.getExtraAttrs().getElements().getValue()};
+    mlir::NamedAttrList items{Fn.getExtraAttrs()->getElements().getValue()};
     auto oldValue = items.set(value.getMnemonic(), value);
     if (oldValue != value) {
       Fn.setExtraAttrsAttr(
@@ -238,7 +238,7 @@ void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
 
   // Append the kernel metadata to the extra attributes dictionary.
   mlir::NamedAttrList attrs;
-  attrs.append(Fn.getExtraAttrs().getElements());
+  attrs.append(Fn.getExtraAttrs()->getElements());
 
   auto kernelMetadataAttr = OpenCLKernelMetadataAttr::get(
       &getMLIRContext(), workGroupSizeHintAttr, reqdWorkGroupSizeAttr,

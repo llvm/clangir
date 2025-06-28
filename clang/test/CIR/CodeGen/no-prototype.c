@@ -46,7 +46,7 @@ int noProto2(int x) { return x; }
 // Call to no-proto is made before definition, so a variadic call that takes anything
 // is created. Definition is not in the translation unit, so it is left as is.
 int noProto3();
-// cir.func private no_proto @noProto3(...) -> !s32i
+// cir.func "private" no_proto @noProto3(...) -> !s32i
 int test3(int x) {
 // CHECK: cir.func dso_local @test3
   return noProto3(x);
@@ -64,7 +64,7 @@ int test3(int x) {
 
 // No-proto definition followed by an incorrect call due to extra args.
 int noProto4() { return 0; }
-// cir.func private no_proto @noProto4() -> !s32i
+// cir.func "private" no_proto @noProto4() -> !s32i
 int test4(int x) {
   return noProto4(x); // Even if we know the definition, this should compile.
   // CHECK:  [[GGO:%.*]] = cir.get_global @noProto4 : !cir.ptr<!cir.func<() -> !s32i>>

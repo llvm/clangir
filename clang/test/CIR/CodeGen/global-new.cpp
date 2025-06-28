@@ -37,7 +37,7 @@ e *g = new e(0);
 // CIR_EH:   cir.resume
 // CIR_EH: }]
 
-// CIR_FLAT_EH: cir.func internal private @__cxx_global_var_init()
+// CIR_FLAT_EH: cir.func internal "private" @__cxx_global_var_init()
 // CIR_FLAT_EH: ^bb3:
 // CIR_FLAT_EH:   %exception_ptr, %type_id = cir.eh.inflight_exception
 // CIR_FLAT_EH:   cir.call @_ZdlPvm({{.*}}) : (!cir.ptr<!void>, !u64i) -> ()

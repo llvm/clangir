@@ -5,7 +5,7 @@
 !fnptr = !cir.ptr<!cir.func<(!s32i) -> !s32i>>
 
 module {
-  cir.func private @my_add(%a: !s32i, %b: !s32i) -> !s32i cc(spir_function)
+  cir.func "private" @my_add(%a: !s32i, %b: !s32i) -> !s32i cc(spir_function)
 
   cir.func @ind(%fnptr: !fnptr, %a : !s32i) {
     %1 = cir.call %fnptr(%a) : (!fnptr, !s32i) -> !s32i cc(spir_kernel)

@@ -2820,7 +2820,7 @@ static bool hasUnwindExceptions(const LangOptions &langOpts) {
 
 void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
                                                          FuncOp f) {
-  mlir::NamedAttrList attrs{f.getExtraAttrs().getElements().getValue()};
+  mlir::NamedAttrList attrs{f.getExtraAttrs()->getElements().getValue()};
 
   if ((!decl || !decl->hasAttr<NoUwtableAttr>()) && codeGenOpts.UnwindTables) {
     auto attr = cir::UWTableAttr::get(
@@ -3000,7 +3000,7 @@ void CIRGenModule::setCIRFunctionAttributes(GlobalDecl gd,
   cir::SideEffect sideEffect;
 
   // Initialize PAL with existing attributes to merge attributes.
-  mlir::NamedAttrList pal{func.getExtraAttrs().getElements().getValue()};
+  mlir::NamedAttrList pal{func.getExtraAttrs()->getElements().getValue()};
   constructAttributeList(func.getName(), info, gd, pal, callingConv, sideEffect,
                          /*AttrOnCallSite=*/false, isThunk);
   func.setExtraAttrsAttr(

@@ -9,6 +9,7 @@
 #include "LoweringPrepareCXXABI.h"
 #include "PassDetail.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Region.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
@@ -952,9 +953,8 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   if (dynamicInitializers.empty())
     return;
 
-  for (auto &f : dynamicInitializers) {
+  for (auto f : dynamicInitializers) {
     // TODO: handle globals with a user-specified initialzation priority.
-    // TODO: handle defaule priority more nicely.
     globalCtorList.emplace_back(f.getName(),
                                 cir::DefaultGlobalCtorDtorPriority);
   }
@@ -1603,7 +1603,7 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     } else if (auto globalDtor = fnOp.getGlobalDtorPriority()) {
       globalDtorList.emplace_back(fnOp.getName(), globalDtor.value());
     }
-    if (auto attr = fnOp.getExtraAttrs().getElements().get(
+    if (auto attr = fnOp.getExtraAttrs()->getElements().get(
             CUDAKernelNameAttr::getMnemonic())) {
       auto cudaBinaryAttr = dyn_cast<CUDAKernelNameAttr>(attr);
       std::string kernelName = cudaBinaryAttr.getKernelName();

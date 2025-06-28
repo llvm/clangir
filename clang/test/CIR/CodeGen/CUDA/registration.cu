@@ -21,7 +21,7 @@
 // Module destructor goes here.
 // This is not a real destructor, as explained in LoweringPrepare.
 
-// CIR-HOST: cir.func internal private @__cuda_module_dtor() {
+// CIR-HOST: cir.func internal "private" @__cuda_module_dtor() {
 // CIR-HOST:   %[[#HandleGlobal:]] = cir.get_global @__cuda_gpubin_handle
 // CIR-HOST:   %[[#Handle:]] = cir.load %0
 // CIR-HOST:   cir.call @__cudaUnregisterFatBinary(%[[#Handle]])
@@ -50,7 +50,7 @@
 
 __global__ void fn() {}
 
-// CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
+// CIR-HOST: cir.func internal "private" @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
 // CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
 // CIR-HOST:   %[[#DeviceFn:]] = cir.cast(bitcast, %[[#T1]]
@@ -92,7 +92,7 @@ __global__ void fn() {}
 // CIR-HOST: }>
 // CIR-HOST-SAME: {{.*}}section = ".nvFatBinSegment"
 
-// CIR-HOST: cir.func private @__cudaRegisterFatBinary
+// CIR-HOST: cir.func "private" @__cudaRegisterFatBinary
 // CIR-HOST: cir.func {{.*}} @__cuda_module_ctor() {
 // CIR-HOST:   %[[#Fatbin:]] = cir.call @__cudaRegisterFatBinary
 // CIR-HOST:   %[[#FatbinGlobal:]] = cir.get_global @__cuda_gpubin_handle

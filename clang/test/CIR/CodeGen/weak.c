@@ -14,7 +14,7 @@ void active (void)
 // LLVM: @y = weak_odr global
 // LLVM: @x = weak global
 
-// CIR:      cir.func extern_weak private @B()
+// CIR:      cir.func extern_weak "private" @B()
 // CIR:      cir.func dso_local @active()
 // CIR-NEXT:   cir.call @B() : () -> ()
 

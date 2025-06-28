@@ -20,7 +20,7 @@ void fn1() { f f1; }
 // CIR: !rec_f = !cir.record<class "f" {!rec_a}>
 
 // CIR: cir.global external @h = #cir.int<0>
-// CIR: cir.func private @_ZN1a1bEi(!s32i) -> !cir.ptr<!s8i>
+// CIR: cir.func "private" @_ZN1a1bEi(!s32i) -> !cir.ptr<!s8i>
 
 // CIR: cir.func dso_local @_ZN1f1bEv(%arg0: !cir.ptr<!rec_f> loc{{.*}}) -> !cir.ptr<!s8i>
 // CIR: [[H_PTR:%.*]] = cir.get_global @h : !cir.ptr<!s32i> loc(#loc18)

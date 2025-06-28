@@ -3,7 +3,7 @@
 
 !s32i = !cir.int<s, 32>
 module {
-  cir.func no_proto private @noProto3(...) -> !s32i
+  cir.func no_proto "private" @noProto3(...) -> !s32i
   // MLIR: llvm.func @noProto3(...) -> i32
   cir.func @test3(%arg0: !s32i) {
     %3 = cir.get_global @noProto3 : !cir.ptr<!cir.func<(...) -> !s32i>>

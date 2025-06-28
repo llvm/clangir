@@ -4,7 +4,7 @@
 !s32i = !cir.int<s, 32>
 
 module {
-  cir.func private @add(%arg0: !s32i, %arg1: !s32i) -> !s32i
+  cir.func "private" @add(%arg0: !s32i, %arg1: !s32i) -> !s32i
   cir.func @call_with_side_effect() {
     %0 = cir.const #cir.int<0> : !s32i
     %1 = cir.const #cir.int<1> : !s32i

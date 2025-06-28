@@ -648,7 +648,7 @@ static void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
   if (isInterposable(fn) || cgf.mayThrow)
     return;
 
-  mlir::NamedAttrList extraAttrs{fn.getExtraAttrs().getElements().getValue()};
+  mlir::NamedAttrList extraAttrs{fn.getExtraAttrs()->getElements().getValue()};
   auto noThrowAttr = cir::NoThrowAttr::get(&cgf.getMLIRContext());
   extraAttrs.set(noThrowAttr.getMnemonic(), noThrowAttr);
   fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
