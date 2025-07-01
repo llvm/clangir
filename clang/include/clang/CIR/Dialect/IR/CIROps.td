@@ -3816,11 +3816,11 @@ def FuncOp : CIR_Op<"func", [
     (`comdat` $comdat^)?
 
     ($linkage^)?
-    ($sym_visibility^)?
+    custom<SymbolVisibility>($sym_visibility)
     ($global_visibility^)?
     (`dso_local` $dso_local^)?
 
-    custom<FunctionProtoType>($sym_name, $function_type, $body, prop-dict)
+    $sym_name
 
     ($annotations^)?
 
@@ -3834,7 +3834,7 @@ def FuncOp : CIR_Op<"func", [
 
     (`extra` `(` $extra_attrs^ `)`)?
 
-    custom<FunctionBody>(ref($body))
+    custom<FunctionBody>($body)
   }];
 
   let extraClassDeclaration = [{

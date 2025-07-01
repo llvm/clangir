@@ -2485,8 +2485,25 @@ LogicalResult cir::VTTAddrPointOp::verify() {
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-/// Returns the name used for the linkage attribute. This *must* correspond to
-/// the name of the attribute in ODS.
+mlir::ParseResult parseSymbolVisibility(mlir::OpAsmParser &parser,
+                                        mlir::StringAttr &visibility) {
+  llvm::StringRef kind;
+  if (parser.parseOptionalKeyword(&kind, {"private", "nested"}))
+    return success(); // Default visibility is "public", nothing to parse.
+  visibility = mlir::StringAttr::get(parser.getContext(), kind);
+  return success();
+}
+
+void printSymbolVisibility(mlir::OpAsmPrinter &p, cir::FuncOp,
+                           mlir::StringAttr visibility) {
+  llvm::StringRef visibilityName = visibility.getValue();
+  if (visibilityName.empty() || visibilityName == "public")
+    return;
+  p << visibility.getValue();
+}
+
+/// Returns the name used for the linkage attribute. This *must* correspond
+/// to the name of the attribute in ODS.
 static llvm::StringRef getLinkageAttrNameString() { return "linkage"; }
 
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
@@ -2522,62 +2539,66 @@ void initFunctionBodyArgs(
     llvm::SmallVectorImpl<mlir::OpAsmParser::Argument> &arguments) {}
 
 mlir::ParseResult parseFunctionProtoType(mlir::OpAsmParser &parser,
-                                         mlir::StringAttr &name,
-                                         mlir::TypeAttr &type,
-                                         mlir::Region &body,
-                                         mlir::OperationState &state) {
-  llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
-  llvm::SmallVector<DictionaryAttr, 1> resultAttrs;
-  llvm::SmallVector<Type, 8> argTypes;
-  llvm::SmallVector<Type, 4> resultTypes;
+                                         mlir::TypeAttr &type) {
 
-  // Parse the function signature.
-  bool isVariadic = false;
-  if (function_interface_impl::parseFunctionSignatureWithArguments(
-          parser, /*allowVariadic=*/true, arguments, isVariadic, resultTypes,
-          resultAttrs))
-    return failure();
+  // if (parser.parseLParen())
+  //   return failure();
 
-  for (auto &arg : arguments)
-    argTypes.push_back(arg.type);
+  // llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
+  // llvm::SmallVector<DictionaryAttr, 1> resultAttrs;
+  // llvm::SmallVector<Type, 8> argTypes;
+  // llvm::SmallVector<Type, 4> resultTypes;
 
-  if (resultTypes.size() > 1)
-    return parser.emitError(parser.getCurrentLocation(),
-                            "functions only supports zero or one results");
+  // // Parse the function signature.
+  // bool isVariadic = false;
+  // if (function_interface_impl::parseFunctionSignatureWithArguments(
+  //         parser, /*allowVariadic=*/true, arguments, isVariadic, resultTypes,
+  //         resultAttrs))
+  //   return failure();
 
-  // Fetch return type or set it to void if empty/ommited.
-  // TODO: maybe can be defaulted?
-  mlir::Type returnType =
-      (resultTypes.empty() ? cir::VoidType::get(parser.getContext())
-                           : resultTypes.front());
+  // for (auto &arg : arguments)
+  //   argTypes.push_back(arg.type);
 
-  // Build the function type.
-  auto fnType = cir::FuncType::get(argTypes, returnType, isVariadic);
-  if (!fnType)
-    return failure();
-  type = TypeAttr::get(fnType);
+  // if (resultTypes.size() > 1)
+  //   return parser.emitError(parser.getCurrentLocation(),
+  //                           "functions only supports zero or one results");
 
-  // Add the attributes to the function arguments.
-  assert(resultAttrs.size() == resultTypes.size());
-  auto &builder = parser.getBuilder();
-  auto argAttrsName = builder.getStringAttr("arg_attrs");
-  auto resAttrsName = builder.getStringAttr("res_attrs");
-  call_interface_impl::addArgAndResultAttrs(parser.getBuilder(), state,
-                                            arguments, resultAttrs,
-                                            argAttrsName, resAttrsName);
-  // Declare function arguments for region, it will be parsed and finalized
-  // later in parseFunctionBody.
-  if (!arguments.empty()) {
-    body = parse.addRegion();
-    region.addArguments(arguments
-        parser, state, arguments,
-        /*allowVariadic=*/true,
-        /*allowBlockArguments=*/true,
-        /*allowResultNumber=*/false);
-    auto asmState = parser.getState();
-    asmState.startRegionDefinition();
-    initFunctionBodyArgs(body, state, arguments);
-  }
+  // // Fetch return type or set it to void if empty/ommited.
+  // // TODO: maybe can be defaulted?
+  // mlir::Type returnType =
+  //     (resultTypes.empty() ? cir::VoidType::get(parser.getContext())
+  //                          : resultTypes.front());
+
+  // // Build the function type.
+  // auto fnType = cir::FuncType::get(argTypes, returnType, isVariadic);
+  // if (!fnType)
+  //   return failure();
+  // type = TypeAttr::get(fnType);
+
+  // // Add the attributes to the function arguments.
+  // // assert(resultAttrs.size() == resultTypes.size());
+  // // auto &builder = parser.getBuilder();
+  // // auto argAttrsName = builder.getStringAttr("arg_attrs");
+  // // auto resAttrsName = builder.getStringAttr("res_attrs");
+  // // call_interface_impl::addArgAndResultAttrs(parser.getBuilder(), state,
+  // //                                           arguments, resultAttrs,
+  // //                                           argAttrsName, resAttrsName);
+
+  // // Declare function arguments for region, it will be parsed and finalized
+  // // later in parseFunctionBody.
+  // if (!arguments.empty()) {
+  //   // mlir::Region *body_ptr = state.addRegion();
+  //   // // body->addArguments(arguments, parser, state, arguments,
+  //   // //                   /*allowVariadic=*/true,
+  //   // //                   /*allowBlockArguments=*/true,
+  //   // //                   /*allowResultNumber=*/false);
+  //   // auto asmState = parser.getState();
+  //   // asmState.startRegionDefinition();
+  //   // initFunctionBodyArgs(body, state, arguments);
+  // }
+
+  // if (parser.parseRParen())
+  //   return failure();
 
   return success();
 }
@@ -2591,10 +2612,7 @@ mlir::ParseResult parseFunctionBody(mlir::OpAsmParser &parser,
 }
 
 void printFunctionProtoType(mlir::OpAsmPrinter &p, cir::FuncOp op,
-                            mlir::StringAttr symbol, mlir::TypeAttr type,
-                            mlir::Region &body,
-                            cir::FuncOp::Properties /* properties */) {
-  p.printSymbolName(symbol);
+                            mlir::TypeAttr type) {
   auto fnType = mlir::cast<cir::FuncType>(type.getValue());
   function_interface_impl::printFunctionSignature(
       p, op, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
