@@ -1165,6 +1165,34 @@ LogicalResult cir::VecShuffleOp::verify() {
 // VecShuffleDynamic
 //===----------------------------------------------------------------------===//
 
+OpFoldResult cir::VecShuffleDynamicOp::fold(FoldAdaptor adaptor) {
+  auto vecAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getVec());
+  auto indicesAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getIndices());
+  if (!vecAttr || !indicesAttr)
+    return {};
+
+  mlir::ArrayAttr vecElts = vecAttr.getElts();
+  mlir::ArrayAttr indicesElts = indicesAttr.getElts();
+
+  const uint64_t numElements = vecElts.size();
+
+  SmallVector<mlir::Attribute, 16> elements;
+  elements.reserve(numElements);
+
+  const uint64_t maskBits = llvm::NextPowerOf2(numElements - 1) - 1;
+  for (const auto &idxAttr : indicesElts.getAsRange<cir::IntAttr>()) {
+    uint64_t idxValue = idxAttr.getUInt();
+    uint64_t newIdx = idxValue & maskBits;
+    elements.push_back(vecElts[newIdx]);
+  }
+
+  auto vecTy = mlir::cast<cir::VectorType>(vecAttr.getType());
+  return cir::ConstVectorAttr::get(
+      vecTy, mlir::ArrayAttr::get(getContext(), elements));
+}
+
 LogicalResult cir::VecShuffleDynamicOp::verify() {
   // The number of elements in the two input vectors must match.
   if (getVec().getType().getSize() !=
