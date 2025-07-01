@@ -14,7 +14,6 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/PassManager.h"
@@ -40,6 +39,7 @@ public:
   mlir::Value getLowerBound() { return lowerBound; }
   mlir::Value getUpperBound() { return upperBound; }
   bool isCanonical() { return canonical; }
+  bool hasBreakOrContinue() { return hasBreakContinue; }
 
   // Returns true if successfully finds both step and induction variable.
   mlir::LogicalResult findStepAndIV();
@@ -50,6 +50,7 @@ public:
   mlir::Value plusConstant(mlir::Value v, mlir::Location loc, int addend);
   void transferToSCFForOp();
   void transformToSCFWhileOp();
+  void transformToCIRWhileOp(); // TODO
 
 private:
   cir::ForOp forOp;
@@ -57,6 +58,7 @@ private:
   mlir::Value ivAddr, lowerBound = nullptr, upperBound = nullptr;
   mlir::ConversionPatternRewriter *rewriter;
   int64_t step = 0;
+  bool hasBreakContinue = false;
   bool canonical = true;
 };
 
@@ -251,6 +253,16 @@ mlir::Value SCFLoop::findIVInitValue() {
 }
 
 void SCFLoop::analysis() {
+  // Check whether this ForOp contains break or continue.
+  forOp.walk([&](mlir::Operation *op) {
+    if (isa<BreakOp, ContinueOp>(op))
+      hasBreakContinue = true;
+  });
+  if (hasBreakContinue) {
+    canonical = false;
+    return;
+  }
+
   canonical = mlir::succeeded(findStepAndIV());
   if (!canonical)
     return;
@@ -356,6 +368,30 @@ void SCFLoop::transformToSCFWhileOp() {
                               scfWhileOp.getAfterBody()->end());
 }
 
+void SCFLoop::transformToCIRWhileOp() {
+  auto cirWhileOp = rewriter->create<cir::WhileOp>(
+      forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
+  rewriter->createBlock(&cirWhileOp.getCond());
+  rewriter->createBlock(&cirWhileOp.getBody());
+
+  mlir::Block &condFront = cirWhileOp.getCond().front();
+  rewriter->inlineBlockBefore(&forOp.getCond().front(), &condFront,
+                              condFront.end());
+
+  mlir::Block &bodyFront = cirWhileOp.getBody().front();
+  rewriter->inlineBlockBefore(&forOp.getBody().front(), &bodyFront,
+                              bodyFront.end());
+
+  // The last operation of `bodyFront` must be a terminator.
+  // We need to place the step just before it.
+  rewriter->inlineBlockBefore(&forOp.getStep().front(), &bodyFront,
+                              --bodyFront.end());
+  // This also introduces another terminator before the one of the body.
+  // We need to erase it.
+  auto &stepTerminator = *--bodyFront.end();
+  rewriter->eraseOp(&stepTerminator);
+}
+
 mlir::scf::WhileOp SCFWhileLoop::transferToSCFWhileOp() {
   auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
       whileOp->getLoc(), whileOp->getResultTypes(), adaptor.getOperands());
@@ -400,6 +436,14 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     SCFLoop loop(op, &rewriter);
     loop.analysis();
+    // Breaks and continues are handled in lowering of cir::WhileOp.
+    // We can reuse the code by transforming this ForOp into WhileOp.
+    if (loop.hasBreakOrContinue()) {
+      loop.transformToCIRWhileOp();
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
     if (!loop.isCanonical()) {
       loop.transformToSCFWhileOp();
       rewriter.eraseOp(op);
