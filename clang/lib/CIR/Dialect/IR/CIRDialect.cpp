@@ -921,7 +921,7 @@ OpFoldResult cir::ComplexCreateOp::fold(FoldAdaptor adaptor) {
 
 LogicalResult cir::ComplexRealOp::verify() {
   if (getType() != getOperand().getType().getElementType()) {
-    emitOpError() << "cir.complex.real result type does not match operand type";
+    emitOpError() << ": result type does not match operand type";
     return failure();
   }
   return success();
@@ -936,7 +936,7 @@ OpFoldResult cir::ComplexRealOp::fold(FoldAdaptor adaptor) {
 
 LogicalResult cir::ComplexImagOp::verify() {
   if (getType() != getOperand().getType().getElementType()) {
-    emitOpError() << "cir.complex.imag result type does not match operand type";
+    emitOpError() << ": result type does not match operand type";
     return failure();
   }
   return success();
