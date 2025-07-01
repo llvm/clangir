@@ -180,7 +180,7 @@ void CIRCanonicalizePass::runOnOperation() {
     // applyOpPatternsGreedily.
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp, SelectOp,
             ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp, VecCreateOp,
-            VecExtractOp, VecTernaryOp>(op))
+            VecExtractOp, VecShuffleOp, VecTernaryOp>(op))
       ops.push_back(op);
   });
 
