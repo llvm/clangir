@@ -18,6 +18,8 @@ include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
 include "clang/CIR/Dialect/IR/CIRTypeConstraints.td"
 include "clang/CIR/Dialect/IR/CIRAttrs.td"
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
+
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 include "clang/CIR/Interfaces/CIROpInterfaces.td"
