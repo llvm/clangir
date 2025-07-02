@@ -188,9 +188,8 @@ public:
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
     assert(mlir::isa<cir::FPTypeInterface>(Ty) && "expect floating-point type");
-    return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()),
-        Builder.getAttr<cir::FPAttr>(Ty, E->getValue()));
+    return Builder.create<cir::ConstantOp>(CGF.getLoc(E->getExprLoc()),
+                                           cir::FPAttr::get(Ty, E->getValue()));
   }
   mlir::Value VisitCharacterLiteral(const CharacterLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
