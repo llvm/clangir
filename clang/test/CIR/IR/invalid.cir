@@ -1410,7 +1410,35 @@ module {
     // expected-error@+1 {{'cir.cast' op result type address space does not match the address space of the operand}}
     %1 = cir.cast(bitcast, %0 : !cir.ptr<!s32i>), !cir.ptr<!s32i, addrspace(offload_local)>
   }
+}
 
+// -----
+
+!s16i = !cir.int<s, 16>
+!s64i = !cir.int<s, 64>
+
+module {
+  cir.func @test_bitcast_vec2scalar_diff_size() {
+    %0 = cir.const #cir.int<1> : !s16i
+    %1 = cir.vec.create(%0, %0 : !s16i, !s16i) : !cir.vector<!s16i x 2>
+    // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
+    %2 = cir.cast(bitcast, %1 : !cir.vector<!s16i x 2>), !s64i
+    cir.return
+  }
+}
+
+// -----
+
+!s32i = !cir.int<s, 32>
+!s64i = !cir.int<s, 64>
+
+module {
+  cir.func @test_bitcast_scalar2vec_diff_size() {
+    %0 = cir.const #cir.int<1> : !s64i
+    // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
+    %1 = cir.cast(bitcast, %0 : !s64i), !cir.vector<!s32i x 4>
+    cir.return
+  }
 }
 
 // -----

@@ -35,6 +35,7 @@
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -569,6 +570,17 @@ LogicalResult cir::CastOp::verify() {
     if (mlir::isa<cir::MethodType>(srcType) &&
         mlir::isa<cir::MethodType>(resType))
       return success();
+
+    // Handle scalar to vector and vector to scalar conversions.
+    if (mlir::isa<cir::VectorType>(getSrc().getType()) !=
+        mlir::isa<cir::VectorType>(getType())) {
+      // The source and result must be the same size.
+      mlir::DataLayout dataLayout(
+          getOperation()->getParentOfType<mlir::DataLayoutOpInterface>());
+      if (dataLayout.getTypeSize(getSrc().getType()) ==
+          dataLayout.getTypeSize(getType()))
+        return success();
+    }
 
     // This is the only cast kind where we don't want vector types to decay
     // into the element type.
