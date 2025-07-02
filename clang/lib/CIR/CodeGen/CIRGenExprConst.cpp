@@ -1917,7 +1917,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       mlir::Type ty = CGM.convertType(DestType);
       assert(mlir::isa<cir::FPTypeInterface>(ty) &&
              "expected floating-point type");
-      return CGM.getBuilder().getAttr<cir::FPAttr>(ty, Init);
+      return cir::FPAttr::get(ty, Init);
     }
   }
   case APValue::Array: {
@@ -2026,8 +2026,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     llvm::APFloat real = Value.getComplexFloatReal();
     llvm::APFloat imag = Value.getComplexFloatImag();
     return builder.getAttr<cir::ComplexAttr>(
-        complexType, builder.getAttr<cir::FPAttr>(complexElemTy, real),
-        builder.getAttr<cir::FPAttr>(complexElemTy, imag));
+        complexType, cir::FPAttr::get(complexElemTy, real),
+        cir::FPAttr::get(complexElemTy, imag));
   }
   case APValue::FixedPoint:
   case APValue::AddrLabelDiff:
