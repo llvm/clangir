@@ -600,8 +600,6 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
   CIRGenCalleeInfo calleeInfo(functionType->getAs<FunctionProtoType>(), GD);
   CIRGenCallee callee(calleeInfo, calleePtr.getDefiningOp());
   return callee;
-
-  assert(false && "Nothing else supported yet!");
 }
 
 mlir::Value CIRGenFunction::emitToMemory(mlir::Value Value, QualType Ty) {
