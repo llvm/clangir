@@ -199,29 +199,39 @@ def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
   }];
 
   let extraClassDeclaration = [{
-    unsigned getPointerSize() const { return getSizeTSize(); }
+    unsigned getPointerSize() const;
+    mlir::Type getCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getSizeType(mlir::MLIRContext *ctx) const;
+    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const;
+  }];
 
-    mlir::Type getCharType(mlir::MLIRContext *ctx) const {
+  let extraClassDefinition = [{
+    unsigned $cppClass::getPointerSize() const { return getSizeTSize(); }
+
+    mlir::Type $cppClass::getCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/true);
     }
 
-    mlir::Type getUCharType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/false);
     }
 
-    mlir::Type getIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/true);
     }
 
-    mlir::Type getUIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/false);
     }
 
-    mlir::Type getSizeType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getSizeType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/false);
     }
 
-    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getPtrDiffType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/true);
     }
   }];
