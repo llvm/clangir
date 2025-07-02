@@ -179,8 +179,9 @@ void CIRCanonicalizePass::runOnOperation() {
     // CastOp, UnaryOp and VecExtractOp are here to perform a manual `fold` in
     // applyOpPatternsGreedily.
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp, SelectOp,
-            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp, VecCreateOp,
-            VecExtractOp, VecShuffleOp, VecShuffleDynamicOp, VecTernaryOp>(op))
+            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp, VecCmpOp,
+            VecCreateOp, VecExtractOp, VecShuffleOp, VecShuffleDynamicOp,
+            VecTernaryOp>(op))
       ops.push_back(op);
   });
 
