@@ -46,7 +46,7 @@ public:
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty =
         cir::IntType::get(getContext(), val.getBitWidth(), val.isSigned());
-    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(ty, val));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(ty, val));
   }
 
   mlir::Value getSignedInt(mlir::Location loc, int64_t val, unsigned numBits) {
@@ -63,7 +63,7 @@ public:
 
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
-    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(typ, val));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(typ, val));
   }
 
   cir::ConstantOp getConstant(mlir::Location loc, mlir::TypedAttr attr) {

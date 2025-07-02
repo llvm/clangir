@@ -617,6 +617,11 @@ module {
 module {
   // expected-error@below {{integer value too large for the given type}}
   cir.global external @a = #cir.int<256> : !cir.int<u, 8>
+}
+
+// -----
+
+module {
   // expected-error@below {{integer value too large for the given type}}
   cir.global external @b = #cir.int<-129> : !cir.int<s, 8>
 }

@@ -178,9 +178,8 @@ public:
   // Leaves.
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
-    return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()),
-        Builder.getAttr<cir::IntAttr>(Ty, E->getValue()));
+    return Builder.getConstAPInt(CGF.getLoc(E->getExprLoc()), Ty,
+                                 E->getValue());
   }
 
   mlir::Value VisitFixedPointLiteral(const FixedPointLiteral *E) {
