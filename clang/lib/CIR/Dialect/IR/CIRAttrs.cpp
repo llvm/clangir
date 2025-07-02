@@ -26,6 +26,7 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 
+#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -33,10 +34,31 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SMLoc.h"
+
+//===-----------------------------------------------------------------===//
+// RecordMembers
+//===-----------------------------------------------------------------===//
 
 static void printRecordMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
 static mlir::ParseResult parseRecordMembers(::mlir::AsmParser &parser,
                                             mlir::ArrayAttr &members);
+
+//===-----------------------------------------------------------------===//
+// IntLiteral
+//===-----------------------------------------------------------------===//
+
+static void printIntLiteral(mlir::AsmPrinter &p, llvm::APInt value,
+                            cir::IntTypeInterface ty);
+
+static mlir::ParseResult parseIntLiteral(mlir::AsmParser &parser,
+                                         llvm::APInt &value,
+                                         cir::IntTypeInterface ty);
+
+//===-----------------------------------------------------------------===//
+// FloatLiteral
+//===-----------------------------------------------------------------===//
 
 static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
                               mlir::Type ty);
@@ -204,65 +226,52 @@ static void printConstPtr(AsmPrinter &p, mlir::IntegerAttr value) {
 // IntAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute IntAttr::parse(AsmParser &parser, Type odsType) {
-  mlir::APInt APValue;
-
-  if (!mlir::isa<IntType>(odsType))
-    return {};
-  auto type = mlir::cast<IntType>(odsType);
-
-  // Consume the '<' symbol.
-  if (parser.parseLess())
-    return {};
-
-  // Fetch arbitrary precision integer value.
-  if (type.isSigned()) {
-    int64_t value;
-    if (parser.parseInteger(value))
-      parser.emitError(parser.getCurrentLocation(), "expected integer value");
-    APValue = mlir::APInt(type.getWidth(), value, type.isSigned(),
-                          /*implicitTrunc=*/true);
-    if (APValue.getSExtValue() != value)
-      parser.emitError(parser.getCurrentLocation(),
-                       "integer value too large for the given type");
+template <typename IntT>
+static bool isTooLargeForType(const mlir::APInt &v, IntT expectedValue) {
+  if constexpr (std::is_signed_v<IntT>) {
+    return v.getSExtValue() != expectedValue;
   } else {
-    uint64_t value;
-    if (parser.parseInteger(value))
-      parser.emitError(parser.getCurrentLocation(), "expected integer value");
-    APValue = mlir::APInt(type.getWidth(), value, type.isSigned(),
-                          /*implicitTrunc=*/true);
-    if (APValue.getZExtValue() != value)
-      parser.emitError(parser.getCurrentLocation(),
-                       "integer value too large for the given type");
+    return v.getZExtValue() != expectedValue;
   }
-
-  // Consume the '>' symbol.
-  if (parser.parseGreater())
-    return {};
-
-  return IntAttr::get(type, APValue);
 }
 
-void IntAttr::print(AsmPrinter &printer) const {
-  auto type = mlir::cast<IntType>(getType());
-  printer << '<';
-  if (type.isSigned())
-    printer << getSInt();
+template <typename IntT>
+static ParseResult parseIntLiteralImpl(mlir::AsmParser &p, llvm::APInt &value,
+                                       cir::IntTypeInterface ty) {
+  IntT ivalue;
+  const bool isSigned = ty.isSigned();
+  if (p.parseInteger(ivalue))
+    return p.emitError(p.getCurrentLocation(), "expected integer value");
+
+  value = mlir::APInt(ty.getWidth(), ivalue, isSigned, /*implicitTrunc=*/true);
+  if (isTooLargeForType(value, ivalue))
+
+    return p.emitError(p.getCurrentLocation(),
+                       "integer value too large for the given type");
+
+  return success();
+}
+
+mlir::ParseResult parseIntLiteral(mlir::AsmParser &parser, llvm::APInt &value,
+                                  cir::IntTypeInterface ty) {
+  if (ty.isSigned())
+    return parseIntLiteralImpl<int64_t>(parser, value, ty);
+  return parseIntLiteralImpl<uint64_t>(parser, value, ty);
+}
+
+void printIntLiteral(mlir::AsmPrinter &p, llvm::APInt value,
+                     cir::IntTypeInterface ty) {
+  if (ty.isSigned())
+    p << value.getSExtValue();
   else
-    printer << getUInt();
-  printer << '>';
+    p << value.getZExtValue();
 }
 
 LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                              Type type, APInt value) {
-  if (!mlir::isa<IntType>(type))
-    return emitError() << "expected 'simple.int' type";
-
-  auto intType = mlir::cast<IntType>(type);
-  if (value.getBitWidth() != intType.getWidth())
+                              cir::IntTypeInterface type, llvm::APInt value) {
+  if (value.getBitWidth() != type.getWidth())
     return emitError() << "type and value bitwidth mismatch: "
-                       << intType.getWidth() << " != " << value.getBitWidth();
-
+                       << type.getWidth() << " != " << value.getBitWidth();
   return success();
 }
 
@@ -481,8 +490,8 @@ LogicalResult
 GlobalAnnotationValuesAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                    mlir::ArrayAttr annotations) {
   if (annotations.empty())
-    return emitError()
-           << "GlobalAnnotationValuesAttr should at least have one annotation";
+    return emitError() << "GlobalAnnotationValuesAttr should at least have "
+                          "one annotation";
 
   for (auto &entry : annotations) {
     auto annoEntry = ::mlir::dyn_cast<mlir::ArrayAttr>(entry);

@@ -406,32 +406,71 @@ def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
 // IntegerAttr
 //===----------------------------------------------------------------------===//
 
-def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
+def CIR_IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
   let summary = "An Attribute containing a integer value";
   let description = [{
     An integer attribute is a literal attribute that represents an integral
     value of the specified integer type.
   }];
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "llvm::APInt":$value);
+
+  let parameters = (ins
+    AttributeSelfTypeParameter<"", "cir::IntTypeInterface">:$type,
+    "llvm::APInt":$value
+  );
+
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "const llvm::APInt &":$value), [{
-      return $_get(type.getContext(), type, value);
+      return $_get(type.getContext(),
+                   mlir::cast<cir::IntTypeInterface>(type), value);
     }]>,
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type, "int64_t":$value), [{
-      IntType intType = mlir::cast<IntType>(type);
+      auto intType = mlir::cast<cir::IntTypeInterface>(type);
       mlir::APInt apValue(intType.getWidth(), value, intType.isSigned());
       return $_get(intType.getContext(), intType, apValue);
     }]>,
   ];
+
   let extraClassDeclaration = [{
-    int64_t getSInt() const { return getValue().getSExtValue(); }
-    uint64_t getUInt() const { return getValue().getZExtValue(); }
-    bool isNullValue() const { return getValue() == 0; }
-    uint64_t getBitWidth() const { return mlir::cast<IntType>(getType()).getWidth(); }
+    int64_t getSInt() const;
+    uint64_t getUInt() const;
+    bool isNullValue() const;
+    bool isSigned() const;
+    bool isUnsigned() const;
+    uint64_t getBitWidth() const;
   }];
+
+  let extraClassDefinition = [{
+    int64_t $cppClass::getSInt() const {
+      return getValue().getSExtValue();
+    }
+
+    uint64_t $cppClass::getUInt() const {
+      return getValue().getZExtValue();
+    }
+
+    bool $cppClass::isNullValue() const {
+      return getValue() == 0;
+    }
+
+    bool $cppClass::isSigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isSigned();
+    }
+
+    bool $cppClass::isUnsigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isUnsigned();
+    }
+
+    uint64_t $cppClass::getBitWidth() const {
+      return mlir::cast<IntTypeInterface>(getType()).getWidth();
+    }
+  }];
+
+  let assemblyFormat = [{
+    `<` custom<IntLiteral>($value, ref($type)) `>`
+  }];
+
   let genVerifyDecl = 1;
-  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -892,7 +931,7 @@ def DynamicCastInfoAttr
                         GlobalViewAttr:$destRtti,
                         "mlir::FlatSymbolRefAttr":$runtimeFunc,
                         "mlir::FlatSymbolRefAttr":$badCastFunc,
-                        IntAttr:$offsetHint);
+                        CIR_IntAttr:$offsetHint);
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
