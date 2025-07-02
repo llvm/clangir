@@ -206,7 +206,23 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vec_ext_v16hi:
   case X86::BI__builtin_ia32_vec_ext_v8si:
   case X86::BI__builtin_ia32_vec_ext_v4di: {
-    llvm_unreachable("__builtin_ia32_vec_ext_vXX NYI");
+    unsigned NumElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
+
+    auto constOp = cast<cir::ConstantOp>(Ops[1].getDefiningOp());
+    auto intAttr = cast<cir::IntAttr>(constOp.getValue());
+    uint64_t index = intAttr.getValue().getZExtValue();
+
+    index &= NumElts - 1;
+
+    auto indexAttr = cir::IntAttr::get(
+        cir::IntType::get(&getMLIRContext(), 64, false), index);
+    auto indexVal =
+        builder.create<cir::ConstantOp>(getLoc(E->getExprLoc()), indexAttr);
+
+    // These builtins exist so we can ensure the index is an ICE and in range.
+    // Otherwise we could just do this in the header file.
+    return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
+                                             indexVal);
   }
   case X86::BI__builtin_ia32_vec_set_v4hi:
   case X86::BI__builtin_ia32_vec_set_v16qi:

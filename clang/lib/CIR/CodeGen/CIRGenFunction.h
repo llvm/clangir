@@ -508,6 +508,11 @@ public:
   /// dropped.
   using SymTableTy = llvm::ScopedHashTable<const clang::Decl *, mlir::Value>;
   SymTableTy symbolTable;
+
+  /// Largest vector width used in this function. Will be used to create a
+  /// function attribute.
+  unsigned LargestVectorWidth = 0;
+
   /// True if we need to emit the life-time markers. This is initially set in
   /// the constructor, but could be overwrriten to true if this is a coroutine.
   bool ShouldEmitLifetimeMarkers;
