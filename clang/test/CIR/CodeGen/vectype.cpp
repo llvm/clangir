@@ -120,19 +120,31 @@ void vector_int_test(int x, unsigned short usx) {
 
   // Shifts
   vi4 w = a << b;
-  // CHECK: %{{[0-9]+}} = cir.shift(left, {{%.*}} : !cir.vector<!s32i x 4>, 
+  // CHECK: %{{[0-9]+}} = cir.shift(left, {{%.*}} : !cir.vector<!s32i x 4>,
   // CHECK-SAME: {{%.*}} : !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
   vi4 y = a >> b;
-  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!s32i x 4>, 
+  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!s32i x 4>,
   // CHECK-SAME: {{%.*}} : !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
 
-  vus2 z = { usx, usx };  
+  vus2 z = { usx, usx };
   // CHECK: %{{[0-9]+}} = cir.vec.create(%{{[0-9]+}}, %{{[0-9]+}} : !u16i, !u16i) : !cir.vector<!u16i x 2>
   vus2 zamt = { 3, 4 };
   // CHECK: %{{[0-9]+}} = cir.const #cir.const_vector<[#cir.int<3> : !u16i, #cir.int<4> : !u16i]> : !cir.vector<!u16i x 2>
   vus2 zzz = z >> zamt;
-  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!u16i x 2>, 
-  // CHECK-SAME: {{%.*}} : !cir.vector<!u16i x 2>) -> !cir.vector<!u16i x 2> 
+  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!u16i x 2>,
+  // CHECK-SAME: {{%.*}} : !cir.vector<!u16i x 2>) -> !cir.vector<!u16i x 2>
+
+  // Vector to scalar conversion
+  unsigned int zi = (unsigned int)z;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!u16i x 2>), !u32i
+
+  // Scalar to vector conversion
+  vus2 zz = (vus2)zi;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !u32i), !cir.vector<!u16i x 2>
+
+  // Vector to vector conversion
+  vll2 aaa = (vll2)a;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!s32i x 4>), !cir.vector<!s64i x 2>
 }
 
 void vector_double_test(int x, double y) {
