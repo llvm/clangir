@@ -31,13 +31,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.asin` (::cir::ASinOp)
@@ -60,13 +60,43 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
+
+
+### `cir.atan2` (::cir::ATan2Op)
+
+_Libc builtin equivalent ignoring floating-point exceptions and errno._
+
+Syntax:
+
+```
+operation ::= `cir.atan2` $lhs `,` $rhs `:` qualified(type($lhs)) attr-dict
+```
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.atan` (::cir::ATanOp)
@@ -89,13 +119,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.abs` (::cir::AbsOp)
@@ -137,13 +167,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | fundamental signed integer type or !cir.vector of !cir.int |
+| `src` | signed integer or vector of signed integer type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | fundamental signed integer type or !cir.vector of !cir.int |
+| `result` | signed integer or vector of signed integer type |
 
 
 ### `cir.alloc.exception` (::cir::AllocExceptionOp)
@@ -278,7 +308,7 @@ incoming argument for the current array index to initialize.
 
 | Operand | Description |
 | :-----: | ----------- |
-| `addr` | !cir.ptr<!cir.array> |
+| `addr` | pointer to array type |
 
 
 ### `cir.array.dtor` (::cir::ArrayDtor)
@@ -299,7 +329,7 @@ incoming argument for the current array index to initialize.
 
 | Operand | Description |
 | :-----: | ----------- |
-| `addr` | !cir.ptr<!cir.array> |
+| `addr` | pointer to array type |
 
 
 ### `cir.assume.aligned` (::cir::AssumeAlignedOp)
@@ -454,7 +484,7 @@ Interfaces: `InferTypeOpInterface`
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>succ_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
 <tr><td><code>fail_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
-<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>Memory Scope Enumeration</td></tr>
+<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>memory scope kind</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>weak</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
@@ -508,7 +538,7 @@ Example:
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>ordering</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
-<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>Memory Scope Enumeration</td></tr>
+<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>memory scope kind</td></tr>
 </table>
 
 
@@ -519,9 +549,8 @@ _Atomic fetch with unary and binary operations_
 Syntax:
 
 ```
-operation ::= `cir.atomic.fetch` `(`
-              $binop `,`
-              $ptr `:` type($ptr) `,`
+operation ::= `cir.atomic.fetch` `(`$binop `,`
+              $ptr `:` qualified(type($ptr)) `,`
               $val `:` type($val) `,`
               $mem_order `)`
               (`volatile` $is_volatile^)?
@@ -562,7 +591,7 @@ Interfaces: `InferTypeOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `ptr` | {int,void}* |
+| `ptr` | pointer to integer or floating point type |
 | `val` | integer or floating point type |
 
 #### Results:
@@ -701,10 +730,9 @@ _Get the base class address for a class/struct_
 Syntax:
 
 ```
-operation ::= `cir.base_class_addr` `(`
-              $derived_addr `:` qualified(type($derived_addr))
+operation ::= `cir.base_class_addr` $derived_addr `:` qualified(type($derived_addr))
               (`nonnull` $assume_not_null^)?
-              `)` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
+              ` ` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
 ```
 
 The `cir.base_class_addr` operaration gets the address of a particular
@@ -724,7 +752,7 @@ Base& b = d;
 ```
 will generate
 ```mlir
-%3 = cir.base_class_addr (%1 : !cir.ptr<!rec_Derived> nonnull) [0] -> !cir.ptr<!rec_Base>
+%3 = cir.base_class_addr %1 : !cir.ptr<!rec_Derived> nonnull [0] -> !cir.ptr<!rec_Base>
 ```
 
 #### Attributes:
@@ -755,8 +783,8 @@ _Cast a derived class data member pointer to a base class data member pointer_
 Syntax:
 
 ```
-operation ::= `cir.base_data_member` `(` $src `:` qualified(type($src)) `)`
-              `[` $offset `]` `->` qualified(type($result)) attr-dict
+operation ::= `cir.base_data_member` $src `:` qualified(type($src))
+              ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
 ```
 
 The `cir.base_data_member` operation casts a data member pointer of type
@@ -800,8 +828,8 @@ _Cast a derived class pointer-to-member-function to a base class
 Syntax:
 
 ```
-operation ::= `cir.base_method` `(` $src `:` qualified(type($src)) `)`
-              `[` $offset `]` `->` qualified(type($result)) attr-dict
+operation ::= `cir.base_method` $src `:` qualified(type($src))
+              ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
 ```
 
 The `cir.base_method` operation casts a pointer-to-member-function of type
@@ -815,7 +843,7 @@ subobject within a `Derived` object.
 Example:
 
 ```mlir
-%1 = cir.base_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base>
+%1 = cir.base_method %0 : !cir.method<!cir.func<(!s32i)> in !rec_Derived> [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -1663,39 +1691,48 @@ operation ::= `cir.cast` `(` $kind `,` $src `:` type($src) `)`
               `,` type($result) attr-dict
 ```
 
-Apply C/C++ usual conversions rules between values. Currently supported kinds:
+Apply the usual C/C++ conversion rules between values. This operation models
+a subset of conversions as defined in Clang's `OperationKinds.def`
+(`llvm-project/clang/include/clang/AST/OperationKinds.def`).
 
-- `array_to_ptrdecay`
+Note: not all conversions are implemented using `cir.cast`. For instance,
+lvalue-to-rvalue conversion is modeled as a `cir.load` instead.  Currently
+supported kinds:
+
 - `bitcast`
+- `array_to_ptrdecay`
+- `member_ptr_to_bool
+- `int_to_ptr`
+- `ptr_to_int`
+- `ptr_to_bool`
 - `integral`
 - `int_to_bool`
 - `int_to_float`
-- `floating`
 - `float_to_int`
 - `float_to_bool`
-- `ptr_to_int`
-- `ptr_to_bool`
 - `bool_to_int`
-- `bool_to_float`
-- `address_space`
+- `floating`
 - `float_to_complex`
-- `int_to_complex`
 - `float_complex_to_real`
-- `int_complex_to_real`
 - `float_complex_to_bool`
-- `int_complex_to_bool`
 - `float_complex`
 - `float_complex_to_int_complex`
+- `int_to_complex`
+- `int_complex_to_real`
+- `int_complex_to_bool`
 - `int_complex`
 - `int_complex_to_float_complex`
+- `address_space`
 
-This is effectively a subset of the rules from
-`llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
-of the conversions aren't implemented in terms of `cir.cast`, `lvalue-to-rvalue`
-for instance is modeled as a regular `cir.load`.
+CIR also supports some additional conversions that are not part of the classic
+Clang codegen:
+
+- `bool_to_float`
+
+Example:
 
 ```mlir
-%4 = cir.cast (int_to_bool, %3 : i32), !cir.bool
+%4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
 ...
 %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
 ```
@@ -1788,13 +1825,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.clear_cache` (::cir::ClearCacheOp)
@@ -2102,13 +2139,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `operand` | !cir.complex* |
+| `operand` | pointer to complex type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | {int,void}* |
+| `result` | pointer to integer or floating point type |
 
 
 ### `cir.complex.real` (::cir::ComplexRealOp)
@@ -2181,13 +2218,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `operand` | !cir.complex* |
+| `operand` | pointer to complex type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | {int,void}* |
+| `result` | pointer to integer or floating point type |
 
 
 ### `cir.condition` (::cir::ConditionOp)
@@ -2231,7 +2268,7 @@ cir.await(user, ready : {
 
 Traits: `Terminator`
 
-Interfaces: `RegionBranchTerminatorOpInterface`
+Interfaces: `CIR_ConditionOpInterface`, `RegionBranchTerminatorOpInterface`
 
 #### Operands:
 
@@ -2361,14 +2398,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.cos` (::cir::CosOp)
@@ -2391,13 +2428,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.delete.array` (::cir::DeleteArrayOp)
@@ -2427,10 +2464,9 @@ _Get the derived class address for a class/struct_
 Syntax:
 
 ```
-operation ::= `cir.derived_class_addr` `(`
-              $base_addr `:` qualified(type($base_addr))
+operation ::= `cir.derived_class_addr` $base_addr `:` qualified(type($base_addr))
               (`nonnull` $assume_not_null^)?
-              `)` `[` $offset `]` `->` qualified(type($derived_addr)) attr-dict
+              ` ` `[` $offset `]` `->` qualified(type($derived_addr)) attr-dict
 ```
 
 The `cir.derived_class_addr` operaration gets the address of a particular
@@ -2459,8 +2495,8 @@ A *B::getAsA() {
 leads to
 ```mlir
   %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
-  %3 = cir.derived_class_addr(%2 : !cir.ptr<!rec_B> nonnull) [4] -> !cir.ptr<!rec_X>
-  %4 = cir.base_class_addr(%3 : !cir.ptr<!rec_X>) [0] -> !cir.ptr<!rec_A>
+  %3 = cir.derived_class_addr %2 : !cir.ptr<!rec_B> nonnull [4] -> !cir.ptr<!rec_X>
+  %4 = cir.base_class_addr %3 : !cir.ptr<!rec_X> [0] -> !cir.ptr<!rec_A>
   cir.return %4
 ```
 
@@ -2492,8 +2528,8 @@ _Cast a base class data member pointer to a derived class data member pointer_
 Syntax:
 
 ```
-operation ::= `cir.derived_data_member` `(` $src `:` qualified(type($src)) `)`
-              `[` $offset `]` `->` qualified(type($result)) attr-dict
+operation ::= `cir.derived_data_member` $src `:` qualified(type($src))
+              ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
 ```
 
 The `cir.derived_data_member` operation casts a data member pointer of type
@@ -2537,8 +2573,8 @@ _Cast a base class pointer-to-member-function to a derived class
 Syntax:
 
 ```
-operation ::= `cir.derived_method` `(` $src `:` qualified(type($src)) `)`
-              `[` $offset `]` `->` qualified(type($result)) attr-dict
+operation ::= `cir.derived_method` $src `:` qualified(type($src))
+              ` ` `[` $offset `]` `->` qualified(type($result)) attr-dict
 ```
 
 The `cir.derived_method` operation casts a pointer-to-member-function of
@@ -2552,7 +2588,7 @@ subobject within a `Derived` object.
 Example:
 
 ```mlir
-%1 = cir.derived_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Base>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
+%1 = cir.derived_method %0 : !cir.method<!cir.func<(!s32i)> in !rec_Base> [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -2608,7 +2644,7 @@ cir.do {
 
 Traits: `NoRegionArguments`
 
-Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
+Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
 
 ### `cir.dyn_cast` (::cir::DynamicCastOp)
@@ -2619,7 +2655,7 @@ Syntax:
 
 ```
 operation ::= `cir.dyn_cast` `(`
-              $kind `,` $src `:` type($src)
+              $kind `,` $src `:` qualified(type($src))
               (`,` qualified($info)^)?
               (`relative_layout` $relative_layout^)?
               `)`
@@ -2671,13 +2707,13 @@ cast-to-complete operation.
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | !cir.record* |
+| `src` | pointer to record type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR pointer type |
+| `result` | pointer to any of CIR void type, CIR record type |
 
 
 ### `cir.eh.inflight_exception` (::cir::EhInflightOp)
@@ -2774,13 +2810,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.exp` (::cir::ExpOp)
@@ -2803,13 +2839,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.expect` (::cir::ExpectOp)
@@ -2934,13 +2970,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.fmaxnum` (::cir::FMaxNumOp)
@@ -2963,14 +2999,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.fmaximum` (::cir::FMaximumOp)
@@ -2993,14 +3029,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.fminnum` (::cir::FMinNumOp)
@@ -3023,14 +3059,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.fminimum` (::cir::FMinimumOp)
@@ -3053,14 +3089,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.fmod` (::cir::FModOp)
@@ -3083,14 +3119,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.floor` (::cir::FloorOp)
@@ -3113,13 +3149,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.for` (::cir::ForOp)
@@ -3158,7 +3194,7 @@ cir.for cond {
 
 Traits: `NoRegionArguments`
 
-Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
+Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
 
 ### `cir.frame_address` (::cir::FrameAddrOp)
@@ -3333,8 +3369,8 @@ Interfaces: `CIRGlobalValueInterface`, `CallableOpInterface`, `FunctionOpInterfa
 <tr><td><code>coroutine</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>lambda</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>no_proto</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>dsolocal</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>Linkage type/kind</td></tr>
+<tr><td><code>dso_local</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>linkage kind</td></tr>
 <tr><td><code>calling_conv</code></td><td>::cir::CallingConvAttr</td><td>calling convention</td></tr>
 <tr><td><code>extra_attrs</code></td><td>::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
 <tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
@@ -3570,13 +3606,13 @@ The method type must match the callee type. That is:
 | Operand | Description |
 | :-----: | ----------- |
 | `method` | CIR type that represents C++ pointer-to-member-function type |
-| `object` | !cir.record* |
+| `object` | pointer to record type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `callee` | !cir.ptr<!cir.func> |
+| `callee` | pointer to function type |
 | `adjusted_this` | pointer to void type |
 
 
@@ -3630,7 +3666,7 @@ to the target member.
 
 | Operand | Description |
 | :-----: | ----------- |
-| `addr` | !cir.record* |
+| `addr` | pointer to record type |
 | `member` | CIR type that represents pointer-to-data-member type in C++ |
 
 #### Results:
@@ -3653,7 +3689,7 @@ operation ::= `cir.global` ($sym_visibility^)?
               $linkage
               (`comdat` $comdat^)?
               ($tls_model^)?
-              (`dsolocal` $dsolocal^)?
+              (`dso_local` $dso_local^)?
               (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
               $sym_name
               custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
@@ -3698,13 +3734,13 @@ Interfaces: `CIRGlobalValueInterface`, `RegionBranchOpInterface`, `Symbol`
 <tr><td><code>global_visibility</code></td><td>::cir::VisibilityAttr</td><td>Visibility attribute</td></tr>
 <tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 <tr><td><code>sym_type</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
-<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>Linkage type/kind</td></tr>
+<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>linkage kind</td></tr>
 <tr><td><code>addr_space</code></td><td>::cir::AddressSpaceAttr</td><td>Address space attribute for pointer types</td></tr>
 <tr><td><code>tls_model</code></td><td>::cir::TLS_ModelAttr</td><td>TLS model</td></tr>
 <tr><td><code>initial_value</code></td><td>::mlir::Attribute</td><td>any attribute</td></tr>
 <tr><td><code>comdat</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>constant</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>dsolocal</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>dso_local</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>ast</code></td><td>::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
 <tr><td><code>section</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
@@ -4335,13 +4371,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.log2` (::cir::Log2Op)
@@ -4364,13 +4400,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.log` (::cir::LogOp)
@@ -4393,13 +4429,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.lrint` (::cir::LrintOp)
@@ -4699,13 +4735,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.objsize` (::cir::ObjSizeOp)
@@ -4770,14 +4806,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
-| `rhs` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `lhs` | floating point or vector of floating point type |
+| `rhs` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.prefetch` (::cir::PrefetchOp)
@@ -4911,9 +4947,9 @@ a stride (second operand).
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
 ```
 
-Traits: `AlwaysSpeculatableImplTrait`, `SameFirstOperandAndResultType`
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
 Effects: `MemoryEffects::Effect{}`
 
@@ -5065,13 +5101,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.rotate` (::cir::RotateOp)
@@ -5148,13 +5184,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.round` (::cir::RoundOp)
@@ -5177,13 +5213,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.scope` (::cir::ScopeOp)
@@ -5399,14 +5435,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int |
-| `amount` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int |
+| `value` | integer or vector of integer type |
+| `amount` | integer or vector of integer type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int |
+| `result` | integer or vector of integer type |
 
 
 ### `cir.signbit` (::cir::SignBitOp)
@@ -5461,13 +5497,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.sqrt` (::cir::SqrtOp)
@@ -5490,13 +5526,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.stack_restore` (::cir::StackRestoreOp)
@@ -5564,7 +5600,7 @@ Syntax:
 operation ::= `cir.std.find` `(` $first `:` type($first) `,` $last `:` type($last) `,` $pattern `:` type($pattern) `,` $original_fn `)` `->` type($result) attr-dict
 ```
 
-Traits: `SameFirstSecondOperandAndResultType`
+Interfaces: `InferTypeOpInterface`
 
 #### Attributes:
 
@@ -5860,13 +5896,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.ternary` (::cir::TernaryOp)
@@ -6010,13 +6046,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `src` | floating point or vector of floating point type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or !cir.vector of !cir.fp |
+| `result` | floating point or vector of floating point type |
 
 
 ### `cir.try_call` (::cir::TryCallOp)
@@ -6459,7 +6495,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `elements` | variadic of any cir integer, floating point or pointer type |
 
 #### Results:
 
@@ -6498,7 +6534,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | any cir integer, floating point or pointer type |
 
 
 ### `cir.vec.insert` (::cir::VecInsertOp)
@@ -6527,7 +6563,7 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `vec` | CIR vector type |
-| `value` | any type |
+| `value` | any cir integer, floating point or pointer type |
 | `index` | fundamental integer type |
 
 #### Results:
@@ -6569,7 +6605,7 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `vec` | CIR vector type |
-| `indices` | !cir.vector of !cir.int |
+| `indices` | vector of integer type |
 
 #### Results:
 
@@ -6653,7 +6689,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `value` | any cir integer, floating point or pointer type |
 
 #### Results:
 
@@ -6669,8 +6705,8 @@ _The `cond ? a : b` ternary operator for vector types_
 Syntax:
 
 ```
-operation ::= `cir.vec.ternary` `(` $cond `,` $vec1 `,` $vec2 `)` `:` qualified(type($cond)) `,`
-              qualified(type($vec1)) attr-dict
+operation ::= `cir.vec.ternary` `(` $cond `,` $lhs `,` $rhs `)` `:` qualified(type($cond)) `,`
+              qualified(type($lhs)) attr-dict
 ```
 
 The `cir.vec.ternary` operation represents the C/C++ ternary operator,
@@ -6696,9 +6732,9 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `cond` | !cir.vector of !cir.int |
-| `vec1` | CIR vector type |
-| `vec2` | CIR vector type |
+| `cond` | vector of integer type |
+| `lhs` | CIR vector type |
+| `rhs` | CIR vector type |
 
 #### Results:
 
@@ -6737,7 +6773,7 @@ cir.while {
 
 Traits: `NoRegionArguments`
 
-Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
+Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
 
 ### `cir.yield` (::cir::YieldOp)

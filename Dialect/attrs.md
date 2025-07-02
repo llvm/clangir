@@ -349,6 +349,26 @@ The BoolAttr represents a 'true' or 'false' value.
 | type | `cir::BoolType` |  |
 | value | `bool` |  |
 
+### InlineAttr
+
+_Inline attribute_
+
+Syntax:
+
+```
+#cir.inline<
+  ::cir::InlineKind   # value
+>
+```
+
+Inline attributes represents user directives.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::InlineKind` | an enum of type InlineKind |
+
 ### OptInfoAttr
 
 _A module-level attribute that holds the optimization information_
@@ -399,6 +419,37 @@ Examples:
 | :-------: | :-------: | ----------- |
 | level | `unsigned` |  |
 | size | `unsigned` |  |
+
+### SourceLanguageAttr
+
+_Module source language_
+
+Syntax:
+
+```
+#cir.lang<
+  ::cir::SourceLanguage   # value
+>
+```
+
+Represents the source language used to generate the module.
+
+Example:
+```
+// Module compiled from C.
+module attributes {cir.lang = cir.lang<c>} {}
+// Module compiled from C++.
+module attributes {cir.lang = cir.lang<cxx>} {}
+```
+
+Module source language attribute name is `cir.lang` is defined by
+`getSourceLanguageAttrName` method in CIRDialect class.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::SourceLanguage` | an enum of type SourceLanguage |
 
 ### TBAAAttr
 
@@ -605,6 +656,50 @@ module attributes {
 | int_size | `unsigned` |  |
 | size_t_size | `unsigned` |  |
 
+### UWTableAttr
+
+_Unwind table kind attribute_
+
+Syntax:
+
+```
+#cir.uwtable<
+  ::cir::UWTableKind   # value
+>
+```
+
+The kind of unwind tables to generate for a function. `none` means no unwind
+tables are generated; `sync` means synchronous unwind tables (that are only
+valid at call boundaries), and `async` means asynchronous unwind tables
+(that are valid at all instructions). When applied to a module, this
+controls the unwind table generation for any synthesized functions.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::UWTableKind` | an enum of type UWTableKind |
+
+### VisibilityAttr
+
+_Visibility attribute_
+
+Syntax:
+
+```
+#cir.visibility<
+  ::cir::VisibilityKind   # value
+>
+```
+
+Visibility attributes.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::VisibilityKind` | an enum of type VisibilityKind |
+
 ### CUDABinaryHandleAttr
 
 _Fat binary handle for device code._
@@ -703,7 +798,7 @@ Syntax:
 
 ```
 #cir.cmp3way_info<
-  CmpOrdering,   # ordering
+  ::cir::CmpOrdering,   # ordering
   int64_t,   # lt
   int64_t,   # eq
   int64_t,   # gt
@@ -727,7 +822,7 @@ or neither, respectively.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| ordering | `CmpOrdering` |  |
+| ordering | `::cir::CmpOrdering` | an enum of type CmpOrdering |
 | lt | `int64_t` |  |
 | eq | `int64_t` |  |
 | gt | `int64_t` |  |
@@ -950,7 +1045,7 @@ Syntax:
 
 ```
 #cir.fp<
-  ::cir::CIRFPTypeInterface,   # type
+  ::cir::FPTypeInterface,   # type
   ::llvm::APFloat   # value
 >
 ```
@@ -962,7 +1057,7 @@ value of the specified floating-point type. Supporting only CIR FP types.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `::cir::CIRFPTypeInterface` |  |
+| type | `::cir::FPTypeInterface` |  |
 | value | `::llvm::APFloat` |  |
 
 ### GlobalAnnotationValuesAttr
@@ -1124,26 +1219,6 @@ The same for LLVM IR after CIR:
 | symbol | `mlir::FlatSymbolRefAttr` |  |
 | indices | `mlir::ArrayAttr` |  |
 
-### InlineAttr
-
-_Inline attribute_
-
-Syntax:
-
-```
-#cir.inline<
-  InlineKind   # value
->
-```
-
-Inline attributes represents user directives.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `InlineKind` |  |
-
 ### IntAttr
 
 _An Attribute containing a integer value_
@@ -1157,26 +1232,6 @@ value of the specified integer type.
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | value | `llvm::APInt` |  |
-
-### LangAttr
-
-_Module source language_
-
-Represents the source language used to generate the module.
-
-Example:
-```
-// Module compiled from C.
-module attributes {cir.lang = cir.lang<c>} {}
-// Module compiled from C++.
-module attributes {cir.lang = cir.lang<cxx>} {}
-```
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| lang | `SourceLanguageAttr` |  |
 
 ### MethodAttr
 
@@ -1408,14 +1463,6 @@ notion of poison.
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 
-### SignedOverflowBehaviorAttr
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| behavior | `sob::SignedOverflowBehavior` |  |
-
 ### TypeInfoAttr
 
 _Represents a typeinfo used for RTTI_
@@ -1454,30 +1501,6 @@ cir.global external @type_info_B = #cir.typeinfo<<
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | data | `mlir::ArrayAttr` |  |
-
-### UWTableAttr
-
-_Unwind table kind attribute_
-
-Syntax:
-
-```
-#cir.uwtable<
-  ::cir::UWTableKind   # value
->
-```
-
-The kind of unwind tables to generate for a function. `none` means no unwind
-tables are generated; `sync` means synchronous unwind tables (that are only
-valid at call boundaries), and `async` means asynchronous unwind tables
-(that are valid at all instructions). When applied to a module, this
-controls the unwind table generation for any synthesized functions.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `::cir::UWTableKind` | an enum of type UWTableKind |
 
 ### UndefAttr
 
@@ -1533,26 +1556,6 @@ cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | vtable_data | `mlir::ArrayAttr` |  |
-
-### VisibilityAttr
-
-_Visibility attribute_
-
-Syntax:
-
-```
-#cir.visibility<
-  VisibilityKind   # value
->
-```
-
-Visibility attributes.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `VisibilityKind` |  |
 
 ### ZeroAttr
 

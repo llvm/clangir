@@ -92,7 +92,7 @@ Syntax:
 >
 ```
 
-`cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+`cir.data_member` models the pointer-to-data-member type in C++. Values of
 this type are essentially offsets of the pointed-to member within one of
 its containing record.
 
@@ -342,19 +342,36 @@ Syntax:
 
 ```
 !cir.vector<
-  mlir::Type,   # elementType
+  ::mlir::Type,   # elementType
   uint64_t   # size
 >
 ```
 
-`cir.vector' represents fixed-size vector types.  The parameters are the
-element type and the number of elements.
+The `!cir.vector` type represents a fixed-size, one-dimensional vector.
+It takes two parameters: the element type and the number of elements.
+
+Syntax:
+
+```mlir
+vector-type ::= !cir.vector<element-type x size>
+element-type ::= float-type | integer-type | pointer-type
+```
+
+The `element-type` must be a scalar CIR type. Zero-sized vectors are not
+allowed. The `size` must be a positive integer.
+
+Examples:
+
+```mlir
+!cir.vector<!cir.int<u, 8> x 4>
+!cir.vector<!cir.float x 2>
+```
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| elementType | `mlir::Type` |  |
+| elementType | `::mlir::Type` | any cir integer, floating point or pointer type |
 | size | `uint64_t` |  |
 
 ### VoidType
