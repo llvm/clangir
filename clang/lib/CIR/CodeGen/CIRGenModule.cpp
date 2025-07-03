@@ -2740,21 +2740,25 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
         cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
     if (fd) {
-      CIRGenFunction cgf{*this, builder};
-
       if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
         auto cxxDtor = cir::CXXDtorAttr::get(
             &getMLIRContext(),
-            convertType(cgf.getContext().getRecordType(dtor->getParent())));
-        f.setCxxDtorAttr(cxxDtor);
+            convertType(getASTContext().getRecordType(dtor->getParent())));
+        f.setCxxSpecialMemberAttr(cxxDtor);
       }
 
       if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+        cir::CtorKind ctorKind = cir::CtorKind::None;
+        if (ctor->isDefaultConstructor())
+          ctorKind = cir::CtorKind::Default;
+        if (ctor->isCopyConstructor())
+          ctorKind = cir::CtorKind::Copy;
+
         auto cxxCtor = cir::CXXCtorAttr::get(
             &getMLIRContext(),
-            convertType(cgf.getContext().getRecordType(ctor->getParent())),
-            ctor->isDefaultConstructor(), ctor->isCopyConstructor());
-        f.setCxxCtorAttr(cxxCtor);
+            convertType(getASTContext().getRecordType(ctor->getParent())),
+            ctorKind);
+        f.setCxxSpecialMemberAttr(cxxCtor);
       }
     }
 

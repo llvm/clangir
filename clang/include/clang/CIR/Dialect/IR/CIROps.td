@@ -3654,8 +3654,7 @@ def FuncOp : CIR_Op<"func", [
     OptionalAttr<GlobalDtorAttr>:$global_dtor,
     OptionalAttr<ArrayAttr>:$annotations,
     OptionalAttr<AnyASTFunctionDeclAttr>:$ast,
-    OptionalAttr<CXXCtorAttr>:$cxx_ctor,
-    OptionalAttr<CXXDtorAttr>:$cxx_dtor
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member
   );
 
   let regions = (region AnyRegion:$body);

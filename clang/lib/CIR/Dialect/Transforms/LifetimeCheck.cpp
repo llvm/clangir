@@ -1558,7 +1558,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp, cir::CXXCtorAttr ctor) {
   //    string_view p;
   //
   // both results in pset(p) == {null}
-  if (ctor.getIsDefaultConstructor()) {
+  if (ctor.getCtorKind() == cir::CtorKind::Default) {
     // First argument passed is always the alloca for the 'this' ptr.
 
     // Currently two possible actions:
@@ -1582,7 +1582,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp, cir::CXXCtorAttr ctor) {
   }
 
   // User defined copy ctor calls ...
-  if (ctor.getIsCopyConstructor()) {
+  if (ctor.getCtorKind() == cir::CtorKind::Copy) {
     llvm_unreachable("NYI");
   }
 
@@ -1789,8 +1789,10 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // starting from special methods.
   if (auto fnName = callOp.getCallee()) {
     auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
-    if (calleeFuncOp && calleeFuncOp.getCxxCtorAttr())
-      return checkCtor(callOp, calleeFuncOp.getCxxCtorAttr());
+    if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember())
+      if (auto cxxCtor =
+              dyn_cast<cir::CXXCtorAttr>(*calleeFuncOp.getCxxSpecialMember()))
+        return checkCtor(callOp, cxxCtor);
   }
   if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);

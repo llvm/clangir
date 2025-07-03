@@ -768,15 +768,20 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
       auto cxxDtor = cir::CXXDtorAttr::get(
           &getMLIRContext(),
           convertType(getContext().getRecordType(dtor->getParent())));
-      fn.setCxxDtorAttr(cxxDtor);
+      fn.setCxxSpecialMemberAttr(cxxDtor);
 
       emitDestructorBody(args);
     } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+      cir::CtorKind ctorKind = cir::CtorKind::None;
+      if (ctor->isDefaultConstructor())
+        ctorKind = cir::CtorKind::Default;
+      if (ctor->isCopyConstructor())
+        ctorKind = cir::CtorKind::Copy;
+
       auto cxxCtor = cir::CXXCtorAttr::get(
           &getMLIRContext(),
-          convertType(getContext().getRecordType(ctor->getParent())),
-          ctor->isDefaultConstructor(), ctor->isCopyConstructor());
-      fn.setCxxCtorAttr(cxxCtor);
+          convertType(getContext().getRecordType(ctor->getParent())), ctorKind);
+      fn.setCxxSpecialMemberAttr(cxxCtor);
 
       emitConstructorBody(args);
     } else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&

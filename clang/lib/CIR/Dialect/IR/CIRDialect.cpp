@@ -2366,8 +2366,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
-  auto cxxCtorAttr = getCxxCtorAttrName(state.name);
-  auto cxxDtorAttr = getCxxDtorAttrName(state.name);
+  auto cxxCtorAttr = getCxxSpecialMemberAttrName(state.name);
+  auto cxxDtorAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2476,8 +2476,12 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     if (parser.parseGreater().failed())
       return failure();
 
-    state.addAttribute(cxxCtorAttr,
-                       CXXCtorAttr::get(type, defaultCtor, copyCtor));
+    cir::CtorKind ctorKind = cir::CtorKind::None;
+    if (defaultCtor)
+      ctorKind = cir::CtorKind::Default;
+    if (copyCtor)
+      ctorKind = cir::CtorKind::Copy;
+    state.addAttribute(cxxCtorAttr, CXXCtorAttr::get(type, ctorKind));
   }
 
   if (mlir::succeeded(parser.parseOptionalKeyword("dtor"))) {
@@ -2673,32 +2677,32 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
-  if (auto cxxCtor = getCxxCtorAttr()) {
-    p << " ctor<" << cxxCtor.getType();
-    if (cxxCtor.getIsDefaultConstructor())
-      p << ", default";
-    if (cxxCtor.getIsCopyConstructor())
-      p << ", copy";
-    p << '>';
-  }
+  if (getCxxSpecialMember()) {
+    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
+      p << " ctor<" << cxxCtor.getType();
+      if (cxxCtor.getCtorKind() == cir::CtorKind::Default)
+        p << ", default";
+      if (cxxCtor.getCtorKind() == cir::CtorKind::Copy)
+        p << ", copy";
+      p << '>';
+    }
 
-  if (auto cxxDtor = getCxxDtorAttr()) {
-    p << " dtor<" << cxxDtor.getType() << ">";
+    if (auto cxxDtor = dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
+      p << " dtor<" << cxxDtor.getType() << ">";
+    }
   }
 
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
-      {getAliaseeAttrName(),          getBuiltinAttrName(),
-       getCoroutineAttrName(),        getDsoLocalAttrName(),
-       getExtraAttrsAttrName(),       getFunctionTypeAttrName(),
-       getGlobalCtorAttrName(),       getGlobalDtorAttrName(),
-       getLambdaAttrName(),           getLinkageAttrName(),
-       getCallingConvAttrName(),      getNoProtoAttrName(),
-       getSymVisibilityAttrName(),    getArgAttrsAttrName(),
-       getResAttrsAttrName(),         getComdatAttrName(),
-       getGlobalVisibilityAttrName(), getAnnotationsAttrName(),
-       getCxxCtorAttrName(),          getCxxDtorAttrName()});
+      {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
+       getDsoLocalAttrName(), getExtraAttrsAttrName(),
+       getFunctionTypeAttrName(), getGlobalCtorAttrName(),
+       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
+       getCallingConvAttrName(), getNoProtoAttrName(),
+       getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
+       getComdatAttrName(), getGlobalVisibilityAttrName(),
+       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
