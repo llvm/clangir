@@ -2538,8 +2538,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
-  auto cxxCtorAttr = getCxxSpecialMemberAttrName(state.name);
-  auto cxxDtorAttr = getCxxSpecialMemberAttrName(state.name);
+  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2653,7 +2652,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       ctorKind = cir::CtorKind::Default;
     if (copyCtor)
       ctorKind = cir::CtorKind::Copy;
-    state.addAttribute(cxxCtorAttr, CXXCtorAttr::get(type, ctorKind));
+    state.addAttribute(cxxSpecialMemberAttr, CXXCtorAttr::get(type, ctorKind));
   }
 
   if (mlir::succeeded(parser.parseOptionalKeyword("dtor"))) {
@@ -2666,7 +2665,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     if (parser.parseGreater().failed())
       return failure();
 
-    state.addAttribute(cxxDtorAttr, CXXDtorAttr::get(type));
+    state.addAttribute(cxxSpecialMemberAttr, CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
