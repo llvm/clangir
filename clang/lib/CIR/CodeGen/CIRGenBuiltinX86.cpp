@@ -66,6 +66,14 @@ translateX86ToMsvcIntrin(unsigned BuiltinID) {
   llvm_unreachable("must return from switch");
 }
 
+/// Get integer from a mlir::Value that is an int constant or a constant op.
+static int64_t getIntValueFromConstOp(mlir::Value val) {
+  auto constOp = mlir::cast<cir::ConstantOp>(val.getDefiningOp());
+  return (mlir::cast<cir::IntAttr>(constOp.getValue()))
+      .getValue()
+      .getSExtValue();
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -96,7 +104,23 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   default:
     return nullptr;
   case X86::BI_mm_prefetch: {
-    llvm_unreachable("_mm_prefetch NYI");
+    mlir::Value Address = builder.createPtrBitcast(Ops[0], VoidTy);
+
+    int64_t Hint = getIntValueFromConstOp(Ops[1]);
+    mlir::Value RW = builder.create<cir::ConstantOp>(
+        getLoc(E->getExprLoc()),
+        cir::IntAttr::get(SInt32Ty, (Hint >> 2) & 0x1));
+    mlir::Value Locality = builder.create<cir::ConstantOp>(
+        getLoc(E->getExprLoc()), cir::IntAttr::get(SInt32Ty, Hint & 0x3));
+    mlir::Value Data = builder.create<cir::ConstantOp>(
+        getLoc(E->getExprLoc()), cir::IntAttr::get(SInt32Ty, 1));
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("prefetch"), voidTy,
+            mlir::ValueRange{Address, RW, Locality, Data})
+        .getResult();
   }
   case X86::BI_mm_clflush: {
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
