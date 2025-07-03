@@ -153,12 +153,17 @@ public:
 
   mlir::Value VisitConstantExpr(ConstantExpr *E) { llvm_unreachable("NYI"); }
   mlir::Value VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr()); }
+
+  mlir::Value VisitPackIndexingExpr(PackIndexingExpr *E) {
+    return Visit(E->getSelectedExpr());
+  }
+
   mlir::Value
   VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
     return Visit(E->getReplacement());
   }
   mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
-    llvm_unreachable("NYI");
+    return Visit(GE->getResultExpr());
   }
   mlir::Value VisitCoawaitExpr(CoawaitExpr *S) {
     return CGF.emitCoawaitExpr(*S).getScalarVal();
@@ -173,9 +178,8 @@ public:
   // Leaves.
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
-    return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()),
-        Builder.getAttr<cir::IntAttr>(Ty, E->getValue()));
+    return Builder.getConstAPInt(CGF.getLoc(E->getExprLoc()), Ty,
+                                 E->getValue());
   }
 
   mlir::Value VisitFixedPointLiteral(const FixedPointLiteral *E) {
@@ -184,9 +188,8 @@ public:
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
     assert(mlir::isa<cir::FPTypeInterface>(Ty) && "expect floating-point type");
-    return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()),
-        Builder.getAttr<cir::FPAttr>(Ty, E->getValue()));
+    return Builder.create<cir::ConstantOp>(CGF.getLoc(E->getExprLoc()),
+                                           cir::FPAttr::get(Ty, E->getValue()));
   }
   mlir::Value VisitCharacterLiteral(const CharacterLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());

@@ -17,6 +17,7 @@ include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/EnumAttr.td"
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 
@@ -198,29 +199,39 @@ def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
   }];
 
   let extraClassDeclaration = [{
-    unsigned getPointerSize() const { return getSizeTSize(); }
+    unsigned getPointerSize() const;
+    mlir::Type getCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getSizeType(mlir::MLIRContext *ctx) const;
+    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const;
+  }];
 
-    mlir::Type getCharType(mlir::MLIRContext *ctx) const {
+  let extraClassDefinition = [{
+    unsigned $cppClass::getPointerSize() const { return getSizeTSize(); }
+
+    mlir::Type $cppClass::getCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/true);
     }
 
-    mlir::Type getUCharType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/false);
     }
 
-    mlir::Type getIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/true);
     }
 
-    mlir::Type getUIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/false);
     }
 
-    mlir::Type getSizeType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getSizeType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/false);
     }
 
-    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getPtrDiffType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/true);
     }
   }];
@@ -405,66 +416,105 @@ def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
 // IntegerAttr
 //===----------------------------------------------------------------------===//
 
-def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
+def CIR_IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
   let summary = "An Attribute containing a integer value";
   let description = [{
     An integer attribute is a literal attribute that represents an integral
     value of the specified integer type.
   }];
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "llvm::APInt":$value);
+
+  let parameters = (ins
+    AttributeSelfTypeParameter<"", "cir::IntTypeInterface">:$type,
+    "llvm::APInt":$value
+  );
+
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "const llvm::APInt &":$value), [{
-      return $_get(type.getContext(), type, value);
+      return $_get(type.getContext(),
+                   mlir::cast<cir::IntTypeInterface>(type), value);
     }]>,
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type, "int64_t":$value), [{
-      IntType intType = mlir::cast<IntType>(type);
+      auto intType = mlir::cast<cir::IntTypeInterface>(type);
       mlir::APInt apValue(intType.getWidth(), value, intType.isSigned());
       return $_get(intType.getContext(), intType, apValue);
     }]>,
   ];
+
   let extraClassDeclaration = [{
-    int64_t getSInt() const { return getValue().getSExtValue(); }
-    uint64_t getUInt() const { return getValue().getZExtValue(); }
-    bool isNullValue() const { return getValue() == 0; }
-    uint64_t getBitWidth() const { return mlir::cast<IntType>(getType()).getWidth(); }
+    int64_t getSInt() const;
+    uint64_t getUInt() const;
+    bool isNullValue() const;
+    bool isSigned() const;
+    bool isUnsigned() const;
+    uint64_t getBitWidth() const;
   }];
+
+  let extraClassDefinition = [{
+    int64_t $cppClass::getSInt() const {
+      return getValue().getSExtValue();
+    }
+
+    uint64_t $cppClass::getUInt() const {
+      return getValue().getZExtValue();
+    }
+
+    bool $cppClass::isNullValue() const {
+      return getValue() == 0;
+    }
+
+    bool $cppClass::isSigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isSigned();
+    }
+
+    bool $cppClass::isUnsigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isUnsigned();
+    }
+
+    uint64_t $cppClass::getBitWidth() const {
+      return mlir::cast<IntTypeInterface>(getType()).getWidth();
+    }
+  }];
+
+  let assemblyFormat = [{
+    `<` custom<IntLiteral>($value, ref($type)) `>`
+  }];
+
   let genVerifyDecl = 1;
-  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // FPAttr
 //===----------------------------------------------------------------------===//
 
-def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
+def CIR_FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
   let summary = "An attribute containing a floating-point value";
   let description = [{
     An fp attribute is a literal attribute that represents a floating-point
     value of the specified floating-point type. Supporting only CIR FP types.
   }];
+
   let parameters = (ins
     AttributeSelfTypeParameter<"", "::cir::FPTypeInterface">:$type,
     APFloatParameter<"">:$value
   );
+
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "const llvm::APFloat &":$value), [{
       return $_get(type.getContext(), mlir::cast<FPTypeInterface>(type), value);
-    }]>,
-    AttrBuilder<(ins "mlir::Type":$type,
-                     "const llvm::APFloat &":$value), [{
-      return $_get($_ctxt, mlir::cast<FPTypeInterface>(type), value);
-    }]>,
+    }]>
   ];
+
   let extraClassDeclaration = [{
     static FPAttr getZero(mlir::Type type);
   }];
-  let genVerifyDecl = 1;
 
   let assemblyFormat = [{
     `<` custom<FloatLiteral>($value, ref($type)) `>`
   }];
+
+  let genVerifyDecl = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -891,7 +941,7 @@ def DynamicCastInfoAttr
                         GlobalViewAttr:$destRtti,
                         "mlir::FlatSymbolRefAttr":$runtimeFunc,
                         "mlir::FlatSymbolRefAttr":$badCastFunc,
-                        IntAttr:$offsetHint);
+                        CIR_IntAttr:$offsetHint);
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,

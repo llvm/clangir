@@ -600,8 +600,6 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
   CIRGenCalleeInfo calleeInfo(functionType->getAs<FunctionProtoType>(), GD);
   CIRGenCallee callee(calleeInfo, calleePtr.getDefiningOp());
   return callee;
-
-  assert(false && "Nothing else supported yet!");
 }
 
 mlir::Value CIRGenFunction::emitToMemory(mlir::Value Value, QualType Ty) {
@@ -2170,9 +2168,12 @@ void CIRGenFunction::emitAnyExprToMem(const Expr *E, Address Location,
                                       Qualifiers Quals, bool IsInit) {
   // FIXME: This function should take an LValue as an argument.
   switch (getEvaluationKind(E->getType())) {
-  case cir::TEK_Complex:
-    assert(0 && "NYI");
+  case cir::TEK_Complex: {
+    RValue RV = RValue::get(emitComplexExpr(E));
+    LValue LV = makeAddrLValue(Location, E->getType());
+    emitStoreThroughLValue(RV, LV);
     return;
+  }
 
   case cir::TEK_Aggregate: {
     emitAggExpr(E, AggValueSlot::forAddr(Location, Quals,

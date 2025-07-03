@@ -35,6 +35,7 @@
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -570,6 +571,17 @@ LogicalResult cir::CastOp::verify() {
         mlir::isa<cir::MethodType>(resType))
       return success();
 
+    // Handle scalar to vector and vector to scalar conversions.
+    if (mlir::isa<cir::VectorType>(getSrc().getType()) !=
+        mlir::isa<cir::VectorType>(getType())) {
+      // The source and result must be the same size.
+      mlir::DataLayout dataLayout(
+          getOperation()->getParentOfType<mlir::DataLayoutOpInterface>());
+      if (dataLayout.getTypeSize(getSrc().getType()) ==
+          dataLayout.getTypeSize(getType()))
+        return success();
+    }
+
     // This is the only cast kind where we don't want vector types to decay
     // into the element type.
     if ((!mlir::isa<cir::VectorType>(getSrc().getType()) ||
@@ -921,7 +933,7 @@ OpFoldResult cir::ComplexCreateOp::fold(FoldAdaptor adaptor) {
 
 LogicalResult cir::ComplexRealOp::verify() {
   if (getType() != getOperand().getType().getElementType()) {
-    emitOpError() << "cir.complex.real result type does not match operand type";
+    emitOpError() << ": result type does not match operand type";
     return failure();
   }
   return success();
@@ -936,7 +948,7 @@ OpFoldResult cir::ComplexRealOp::fold(FoldAdaptor adaptor) {
 
 LogicalResult cir::ComplexImagOp::verify() {
   if (getType() != getOperand().getType().getElementType()) {
-    emitOpError() << "cir.complex.imag result type does not match operand type";
+    emitOpError() << ": result type does not match operand type";
     return failure();
   }
   return success();
@@ -1096,6 +1108,40 @@ LogicalResult cir::VecTernaryOp::verify() {
 // VecShuffle
 //===----------------------------------------------------------------------===//
 
+OpFoldResult cir::VecShuffleOp::fold(FoldAdaptor adaptor) {
+  auto vec1Attr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getVec1());
+  auto vec2Attr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getVec2());
+  if (!vec1Attr || !vec2Attr)
+    return {};
+
+  mlir::Type vec1ElemTy =
+      mlir::cast<cir::VectorType>(vec1Attr.getType()).getElementType();
+
+  mlir::ArrayAttr vec1Elts = vec1Attr.getElts();
+  mlir::ArrayAttr vec2Elts = vec2Attr.getElts();
+  mlir::ArrayAttr indicesElts = adaptor.getIndices();
+
+  SmallVector<mlir::Attribute, 16> elements;
+  elements.reserve(indicesElts.size());
+
+  uint64_t vec1Size = vec1Elts.size();
+  for (const auto &idxAttr : indicesElts.getAsRange<cir::IntAttr>()) {
+    if (idxAttr.getSInt() == -1) {
+      elements.push_back(cir::UndefAttr::get(vec1ElemTy));
+      continue;
+    }
+
+    uint64_t idxValue = idxAttr.getUInt();
+    elements.push_back(idxValue < vec1Size ? vec1Elts[idxValue]
+                                           : vec2Elts[idxValue - vec1Size]);
+  }
+
+  return cir::ConstVectorAttr::get(
+      getType(), mlir::ArrayAttr::get(getContext(), elements));
+}
+
 LogicalResult cir::VecShuffleOp::verify() {
   // The number of elements in the indices array must match the number of
   // elements in the result type.
@@ -1131,6 +1177,34 @@ LogicalResult cir::VecShuffleOp::verify() {
 // VecShuffleDynamic
 //===----------------------------------------------------------------------===//
 
+OpFoldResult cir::VecShuffleDynamicOp::fold(FoldAdaptor adaptor) {
+  auto vecAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getVec());
+  auto indicesAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getIndices());
+  if (!vecAttr || !indicesAttr)
+    return {};
+
+  mlir::ArrayAttr vecElts = vecAttr.getElts();
+  mlir::ArrayAttr indicesElts = indicesAttr.getElts();
+
+  const uint64_t numElements = vecElts.size();
+
+  SmallVector<mlir::Attribute, 16> elements;
+  elements.reserve(numElements);
+
+  const uint64_t maskBits = llvm::NextPowerOf2(numElements - 1) - 1;
+  for (const auto &idxAttr : indicesElts.getAsRange<cir::IntAttr>()) {
+    uint64_t idxValue = idxAttr.getUInt();
+    uint64_t newIdx = idxValue & maskBits;
+    elements.push_back(vecElts[newIdx]);
+  }
+
+  auto vecTy = mlir::cast<cir::VectorType>(vecAttr.getType());
+  return cir::ConstVectorAttr::get(
+      vecTy, mlir::ArrayAttr::get(getContext(), elements));
+}
+
 LogicalResult cir::VecShuffleDynamicOp::verify() {
   // The number of elements in the two input vectors must match.
   if (getVec().getType().getSize() !=
@@ -1139,6 +1213,104 @@ LogicalResult cir::VecShuffleDynamicOp::verify() {
                          << " and " << getIndices().getType() << " don't match";
   }
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// VecCmpOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult cir::VecCmpOp::fold(FoldAdaptor adaptor) {
+  auto lhsVecAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getLhs());
+  auto rhsVecAttr =
+      mlir::dyn_cast_if_present<cir::ConstVectorAttr>(adaptor.getRhs());
+  if (!lhsVecAttr || !rhsVecAttr)
+    return {};
+
+  mlir::Type inputElemTy =
+      mlir::cast<cir::VectorType>(lhsVecAttr.getType()).getElementType();
+  if (!isAnyIntegerOrFloatingPointType(inputElemTy))
+    return {};
+
+  cir::CmpOpKind opKind = adaptor.getKind();
+  mlir::ArrayAttr lhsVecElhs = lhsVecAttr.getElts();
+  mlir::ArrayAttr rhsVecElhs = rhsVecAttr.getElts();
+  uint64_t vecSize = lhsVecElhs.size();
+
+  SmallVector<mlir::Attribute, 16> elements(vecSize);
+  bool isIntAttr = vecSize && mlir::isa<cir::IntAttr>(lhsVecElhs[0]);
+  for (uint64_t i = 0; i < vecSize; i++) {
+    mlir::Attribute lhsAttr = lhsVecElhs[i];
+    mlir::Attribute rhsAttr = rhsVecElhs[i];
+    int cmpResult = 0;
+    switch (opKind) {
+    case cir::CmpOpKind::lt: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() <
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() <
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    case cir::CmpOpKind::le: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() <=
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() <=
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    case cir::CmpOpKind::gt: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() >
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() >
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    case cir::CmpOpKind::ge: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() >=
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() >=
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    case cir::CmpOpKind::eq: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() ==
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() ==
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    case cir::CmpOpKind::ne: {
+      if (isIntAttr) {
+        cmpResult = mlir::cast<cir::IntAttr>(lhsAttr).getSInt() !=
+                    mlir::cast<cir::IntAttr>(rhsAttr).getSInt();
+      } else {
+        cmpResult = mlir::cast<cir::FPAttr>(lhsAttr).getValue() !=
+                    mlir::cast<cir::FPAttr>(rhsAttr).getValue();
+      }
+      break;
+    }
+    }
+
+    elements[i] = cir::IntAttr::get(getType().getElementType(), cmpResult);
+  }
+
+  return cir::ConstVectorAttr::get(
+      getType(), mlir::ArrayAttr::get(getContext(), elements));
 }
 
 //===----------------------------------------------------------------------===//

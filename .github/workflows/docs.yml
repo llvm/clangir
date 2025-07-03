@@ -60,12 +60,12 @@ jobs:
       # a local checkout beforehand.
       - name: Fetch LLVM sources (Push)
         if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 1
       - name: Get subprojects that have doc changes
         id: docs-changed-subprojects
-        uses: step-security/changed-files@3dbe17c78367e7d60f00d78ae6781a35be47b4a1
+        uses: step-security/changed-files@95b56dadb92a30ca9036f16423fd3c088a71ee94
         with:
           files_yaml: |
             llvm:
@@ -98,7 +98,7 @@ jobs:
               - '.github/workflows/docs.yml'
       - name: Fetch LLVM sources (PR)
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 1
       - name: Setup Python env
@@ -216,7 +216,7 @@ jobs:
           mkdir built-docs/flang
           cp -r flang-build/docs/* built-docs/flang/
       - name: Upload docs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: docs-output
           path: built-docs/

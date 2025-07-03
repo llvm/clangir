@@ -562,7 +562,7 @@ public:
                              llvm::APFloat fpVal) {
     assert((mlir::isa<cir::SingleType, cir::DoubleType>(t)) &&
            "expected cir::SingleType or cir::DoubleType");
-    return create<cir::ConstantOp>(loc, getAttr<cir::FPAttr>(t, fpVal));
+    return create<cir::ConstantOp>(loc, cir::FPAttr::get(t, fpVal));
   }
 
   cir::IsFPClassOp createIsFPClass(mlir::Location loc, mlir::Value src,

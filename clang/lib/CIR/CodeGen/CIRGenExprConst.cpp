@@ -271,8 +271,8 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
 
       if (*FirstElemToUpdate == *LastElemToUpdate || isNull) {
         // All existing bits are either zero or undef.
-        add(CGM.getBuilder().getAttr<cir::IntAttr>(charTy, BitsThisChar),
-            OffsetInChars, /*AllowOverwrite*/ true);
+        add(cir::IntAttr::get(charTy, BitsThisChar), OffsetInChars,
+            /*AllowOverwrite*/ true);
       } else {
         cir::IntAttr CI = dyn_cast<cir::IntAttr>(Elems[*FirstElemToUpdate]);
         // In order to perform a partial update, we need the existing bitwise
@@ -286,8 +286,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
         assert((!(CI.getValue() & UpdateMask) || AllowOverwrite) &&
                "unexpectedly overwriting bitfield");
         BitsThisChar |= (CI.getValue() & ~UpdateMask);
-        Elems[*FirstElemToUpdate] =
-            CGM.getBuilder().getAttr<cir::IntAttr>(charTy, BitsThisChar);
+        Elems[*FirstElemToUpdate] = cir::IntAttr::get(charTy, BitsThisChar);
       }
     }
 
@@ -1906,7 +1905,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     if (mlir::isa<cir::BoolType>(ty))
       return builder.getCIRBoolAttr(Value.getInt().getZExtValue());
     assert(mlir::isa<cir::IntType>(ty) && "expected integral type");
-    return CGM.getBuilder().getAttr<cir::IntAttr>(ty, Value.getInt());
+    return cir::IntAttr::get(ty, Value.getInt());
   }
   case APValue::Float: {
     const llvm::APFloat &Init = Value.getFloat();
@@ -1918,7 +1917,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       mlir::Type ty = CGM.convertType(DestType);
       assert(mlir::isa<cir::FPTypeInterface>(ty) &&
              "expected floating-point type");
-      return CGM.getBuilder().getAttr<cir::FPAttr>(ty, Init);
+      return cir::FPAttr::get(ty, Init);
     }
   }
   case APValue::Array: {
@@ -2018,8 +2017,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       llvm::APSInt real = Value.getComplexIntReal();
       llvm::APSInt imag = Value.getComplexIntImag();
       return builder.getAttr<cir::ComplexAttr>(
-          complexType, builder.getAttr<cir::IntAttr>(complexElemTy, real),
-          builder.getAttr<cir::IntAttr>(complexElemTy, imag));
+          complexType, cir::IntAttr::get(complexElemTy, real),
+          cir::IntAttr::get(complexElemTy, imag));
     }
 
     assert(isa<cir::FPTypeInterface>(complexElemTy) &&
@@ -2027,8 +2026,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     llvm::APFloat real = Value.getComplexFloatReal();
     llvm::APFloat imag = Value.getComplexFloatImag();
     return builder.getAttr<cir::ComplexAttr>(
-        complexType, builder.getAttr<cir::FPAttr>(complexElemTy, real),
-        builder.getAttr<cir::FPAttr>(complexElemTy, imag));
+        complexType, cir::FPAttr::get(complexElemTy, real),
+        cir::FPAttr::get(complexElemTy, imag));
   }
   case APValue::FixedPoint:
   case APValue::AddrLabelDiff:
