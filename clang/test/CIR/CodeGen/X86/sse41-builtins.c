@@ -48,3 +48,35 @@ int test_mm_extract_ps(__m128 x) {
   // LLVM-CHECK: extractelement <4 x float> %{{.*}}, {{i32|i64}} 1
   return _mm_extract_ps(x, 1);
 }
+
+__m128i test_mm_insert_epi8(__m128i x, char b) {
+
+  // CIR-CHECK-LABEL: test_mm_insert_epi8
+  // CIR-CHECK-LABEL: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[{{%.*}} : {{!u32i|!u64i}}] : !cir.vector<{{!s8i|!u8i}} x 16>
+
+  // LLVM-CHECK-LABEL: test_mm_insert_epi8 
+  // LLVM-CHECK: insertelement <16 x i8> %{{.*}}, i8 %{{.*}}, {{i32|i64}} 1
+  return _mm_insert_epi8(x, b, 1);
+}
+
+__m128i test_mm_insert_epi32(__m128i x, int b) {
+
+  // CIR-CHECK-LABEL: test_mm_insert_epi32
+  // CIR-CHECK-LABEL: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[{{%.*}} : {{!u32i|!u64i}}] : !cir.vector<!s32i x 4>
+
+  // LLVM-CHECK-LABEL: test_mm_insert_epi32
+  // LLVM-CHECK: insertelement <4 x i32> %{{.*}}, i32 %{{.*}}, {{i32|i64}} 1
+  return _mm_insert_epi32(x, b, 1);
+}
+
+#ifdef __x86_64__
+__m128i test_mm_insert_epi64(__m128i x, long long b) {
+
+  // CIR-X64-LABEL: test_mm_insert_epi64
+  // CIR-X64: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[{{%.*}} : {{!u32i|!u64i}}] : !cir.vector<!s64i x 2>
+
+  // LLVM-X64-LABEL: test_mm_insert_epi64
+  // LLVM-X64: insertelement <2 x i64> %{{.*}}, i64 %{{.*}}, {{i32|i64}} 1
+  return _mm_insert_epi64(x, b, 1);
+}
+#endif
