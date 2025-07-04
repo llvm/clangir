@@ -22,6 +22,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -470,8 +471,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  cir::AddressSpaceAttr AS =
-      builder.getAddrSpaceAttr(getGlobalVarAddressSpace(&D));
+  cir::AddressSpace AS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
@@ -586,7 +586,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
     GVAddr.getAddr().setType(
-        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpaceAttr()));
+        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpace()));
   }
 
   bool NeedsDtor =

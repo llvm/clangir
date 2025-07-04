@@ -2105,16 +2105,6 @@ static void printConstant(OpAsmPrinter &p, Attribute value) {
   p.printAttribute(value);
 }
 
-static ParseResult
-parseGlobalOpAddrSpace(OpAsmParser &p, cir::AddressSpaceAttr &addrSpaceAttr) {
-  return parseAddrSpaceAttribute(p, addrSpaceAttr);
-}
-
-static void printGlobalOpAddrSpace(OpAsmPrinter &p, cir::GlobalOp op,
-                                   cir::AddressSpaceAttr addrSpaceAttr) {
-  printAddrSpaceAttribute(p, addrSpaceAttr);
-}
-
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, cir::GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
                                              mlir::Region &ctorRegion,
@@ -2287,7 +2277,7 @@ LogicalResult cir::GlobalOp::verify() {
 void cir::GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, llvm::StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    cir::AddressSpaceAttr addrSpace,
+    cir::AddressSpace addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -2302,8 +2292,9 @@ void cir::GlobalOp::build(
       cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
-  if (addrSpace)
-    odsState.addAttribute(getAddrSpaceAttrName(odsState.name), addrSpace);
+  odsState.addAttribute(
+      getAddrSpaceAttrName(odsState.name),
+      cir::AddressSpaceAttr::get(odsBuilder.getContext(), addrSpace));
 
   Region *ctorRegion = odsState.addRegion();
   if (ctorBuilder) {
@@ -2366,10 +2357,10 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
            << "' does not reference a valid cir.global or cir.func";
 
   mlir::Type symTy;
-  cir::AddressSpaceAttr symAddrSpace{};
+  cir::AddressSpace symAddrSpace{};
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
-    symAddrSpace = g.getAddrSpaceAttr();
+    symAddrSpace = g.getAddrSpace();
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.
     if (getTls() && !g.getTlsModel())

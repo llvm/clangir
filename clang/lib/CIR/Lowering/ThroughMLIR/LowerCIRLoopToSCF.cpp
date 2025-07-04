@@ -464,7 +464,7 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
 
     rewriter.setInsertionPointToStart(whileOp.getAfterBody());
     auto boolTy = rewriter.getType<BoolType>();
-    auto boolPtrTy = rewriter.getType<PointerType>(boolTy);
+    auto boolPtrTy = cir::PointerType::get(boolTy);
     auto alignment = rewriter.getI64IntegerAttr(4);
     auto condAlloca = rewriter.create<AllocaOp>(loc, boolPtrTy, boolTy,
                                                 "condition", alignment);

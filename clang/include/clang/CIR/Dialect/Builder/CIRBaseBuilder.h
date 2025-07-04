@@ -93,27 +93,24 @@ public:
     return cir::IntType::get(getContext(), N, true);
   }
 
-  cir::AddressSpaceAttr getAddrSpaceAttr(clang::LangAS langAS) {
-    if (langAS == clang::LangAS::Default)
-      return {};
-    return cir::AddressSpaceAttr::get(getContext(), langAS);
+  cir::PointerType getPointerTo(mlir::Type ty) {
+    return cir::PointerType::get(ty);
   }
 
-  cir::PointerType getPointerTo(mlir::Type ty,
-                                cir::AddressSpaceAttr cirAS = {}) {
-    return cir::PointerType::get(ty, cirAS);
+  cir::PointerType getPointerTo(mlir::Type ty, cir::AddressSpace as) {
+    return cir::PointerType::get(ty, as);
   }
 
   cir::PointerType getPointerTo(mlir::Type ty, clang::LangAS langAS) {
-    return getPointerTo(ty, getAddrSpaceAttr(langAS));
+    return getPointerTo(ty, cir::toCIRAddressSpace(langAS));
   }
 
   cir::PointerType getVoidPtrTy(clang::LangAS langAS = clang::LangAS::Default) {
     return getPointerTo(cir::VoidType::get(getContext()), langAS);
   }
 
-  cir::PointerType getVoidPtrTy(cir::AddressSpaceAttr cirAS) {
-    return getPointerTo(cir::VoidType::get(getContext()), cirAS);
+  cir::PointerType getVoidPtrTy(cir::AddressSpace as) {
+    return getPointerTo(cir::VoidType::get(getContext()), as);
   }
 
   cir::MethodAttr getMethodAttr(cir::MethodType ty, cir::FuncOp methodFuncOp) {
@@ -396,7 +393,7 @@ public:
   mlir::Value createGetGlobal(mlir::Location loc, cir::GlobalOp global,
                               bool threadLocal = false) {
     return create<cir::GetGlobalOp>(
-        loc, getPointerTo(global.getSymType(), global.getAddrSpaceAttr()),
+        loc, getPointerTo(global.getSymType(), global.getAddrSpace()),
         global.getName(), threadLocal);
   }
 
@@ -774,9 +771,7 @@ public:
     auto methodFuncInputTypes = methodFuncTy.getInputs();
 
     auto objectPtrTy = mlir::cast<cir::PointerType>(objectPtr.getType());
-    auto objectPtrAddrSpace = mlir::cast_if_present<cir::AddressSpaceAttr>(
-        objectPtrTy.getAddrSpace());
-    auto adjustedThisTy = getVoidPtrTy(objectPtrAddrSpace);
+    auto adjustedThisTy = getVoidPtrTy(objectPtrTy.getAddrSpace());
 
     llvm::SmallVector<mlir::Type, 8> calleeFuncInputTypes{adjustedThisTy};
     calleeFuncInputTypes.insert(calleeFuncInputTypes.end(),

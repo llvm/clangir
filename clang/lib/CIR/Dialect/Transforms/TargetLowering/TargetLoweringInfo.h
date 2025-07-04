@@ -31,8 +31,9 @@ public:
   virtual ~TargetLoweringInfo();
 
   const ABIInfo &getABIInfo() const { return *Info; }
-  virtual unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      cir::AddressSpaceAttr addressSpaceAttr) const = 0;
+
+  virtual unsigned
+  getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace) const = 0;
 };
 
 } // namespace cir

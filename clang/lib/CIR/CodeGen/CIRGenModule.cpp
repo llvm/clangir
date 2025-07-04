@@ -825,7 +825,7 @@ mlir::Value CIRGenModule::getGlobalValue(const Decl *d) {
 cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
                                            mlir::Location loc, StringRef name,
                                            mlir::Type t, bool isConstant,
-                                           cir::AddressSpaceAttr addrSpace,
+                                           cir::AddressSpace addrSpace,
                                            mlir::Operation *insertPoint,
                                            cir::GlobalLinkageKind linkage) {
   cir::GlobalOp g;
@@ -996,10 +996,8 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
   // If the types does not match, update all references to Old to the new type.
   auto oldTy = oldSym.getSymType();
   auto newTy = newSym.getSymType();
-  cir::AddressSpaceAttr oldAS = oldSym.getAddrSpaceAttr();
-  cir::AddressSpaceAttr newAS = newSym.getAddrSpaceAttr();
   // TODO(cir): If the AS differs, we should also update all references.
-  if (oldAS != newAS) {
+  if (oldSym.getAddrSpace() != newSym.getAddrSpace()) {
     llvm_unreachable("NYI");
   }
 
@@ -1098,9 +1096,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     entry = dyn_cast_or_null<cir::GlobalOp>(v);
   }
 
-  cir::AddressSpaceAttr cirAS = builder.getAddrSpaceAttr(langAS);
+  cir::AddressSpace cirAS = cir::toCIRAddressSpace(langAS);
   if (entry) {
-    auto entryCIRAS = entry.getAddrSpaceAttr();
+    cir::AddressSpace entryCIRAS = entry.getAddrSpace();
     if (WeakRefReferences.erase(entry)) {
       if (d && !d->hasAttr<WeakAttr>()) {
         auto lt = cir::GlobalLinkageKind::ExternalLinkage;
@@ -1154,7 +1152,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       return entry;
   }
 
-  auto declCIRAS = builder.getAddrSpaceAttr(getGlobalVarAddressSpace(d));
+  auto declCIRAS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(d->getSourceRange());
@@ -1274,7 +1272,7 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *d, mlir::Type ty,
 
   bool tlsAccess = d->getTLSKind() != VarDecl::TLS_None;
   auto g = getOrCreateCIRGlobal(d, ty, isForDefinition);
-  auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
+  auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpace());
   return builder.create<cir::GetGlobalOp>(getLoc(d->getSourceRange()), ptrTy,
                                           g.getSymName(), tlsAccess);
 }
@@ -1288,7 +1286,8 @@ CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *d, mlir::Type ty,
     ty = getTypes().convertTypeForMem(astTy);
 
   auto globalOp = getOrCreateCIRGlobal(d, ty, isForDefinition);
-  auto ptrTy = builder.getPointerTo(globalOp.getSymType());
+  auto ptrTy =
+      builder.getPointerTo(globalOp.getSymType(), globalOp.getAddrSpace());
   return builder.getGlobalViewAttr(ptrTy, globalOp);
 }
 
@@ -1758,14 +1757,14 @@ static cir::GlobalOp
 generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
                       cir::GlobalLinkageKind lt, CIRGenModule &cgm,
                       StringRef globalName, CharUnits alignment) {
-  cir::AddressSpaceAttr addrSpaceAttr =
-      cgm.getBuilder().getAddrSpaceAttr(cgm.getGlobalConstantAddressSpace());
+  cir::AddressSpace addrSpace =
+      cir::toCIRAddressSpace(cgm.getGlobalConstantAddressSpace());
 
   // Create a global variable for this string
   // FIXME(cir): check for insertion point in module level.
   auto gv = CIRGenModule::createGlobalOp(cgm, loc, globalName, c.getType(),
                                          !cgm.getLangOpts().WritableStrings,
-                                         addrSpaceAttr);
+                                         addrSpace);
 
   // Set up extra information and add to the module
   gv.setAlignmentAttr(cgm.getSize(alignment));
@@ -1861,8 +1860,8 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
   auto gv = getGlobalForStringLiteral(s, name);
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(gv.getSymType());
   assert(arrayTy && "String literal must be array");
-  auto ptrTy = getBuilder().getPointerTo(arrayTy.getElementType(),
-                                         gv.getAddrSpaceAttr());
+  auto ptrTy =
+      getBuilder().getPointerTo(arrayTy.getElementType(), gv.getAddrSpace());
 
   return builder.getGlobalViewAttr(ptrTy, gv);
 }
@@ -1972,7 +1971,7 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
       linkage = cir::GlobalLinkageKind::InternalLinkage;
     }
   }
-  auto targetAS = builder.getAddrSpaceAttr(addrSpace);
+  cir::AddressSpace targetAS = cir::toCIRAddressSpace(addrSpace);
 
   auto loc = getLoc(expr->getSourceRange());
   auto gv = createGlobalOp(*this, loc, name, type, isConstant, targetAS,

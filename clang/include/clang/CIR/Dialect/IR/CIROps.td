@@ -2347,7 +2347,6 @@ def ForOp : CIR_Op<"for", [CIR_LoopOpInterface, NoRegionArguments]> {
 // currently handy as part of forwarding appropriate linkage types for LLVM
 // lowering, specially useful for C++ support.
 
-
 /// An enumeration for the kinds of linkage for global values.
 def CIR_GlobalLinkageKind : CIR_I32EnumAttr<
   "GlobalLinkageKind", "linkage kind", [
@@ -2396,10 +2395,11 @@ def CIR_TLSModel : CIR_I32EnumAttr<"TLS_Model", "TLS model", [
   I32EnumAttrCase<"LocalExec", 3, "tls_local_exec">
 ]>;
 
-def GlobalOp : CIR_Op<"global",
-                      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                       DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
-                       NoRegionArguments]> {
+def CIR_GlobalOp : CIR_Op<"global", [
+  DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+  DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+  NoRegionArguments
+]> {
   let summary = "Declares or defines a global variable";
   let description = [{
     The `cir.global` operation declares or defines a named global variable.
@@ -2431,26 +2431,33 @@ def GlobalOp : CIR_Op<"global",
   // Note that both sym_name and sym_visibility are tied to Symbol trait.
   // TODO: sym_visibility can possibly be represented by implementing the
   // necessary Symbol's interface in terms of linkage instead.
-  let arguments = (ins SymbolNameAttr:$sym_name,
-                       DefaultValuedAttr<
-                        CIR_VisibilityAttr,
-                        "VisibilityKind::Default"
-                       >:$global_visibility,
-                       OptionalAttr<StrAttr>:$sym_visibility,
-                       TypeAttr:$sym_type,
-                       CIR_GlobalLinkageKind:$linkage,
-                       OptionalAttr<AddressSpaceAttr>:$addr_space,
-                       OptionalAttr<CIR_TLSModel>:$tls_model,
-                       // Note this can also be a FlatSymbolRefAttr
-                       OptionalAttr<AnyAttr>:$initial_value,
-                       UnitAttr:$comdat,
-                       UnitAttr:$constant,
-                       UnitAttr:$dso_local,
-                       OptionalAttr<I64Attr>:$alignment,
-                       OptionalAttr<ASTVarDeclInterface>:$ast,
-                       OptionalAttr<StrAttr>:$section,
-                       OptionalAttr<ArrayAttr>:$annotations);
+  let arguments = (ins
+    SymbolNameAttr:$sym_name,
+    DefaultValuedAttr<
+      CIR_VisibilityAttr,
+      "VisibilityKind::Default"
+    >:$global_visibility,
+    OptionalAttr<StrAttr>:$sym_visibility,
+    TypeAttr:$sym_type,
+    CIR_GlobalLinkageKind:$linkage,
+    DefaultValuedAttr<
+      CIR_AddressSpaceAttr,
+      "AddressSpace::Default"
+    >:$addr_space,
+    OptionalAttr<CIR_TLSModel>:$tls_model,
+    // Note this can also be a FlatSymbolRefAttr
+    OptionalAttr<AnyAttr>:$initial_value,
+    UnitAttr:$comdat,
+    UnitAttr:$constant,
+    UnitAttr:$dso_local,
+    OptionalAttr<I64Attr>:$alignment,
+    OptionalAttr<ASTVarDeclInterface>:$ast,
+    OptionalAttr<StrAttr>:$section,
+    OptionalAttr<ArrayAttr>:$annotations
+  );
+
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
+
   let assemblyFormat = [{
        ($sym_visibility^)?
        (`` $global_visibility^)?
@@ -2459,7 +2466,7 @@ def GlobalOp : CIR_Op<"global",
        (`comdat` $comdat^)?
        ($tls_model^)?
        (`dso_local` $dso_local^)?
-       (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
+       ( `addrspace` `(` $addr_space^ `)` )?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        ($annotations^)?
@@ -2483,7 +2490,7 @@ def GlobalOp : CIR_Op<"global",
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
-      CArg<"cir::AddressSpaceAttr", "{}">:$addrSpace,
+      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$ctorBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
