@@ -1351,6 +1351,55 @@ def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor",
   "A function with this attribute excutes before module unloading"
 >;
 
+def CIR_CtorKind : CIR_I32EnumAttr<"CtorKind", "CXX Constructor Kind", [
+  I32EnumAttrCase<"None", 0, "none">,
+  I32EnumAttrCase<"Default", 1, "default">,
+  I32EnumAttrCase<"Copy", 2, "copy">,
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_CXXCtorAttr
+    : CIR_Attr<"CXXCtor", "cxx_ctor"> {
+  let summary = "Marks a function as a CXX constructor";
+  let description = [{
+    Functions with this attribute are CXX constructors.
+    The `default` kind is used if the constructor is a default constructor.
+    The `copy` kind is used if the constructor is a copy constructor.
+  }];
+  let parameters = (ins "mlir::Type":$type,
+                        EnumParameter<CIR_CtorKind>:$ctorKind);
+  let assemblyFormat = [{
+    `<` $type `,` $ctorKind `>`
+  }];
+  let builders =
+    [AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+        CArg<"CtorKind", "cir::CtorKind::None">:$ctorKind), [{
+      return $_get(type.getContext(), type, ctorKind);
+    }]>];
+}
+
+def CIR_CXXDtorAttr
+    : CIR_Attr<"CXXDtor", "cxx_dtor"> {
+  let summary = "Marks a function as a CXX destructor";
+  let description = [{
+    Functions with this attribute are CXX destructors
+  }];
+  let parameters = (ins "mlir::Type":$type);
+  let assemblyFormat = [{
+    `<` $type `>`
+  }];
+  let builders =
+    [AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>];
+}
+
+def CIR_CXXSpecialMemberAttr : AnyAttrOf<[
+  CIR_CXXCtorAttr,
+  CIR_CXXDtorAttr
+]>;
+
 def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let summary = "Represents a bit field info";
   let description = [{

@@ -2538,6 +2538,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2616,6 +2617,20 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Add CXXSpecialMember attribute.
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_special_member"))) {
+    if (parser.parseLess().failed())
+      return failure();
+    cir::CXXCtorAttr ctor;
+    if (auto oa = parser.parseOptionalAttribute(ctor); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, ctor);
+    cir::CXXDtorAttr dtor;
+    if (auto oa = parser.parseOptionalAttribute(dtor); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, dtor);
+    if (parser.parseGreater().failed())
+      return failure();
   }
 
   // If additional attributes are present, parse them.
@@ -2798,6 +2813,15 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (getCxxSpecialMember()) {
+    p << " cxx_special_member<";
+    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember()))
+      p.printAttribute(cxxCtor);
+    if (auto cxxDtor = dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember()))
+      p.printAttribute(cxxDtor);
+    p << '>';
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2808,7 +2832,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

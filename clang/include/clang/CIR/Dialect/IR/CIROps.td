@@ -3661,6 +3661,7 @@ def FuncOp : CIR_Op<"func", [
     OptionalAttr<GlobalCtorAttr>:$global_ctor,
     OptionalAttr<GlobalDtorAttr>:$global_dtor,
     OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
     OptionalAttr<AnyASTFunctionDeclAttr>:$ast
   );
 
