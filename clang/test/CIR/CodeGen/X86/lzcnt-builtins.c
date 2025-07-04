@@ -3,6 +3,9 @@
 // RUN: %clang_cc1 -ffreestanding -triple x86_64-unknown-linux -Wno-implicit-function-declaration -fclangir -emit-llvm -o %t.ll %s
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// This test mimics clang/test/CodeGen/X86/lzcnt-builtins.c, which eventually
+// CIR shall be able to support fully.
+
 #include <immintrin.h>
 
 unsigned int test_lzcnt_u32(unsigned int __X)
