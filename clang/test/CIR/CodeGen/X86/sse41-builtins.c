@@ -8,6 +8,8 @@
 // RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +sse4.1 -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefix=LLVM-CHECK --input-file=%t.ll %s
 
+// This test mimics clang/test/CodeGen/X86/sse41-builtins.c, which eventually
+// CIR shall be able to support fully.
 
 #include <immintrin.h>
 
