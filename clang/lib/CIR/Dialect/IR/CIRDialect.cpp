@@ -2619,53 +2619,18 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       state.addAttribute(annotationsNameAttr, annotations);
   }
 
-  // Add CXXSpecialMember attributes.
-  if (mlir::succeeded(parser.parseOptionalKeyword("ctor"))) {
+  // Add CXXSpecialMember attribute.
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_special_member"))) {
     if (parser.parseLess().failed())
       return failure();
-
-    mlir::Type type;
-    if (parser.parseType(type).failed())
-      return failure();
-
-    bool defaultCtor = false, copyCtor = false;
-    if (mlir::succeeded(parser.parseOptionalComma())) {
-      if (parser
-              .parseCommaSeparatedList([&]() {
-                if (mlir::succeeded(parser.parseOptionalKeyword("default")))
-                  defaultCtor = true;
-                else if (mlir::succeeded(parser.parseOptionalKeyword("copy")))
-                  copyCtor = true;
-                else
-                  return failure();
-                return success();
-              })
-              .failed())
-        return failure();
-    }
-
+    cir::CXXCtorAttr ctor;
+    if (auto oa = parser.parseOptionalAttribute(ctor); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, ctor);
+    cir::CXXDtorAttr dtor;
+    if (auto oa = parser.parseOptionalAttribute(dtor); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, dtor);
     if (parser.parseGreater().failed())
       return failure();
-
-    cir::CtorKind ctorKind = cir::CtorKind::None;
-    if (defaultCtor)
-      ctorKind = cir::CtorKind::Default;
-    if (copyCtor)
-      ctorKind = cir::CtorKind::Copy;
-    state.addAttribute(cxxSpecialMemberAttr, CXXCtorAttr::get(type, ctorKind));
-  }
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("dtor"))) {
-    if (parser.parseLess().failed())
-      return failure();
-
-    mlir::Type type;
-    if (parser.parseType(type).failed())
-      return failure();
-    if (parser.parseGreater().failed())
-      return failure();
-
-    state.addAttribute(cxxSpecialMemberAttr, CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2849,18 +2814,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   }
 
   if (getCxxSpecialMember()) {
-    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
-      p << " ctor<" << cxxCtor.getType();
-      if (cxxCtor.getCtorKind() == cir::CtorKind::Default)
-        p << ", default";
-      if (cxxCtor.getCtorKind() == cir::CtorKind::Copy)
-        p << ", copy";
-      p << '>';
-    }
-
-    if (auto cxxDtor = dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
-      p << " dtor<" << cxxDtor.getType() << ">";
-    }
+    p << " cxx_special_member<";
+    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember()))
+      p.printAttribute(cxxCtor);
+    if (auto cxxDtor = dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember()))
+      p.printAttribute(cxxDtor);
+    p << '>';
   }
 
   function_interface_impl::printFunctionAttributes(

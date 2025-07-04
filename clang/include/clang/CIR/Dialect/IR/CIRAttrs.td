@@ -1370,9 +1370,7 @@ def CIR_CXXCtorAttr
   let parameters = (ins "mlir::Type":$type,
                         EnumParameter<CIR_CtorKind>:$ctorKind);
   let assemblyFormat = [{
-    `<`
-      $type `,` $ctorKind
-    `>`
+    `<` $type `,` $ctorKind `>`
   }];
   let builders =
     [AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
@@ -1389,9 +1387,7 @@ def CIR_CXXDtorAttr
   }];
   let parameters = (ins "mlir::Type":$type);
   let assemblyFormat = [{
-    `<`
-      $type
-    `>`
+    `<` $type `>`
   }];
   let builders =
     [AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
