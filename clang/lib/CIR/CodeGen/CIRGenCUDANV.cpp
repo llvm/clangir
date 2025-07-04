@@ -314,7 +314,8 @@ mlir::Operation *CIRGenNVCUDARuntime::getKernelHandle(cir::FuncOp fn,
       fn->getLoc(), globalName, fn.getFunctionType(), [&] {
         return CIRGenModule::createGlobalOp(
             cgm, fn->getLoc(), globalName,
-            builder.getPointerTo(fn.getFunctionType()), true, /* addrSpace=*/{},
+            builder.getPointerTo(fn.getFunctionType()), true,
+            cir::AddressSpace::Default,
             /*insertPoint=*/nullptr, fn.getLinkage());
       });
 

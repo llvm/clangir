@@ -101,10 +101,8 @@ public:
                                                  const clang::VarDecl *D) const;
 
   /// Get the CIR address space for alloca.
-  virtual cir::AddressSpaceAttr getCIRAllocaAddressSpace() const {
-    // Return the null attribute, which means the target does not care about the
-    // alloca address space.
-    return {};
+  virtual cir::AddressSpace getCIRAllocaAddressSpace() const {
+    return cir::AddressSpace::Default;
   }
 
   /// Perform address space cast of an expression of pointer type.
@@ -114,8 +112,8 @@ public:
   /// \param DestTy is the destination pointer type.
   /// \param IsNonNull is the flag indicating \p V is known to be non null.
   virtual mlir::Value performAddrSpaceCast(CIRGenFunction &CGF, mlir::Value V,
-                                           cir::AddressSpaceAttr SrcAddr,
-                                           cir::AddressSpaceAttr DestAddr,
+                                           cir::AddressSpace SrcAddr,
+                                           cir::AddressSpace DestAddr,
                                            mlir::Type DestTy,
                                            bool IsNonNull = false) const;
 
