@@ -74,6 +74,40 @@ static int64_t getIntValueFromConstOp(mlir::Value val) {
       .getSExtValue();
 }
 
+// Convert the mask from an integer type to a vector of i1.
+static mlir::Value getMaskVecValue(CIRGenFunction &cgf, mlir::Value mask,
+                                   unsigned numElts, mlir::Location loc) {
+  cir::VectorType maskTy =
+      cir::VectorType::get(cgf.getBuilder().getSIntNTy(1),
+                           cast<cir::IntType>(mask.getType()).getWidth());
+
+  mlir::Value maskVec = cgf.getBuilder().createBitcast(mask, maskTy);
+
+  // If we have less than 8 elements, then the starting mask was an i8 and
+  // we need to extract down to the right number of elements.
+  if (numElts < 8) {
+    llvm::SmallVector<int64_t, 4> indices;
+    for (unsigned i = 0; i != numElts; ++i)
+      indices.push_back(i);
+    maskVec = cgf.getBuilder().createVecShuffle(loc, maskVec, maskVec, indices);
+  }
+
+  return maskVec;
+}
+
+static mlir::Value emitX86MaskedStore(CIRGenFunction &cgf,
+                                      ArrayRef<mlir::Value> ops,
+                                      llvm::Align alignment,
+                                      mlir::Location loc) {
+  mlir::Value ptr = ops[0];
+
+  mlir::Value maskVec = getMaskVecValue(
+      cgf, ops[2], cast<cir::VectorType>(ops[1].getType()).getSize(), loc);
+
+  return cgf.getBuilder().createMaskedStore(loc, ops[1], ptr, alignment,
+                                            maskVec);
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -368,5 +402,31 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                           builder.getStringAttr("x86.xgetbv"),
                                           builder.getUInt64Ty(), Ops)
         .getResult();
+  case X86::BI__builtin_ia32_storedqudi128_mask:
+  case X86::BI__builtin_ia32_storedqusi128_mask:
+  case X86::BI__builtin_ia32_storedquhi128_mask:
+  case X86::BI__builtin_ia32_storedquqi128_mask:
+  case X86::BI__builtin_ia32_storeupd128_mask:
+  case X86::BI__builtin_ia32_storeups128_mask:
+  case X86::BI__builtin_ia32_storedqudi256_mask:
+  case X86::BI__builtin_ia32_storedqusi256_mask:
+  case X86::BI__builtin_ia32_storedquhi256_mask:
+  case X86::BI__builtin_ia32_storedquqi256_mask:
+  case X86::BI__builtin_ia32_storeupd256_mask:
+  case X86::BI__builtin_ia32_storeups256_mask:
+  case X86::BI__builtin_ia32_storedqudi512_mask:
+  case X86::BI__builtin_ia32_storedqusi512_mask:
+  case X86::BI__builtin_ia32_storedquhi512_mask:
+  case X86::BI__builtin_ia32_storedquqi512_mask:
+  case X86::BI__builtin_ia32_storeupd512_mask:
+  case X86::BI__builtin_ia32_storeups512_mask:
+    return emitX86MaskedStore(*this, Ops, llvm::Align(1),
+                              getLoc(E->getExprLoc()));
+  case X86::BI__builtin_ia32_storesbf16128_mask:
+  case X86::BI__builtin_ia32_storesh128_mask:
+  case X86::BI__builtin_ia32_storess128_mask:
+  case X86::BI__builtin_ia32_storesd128_mask:
+    return emitX86MaskedStore(*this, Ops, llvm::Align(1),
+                              getLoc(E->getExprLoc()));
   }
 }
