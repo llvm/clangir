@@ -1415,7 +1415,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   if (CurFuncDecl)
     if ([[maybe_unused]] const auto *vecWidth =
             CurFuncDecl->getAttr<MinVectorWidthAttr>())
-      llvm_unreachable("NYI");
+      LargestVectorWidth = vecWidth->getVectorWidth();
 
   if (CGM.shouldEmitConvergenceTokens())
     llvm_unreachable("NYI");
