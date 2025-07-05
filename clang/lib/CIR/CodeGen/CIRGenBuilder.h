@@ -895,6 +895,31 @@ public:
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
   }
 
+  /// Create a call to a Masked Store intrinsic.
+  /// \p loc       - expression location,
+  /// \p Val       - data to be stored,
+  /// \p Ptr       - base pointer for the store
+  /// \p Alignment - alignment of the destination location
+  /// \p Mask      - vector of booleans which indicates what vector lanes should
+  ///                be accessed in memory
+  mlir::Value CreateMaskedStore(mlir::Location loc, mlir::Value Val,
+                                mlir::Value Ptr, llvm::Align Alignment,
+                                mlir::Value Mask) {
+    mlir::Type DataTy = Val.getType();
+
+    assert(mlir::isa<cir::VectorType>(DataTy) && "Val should be a vector");
+    assert(Mask && "Mask should not be all-ones (null)");
+
+    auto alignmentValue = create<cir::ConstantOp>(
+        loc, cir::IntAttr::get(getUInt32Ty(), Alignment.value()));
+
+    mlir::Value Ops[] = {Val, Ptr, alignmentValue, Mask};
+
+    return create<cir::LLVMIntrinsicCallOp>(loc, getStringAttr("masked.store"),
+                                            getVoidTy(), Ops)
+        .getResult();
+  }
+
   cir::VecShuffleOp
   createVecShuffle(mlir::Location loc, mlir::Value vec1, mlir::Value vec2,
                    llvm::ArrayRef<mlir::Attribute> maskAttrs) {
