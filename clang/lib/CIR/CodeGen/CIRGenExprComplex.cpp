@@ -108,7 +108,7 @@ public:
   mlir::Value VisitObjCMessageExpr(ObjCMessageExpr *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitArraySubscriptExpr(Expr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitArraySubscriptExpr(Expr *E) { return emitLoadOfLValue(E); }
   mlir::Value VisitMemberExpr(MemberExpr *ME) { llvm_unreachable("NYI"); }
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
     llvm_unreachable("NYI");
