@@ -766,20 +766,18 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
     if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
       auto cxxDtor = cir::CXXDtorAttr::get(
-          &getMLIRContext(),
           convertType(getContext().getRecordType(dtor->getParent())));
       fn.setCxxSpecialMemberAttr(cxxDtor);
 
       emitDestructorBody(args);
     } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
-      cir::CtorKind ctorKind = cir::CtorKind::None;
+      cir::CtorKind ctorKind = cir::CtorKind::Custom;
       if (ctor->isDefaultConstructor())
         ctorKind = cir::CtorKind::Default;
       if (ctor->isCopyConstructor())
         ctorKind = cir::CtorKind::Copy;
 
       auto cxxCtor = cir::CXXCtorAttr::get(
-          &getMLIRContext(),
           convertType(getContext().getRecordType(ctor->getParent())), ctorKind);
       fn.setCxxSpecialMemberAttr(cxxCtor);
 

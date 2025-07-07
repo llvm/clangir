@@ -172,6 +172,7 @@ REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE(SideEffect);
+REGISTER_ENUM_TYPE(CtorKind);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -2619,18 +2620,35 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       state.addAttribute(annotationsNameAttr, annotations);
   }
 
-  // Add CXXSpecialMember attribute.
-  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_special_member"))) {
+  // Parse CXXSpecialMember attribute
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_ctor"))) {
     if (parser.parseLess().failed())
       return failure();
-    cir::CXXCtorAttr ctor;
-    if (auto oa = parser.parseOptionalAttribute(ctor); oa.has_value())
-      state.addAttribute(cxxSpecialMemberAttr, ctor);
-    cir::CXXDtorAttr dtor;
-    if (auto oa = parser.parseOptionalAttribute(dtor); oa.has_value())
-      state.addAttribute(cxxSpecialMemberAttr, dtor);
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseComma().failed())
+      return failure();
+    cir::CtorKind ctorKind;
+    if (parseCIRKeyword<cir::CtorKind>(parser, ctorKind).failed())
+      return failure();
     if (parser.parseGreater().failed())
       return failure();
+
+    state.addAttribute(cxxSpecialMemberAttr,
+                       cir::CXXCtorAttr::get(type, ctorKind));
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_dtor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxSpecialMemberAttr, cir::CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2814,12 +2832,16 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   }
 
   if (getCxxSpecialMember()) {
-    p << " cxx_special_member<";
-    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember()))
-      p.printAttribute(cxxCtor);
-    if (auto cxxDtor = dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember()))
-      p.printAttribute(cxxDtor);
-    p << '>';
+    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
+      if (cxxCtor.getCtorKind() != cir::CtorKind::Custom)
+        p << " cxx_ctor<" << cxxCtor.getType() << ", " << cxxCtor.getCtorKind()
+          << ">";
+    } else if (auto cxxDtor =
+                   dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
+      p << " cxx_dtor<" << cxxDtor.getType() << ">";
+    } else {
+      assert(false && "expected a CXX special member");
+    }
   }
 
   function_interface_impl::printFunctionAttributes(

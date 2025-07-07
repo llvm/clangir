@@ -17,8 +17,8 @@ static Init __ioinit(true);
 static Init __ioinit2(false);
 
 // BEFORE:      module {{.*}} {
-// BEFORE-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !cir.bool) cxx_special_member<#cir.cxx_ctor<!rec_Init, none>
-// BEFORE-NEXT:   cir.func private @_ZN4InitD1Ev(!cir.ptr<!rec_Init>) cxx_special_member<#cir.cxx_dtor<!rec_Init>
+// BEFORE-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !cir.bool)
+// BEFORE-NEXT:   cir.func private @_ZN4InitD1Ev(!cir.ptr<!rec_Init>) cxx_dtor<!rec_Init>
 // BEFORE-NEXT:   cir.global "private" internal dso_local @_ZL8__ioinit = ctor : !rec_Init {
 // BEFORE-NEXT:     %0 = cir.get_global @_ZL8__ioinit : !cir.ptr<!rec_Init>
 // BEFORE-NEXT:     %1 = cir.const #true
@@ -41,8 +41,8 @@ static Init __ioinit2(false);
 // AFTER:      module {{.*}} attributes {{.*}}cir.global_ctors = [#cir.global_ctor<"__cxx_global_var_init", 65536>, #cir.global_ctor<"__cxx_global_var_init.1", 65536>]
 // AFTER-NEXT:   cir.global "private" external @__dso_handle : i8
 // AFTER-NEXT:   cir.func private @__cxa_atexit(!cir.ptr<!cir.func<(!cir.ptr<!void>)>>, !cir.ptr<!void>, !cir.ptr<i8>)
-// AFTER-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !cir.bool) cxx_special_member<#cir.cxx_ctor<!rec_Init, none>
-// AFTER-NEXT:   cir.func private @_ZN4InitD1Ev(!cir.ptr<!rec_Init>) cxx_special_member<#cir.cxx_dtor<!rec_Init>
+// AFTER-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !cir.bool)
+// AFTER-NEXT:   cir.func private @_ZN4InitD1Ev(!cir.ptr<!rec_Init>) cxx_dtor<!rec_Init>
 // AFTER-NEXT:   cir.global "private" internal dso_local @_ZL8__ioinit =  #cir.zero : !rec_Init {alignment = 1 : i64, ast = #cir.var.decl.ast}
 // AFTER-NEXT:   cir.func internal private @__cxx_global_var_init()
 // AFTER-NEXT:     %0 = cir.get_global @_ZL8__ioinit : !cir.ptr<!rec_Init>

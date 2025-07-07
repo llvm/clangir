@@ -2742,20 +2742,18 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     if (fd) {
       if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
         auto cxxDtor = cir::CXXDtorAttr::get(
-            &getMLIRContext(),
             convertType(getASTContext().getRecordType(dtor->getParent())));
         f.setCxxSpecialMemberAttr(cxxDtor);
       }
 
       if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
-        cir::CtorKind ctorKind = cir::CtorKind::None;
+        cir::CtorKind ctorKind = cir::CtorKind::Custom;
         if (ctor->isDefaultConstructor())
           ctorKind = cir::CtorKind::Default;
         if (ctor->isCopyConstructor())
           ctorKind = cir::CtorKind::Copy;
 
         auto cxxCtor = cir::CXXCtorAttr::get(
-            &getMLIRContext(),
             convertType(getASTContext().getRecordType(ctor->getParent())),
             ctorKind);
         f.setCxxSpecialMemberAttr(cxxCtor);
