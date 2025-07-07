@@ -43,6 +43,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -349,7 +350,7 @@ unsigned getGlobalOpTargetAddrSpace(mlir::ConversionPatternRewriter &rewriter,
                                     const mlir::TypeConverter *converter,
                                     cir::GlobalOp op) {
   auto tempPtrTy = cir::PointerType::get(rewriter.getContext(), op.getSymType(),
-                                         op.getAddrSpaceAttr());
+                                         op.getAddrSpace());
   return cast<mlir::LLVM::LLVMPointerType>(converter->convertType(tempPtrTy))
       .getAddressSpace();
 }
@@ -4422,32 +4423,31 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   return cir::createLowerModule(module, rewriter);
 }
 
+static unsigned
+getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
+                                   cir::LowerModule *lowerModule) {
+  if (addrSpace == cir::AddressSpace::Default)
+    return 0; // Default address space is always 0 in LLVM.
+
+  if (cir::isTargetAddressSpace(addrSpace))
+    return cir::getTargetAddressSpaceValue(addrSpace);
+
+  assert(lowerModule && "CIR AS map is not available");
+  return lowerModule->getTargetLoweringInfo()
+      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+}
+
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
 // lambda capturing experience. Also blocked by makeTripleAlwaysPresent.
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout,
                           cir::LowerModule *lowerModule) {
-  converter.addConversion(
-      [&, lowerModule](cir::PointerType type) -> mlir::Type {
-        // Drop pointee type since LLVM dialect only allows opaque pointers.
-
-        auto addrSpace =
-            mlir::cast_if_present<cir::AddressSpaceAttr>(type.getAddrSpace());
-        // Null addrspace attribute indicates the default addrspace.
-        if (!addrSpace)
-          return mlir::LLVM::LLVMPointerType::get(type.getContext());
-
-        assert(lowerModule && "CIR AS map is not available");
-        // Pass through target addrspace and map CIR addrspace to LLVM addrspace
-        // by querying the target info.
-        unsigned targetAS =
-            addrSpace.isTarget()
-                ? addrSpace.getTargetValue()
-                : lowerModule->getTargetLoweringInfo()
-                      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
-
-        return mlir::LLVM::LLVMPointerType::get(type.getContext(), targetAS);
-      });
+  converter.addConversion([&,
+                           lowerModule](cir::PointerType type) -> mlir::Type {
+    unsigned addrSpace =
+        getTargetAddrSpaceFromCIRAddrSpace(type.getAddrSpace(), lowerModule);
+    return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
+  });
   converter.addConversion(
       [&, lowerModule](cir::DataMemberType type) -> mlir::Type {
         assert(lowerModule && "CXXABI is not available");

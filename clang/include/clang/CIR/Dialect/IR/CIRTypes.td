@@ -14,6 +14,7 @@
 #define MLIR_CIR_DIALECT_CIR_TYPES
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 include "clang/CIR/Dialect/IR/CIRTypeConstraints.td"
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 include "clang/CIR/Interfaces/CIRTypeInterfaces.td"
@@ -199,44 +200,89 @@ def CIR_ComplexType : CIR_Type<"Complex", "complex", [
 // PointerType
 //===----------------------------------------------------------------------===//
 
+def CIR_AddressSpace : CIR_I32EnumAttr<
+  "AddressSpace", "address space kind", [
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"OffloadPrivate", 1, "offload_private">,
+  I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,
+  I32EnumAttrCase<"OffloadGlobal", 3, "offload_global">,
+  I32EnumAttrCase<"OffloadConstant", 4, "offload_constant">,
+  I32EnumAttrCase<"OffloadGeneric", 5, "offload_generic">,
+  I32EnumAttrCase<"Target", 6, "target">
+]> {
+  let description = [{
+    The `address_space` attribute is used to represent address spaces for
+    pointer types in CIR. It provides a unified model on top of `clang::LangAS`
+    and simplifies the representation of address spaces.
+
+    The `value` parameter is an extensible enum, which encodes target address
+    space as an offset to the last language address space. For that reason, the
+    attribute is implemented as custom AddressSpaceAttr, which provides custom
+    printer and parser for the `value` parameter.
+  }];
+
+  let genSpecializedAttr = 0;
+}
+
 def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
     DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
     DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
 ]> {
   let summary = "CIR pointer type";
   let description = [{
-    `CIR.ptr` is a type returned by any op generating a pointer in C++.
+    The `!cir.ptr` type is a typed pointer type. It is used to represent
+    pointers to objects in C/C++. The type of the pointed-to object is given by
+    the `pointee` parameter. The `addrSpace` parameter is an optional address
+    space attribute that specifies the address space of the pointer. If not
+    specified, the pointer is assumed to be in the default address space.
+
+    The `!cir.ptr` type can point to any type, including fundamental types,
+    records, arrays, vectors, functions, and other pointers. It can also point
+    to incomplete types, such as incomplete records.
+
+    Note: Data-member pointers and method pointers are represented by
+    `!cir.data_member` and `!cir.method` types, respectively not by
+    `!cir.ptr` type.
+
+    Examples:
+
+    ```mlir
+    !cir.ptr<!cir.int<u, 8>>
+    !cir.ptr<!cir.float>
+    !cir.ptr<!cir.record<struct "MyStruct">>
+    !cir.ptr<!cir.record<struct "MyStruct">, addrspace(offload_private)>
+    !cir.ptr<!cir.int<u, 8>, addrspace(target<1>)>
+    ```
   }];
 
   let parameters = (ins
     "mlir::Type":$pointee,
-    // FIXME(cir): Currently unable to directly use AddressSpaceAttr because of
-    // cyclic dep. Workaround with the top type and verifier.
-    OptionalParameter<"mlir::Attribute">:$addrSpace
+    CIR_DefaultValuedEnumParameter<
+      CIR_AddressSpace,
+      "cir::AddressSpace::Default"
+    >:$addrSpace
   );
 
+  let skipDefaultBuilders = 1;
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
-      return $_get(pointee.getContext(), pointee, addrSpace);
+      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+        return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
-      return $_get($_ctxt, pointee, addrSpace);
+      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+        return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
 
   let assemblyFormat = [{
-    `<` $pointee ( `,` `addrspace` `(`
-      custom<PointerAddrSpace>($addrSpace)^
-    `)` )? `>`
+    `<`
+      $pointee
+      ( `,` `addrspace` `(` custom<AddressSpaceValue>($addrSpace)^ `)` )?
+    `>`
   }];
-
-  let genVerifyDecl = 1;
-
-  let skipDefaultBuilders = 1;
 
   let extraClassDeclaration = [{
     template <typename ...Types>

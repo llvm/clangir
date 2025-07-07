@@ -266,10 +266,8 @@ public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
-    return cir::AddressSpaceAttr::get(
-        &getABIInfo().CGT.getMLIRContext(),
-        cir::AddressSpaceAttr::Kind::offload_private);
+  cir::AddressSpace getCIRAllocaAddressSpace() const override {
+    return cir::AddressSpace::OffloadPrivate;
   }
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {
@@ -664,8 +662,8 @@ TargetCIRGenInfo::getGlobalVarAddressSpace(CIRGenModule &CGM,
 }
 
 mlir::Value TargetCIRGenInfo::performAddrSpaceCast(
-    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpaceAttr SrcAddr,
-    cir::AddressSpaceAttr DestAddr, mlir::Type DestTy, bool IsNonNull) const {
+    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpace SrcAddr,
+    cir::AddressSpace DestAddr, mlir::Type DestTy, bool IsNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
   if (auto globalOp = Src.getDefiningOp<cir::GlobalOp>())

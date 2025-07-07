@@ -24,6 +24,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -921,9 +922,8 @@ static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
 
   auto RealVarTy = CGF.convertTypeForMem(VD->getType());
-  cir::PointerType realPtrTy = CGF.getBuilder().getPointerTo(
-      RealVarTy, cast_if_present<cir::AddressSpaceAttr>(
-                     cast<cir::PointerType>(V.getType()).getAddrSpace()));
+  cir::PointerType realPtrTy = cir::PointerType::get(
+      RealVarTy, cast<cir::PointerType>(V.getType()).getAddrSpace());
   if (realPtrTy != V.getType())
     V = CGF.getBuilder().createBitcast(V.getLoc(), V, realPtrTy);
 
@@ -2027,9 +2027,10 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = emitLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    auto SrcAS =
-        builder.getAddrSpaceAttr(E->getSubExpr()->getType().getAddressSpace());
-    auto DestAS = builder.getAddrSpaceAttr(E->getType().getAddressSpace());
+    cir::AddressSpace SrcAS =
+        cir::toCIRAddressSpace(E->getSubExpr()->getType().getAddressSpace());
+    cir::AddressSpace DestAS =
+        cir::toCIRAddressSpace(E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, convertType(DestTy));
     return makeAddrLValue(Address(V, convertTypeForMem(E->getType()),
@@ -3080,8 +3081,7 @@ Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
   // be different from the type defined by the language. For example,
   // in C++ the auto variables are in the default address space. Therefore
   // cast alloca to the default address space when necessary.
-  if (auto ASTAS =
-          builder.getAddrSpaceAttr(CGM.getLangTempAllocaAddressSpace());
+  if (auto ASTAS = cir::toCIRAddressSpace(CGM.getLangTempAllocaAddressSpace());
       getCIRAllocaAddressSpace() != ASTAS) {
     llvm_unreachable("Requires address space cast which is NYI");
   }
