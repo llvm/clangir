@@ -8,6 +8,9 @@
 // RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +ssse3 -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefix=LLVM-CHECK --implicit-check-not=x86mmx --input-file=%t.ll %s
 
+// This test mimics clang/test/CodeGen/X86/mmx-builtins.c, which eventually
+// CIR shall be able to support fully.
+
 #include <immintrin.h>
 
 int test_mm_extract_pi16(__m64 a) {

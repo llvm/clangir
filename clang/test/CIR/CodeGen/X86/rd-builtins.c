@@ -8,7 +8,7 @@
 
 #include <x86intrin.h>
 
-unsigned long long test_rdtsc() {
+int test_rdtsc(void) {
   // CIR-LABEL: @test_rdtsc
   // LLVM-LABEL: @test_rdtsc
   return __rdtsc();
@@ -32,4 +32,3 @@ unsigned long long test_rdtscp(unsigned int *a) {
   // LLVM: store i32 [[TSC_AUX]], ptr %{{.*}}
   // LLVM: [[TSC:%.*]] = extractvalue { i64, i32 } [[RDTSCP]], 0
 }
-
