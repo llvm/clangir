@@ -43,6 +43,9 @@
 // RUN: %clang_cc1 %s -DTEST_XSAVES -O0 -triple=x86_64-unknown-linux -target-feature +xsave -target-feature +xsaves -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Wno-unused-but-set-variable -Werror
 // RUN: FileCheck --check-prefix=LLVM-XSAVES --input-file=%t.ll %s
 
+// This test mimics clang/test/CodeGen/X86/x86_64-xsave.c, which eventually
+// CIR shall be able to support fully.
+
 // Don't include mm_malloc.h, it's system specific.
 #define __MM_MALLOC_H
 #include <x86intrin.h>
