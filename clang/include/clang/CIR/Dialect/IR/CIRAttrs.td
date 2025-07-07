@@ -14,7 +14,7 @@
 #define MLIR_CIR_DIALECT_CIR_ATTRS
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
-include "mlir/IR/EnumAttr.td"
+include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
@@ -43,21 +43,6 @@ class CIR_TypedAttr<string name, string attrMnemonic, list<Trait> traits = []>
   ];
 
   let assemblyFormat = [{}];
-}
-
-class CIR_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
-    : I32EnumAttr<name, summary, cases> {
-  let cppNamespace = "::cir";
-}
-
-class CIR_I64EnumAttr<string name, string summary, list<I64EnumAttrCase> cases>
-    : I64EnumAttr<name, summary, cases> {
-  let cppNamespace = "::cir";
-}
-
-class CIR_EnumAttr<EnumAttrInfo info, string name = "", list<Trait> traits = []>
-    : EnumAttr<CIR_Dialect, info, name, traits> {
-  let assemblyFormat = "`<` $value `>`";
 }
 
 class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
@@ -972,133 +957,41 @@ def DynamicCastInfoAttr
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def AS_OffloadPrivate : I32EnumAttrCase<"offload_private", 1>;
-def AS_OffloadLocal : I32EnumAttrCase<"offload_local", 2>;
-def AS_OffloadGlobal : I32EnumAttrCase<"offload_global", 3>;
-def AS_OffloadConstant : I32EnumAttrCase<"offload_constant", 4>;
-def AS_OffloadGeneric : I32EnumAttrCase<"offload_generic", 5>;
-def AS_Target : I32EnumAttrCase<"target", 6>;
-
-def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
-
-  let summary = "Address space attribute for pointer types";
-  let description = [{
-    The address space attribute is used in pointer types. It essentially
-    provides a unified model on top of `clang::LangAS`, rather than LLVM address
-    spaces.
-
-    The representation is further simplified: `LangAS::Default` is encoded as
-    a null attribute; many address spaces from different offloading languages
-    are unified as `offload_*`; etc.
-
-    The meaning of `value` parameter is defined as an extensible enum `Kind`,
-    which encodes target AS as offset to the last language AS.
-  }];
-
-  let parameters = (ins "int32_t":$value);
-
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
-
+def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
-      assert(langAS != clang::LangAS::Default &&
-        "Default address space is encoded as null attribute");
-      return $_get($_ctxt, getValueFromLangAS(langAS).value());
+      return $_get($_ctxt, cir::toCIRAddressSpace(langAS));
     }]>
   ];
 
-  let cppNamespace = "::cir";
+  let assemblyFormat = [{
+    `` custom<AddressSpaceValue>($value)
+  }];
 
-  // The following codes implement these conversions:
-  // clang::LangAS -> int32_t <-> text-form CIR
-
-  // CIR_PointerType manipulates the parse- and stringify- methods to provide
-  // simplified assembly format `custom<PointerAddrSpace>`.
-
-  list<I32EnumAttrCase> langASCases = [
-    AS_OffloadPrivate, AS_OffloadLocal, AS_OffloadGlobal, AS_OffloadConstant,
-    AS_OffloadGeneric
-  ];
-
-  I32EnumAttrCase targetASCase = AS_Target;
+  let defaultValue = "cir::AddressSpace::Default";
 
   let extraClassDeclaration = [{
-    static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
-    static constexpr int32_t kFirstTargetASValue = }]#targetASCase.value#[{;
-
     bool isLang() const;
     bool isTarget() const;
     unsigned getTargetValue() const;
-
-    /// Convert a clang LangAS to its corresponding CIR AS storage value. This
-    /// helper does not perform any language-specific mappings (e.g. determining
-    /// the default AS for offloading languages), so these must be handled in
-    /// the caller.
-    static std::optional<int32_t> getValueFromLangAS(clang::LangAS v);
-
-    /// Helper methods for the assembly format `custom<PointerAddrSpace>`.
-    static std::optional<int32_t> parseValueFromString(llvm::StringRef s);
-    static std::optional<llvm::StringRef> stringifyValue(int32_t v);
-
-    struct Kind {
-    }]#!interleave(
-      !foreach(case, langASCases,
-        "static constexpr int32_t "#case.symbol#" = "#case.value#";"
-      ), "\n"
-    )#[{
-    };
+    unsigned getAsUnsignedValue() const;
   }];
 
   let extraClassDefinition = [{
+    unsigned $cppClass::getAsUnsignedValue() const {
+      return static_cast<unsigned>(getValue());
+    }
+
     bool $cppClass::isLang() const {
-      return !isTarget();
+      return cir::isLangAddressSpace(getValue());
     }
 
     bool $cppClass::isTarget() const {
-      return getValue() >= kFirstTargetASValue;
+      return cir::isTargetAddressSpace(getValue());
     }
 
     unsigned $cppClass::getTargetValue() const {
-      assert(isTarget() && "Not a target address space");
-      return getValue() - kFirstTargetASValue;
-    }
-
-    std::optional<int32_t>
-    $cppClass::parseValueFromString(llvm::StringRef str) {
-      return llvm::StringSwitch<::std::optional<int32_t>>(str)
-        }]
-        #
-        !interleave(
-          !foreach(case, langASCases,
-            ".Case(\""#case.symbol# "\", "#case.value # ")\n"
-          ),
-          "\n"
-        )
-        #
-        [{
-        // Target address spaces are not parsed here
-        .Default(std::nullopt);
-    }
-
-    std::optional<llvm::StringRef>
-    $cppClass::stringifyValue(int32_t value) {
-      switch (value) {
-      }]
-      #
-      !interleave(
-        !foreach(case, langASCases,
-          "case "#case.value
-          # ": return \""#case.symbol # "\";" ),
-        "\n"
-      )
-      #
-      [{
-      default:
-        // Target address spaces are not processed here
-        return std::nullopt;
-      }
+      return cir::getTargetAddressSpaceValue(getValue());
     }
   }];
 }

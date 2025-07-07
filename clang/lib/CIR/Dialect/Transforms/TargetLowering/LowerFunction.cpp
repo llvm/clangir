@@ -375,7 +375,7 @@ mlir::Value createCoercedNonFundamental(mlir::Value src, mlir::Type ty,
 
     auto oldAlloca = mlir::dyn_cast<AllocaOp>(addr.getDefiningOp());
     auto alloca = bld.create<AllocaOp>(
-        src.getLoc(), bld.getType<PointerType>(ty), ty,
+        src.getLoc(), cir::PointerType::get(ty), ty,
         /*name=*/llvm::StringRef(""), oldAlloca.getAlignmentAttr());
 
     auto tySize = LF.LM.getDataLayout().getTypeStoreSize(ty);
@@ -582,7 +582,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
       // FIXME(cir): Get the original name of the argument, as well as the
       // proper alignment for the given type being allocated.
       auto Alloca = rewriter.create<AllocaOp>(
-          Fn.getLoc(), rewriter.getType<PointerType>(Ty), Ty,
+          Fn.getLoc(), cir::PointerType::get(Ty), Ty,
           /*name=*/llvm::StringRef(""),
           /*alignment=*/rewriter.getI64IntegerAttr(4));
 
@@ -673,7 +673,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
           cir_cconv_assert(!ArgI.getIndirectByVal() &&
                            "For truly ABI indirect arguments");
 
-          auto ptrTy = rewriter.getType<PointerType>(Arg.getType());
+          auto ptrTy = cir::PointerType::get(Arg.getType());
           mlir::Value arg = SrcFn.getArgument(ArgNo);
           cir_cconv_assert(arg.hasOneUse());
           auto *firstStore = *arg.user_begin();
@@ -683,7 +683,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
           auto align = LM.getDataLayout().getABITypeAlign(ptrTy);
           auto alignAttr = rewriter.getI64IntegerAttr(align.value());
           auto newAlloca = rewriter.create<AllocaOp>(
-              Fn.getLoc(), rewriter.getType<PointerType>(ptrTy), ptrTy,
+              Fn.getLoc(), cir::PointerType::get(ptrTy), ptrTy,
               /*name=*/llvm::StringRef(""),
               /*alignment=*/alignAttr);
 
@@ -1008,7 +1008,7 @@ mlir::Value createAlloca(mlir::Location loc, mlir::Type type,
   auto align = CGF.LM.getDataLayout().getABITypeAlign(type);
   auto alignAttr = CGF.getRewriter().getI64IntegerAttr(align.value());
   return CGF.getRewriter().create<AllocaOp>(
-      loc, CGF.getRewriter().getType<PointerType>(type), type,
+      loc, cir::PointerType::get(type), type,
       /*name=*/llvm::StringRef(""), alignAttr);
 }
 

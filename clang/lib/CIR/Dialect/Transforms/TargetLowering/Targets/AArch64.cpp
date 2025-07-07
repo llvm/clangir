@@ -62,14 +62,13 @@ public:
   }
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      cir::AddressSpaceAttr addressSpaceAttr) const override {
-    using Kind = cir::AddressSpaceAttr::Kind;
-    switch (addressSpaceAttr.getValue()) {
-    case Kind::offload_private:
-    case Kind::offload_local:
-    case Kind::offload_global:
-    case Kind::offload_constant:
-    case Kind::offload_generic:
+      cir::AddressSpace addrSpace) const override {
+    switch (addrSpace) {
+    case cir::AddressSpace::OffloadPrivate:
+    case cir::AddressSpace::OffloadLocal:
+    case cir::AddressSpace::OffloadGlobal:
+    case cir::AddressSpace::OffloadConstant:
+    case cir::AddressSpace::OffloadGeneric:
       return 0;
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");

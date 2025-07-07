@@ -72,6 +72,19 @@ static mlir::ParseResult parseConstPtr(mlir::AsmParser &parser,
 
 static void printConstPtr(mlir::AsmPrinter &p, mlir::IntegerAttr value);
 
+//===----------------------------------------------------------------------===//
+// AddressSpaceAttr
+//===----------------------------------------------------------------------===//
+
+mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
+                                         cir::AddressSpace &addrSpace);
+
+void printAddressSpaceValue(mlir::AsmPrinter &p, cir::AddressSpace addrSpace);
+
+//===----------------------------------------------------------------------===//
+// Tablegen defined attributes
+//===----------------------------------------------------------------------===//
+
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
@@ -560,52 +573,6 @@ LogicalResult DynamicCastInfoAttr::verify(
     return emitError() << "destRtti must be an RTTI pointer";
 
   return success();
-}
-
-//===----------------------------------------------------------------------===//
-// AddressSpaceAttr definitions
-//===----------------------------------------------------------------------===//
-
-std::optional<int32_t>
-AddressSpaceAttr::getValueFromLangAS(clang::LangAS langAS) {
-  using clang::LangAS;
-  switch (langAS) {
-  case LangAS::Default:
-    // Default address space should be encoded as a null attribute.
-    return std::nullopt;
-  case LangAS::opencl_global:
-    return Kind::offload_global;
-  case LangAS::opencl_local:
-  case LangAS::cuda_shared:
-    // Local means local among the work-group (OpenCL) or block (CUDA).
-    // All threads inside the kernel can access local memory.
-    return Kind::offload_local;
-  case LangAS::cuda_device:
-    return Kind::offload_global;
-  case LangAS::opencl_constant:
-  case LangAS::cuda_constant:
-    return Kind::offload_constant;
-  case LangAS::opencl_private:
-    return Kind::offload_private;
-  case LangAS::opencl_generic:
-    return Kind::offload_generic;
-  case LangAS::opencl_global_device:
-  case LangAS::opencl_global_host:
-  case LangAS::sycl_global:
-  case LangAS::sycl_global_device:
-  case LangAS::sycl_global_host:
-  case LangAS::sycl_local:
-  case LangAS::sycl_private:
-  case LangAS::ptr32_sptr:
-  case LangAS::ptr32_uptr:
-  case LangAS::ptr64:
-  case LangAS::hlsl_groupshared:
-  case LangAS::wasm_funcref:
-    llvm_unreachable("NYI");
-  default:
-    // Target address space offset arithmetics
-    return clang::toTargetAddressSpace(langAS) + kFirstTargetASValue;
-  }
 }
 
 //===----------------------------------------------------------------------===//
