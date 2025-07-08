@@ -517,6 +517,11 @@ class CIRToLLVMFuncOpLowering : public mlir::OpConversionPattern<cir::FuncOp> {
   void
   lowerFuncOpenCLKernelMetadata(mlir::NamedAttribute &extraAttrsEntry) const;
 
+  mlir::LogicalResult
+  matchAndRewriteAlias(cir::FuncOp op, mlir::FlatSymbolRefAttr aliasee,
+                       mlir::Type ty, OpAdaptor adaptor,
+                       mlir::ConversionPatternRewriter &rewriter) const;
+
 public:
   using mlir::OpConversionPattern<cir::FuncOp>::OpConversionPattern;
 
