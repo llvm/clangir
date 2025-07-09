@@ -108,6 +108,14 @@ static mlir::Value emitX86MaskedStore(CIRGenFunction &cgf,
                                             maskVec);
 }
 
+static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
+                                   mlir::Type dstTy, mlir::Location loc) {
+  unsigned numberOfElements = cast<cir::VectorType>(dstTy).getSize();
+  mlir::Value mask = getMaskVecValue(cgf, op, numberOfElements, loc);
+
+  return cgf.getBuilder().createCast(loc, cir::CastKind::integral, mask, dstTy);
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -428,5 +436,19 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_storesd128_mask:
     return emitX86MaskedStore(*this, Ops, llvm::Align(1),
                               getLoc(E->getExprLoc()));
+  case X86::BI__builtin_ia32_cvtmask2b128:
+  case X86::BI__builtin_ia32_cvtmask2b256:
+  case X86::BI__builtin_ia32_cvtmask2b512:
+  case X86::BI__builtin_ia32_cvtmask2w128:
+  case X86::BI__builtin_ia32_cvtmask2w256:
+  case X86::BI__builtin_ia32_cvtmask2w512:
+  case X86::BI__builtin_ia32_cvtmask2d128:
+  case X86::BI__builtin_ia32_cvtmask2d256:
+  case X86::BI__builtin_ia32_cvtmask2d512:
+  case X86::BI__builtin_ia32_cvtmask2q128:
+  case X86::BI__builtin_ia32_cvtmask2q256:
+  case X86::BI__builtin_ia32_cvtmask2q512:
+    return emitX86SExtMask(*this, Ops[0], convertType(E->getType()),
+                           getLoc(E->getExprLoc()));
   }
 }

@@ -27,3 +27,13 @@ void test_mm512_mask_storeu_epi8(void *__P, __mmask64 __U, __m512i __A) {
   // LLVM: @llvm.masked.store.v64i8.p0(<64 x i8> %{{.*}}, ptr %{{.*}}, i32 1, <64 x i1> %{{.*}})
   return _mm512_mask_storeu_epi8(__P, __U, __A); 
 }
+
+__m512i test_mm512_movm_epi16(__mmask32 __A) {
+  // CIR-LABEL: _mm512_movm_epi16
+  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u32i), !cir.vector<!cir.int<s, 1> x 32>
+  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 32>), !cir.vector<!s16i x 32>
+  // LLVM-LABEL: @test_mm512_movm_epi16
+  // LLVM:  %{{.*}} = bitcast i32 %{{.*}} to <32 x i1>
+  // LLVM:  %{{.*}} = sext <32 x i1> %{{.*}} to <32 x i16>
+  return _mm512_movm_epi16(__A); 
+}
