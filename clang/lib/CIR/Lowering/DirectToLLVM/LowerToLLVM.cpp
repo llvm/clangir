@@ -3202,6 +3202,44 @@ mlir::LogicalResult CIRToLLVMLLVMIntrinsicCallOpLowering::matchAndRewrite(
   if (!llvmResTy)
     return op.emitError("expected LLVM result type");
   StringRef name = op.getIntrinsicName();
+
+  if (name == "masked.store") {
+    auto operands = adaptor.getOperands();
+    if (operands.size() == 4) {
+      auto ptrTy =
+          mlir::dyn_cast<mlir::LLVM::LLVMPointerType>(operands[1].getType());
+      if (ptrTy) {
+        auto valueTy = operands[0].getType();
+        auto elementTypeAttr = mlir::TypeAttr::get(valueTy);
+        mlir::IntegerAttr alignAttr;
+        if (auto constOp =
+                operands[2].getDefiningOp<mlir::LLVM::ConstantOp>()) {
+          if (auto intAttr =
+                  mlir::dyn_cast<mlir::IntegerAttr>(constOp.getValue()))
+            alignAttr = intAttr;
+        }
+        if (alignAttr) {
+          auto alignment =
+              rewriter.getI64IntegerAttr(alignAttr.getValue().getZExtValue());
+          mlir::DictionaryAttr ptrAttr = rewriter.getDictionaryAttr(
+              {rewriter.getNamedAttr("llvm.elementtype", elementTypeAttr),
+               rewriter.getNamedAttr("llvm.align", alignment)});
+          auto emptyDict = rewriter.getDictionaryAttr({});
+          mlir::ArrayAttr argAttrs =
+              rewriter.getArrayAttr({emptyDict, ptrAttr, emptyDict});
+
+          llvm::SmallVector<mlir::Value, 3> callOperands = {
+              operands[0], operands[1], operands[3]};
+          auto callIntrinOp = createCallLLVMIntrinsicOp(
+              rewriter, op->getLoc(), "llvm." + name, llvmResTy, callOperands);
+          callIntrinOp.setArgAttrsAttr(argAttrs);
+          rewriter.replaceOp(op, callIntrinOp->getResults());
+          return mlir::success();
+        }
+      }
+    }
+  }
+
   // Some llvm intrinsics require ElementType attribute to be attached to
   // the argument of pointer type. That prevents us from generating LLVM IR
   // because from LLVM dialect, we have LLVM IR like the below which fails
