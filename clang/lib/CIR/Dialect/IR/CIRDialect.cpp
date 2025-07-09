@@ -172,6 +172,7 @@ REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE(SideEffect);
+REGISTER_ENUM_TYPE(CtorKind);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -2529,6 +2530,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2607,6 +2609,37 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Parse CXXSpecialMember attribute
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_ctor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseComma().failed())
+      return failure();
+    cir::CtorKind ctorKind;
+    if (parseCIRKeyword<cir::CtorKind>(parser, ctorKind).failed())
+      return failure();
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxSpecialMemberAttr,
+                       cir::CXXCtorAttr::get(type, ctorKind));
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_dtor"))) {
+    if (parser.parseLess().failed())
+      return failure();
+    mlir::Type type;
+    if (parser.parseType(type).failed())
+      return failure();
+    if (parser.parseGreater().failed())
+      return failure();
+
+    state.addAttribute(cxxSpecialMemberAttr, cir::CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2789,6 +2822,19 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (getCxxSpecialMember()) {
+    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
+      if (cxxCtor.getCtorKind() != cir::CtorKind::Custom)
+        p << " cxx_ctor<" << cxxCtor.getType() << ", " << cxxCtor.getCtorKind()
+          << ">";
+    } else if (auto cxxDtor =
+                   dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
+      p << " cxx_dtor<" << cxxDtor.getType() << ">";
+    } else {
+      assert(false && "expected a CXX special member");
+    }
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2799,7 +2845,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
