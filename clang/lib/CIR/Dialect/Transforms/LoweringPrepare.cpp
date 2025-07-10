@@ -1645,6 +1645,10 @@ void LoweringPreparePass::runOnOperation() {
   buildCXXGlobalInitFunc();
   buildGlobalCtorDtorList();
   buildGlobalAnnotationValues();
+  
+  if (theModule && theModule->hasAttr("cir.global_annotations")) {
+    theModule->removeAttr("cir.global_annotations");
+  }
 }
 
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
