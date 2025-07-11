@@ -16,9 +16,30 @@ std::string ClassDeclaration;
 std::string ClassDefinitions;
 std::string ClassList;
 
+// Adapted from mlir/lib/TableGen/Operator.cpp
+// Returns the C++ class name of the operation, which is the name of the
+// operation with the dialect prefix removed and the first underscore removed.
+// If the operation name starts with an underscore, the underscore is considered
+// part of the class name.
+std::string getCppClassName(const Record *Operation) {
+  StringRef Name = Operation->getName();
+  StringRef prefix;
+  StringRef cppClassName;
+  std::tie(prefix, cppClassName) = Name.split('_');
+  if (prefix.empty()) {
+    // Class name with a leading underscore and without dialect prefix
+    return Name.str();
+  } else if (cppClassName.empty()) {
+    // Class name without dialect prefix
+    return prefix.str();
+  }
+
+  return cppClassName.str();
+}
+
 void GenerateLowering(const Record *Operation) {
   using namespace std::string_literals;
-  std::string Name = Operation->getName().str();
+  std::string Name = getCppClassName(Operation);
   std::string LLVMOp = Operation->getValueAsString("llvmOp").str();
 
   ClassDeclaration +=
