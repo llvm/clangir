@@ -418,7 +418,7 @@ static void emitCatchDispatchBlock(CIRGenFunction &CGF,
   // that catch-all as the dispatch block.
   if (catchScope.getNumHandlers() == 1 &&
       catchScope.getHandler(0).isCatchAll()) {
-    // assert(dispatchBlock == catchScope.getHandler(0).Block);
+    assert(dispatchBlock == catchScope.getHandler(0).Block);
     return;
   }
 
@@ -786,13 +786,21 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
     case EHScope::Catch: {
       // LLVM does some optimization with branches here, CIR just keep track of
       // the corresponding calls.
-      assert(callWithExceptionCtx && "expected call information");
-      {
-        mlir::OpBuilder::InsertionGuard guard(getBuilder());
-        assert(callWithExceptionCtx.getCleanup().empty() &&
-               "one per call: expected empty region at this point");
-        dispatchBlock = builder.createBlock(&callWithExceptionCtx.getCleanup());
-        builder.createYield(callWithExceptionCtx.getLoc());
+      EHCatchScope &catchScope = cast<EHCatchScope>(scope);
+      if (catchScope.getNumHandlers() == 1 &&
+          catchScope.getHandler(0).isCatchAll()) {
+        dispatchBlock = catchScope.getHandler(0).Block;
+        assert(dispatchBlock);
+      } else {
+        assert(callWithExceptionCtx && "expected call information");
+        {
+          mlir::OpBuilder::InsertionGuard guard(getBuilder());
+          assert(callWithExceptionCtx.getCleanup().empty() &&
+                 "one per call: expected empty region at this point");
+          dispatchBlock =
+              builder.createBlock(&callWithExceptionCtx.getCleanup());
+          builder.createYield(callWithExceptionCtx.getLoc());
+        }
       }
       break;
     }

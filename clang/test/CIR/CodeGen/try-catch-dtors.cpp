@@ -367,8 +367,88 @@ void d() {
 // CIR:     cir.resume
 // CIR:   }]
 // CIR:   cir.call @_ZN1CD1Ev(%[[V2]]) : (!cir.ptr<!rec_C>) -> () extra(#fn_attr)
-// CIR:   cir.call @_ZN1CD1Ev(%[[V1]]) : (!cir.ptr<!rec_C>) -> () extra(#fn_attr)
 // CIR: }
 // CIR: cir.call @_ZN1CD1Ev(%[[V1]]) : (!cir.ptr<!rec_C>) -> () extra(#fn_attr)
 // CIR: cir.call @_ZN1CD1Ev(%[[V0]]) : (!cir.ptr<!rec_C>) -> () extra(#fn_attr)
 // CIR: cir.return
+
+template <typename> class a;
+
+template <> class a<void> {
+public:
+  struct b {
+    typedef a<int> c;
+  };
+};
+
+template <typename> class a {
+public:
+  template <typename d> a(d) noexcept;
+  ~a();
+};
+
+struct e {
+  using f = a<void>::b::c;
+};
+
+template <typename, typename> using g = e::f;
+
+template <typename h> void i(h);
+
+class j {
+
+public:
+  using k = g<int, j>;
+};
+
+class l {
+public:
+  template <typename m, typename n> l(m p1, n) : l(p1, 0, a<void>()) {}
+  template <typename m, typename n, typename h> l(m, n, h o) {
+    try {
+      j::k p(o);
+      i(p);
+    } catch (...) {
+    }
+  }
+};
+
+class G {
+public:
+  template <typename q, typename n> G(q p1, n) : r(p1, 0) {}
+  l r;
+};
+
+class s : G {
+public:
+  int t;
+  s() : G(t, 0) {}
+};
+
+void fn3() { s(); }
+
+// CIR: cir.func linkonce_odr @_ZN1lC2Iii1aIvEEET_T0_T1_
+// CIR:   cir.scope
+// CIR:     %[[V5:.*]] = cir.alloca !rec_a3Cint3E, !cir.ptr<!rec_a3Cint3E>
+// CIR:     %[[V6:.*]] = cir.alloca !rec_a3Cvoid3E, !cir.ptr<!rec_a3Cvoid3E>
+// CIR:     cir.try {
+// CIR:       cir.copy {{.*}} to %[[V6]] : !cir.ptr<!rec_a3Cvoid3E>
+// CIR:       %[[V7:.*]] = cir.load align(1) %[[V6]] : !cir.ptr<!rec_a3Cvoid3E>, !rec_a3Cvoid3E
+// CIR:       cir.call @_ZN1aIiEC1IS_IvEEET_(%[[V5]], %[[V7]]) : (!cir.ptr<!rec_a3Cint3E>, !rec_a3Cvoid3E) -> ()
+// CIR:       cir.scope {
+// CIR:         %[[V8:.*]] = cir.alloca !rec_a3Cint3E, !cir.ptr<!rec_a3Cint3E>
+// CIR:         cir.copy %[[V5]] to %[[V8]] : !cir.ptr<!rec_a3Cint3E>
+// CIR:         %[[V9:.*]] = cir.load align(1) %[[V8]] : !cir.ptr<!rec_a3Cint3E>, !rec_a3Cint3E
+// CIR:         cir.call exception @_Z1iI1aIiEEvT_(%[[V9]]) : (!rec_a3Cint3E) -> () cleanup {
+// CIR:           cir.call @_ZN1aIiED1Ev(%[[V8]]) : (!cir.ptr<!rec_a3Cint3E>) -> ()
+// CIR:           cir.call @_ZN1aIiED1Ev(%[[V5]]) : (!cir.ptr<!rec_a3Cint3E>) -> ()
+// CIR:           cir.yield
+// CIR:         }
+// CIR:         cir.call @_ZN1aIiED1Ev(%[[V8]]) : (!cir.ptr<!rec_a3Cint3E>) -> ()
+// CIR:       }
+// CIR:       cir.call @_ZN1aIiED1Ev(%[[V5]]) : (!cir.ptr<!rec_a3Cint3E>) -> ()
+// CIR:       cir.yield
+// CIR:     } catch [type #cir.all {
+// CIR:       %[[V7:.*]] = cir.catch_param -> !cir.ptr<!void>
+// CIR:       cir.yield
+// CIR:     }]
