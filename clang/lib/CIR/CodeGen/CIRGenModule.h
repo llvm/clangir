@@ -265,10 +265,13 @@ public:
       mlir::Operation *insertPoint = nullptr,
       cir::GlobalLinkageKind linkage = cir::GlobalLinkageKind::ExternalLinkage);
 
-  // FIXME: Hardcoding priority here is gross.
-  void AddGlobalCtor(cir::FuncOp Ctor, int Priority = 65535);
-  void AddGlobalDtor(cir::FuncOp Dtor, int Priority = 65535,
-                     bool IsDtorAttrFunc = false);
+  /// Add a global constructor or destructor to the module.
+  /// The priority is optional, if not specified, the default priority is used.
+  void AddGlobalCtor(cir::FuncOp ctor,
+                     std::optional<int> priority = std::nullopt);
+  void AddGlobalDtor(cir::FuncOp dtor,
+                     std::optional<int> priority = std::nullopt,
+                     bool isDtorAttrFunc = false);
 
   // Return whether structured convergence intrinsics should be generated for
   // this target.

@@ -38,7 +38,7 @@ static Init __ioinit2(false);
 // BEFORE-NEXT: }
 
 
-// AFTER:      module {{.*}} attributes {{.*}}cir.global_ctors = [#cir.global_ctor<"__cxx_global_var_init", 65536>, #cir.global_ctor<"__cxx_global_var_init.1", 65536>]
+// AFTER:      module {{.*}} attributes {{.*}}cir.global_ctors = [#cir.global_ctor<"__cxx_global_var_init", 65535>, #cir.global_ctor<"__cxx_global_var_init.1", 65535>]
 // AFTER-NEXT:   cir.global "private" external @__dso_handle : i8
 // AFTER-NEXT:   cir.func private @__cxa_atexit(!cir.ptr<!cir.func<(!cir.ptr<!void>)>>, !cir.ptr<!void>, !cir.ptr<i8>)
 // AFTER-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!rec_Init>, !cir.bool)
@@ -75,7 +75,7 @@ static Init __ioinit2(false);
 // LLVM:      @__dso_handle = external global i8
 // LLVM:      @_ZL8__ioinit = internal global %class.Init zeroinitializer
 // LLVM:      @_ZL9__ioinit2 = internal global %class.Init zeroinitializer
-// LLVM:      @llvm.global_ctors = appending constant [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init, ptr null }, { i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init.1, ptr null }]
+// LLVM:      @llvm.global_ctors = appending constant [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init, ptr null }, { i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init.1, ptr null }]
 // LLVM:      define internal void @__cxx_global_var_init()
 // LLVM-NEXT:   call void @_ZN4InitC1Eb(ptr @_ZL8__ioinit, i1 true)
 // LLVM-NEXT:   call void @__cxa_atexit(ptr @_ZN4InitD1Ev, ptr @_ZL8__ioinit, ptr @__dso_handle)

@@ -68,7 +68,7 @@ e *g = new e(0);
 // LLVM_EH:   ret void
 // LLVM_EH: }
 
-// LLVM-DAG: @llvm.global_ctors = appending constant [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init, ptr null }, { i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init.1, ptr null }]
+// LLVM-DAG: @llvm.global_ctors = appending constant [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init, ptr null }, { i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init.1, ptr null }]
 // LLVM: define internal void @__cxx_global_var_init()
 // LLVM: call ptr @_Znwm(i64 1)
 
