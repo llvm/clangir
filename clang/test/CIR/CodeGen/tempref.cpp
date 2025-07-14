@@ -23,7 +23,7 @@ A &&a = dynamic_cast<A&&>(A{});
 
 //      LLVM: @_ZGR1a_ = internal global %struct.A undef
 // LLVM-DAG: @a = global ptr null, align 8
-// LLVM-DAG: @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init, ptr null }]
+// LLVM-DAG: @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init, ptr null }]
 
 // LLVM-DAG: declare {{.*}} void @_ZN1AD1Ev(ptr)
 

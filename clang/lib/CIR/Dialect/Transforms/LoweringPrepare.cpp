@@ -183,10 +183,10 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   llvm::StringMap<uint32_t> dynamicInitializerNames;
   llvm::SmallVector<FuncOp, 4> dynamicInitializers;
 
-  /// List of ctors to be called before main()
-  llvm::SmallVector<mlir::Attribute, 4> globalCtorList;
-  /// List of dtors to be called when unloading module.
-  llvm::SmallVector<mlir::Attribute, 4> globalDtorList;
+  /// List of ctors and their priorities to be called before main()
+  llvm::SmallVector<std::pair<std::string, uint32_t>, 4> globalCtorList;
+  /// List of dtors and their priorities to be called when unloading module.
+  llvm::SmallVector<std::pair<std::string, uint32_t>, 4> globalDtorList;
   /// List of annotations in the module
   llvm::SmallVector<mlir::Attribute, 4> globalAnnotations;
 };
@@ -939,14 +939,33 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
   }
 }
 
+template <typename AttributeTy>
+static llvm::SmallVector<mlir::Attribute>
+prepareCtorDtorAttrList(mlir::MLIRContext *context,
+                        llvm::ArrayRef<std::pair<std::string, uint32_t>> list) {
+  llvm::SmallVector<mlir::Attribute> attrs;
+  for (const auto &[name, priority] : list)
+    attrs.push_back(AttributeTy::get(context, name, priority));
+  return attrs;
+}
+
 void LoweringPreparePass::buildGlobalCtorDtorList() {
+
   if (!globalCtorList.empty()) {
+    llvm::SmallVector<mlir::Attribute> globalCtors =
+        prepareCtorDtorAttrList<cir::GlobalCtorAttr>(&getContext(),
+                                                     globalCtorList);
+
     theModule->setAttr(cir::CIRDialect::getGlobalCtorsAttrName(),
-                       mlir::ArrayAttr::get(&getContext(), globalCtorList));
+                       mlir::ArrayAttr::get(&getContext(), globalCtors));
   }
+
   if (!globalDtorList.empty()) {
+    llvm::SmallVector<mlir::Attribute> globalDtors =
+        prepareCtorDtorAttrList<cir::GlobalDtorAttr>(&getContext(),
+                                                     globalDtorList);
     theModule->setAttr(cir::CIRDialect::getGlobalDtorsAttrName(),
-                       mlir::ArrayAttr::get(&getContext(), globalDtorList));
+                       mlir::ArrayAttr::get(&getContext(), globalDtors));
   }
 }
 
@@ -956,8 +975,9 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
 
   for (auto &f : dynamicInitializers) {
     // TODO: handle globals with a user-specified initialzation priority.
-    auto ctorAttr = cir::GlobalCtorAttr::get(&getContext(), f.getName());
-    globalCtorList.push_back(ctorAttr);
+    // TODO: handle defaule priority more nicely.
+    globalCtorList.emplace_back(f.getName(),
+                                cir::DefaultGlobalCtorDtorPriority);
   }
 
   SmallString<256> fnName;
@@ -1118,7 +1138,9 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   auto moduleCtor = buildRuntimeFunction(builder, moduleCtorName, loc,
                                          FuncType::get({}, voidTy),
                                          GlobalLinkageKind::InternalLinkage);
-  globalCtorList.push_back(GlobalCtorAttr::get(&getContext(), moduleCtorName));
+  // TODO figure out default mode priority
+  globalCtorList.emplace_back(moduleCtorName,
+                              cir::DefaultGlobalCtorDtorPriority);
   builder.setInsertionPointToStart(moduleCtor.addEntryBlock());
 
   // Register binary with CUDA runtime. This is substantially different in
@@ -1598,10 +1620,10 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     if (isa<cir::ArrayType>(valTy) || isa<cir::RecordType>(valTy))
       lowerToMemCpy(storeOp);
   } else if (auto fnOp = dyn_cast<cir::FuncOp>(op)) {
-    if (auto globalCtor = fnOp.getGlobalCtorAttr()) {
-      globalCtorList.push_back(globalCtor);
-    } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
-      globalDtorList.push_back(globalDtor);
+    if (auto globalCtor = fnOp.getGlobalCtorPriority()) {
+      globalCtorList.emplace_back(fnOp.getName(), globalCtor.value());
+    } else if (auto globalDtor = fnOp.getGlobalDtorPriority()) {
+      globalDtorList.emplace_back(fnOp.getName(), globalDtor.value());
     }
     if (auto attr = fnOp.getExtraAttrs().getElements().get(
             CUDAKernelNameAttr::getMnemonic())) {

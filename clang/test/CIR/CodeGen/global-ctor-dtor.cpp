@@ -11,7 +11,7 @@ void foo(void) {
   bar();
 }
 
-// BEFORE: cir.func dso_local @_Z3foov() global_ctor(65535)
+// BEFORE: cir.func dso_local @_Z3foov() global_ctor
 
 void foo2(void) __attribute__((constructor(777)));
 void foo2(void) {
@@ -25,7 +25,7 @@ void foo3(void) {
   bar();
 }
 
-// BEFORE: cir.func dso_local @_Z4foo3v() global_dtor(65535)
+// BEFORE: cir.func dso_local @_Z4foo3v() global_dtor
 
 void foo4(void) __attribute__((destructor(789)));
 void foo4(void) {
