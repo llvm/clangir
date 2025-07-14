@@ -2234,8 +2234,8 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewriteAlias(
   lowerFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
 
   auto loc = op.getLoc();
-  auto aliasOp = rewriter.replaceOpWithNewOp<mlir::LLVM::AliasOp>(op,
-      ty, convertLinkage(op.getLinkage()), op.getName(), op.getDsoLocal(),
+  auto aliasOp = rewriter.replaceOpWithNewOp<mlir::LLVM::AliasOp>(
+      op, ty, convertLinkage(op.getLinkage()), op.getName(), op.getDsoLocal(),
       /*threadLocal=*/false, attributes);
 
   // Create the alias body
