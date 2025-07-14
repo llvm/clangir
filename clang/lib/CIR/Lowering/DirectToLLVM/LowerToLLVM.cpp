@@ -1451,15 +1451,14 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
     if (auto fn = dyn_cast<mlir::FunctionOpInterface>(callee)) {
       llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(
           converter->convertType(fn.getFunctionType()));
-    } else {
-      // If the callee wasn't a function, it must be an alias. In that case,
-      // we need to prepend the addrerss of the alias to the operands. The
-      // way aliases work in the LLLVM dialect is a little counter-intuitive.
+    } else if (auto alias = cast<mlir::LLVM::AliasOp>(callee)) {
+      // If the callee wasan alias. In that case,
+      // we need to prepend the address of the alias to the operands. The
+      // way aliases work in the LLVM dialect is a little counter-intuitive.
       // The AliasOp itself is a pseudo-function that returns the address of
       // the global value being aliased, but when we generate the call we
       // need to insert an operation that gets the address of the AliasOp.
       // This all gets sorted out when the LLVM dialect is lowered to LLVM IR.
-      auto alias = cast<mlir::LLVM::AliasOp>(callee);
       auto symAttr = cast<mlir::FlatSymbolRefAttr>(calleeAttr);
       auto addrOfAlias =
           rewriter
@@ -1477,6 +1476,9 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
       // Clear the callee attribute because we're calling an alias.
       calleeAttr = {};
       llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(alias.getType());
+    } else {
+      // Was this an ifunc?
+      return op->emitError("Unexpected callee type!");
     }
   } else { // indirect call
     assert(op->getOperands().size() &&
@@ -2232,8 +2234,8 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewriteAlias(
   lowerFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
 
   auto loc = op.getLoc();
-  auto aliasOp = rewriter.create<mlir::LLVM::AliasOp>(
-      loc, ty, convertLinkage(op.getLinkage()), op.getName(), op.getDsoLocal(),
+  auto aliasOp = rewriter.replaceOpWithNewOp<mlir::LLVM::AliasOp>(op,
+      ty, convertLinkage(op.getLinkage()), op.getName(), op.getDsoLocal(),
       /*threadLocal=*/false, attributes);
 
   // Create the alias body
@@ -2247,7 +2249,6 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewriteAlias(
       builder.create<mlir::LLVM::AddressOfOp>(loc, ptrTy, aliasee.getValue());
   builder.create<mlir::LLVM::ReturnOp>(loc, addrOp);
 
-  rewriter.replaceOp(op, aliasOp);
   return mlir::success();
 }
 
