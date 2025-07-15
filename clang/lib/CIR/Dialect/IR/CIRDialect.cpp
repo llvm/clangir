@@ -2652,35 +2652,35 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
           llvm::function_ref<void(std::optional<int> prio)> createAttr)
       -> mlir::LogicalResult {
     if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
-      std::optional<int> prio;
+      std::optional<int> priority;
       if (mlir::succeeded(parser.parseOptionalLParen())) {
         auto parsedPrio = mlir::FieldParser<int>::parse(parser);
         if (mlir::failed(parsedPrio))
           return parser.emitError(parser.getCurrentLocation(),
                                   "failed to parse 'priority', of type 'int'");
-        prio = parsedPrio.value_or(int());
+        priority = parsedPrio.value_or(int());
         // Parse literal ')'
         if (parser.parseRParen())
           return failure();
       }
-      createAttr(prio);
+      createAttr(priority);
     }
     return success();
   };
 
-  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> prio) {
-        cir::GlobalCtorAttr globalCtorAttr =
-            prio ? cir::GlobalCtorAttr::get(nameAttr, *prio)
-                 : cir::GlobalCtorAttr::get(nameAttr);
-        state.addAttribute(getGlobalCtorAttrName(state.name), globalCtorAttr);
+  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> priority) {
+        auto globalCtorPriorityAttr = builder.getI32IntegerAttr(
+            priority ? *priority : DefaultGlobalCtorDtorPriority);
+        state.addAttribute(getGlobalCtorPriorityAttrName(state.name),
+                           globalCtorPriorityAttr);
       }).failed())
     return failure();
 
-  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> prio) {
-        cir::GlobalDtorAttr globalDtorAttr =
-            prio ? cir::GlobalDtorAttr::get(nameAttr, *prio)
-                 : cir::GlobalDtorAttr::get(nameAttr);
-        state.addAttribute(getGlobalDtorAttrName(state.name), globalDtorAttr);
+  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> priority) {
+        auto globalDtorPriorityAttr = builder.getI32IntegerAttr(
+            priority ? *priority : DefaultGlobalCtorDtorPriority);
+        state.addAttribute(getGlobalDtorPriorityAttrName(state.name),
+                           globalDtorPriorityAttr);
       }).failed())
     return failure();
 
@@ -2794,9 +2794,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       // These are all omitted since they are custom printed already.
       {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
        getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorAttrName(),
-       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
-       getCallingConvAttrName(), getNoProtoAttrName(),
+       getFunctionTypeAttrName(), getGlobalCtorPriorityAttrName(),
+       getGlobalDtorPriorityAttrName(), getLambdaAttrName(),
+       getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
        getAnnotationsAttrName()});
@@ -2813,16 +2813,16 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p << ")";
   }
 
-  if (auto globalCtor = getGlobalCtorAttr()) {
+  if (auto globalCtorPriority = getGlobalCtorPriority()) {
     p << " global_ctor";
-    if (!globalCtor.isDefaultPriority())
-      p << "(" << globalCtor.getPriority() << ")";
+    if (globalCtorPriority.value() != DefaultGlobalCtorDtorPriority)
+      p << "(" << globalCtorPriority.value() << ")";
   }
 
-  if (auto globalDtor = getGlobalDtorAttr()) {
+  if (auto globalDtorPriority = getGlobalDtorPriority()) {
     p << " global_dtor";
-    if (!globalDtor.isDefaultPriority())
-      p << "(" << globalDtor.getPriority() << ")";
+    if (globalDtorPriority.value() != DefaultGlobalCtorDtorPriority)
+      p << "(" << globalDtorPriority.value() << ")";
   }
 
   if (!getExtraAttrs().getElements().empty()) {

@@ -781,7 +781,8 @@ void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl gd,
 }
 
 /// Track functions to be called before main() runs.
-void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor, int priority) {
+void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor,
+                                 std::optional<int> priority) {
   // FIXME(cir): handle LexOrder and Associated data upon testcases.
   //
   // Traditional LLVM codegen directly adds the function to the list of global
@@ -789,13 +790,11 @@ void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor, int priority) {
   // global list is created in LoweringPrepare.
   //
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  ctor->setAttr(
-      ctor.getGlobalCtorAttrName(),
-      cir::GlobalCtorAttr::get(&getMLIRContext(), ctor.getName(), priority));
+  ctor.setGlobalCtorPriority(priority);
 }
 
 /// Add a function to the list that will be called when the module is unloaded.
-void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, int priority,
+void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, std::optional<int> priority,
                                  bool isDtorAttrFunc) {
   assert(isDtorAttrFunc && "NYI");
   if (codeGenOpts.RegisterGlobalDtorsWithAtExit &&
@@ -805,9 +804,7 @@ void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, int priority,
   }
 
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  dtor->setAttr(
-      dtor.getGlobalDtorAttrName(),
-      cir::GlobalDtorAttr::get(&getMLIRContext(), dtor.getName(), priority));
+  dtor.setGlobalDtorPriority(priority);
 }
 
 mlir::Operation *CIRGenModule::getGlobalValue(StringRef name) {
