@@ -23,6 +23,11 @@ struct B : A {
   virtual ~B();
 };
 
+// Aliases are inserted before the function definitions in LLVM IR
+// FIXME: These should have unnamed_addr set.
+// LLVM: @_ZN1BD1Ev = alias void (ptr), ptr @_ZN1BD2Ev
+// LLVM: @_ZN1CD1Ev = alias void (ptr), ptr @_ZN1CD2Ev
+
 // Base dtor: actually calls A's base dtor.
 // CIR: cir.func dso_local @_ZN1BD2Ev
 // CIR:   cir.call @_ZN6MemberD1Ev
@@ -33,8 +38,6 @@ struct B : A {
 
 // Complete dtor: just an alias because there are no virtual bases.
 // CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) alias(@_ZN1BD2Ev)
-// FIXME: LLVM output should be: @_ZN1BD1Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1BD2Ev
-// LLVM: declare dso_local void @_ZN1BD1Ev(ptr)
 
 // Deleting dtor: defers to the complete dtor.
 // LLVM: define{{.*}} void @_ZN1BD0Ev(ptr
@@ -51,8 +54,6 @@ struct B : A {
 
 // FIXME: LLVM output should be: @_ZN1CD2Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1BD2Ev
 // LLVM: define dso_local void @_ZN1CD2Ev(ptr
-// FIXME: LLVM output should be: @_ZN1CD1Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1CD2Ev
-// LLVM: declare dso_local void @_ZN1CD1Ev(ptr)
 // FIXME: note that LLVM_O1 cannot be tested because the canocalizers running
 // on top of LLVM IR dialect delete _ZN1CD2Ev in its current form (a function
 // declaration) since its not used in the TU.
