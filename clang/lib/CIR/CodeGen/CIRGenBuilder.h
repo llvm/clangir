@@ -425,12 +425,8 @@ public:
     llvm_unreachable("unsupported long double format");
   }
 
-  mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
-    // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
-    // type so it's a bit more clear and C++ idiomatic.
-    auto fnTy = cir::FuncType::get({}, getUInt32Ty(), isVarArg);
-    assert(!cir::MissingFeatures::isVarArg());
-    return getPointerTo(getPointerTo(fnTy));
+  mlir::Type getVirtualFnPtrType() {
+    return cir::PointerType::get(cir::VTableType::get(getContext()));
   }
 
   cir::FuncType getFuncType(llvm::ArrayRef<mlir::Type> params, mlir::Type retTy,

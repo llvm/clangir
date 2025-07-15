@@ -264,12 +264,20 @@ def CIR_AnyDataMemberType : CIR_TypeBase<"::cir::DataMemberType",
     "data member type">;
 
 //===----------------------------------------------------------------------===//
+// VTable type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyVTableType : CIR_TypeBase<"::cir::VTableType",
+    "vtable type">;
+
+
+//===----------------------------------------------------------------------===//
 // Scalar Type predicates
 //===----------------------------------------------------------------------===//
 
 defvar CIR_ScalarTypes = [
     CIR_AnyBoolType, CIR_AnyIntType, CIR_AnyFloatType, CIR_AnyPtrType,
-    CIR_AnyDataMemberType
+    CIR_AnyDataMemberType, CIR_AnyVTableType
 ];
 
 def CIR_AnyScalarType : AnyTypeOf<CIR_ScalarTypes, "cir scalar type"> {

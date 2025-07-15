@@ -2421,10 +2421,7 @@ LogicalResult cir::VTableAddrPointOp::verify() {
     return success();
 
   auto resultType = getAddr().getType();
-  auto intTy = cir::IntType::get(getContext(), 32, /*isSigned=*/false);
-  auto fnTy = cir::FuncType::get({}, intTy);
-
-  auto resTy = cir::PointerType::get(cir::PointerType::get(fnTy));
+  auto resTy = cir::PointerType::get(cir::VTableType::get(getContext()));
 
   if (resultType != resTy)
     return emitOpError("result type must be '")

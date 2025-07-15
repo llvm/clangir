@@ -344,6 +344,22 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 }
 
 //===----------------------------------------------------------------------===//
+// CIR_VTableType
+//===----------------------------------------------------------------------===//
+
+def CIR_VTableType : CIR_Type<"VTable", "vtable",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+  let summary = "CIR type that is used for pointers that point to a C++ vtable";
+  let description = [{
+    `cir.vtable` is a special type used as the pointee type for pointers to
+    vtables. This avoids using arbitrary pointer types to declare vtable
+    pointer values.
+  }];
+}
+
+
+//===----------------------------------------------------------------------===//
 // BoolType
 //===----------------------------------------------------------------------===//
 
@@ -751,7 +767,8 @@ def CIRRecordType : Type<
 def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
-  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType
+  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType,
+  CIR_VTableType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
