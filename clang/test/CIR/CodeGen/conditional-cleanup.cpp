@@ -218,10 +218,6 @@ namespace test7 {
 // CIR_EH:             cir.if %[[VAL_41]] {
 // CIR_EH:               cir.call @_ZN5test71AD1Ev(%[[VAL_2]]) : (!cir.ptr<!rec_test73A3AA>) -> ()
 // CIR_EH:             }
-// CIR_EH:             %[[VAL_42:.*]] = cir.load{{.*}} %[[VAL_3]] : !cir.ptr<!cir.bool>, !cir.bool
-// CIR_EH:             cir.if %[[VAL_42]] {
-// CIR_EH:               cir.call @_ZN5test71AD1Ev(%[[VAL_2]]) : (!cir.ptr<!rec_test73A3AA>) -> ()
-// CIR_EH:             }
 // CIR_EH:             %[[VAL_43:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.bool>, !cir.bool
 // CIR_EH:             cir.if %[[VAL_43]] {
 // CIR_EH:               cir.call @_ZdlPvm(%[[VAL_16]], %[[VAL_15]]) : (!cir.ptr<!void>, !u64i) -> ()

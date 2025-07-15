@@ -643,12 +643,17 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
     // We only actually emit the cleanup code if the cleanup is either
     // active or was used before it was deactivated.
     if (EHActiveFlag.isValid() || IsActive) {
-      cleanupFlags.setIsForEHCleanup();
-      mlir::OpBuilder::InsertionGuard guard(builder);
-
       auto yield = cast<YieldOp>(ehEntry->getTerminator());
-      builder.setInsertionPoint(yield);
-      emitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
+
+      // We skip the cleanups at the end of CIR scopes as they will be handled
+      // later. This prevents cases like multiple destructor calls for the same
+      // object.
+      if (!isa<ScopeOp>(yield->getParentOp())) {
+        cleanupFlags.setIsForEHCleanup();
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPoint(yield);
+        emitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
+      }
     }
 
     if (CPI)
