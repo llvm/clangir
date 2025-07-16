@@ -1608,7 +1608,7 @@ class CIR_BitOp<string mnemonic, TypeConstraint inputTy> : CIR_Op<mnemonic, [
   let results = (outs inputTy:$result);
 
   let assemblyFormat = [{
-    `(` $input `:` type($input) `)` `:` type($result) attr-dict
+    $input `:` type($result) attr-dict
   }];
 }
 
@@ -1616,20 +1616,20 @@ class CIR_CountZerosBitOp<string mnemonic, TypeConstraint inputTy>
     : CIR_BitOp<mnemonic, inputTy> {
   let arguments = (ins inputTy:$input, UnitAttr:$is_zero_poison);
   let assemblyFormat = [{
-    `(` $input `:` type($input) `)` (`zero_poison` $is_zero_poison^)?
+    $input (`zero_poison` $is_zero_poison^)?
     `:` type($result) attr-dict
   }];
 }
 
-def CIR_BitClrsbOp : CIR_BitOp<"bit.clrsb", CIR_SIntOfWidths<[32, 64]>> {
+def CIR_BitClrsbOp : CIR_BitOp<"clrsb", CIR_SIntOfWidths<[32, 64]>> {
   let summary = "Get the number of leading redundant sign bits in the input";
   let description = [{
     Compute the number of leading redundant sign bits in the input integer.
 
     The input integer must be a signed integer. The most significant bit of the
-    input integer is the sign bit. The `cir.bit.clrsb` operation returns the
-    number of redundant sign bits in the input, that is, the number of bits
-    following the most significant bit that are identical to it.
+    input integer is the sign bit. The `cir.clrsb` operation returns the number
+    of redundant sign bits in the input, that is, the number of bits following
+    the most significant bit that are identical to it.
 
     The bit width of the input integer must be either 32 or 64.
 
@@ -1642,24 +1642,22 @@ def CIR_BitClrsbOp : CIR_BitOp<"bit.clrsb", CIR_SIntOfWidths<[32, 64]>> {
     %0 = cir.const #cir.int<3735928559> : !s32i
     // %1 will be 1 because there is 1 bit following the most significant bit
     // that is identical to it.
-    %1 = cir.bit.clrsb(%0 : !s32i) : !s32i
+    %1 = cir.clrsb(%0 : !s32i) : !s32i
 
     // %2 = 1, 0b0000_0000_0000_0000_0000_0000_0000_0001
     %2 = cir.const #cir.int<1> : !s32i
     // %3 will be 30
-    %3 = cir.bit.clrsb(%2 : !s32i) : !s32i
+    %3 = cir.clrsb(%2 : !s32i) : !s32i
     ```
   }];
 }
 
-def CIR_BitClzOp : CIR_CountZerosBitOp<"bit.clz",
-  CIR_UIntOfWidths<[16, 32, 64]>
-> {
+def CIR_BitClzOp : CIR_CountZerosBitOp<"clz", CIR_UIntOfWidths<[16, 32, 64]>> {
   let summary = "Get the number of leading 0-bits in the input";
   let description = [{
     Compute the number of leading 0-bits in the input.
 
-    The input integer must be an unsigned integer. The `cir.bit.clz` operation
+    The input integer must be an unsigned integer. The `cir.clz` operation
     returns the number of consecutive 0-bits at the most significant bit
     position in the input.
 
@@ -1674,19 +1672,17 @@ def CIR_BitClzOp : CIR_CountZerosBitOp<"bit.clz",
     // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 28
-    %1 = cir.bit.clz(%0 : !u32i) zero_poison : !u32i
+    %1 = cir.clz(%0 : !u32i) zero_poison : !u32i
     ```
   }];
 }
 
-def CIR_BitCtzOp : CIR_CountZerosBitOp<"bit.ctz",
-  CIR_UIntOfWidths<[16, 32, 64]>
-> {
+def CIR_BitCtzOp : CIR_CountZerosBitOp<"ctz", CIR_UIntOfWidths<[16, 32, 64]>> {
   let summary = "Get the number of trailing 0-bits in the input";
   let description = [{
     Compute the number of trailing 0-bits in the input.
 
-    The input integer must be an unsigned integer. The `cir.bit.ctz` operation
+    The input integer must be an unsigned integer. The `cir.ctz` operation
     returns the number of consecutive 0-bits at the least significant bit
     position in the input.
 
@@ -1702,20 +1698,19 @@ def CIR_BitCtzOp : CIR_CountZerosBitOp<"bit.ctz",
     // %0 = 0b1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 3
-    %1 = cir.bit.ctz(%0 : !u32i) : !u32i
+    %1 = cir.ctz(%0 : !u32i) : !u32i
     ```
   }];
 }
 
-def CIR_BitFfsOp : CIR_BitOp<"bit.ffs", CIR_SIntOfWidths<[32, 64]>> {
+def CIR_BitFfsOp : CIR_BitOp<"ffs", CIR_SIntOfWidths<[32, 64]>> {
   let summary = "Get the position of the least significant 1-bit of input";
   let description = [{
     Compute the position of the least significant 1-bit of the input.
 
-    The input integer must be a signed integer. The `cir.bit.ffs` operation
-    returns one plus the index of the least significant 1-bit of the input
-    signed integer. As a special case, if the input integer is 0, `cir.bit.ffs`
-    returns 0.
+    The input integer must be a signed integer. The `cir.ffs` operation returns
+    one plus the index of the least significant 1-bit of the input signed
+    integer. As a special case, if the input integer is 0, `cir.ffs` returns 0.
 
     Example:
 
@@ -1725,12 +1720,12 @@ def CIR_BitFfsOp : CIR_BitOp<"bit.ffs", CIR_SIntOfWidths<[32, 64]>> {
     // %0 = 0x0010_1000
     %0 = cir.const #cir.int<40> : !s32i
     // #1 will be 4 since the 4th least significant bit is 1.
-    %1 = cir.bit.ffs(%0 : !s32i) : !s32i
+    %1 = cir.ffs(%0 : !s32i) : !s32i
     ```
   }];
 }
 
-def CIR_BitParityOp : CIR_BitOp<"bit.parity", CIR_UIntOfWidths<[32, 64]>> {
+def CIR_BitParityOp : CIR_BitOp<"parity", CIR_UIntOfWidths<[32, 64]>> {
   let summary = "Get the parity of input";
   let description = [{
     Compute the parity of the input. The parity of an integer is the number of
@@ -1747,14 +1742,12 @@ def CIR_BitParityOp : CIR_BitOp<"bit.parity", CIR_UIntOfWidths<[32, 64]>> {
     // %0 = 0x0110_1000
     %0 = cir.const #cir.int<104> : !u32i
     // %1 will be 1 since there are 3 1-bits in %0
-    %1 = cir.bit.parity(%0 : !u32i) : !u32i
+    %1 = cir.parity(%0 : !u32i) : !u32i
     ```
   }];
 }
 
-def CIR_BitPopcountOp : CIR_BitOp<"bit.popcount",
-  CIR_UIntOfWidths<[16, 32, 64]>
-> {
+def CIR_BitPopcountOp : CIR_BitOp<"popcount", CIR_UIntOfWidths<[16, 32, 64]>> {
   let summary = "Get the number of 1-bits in input";
   let description = [{
     Compute the number of 1-bits in the input.
@@ -1769,7 +1762,7 @@ def CIR_BitPopcountOp : CIR_BitOp<"bit.popcount",
     // %0 = 0x0110_1000
     %0 = cir.const #cir.int<104> : !u32i
     // %1 will be 3 since there are 3 1-bits in %0
-    %1 = cir.bit.popcount(%0 : !u32i) : !u32i
+    %1 = cir.popcount(%0 : !u32i) : !u32i
     ```
   }];
 }
@@ -1778,11 +1771,11 @@ def CIR_BitPopcountOp : CIR_BitOp<"bit.popcount",
 // ByteswapOp
 //===----------------------------------------------------------------------===//
 
-def CIR_ByteswapOp : CIR_Op<"bswap", [Pure, SameOperandsAndResultType]> {
+def CIR_ByteswapOp : CIR_Op<"byte_swap", [Pure, SameOperandsAndResultType]> {
   let summary = "Reverse the bytes that constitute the operand integer";
   let description = [{
-    The `cir.bswap` operation takes an integer as operand, and returns it with
-    the order of bytes that constitute the operand reversed.
+    The `cir.byte_swap` operation takes an integer as operand, and returns it
+    with the order of bytes that constitute the operand reversed.
 
     The operand integer must be an unsigned integer. Its widths must be either
     16, 32, or 64.
@@ -1796,7 +1789,7 @@ def CIR_ByteswapOp : CIR_Op<"bswap", [Pure, SameOperandsAndResultType]> {
     %0 = cir.const #cir.int<305419896> : !u32i
 
     // %1 should be 0x78563412
-    %1 = cir.bswap(%0 : !u32i) : !u32i
+    %1 = cir.byte_swap(%0 : !u32i) : !u32i
     ```
   }];
 
@@ -1804,7 +1797,7 @@ def CIR_ByteswapOp : CIR_Op<"bswap", [Pure, SameOperandsAndResultType]> {
   let arguments = (ins CIR_UIntOfWidths<[16, 32, 64]>:$input);
 
   let assemblyFormat = [{
-    `(` $input `:` type($input) `)` `:` type($result) attr-dict
+    $input `:` type($result) attr-dict
   }];
 }
 

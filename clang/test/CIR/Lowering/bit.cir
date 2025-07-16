@@ -9,7 +9,7 @@
 !u64i = !cir.int<u, 64>
 
 cir.func @clrsb_s32(%arg : !s32i) {
-  %0 = cir.bit.clrsb(%arg : !s32i) : !s32i
+  %0 = cir.clrsb %arg : !s32i
   cir.return
 }
 
@@ -26,7 +26,7 @@ cir.func @clrsb_s32(%arg : !s32i) {
 // CHECK-NEXT: }
 
 cir.func @clrsb_s64(%arg : !s64i) {
-  %0 = cir.bit.clrsb(%arg : !s64i) : !s64i
+  %0 = cir.clrsb %arg : !s64i
   cir.return
 }
 
@@ -43,7 +43,7 @@ cir.func @clrsb_s64(%arg : !s64i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u16(%arg : !u16i) {
-  %0 = cir.bit.clz(%arg : !u16i) zero_poison : !u16i
+  %0 = cir.clz %arg zero_poison : !u16i
   cir.return
 }
 
@@ -53,7 +53,7 @@ cir.func @clz_u16(%arg : !u16i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u32(%arg : !u32i) {
-  %0 = cir.bit.clz(%arg : !u32i) : !u32i
+  %0 = cir.clz %arg : !u32i
   cir.return
 }
 
@@ -63,7 +63,7 @@ cir.func @clz_u32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u64(%arg : !u64i) {
-  %0 = cir.bit.clz(%arg : !u64i) zero_poison : !u64i
+  %0 = cir.clz %arg zero_poison : !u64i
   cir.return
 }
 
@@ -73,7 +73,7 @@ cir.func @clz_u64(%arg : !u64i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u16(%arg : !u16i) {
-  %0 = cir.bit.ctz(%arg : !u16i) : !u16i
+  %0 = cir.ctz %arg : !u16i
   cir.return
 }
 
@@ -83,7 +83,7 @@ cir.func @ctz_u16(%arg : !u16i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u32(%arg : !u32i) {
-  %0 = cir.bit.ctz(%arg : !u32i) zero_poison : !u32i
+  %0 = cir.ctz %arg zero_poison : !u32i
   cir.return
 }
 
@@ -93,7 +93,7 @@ cir.func @ctz_u32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u64(%arg : !u64i) {
-  %0 = cir.bit.ctz(%arg : !u64i) : !u64i
+  %0 = cir.ctz %arg : !u64i
   cir.return
 }
 
@@ -103,7 +103,7 @@ cir.func @ctz_u64(%arg : !u64i) {
 // CHECK-NEXT: }
 
 cir.func @ffs_s32(%arg : !s32i) {
-  %0 = cir.bit.ffs(%arg : !s32i) : !s32i
+  %0 = cir.ffs %arg : !s32i
   cir.return
 }
 
@@ -119,7 +119,7 @@ cir.func @ffs_s32(%arg : !s32i) {
 // CHECK-NEXT: }
 
 cir.func @ffs_s64(%arg : !s64i) {
-  %0 = cir.bit.ffs(%arg : !s64i) : !s64i
+  %0 = cir.ffs %arg : !s64i
   cir.return
 }
 
@@ -135,7 +135,7 @@ cir.func @ffs_s64(%arg : !s64i) {
 // CHECK-NEXT: }
 
 cir.func @parity_s32(%arg : !u32i) {
-  %0 = cir.bit.parity(%arg : !u32i) : !u32i
+  %0 = cir.parity %arg : !u32i
   cir.return
 }
 
@@ -147,7 +147,7 @@ cir.func @parity_s32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @parity_s64(%arg : !u64i) {
-  %0 = cir.bit.parity(%arg : !u64i) : !u64i
+  %0 = cir.parity %arg : !u64i
   cir.return
 }
 
@@ -159,7 +159,7 @@ cir.func @parity_s64(%arg : !u64i) {
 // CHECK-NEXT: }
 
 cir.func @popcount_u16(%arg : !u16i) {
-  %0 = cir.bit.popcount(%arg : !u16i) : !u16i
+  %0 = cir.popcount %arg : !u16i
   cir.return
 }
 
@@ -169,7 +169,7 @@ cir.func @popcount_u16(%arg : !u16i) {
 // CHECK-NEXT: }
 
 cir.func @popcount_u32(%arg : !u32i) {
-  %0 = cir.bit.popcount(%arg : !u32i) : !u32i
+  %0 = cir.popcount %arg : !u32i
   cir.return
 }
 
@@ -179,7 +179,7 @@ cir.func @popcount_u32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @popcount_u64(%arg : !u64i) {
-  %0 = cir.bit.popcount(%arg : !u64i) : !u64i
+  %0 = cir.popcount %arg : !u64i
   cir.return
 }
 
