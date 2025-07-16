@@ -20,26 +20,26 @@ module {
     %u32 = cir.const #cir.int<1> : !u32i
     %u64 = cir.const #cir.int<1> : !u64i
 
-    %2 = cir.bit.clrsb(%s32 : !s32i) : !s32i
-    %3 = cir.bit.clrsb(%s64 : !s64i) : !s64i
+    %2 = cir.clrsb %s32 : !s32i
+    %3 = cir.clrsb %s64 : !s64i
 
-    %4 = cir.bit.clz(%u16 : !u16i) zero_poison : !u16i
-    %5 = cir.bit.clz(%u32 : !u32i) : !u32i
-    %6 = cir.bit.clz(%u64 : !u64i) zero_poison : !u64i
+    %4 = cir.clz %u16 zero_poison : !u16i
+    %5 = cir.clz %u32 : !u32i
+    %6 = cir.clz %u64 zero_poison : !u64i
 
-    %7 = cir.bit.ctz(%u16 : !u16i) zero_poison : !u16i
-    %8 = cir.bit.ctz(%u32 : !u32i) : !u32i
-    %9 = cir.bit.ctz(%u64 : !u64i) zero_poison : !u64i
+    %7 = cir.ctz %u16 zero_poison : !u16i
+    %8 = cir.ctz %u32 : !u32i
+    %9 = cir.ctz %u64 zero_poison : !u64i
 
-    %10 = cir.bit.ffs(%s32 : !s32i) : !s32i
-    %11 = cir.bit.ffs(%s64 : !s64i) : !s64i
+    %10 = cir.ffs %s32 : !s32i
+    %11 = cir.ffs %s64 : !s64i
 
-    %12 = cir.bit.parity(%u32 : !u32i) : !u32i
-    %13 = cir.bit.parity(%u64 : !u64i) : !u64i
+    %12 = cir.parity %u32 : !u32i
+    %13 = cir.parity %u64 : !u64i
 
-    %14 = cir.bit.popcount(%u16 : !u16i) : !u16i
-    %15 = cir.bit.popcount(%u32 : !u32i) : !u32i
-    %16 = cir.bit.popcount(%u64 : !u64i) : !u64i
+    %14 = cir.popcount %u16 : !u16i
+    %15 = cir.popcount %u32 : !u32i
+    %16 = cir.popcount %u64 : !u64i
 
     cir.return
   }
@@ -55,21 +55,21 @@ module {
 // CHECK-NEXT:     %5 = cir.const #cir.int<1> : !u16i
 // CHECK-NEXT:     %6 = cir.const #cir.int<1> : !u32i
 // CHECK-NEXT:     %7 = cir.const #cir.int<1> : !u64i
-// CHECK-NEXT:     %8 = cir.bit.clrsb(%2 : !s32i) : !s32i
-// CHECK-NEXT:     %9 = cir.bit.clrsb(%3 : !s64i) : !s64i
-// CHECK-NEXT:     %10 = cir.bit.clz(%5 : !u16i) zero_poison : !u16i
-// CHECK-NEXT:     %11 = cir.bit.clz(%6 : !u32i) : !u32i
-// CHECK-NEXT:     %12 = cir.bit.clz(%7 : !u64i) zero_poison : !u64i
-// CHECK-NEXT:     %13 = cir.bit.ctz(%5 : !u16i) zero_poison : !u16i
-// CHECK-NEXT:     %14 = cir.bit.ctz(%6 : !u32i) : !u32i
-// CHECK-NEXT:     %15 = cir.bit.ctz(%7 : !u64i) zero_poison : !u64i
-// CHECK-NEXT:     %16 = cir.bit.ffs(%2 : !s32i) : !s32i
-// CHECK-NEXT:     %17 = cir.bit.ffs(%3 : !s64i) : !s64i
-// CHECK-NEXT:     %18 = cir.bit.parity(%6 : !u32i) : !u32i
-// CHECK-NEXT:     %19 = cir.bit.parity(%7 : !u64i) : !u64i
-// CHECK-NEXT:     %20 = cir.bit.popcount(%5 : !u16i) : !u16i
-// CHECK-NEXT:     %21 = cir.bit.popcount(%6 : !u32i) : !u32i
-// CHECK-NEXT:     %22 = cir.bit.popcount(%7 : !u64i) : !u64i
+// CHECK-NEXT:     %8 = cir.clrsb %2 : !s32i
+// CHECK-NEXT:     %9 = cir.clrsb %3 : !s64i
+// CHECK-NEXT:     %10 = cir.clz %5 zero_poison : !u16i
+// CHECK-NEXT:     %11 = cir.clz %6 : !u32i
+// CHECK-NEXT:     %12 = cir.clz %7 zero_poison : !u64i
+// CHECK-NEXT:     %13 = cir.ctz %5 zero_poison : !u16i
+// CHECK-NEXT:     %14 = cir.ctz %6 : !u32i
+// CHECK-NEXT:     %15 = cir.ctz %7 zero_poison : !u64i
+// CHECK-NEXT:     %16 = cir.ffs %2 : !s32i
+// CHECK-NEXT:     %17 = cir.ffs %3 : !s64i
+// CHECK-NEXT:     %18 = cir.parity %6 : !u32i
+// CHECK-NEXT:     %19 = cir.parity %7 : !u64i
+// CHECK-NEXT:     %20 = cir.popcount %5 : !u16i
+// CHECK-NEXT:     %21 = cir.popcount %6 : !u32i
+// CHECK-NEXT:     %22 = cir.popcount %7 : !u64i
 // CHECK-NEXT:     cir.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

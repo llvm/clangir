@@ -4,7 +4,7 @@
 !u32i = !cir.int<u, 32>
 
 cir.func @test(%arg0: !u32i) -> !u32i {
-  %0 = cir.bswap(%arg0 : !u32i) : !u32i
+  %0 = cir.byte_swap %arg0 : !u32i
   cir.return %0 : !u32i
 }
 
