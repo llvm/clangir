@@ -2621,34 +2621,17 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   }
 
   // Parse CXXSpecialMember attribute
-  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_ctor"))) {
+  if (parser.parseOptionalKeyword("special_member").succeeded()) {
+    cir::CXXCtorAttr ctorAttr;
+    cir::CXXDtorAttr dtorAttr;
     if (parser.parseLess().failed())
       return failure();
-    mlir::Type type;
-    if (parser.parseType(type).failed())
-      return failure();
-    if (parser.parseComma().failed())
-      return failure();
-    cir::CtorKind ctorKind;
-    if (parseCIRKeyword<cir::CtorKind>(parser, ctorKind).failed())
-      return failure();
+    if (auto oa = parser.parseOptionalAttribute(ctorAttr); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
+    if (auto oa = parser.parseOptionalAttribute(dtorAttr); oa.has_value())
+      state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
     if (parser.parseGreater().failed())
       return failure();
-
-    state.addAttribute(cxxSpecialMemberAttr,
-                       cir::CXXCtorAttr::get(type, ctorKind));
-  }
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("cxx_dtor"))) {
-    if (parser.parseLess().failed())
-      return failure();
-    mlir::Type type;
-    if (parser.parseType(type).failed())
-      return failure();
-    if (parser.parseGreater().failed())
-      return failure();
-
-    state.addAttribute(cxxSpecialMemberAttr, cir::CXXDtorAttr::get(type));
   }
 
   // If additional attributes are present, parse them.
@@ -2833,12 +2816,14 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   if (getCxxSpecialMember()) {
     if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
-      if (cxxCtor.getCtorKind() != cir::CtorKind::Custom)
-        p << " cxx_ctor<" << cxxCtor.getType() << ", " << cxxCtor.getCtorKind()
-          << ">";
+      p << " special_member<";
+      p.printAttribute(cxxCtor);
+      p << '>';
     } else if (auto cxxDtor =
                    dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
-      p << " cxx_dtor<" << cxxDtor.getType() << ">";
+      p << " special_member<";
+      p.printAttribute(cxxDtor);
+      p << '>';
     } else {
       assert(false && "expected a CXX special member");
     }
