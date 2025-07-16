@@ -37,7 +37,7 @@ struct B : A {
 // LLVM: call void @_ZN1AD2Ev
 
 // Complete dtor: just an alias because there are no virtual bases.
-// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) alias(@_ZN1BD2Ev)
+// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) special_member<#cir.cxx_dtor<!rec_B>> alias(@_ZN1BD2Ev)
 
 // Deleting dtor: defers to the complete dtor.
 // LLVM: define{{.*}} void @_ZN1BD0Ev(ptr

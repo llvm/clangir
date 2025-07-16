@@ -172,7 +172,6 @@ REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE(SideEffect);
-REGISTER_ENUM_TYPE(CtorKind);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
