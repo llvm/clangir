@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_ATTRS
-#define MLIR_CIR_DIALECT_CIR_ATTRS
+#ifndef CLANG_CIR_DIALECT_IR_CIRATTRS_TD
+#define CLANG_CIR_DIALECT_IR_CIRATTRS_TD
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "clang/CIR/Dialect/IR/CIREnumAttr.td"
@@ -45,7 +45,7 @@ class CIR_TypedAttr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = [{}];
 }
 
-class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
+class CIR_UnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
     : CIR_Attr<name, attrMnemonic, traits> {
   let returnType = "bool";
   let defaultValue = "false";
@@ -68,7 +68,6 @@ def CIR_SourceLanguage : CIR_I32EnumAttr<"SourceLanguage", "source language", [
 }
 
 def CIR_SourceLanguageAttr : CIR_EnumAttr<CIR_SourceLanguage, "lang"> {
-
   let summary = "Module source language";
   let description = [{
     Represents the source language used to generate the module.
@@ -252,7 +251,7 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 // ZeroAttr
 //===----------------------------------------------------------------------===//
 
-def ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
+def CIR_ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
   let summary = "Attribute to represent zero initialization";
   let description = [{
     The ZeroAttr is used to indicate zero initialization on structs.
@@ -263,7 +262,7 @@ def ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
 // UndefAttr
 //===----------------------------------------------------------------------===//
 
-def UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
+def CIR_UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
   let summary = "Represent an undef constant";
   let description = [{
     The UndefAttr represents an undef constant, corresponding to LLVM's notion
@@ -275,7 +274,7 @@ def UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
 // PoisonAttr
 //===----------------------------------------------------------------------===//
 
-def PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
+def CIR_PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
   let summary = "Represent a typed poison constant";
   let description = [{
     The PoisonAttr represents a typed poison constant, corresponding to LLVM's
@@ -287,7 +286,9 @@ def PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
 // ConstArrayAttr
 //===----------------------------------------------------------------------===//
 
-def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]> {
+def CIR_ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [
+  TypedAttrInterface
+]> {
   let summary = "A constant array from ArrayAttr or StringRefAttr";
   let description = [{
     An CIR array attribute is an array of literals of the specified attr types.
@@ -333,8 +334,9 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
 // ConstVectorAttr
 //===----------------------------------------------------------------------===//
 
-def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
-                               [TypedAttrInterface]> {
+def CIR_ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector", [
+  TypedAttrInterface
+]> {
   let summary = "A constant vector from ArrayAttr";
   let description = [{
     A CIR vector attribute is an array of literals of the specified attribute
@@ -364,8 +366,9 @@ def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
 // ConstRecordAttr
 //===----------------------------------------------------------------------===//
 
-def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
-                               [TypedAttrInterface]> {
+def CIR_ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record", [
+  TypedAttrInterface
+]> {
   let summary = "Represents a constant record";
   let description = [{
     Effectively supports "struct-like" constants. It's must be built from
@@ -506,7 +509,7 @@ def CIR_FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
 // ComplexAttr
 //===----------------------------------------------------------------------===//
 
-def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
+def CIR_ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
   let summary = "An attribute that contains a constant complex value";
   let description = [{
     The `#cir.complex` attribute contains a constant value of complex number
@@ -540,7 +543,7 @@ def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
 // ConstPointerAttr
 //===----------------------------------------------------------------------===//
 
-def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
+def CIR_ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer value";
   let parameters = (ins
     AttributeSelfTypeParameter<"", "::cir::PointerType">:$type,
@@ -575,7 +578,7 @@ def CIR_CmpOrdering : CIR_I32EnumAttr<
   let genSpecializedAttr = 0;
 }
 
-def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
+def CIR_CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
   let summary = "Holds information about a three-way comparison operation";
   let description = [{
     The `#cmp3way_info` attribute contains information about a three-way
@@ -629,8 +632,9 @@ def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
 // DataMemberAttr
 //===----------------------------------------------------------------------===//
 
-def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
-                              [TypedAttrInterface]> {
+def CIR_DataMemberAttr : CIR_Attr<"DataMember", "data_member", [
+  TypedAttrInterface
+]> {
   let summary = "Holds a constant data member pointer value";
   let parameters = (ins AttributeSelfTypeParameter<
                             "", "cir::DataMemberType">:$type,
@@ -679,7 +683,7 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
 // MethodAttr
 //===----------------------------------------------------------------------===//
 
-def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
+def CIR_MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer-to-member-function value";
   let description = [{
     A method attribute is a literal attribute that represents a constant
@@ -737,7 +741,9 @@ def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
 // GlobalViewAttr
 //===----------------------------------------------------------------------===//
 
-def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]> {
+def CIR_GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [
+  TypedAttrInterface
+]> {
   let summary = "Provides constant access to a global address";
   let description = [{
     Get constant address of global `symbol` and optionally apply offsets to
@@ -820,7 +826,7 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
 // TypeInfoAttr
 //===----------------------------------------------------------------------===//
 
-def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
+def CIR_TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
   let summary = "Represents a typeinfo used for RTTI";
   let description = [{
     The typeinfo data for a given class is stored into an ArrayAttr. The
@@ -905,8 +911,7 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
 // DynamicCastInfoAttr
 //===----------------------------------------------------------------------===//
 
-def DynamicCastInfoAttr
-    : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
+def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
   let summary = "ABI specific information about a dynamic cast";
   let description = [{
     Provide ABI specific information about a dynamic cast operation.
@@ -922,11 +927,13 @@ def DynamicCastInfoAttr
     `__dynamic_cast` runtime function.
   }];
 
-  let parameters = (ins GlobalViewAttr:$srcRtti,
-                        GlobalViewAttr:$destRtti,
-                        "mlir::FlatSymbolRefAttr":$runtimeFunc,
-                        "mlir::FlatSymbolRefAttr":$badCastFunc,
-                        CIR_IntAttr:$offsetHint);
+  let parameters = (ins
+    CIR_GlobalViewAttr:$srcRtti,
+    CIR_GlobalViewAttr:$destRtti,
+    "mlir::FlatSymbolRefAttr":$runtimeFunc,
+    "mlir::FlatSymbolRefAttr":$badCastFunc,
+    CIR_IntAttr:$offsetHint
+  );
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
@@ -1000,8 +1007,8 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
 // AST Wrappers
 //===----------------------------------------------------------------------===//
 
-class AST<string name, string prefix, list<Trait> traits = []>
-  : CIR_Attr<!strconcat("AST", name), !strconcat(prefix, ".ast"), traits> {
+class CIR_AST<string name, string prefix, list<Trait> traits = []>
+    : CIR_Attr<!strconcat("AST", name), !strconcat(prefix, ".ast"), traits> {
   string clang_name = !strconcat("const clang::", name, " *");
 
   let summary = !strconcat("Wraps a '", clang_name, "' AST node.");
@@ -1040,40 +1047,54 @@ class AST<string name, string prefix, list<Trait> traits = []>
   }];
 }
 
-def ASTDeclAttr : AST<"Decl", "decl", [ASTDeclInterface]>;
+def CIR_ASTDeclAttr : CIR_AST<"Decl", "decl", [ASTDeclInterface]>;
 
-def ASTFunctionDeclAttr : AST<"FunctionDecl", "function.decl",
-  [ASTFunctionDeclInterface]>;
+def CIR_ASTFunctionDeclAttr : CIR_AST<"FunctionDecl", "function.decl",[
+  ASTFunctionDeclInterface
+]>;
 
-def ASTCXXMethodDeclAttr : AST<"CXXMethodDecl", "cxxmethod.decl",
-  [ASTCXXMethodDeclInterface]>;
+def CIR_ASTCXXMethodDeclAttr : CIR_AST<"CXXMethodDecl", "cxxmethod.decl", [
+  ASTCXXMethodDeclInterface
+]>;
 
-def ASTCXXConstructorDeclAttr : AST<"CXXConstructorDecl",
-  "cxxconstructor.decl", [ASTCXXConstructorDeclInterface]>;
+def CIR_ASTCXXConstructorDeclAttr
+  : CIR_AST<"CXXConstructorDecl","cxxconstructor.decl", [
+    ASTCXXConstructorDeclInterface
+  ]>;
 
-def ASTCXXConversionDeclAttr : AST<"CXXConversionDecl",
-  "cxxconversion.decl", [ASTCXXConversionDeclInterface]>;
+def CIR_ASTCXXConversionDeclAttr
+  : CIR_AST<"CXXConversionDecl", "cxxconversion.decl", [
+    ASTCXXConversionDeclInterface
+  ]>;
 
-def ASTCXXDestructorDeclAttr : AST<"CXXDestructorDecl",
-  "cxxdestructor.decl", [ASTCXXDestructorDeclInterface]>;
+def CIR_ASTCXXDestructorDeclAttr
+  : CIR_AST<"CXXDestructorDecl", "cxxdestructor.decl", [
+    ASTCXXDestructorDeclInterface
+  ]>;
 
-def ASTVarDeclAttr : AST<"VarDecl", "var.decl",
-  [ASTVarDeclInterface]>;
+def CIR_ASTVarDeclAttr : CIR_AST<"VarDecl", "var.decl", [
+  ASTVarDeclInterface
+]>;
 
-def ASTTypeDeclAttr: AST<"TypeDecl", "type.decl",
-  [ASTTypeDeclInterface]>;
+def CIR_ASTTypeDeclAttr : CIR_AST<"TypeDecl", "type.decl", [
+  ASTTypeDeclInterface
+]>;
 
-def ASTTagDeclAttr : AST<"TagDecl", "tag.decl",
-  [ASTTagDeclInterface]>;
+def CIR_ASTTagDeclAttr : CIR_AST<"TagDecl", "tag.decl", [
+  ASTTagDeclInterface
+]>;
 
-def ASTRecordDeclAttr : AST<"RecordDecl", "record.decl",
-  [ASTRecordDeclInterface]>;
+def CIR_ASTRecordDeclAttr : CIR_AST<"RecordDecl", "record.decl", [
+  ASTRecordDeclInterface
+]>;
 
-def ASTExprAttr : AST<"Expr", "expr",
-  [ASTExprInterface]>;
+def CIR_ASTExprAttr : CIR_AST<"Expr", "expr", [
+  ASTExprInterface
+]>;
 
-def ASTCallExprAttr : AST<"CallExpr", "call.expr",
-  [ASTCallExprInterface]>;
+def CIR_ASTCallExprAttr : CIR_AST<"CallExpr", "call.expr", [
+  ASTCallExprInterface
+]>;
 
 
 //===----------------------------------------------------------------------===//
@@ -1119,7 +1140,7 @@ def CIR_VisibilityAttr : CIR_EnumAttr<CIR_VisibilityKind, "visibility"> {
 // ExtraFuncAttr
 //===----------------------------------------------------------------------===//
 
-def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
+def CIR_ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
   let summary = "Represents aggregated attributes for a function";
   let description = [{
     This is a wrapper of attribute dictionary that contains extra attributes of
@@ -1135,8 +1156,6 @@ def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
   ];
 
   let assemblyFormat = [{ `(` $elements `)` }];
-
-  // Printing and parsing also available in CIRDialect.cpp
 }
 
 //===----------------------------------------------------------------------===//
@@ -1170,15 +1189,15 @@ def CIR_InlineAttr : CIR_EnumAttr<CIR_InlineKind, "inline"> {
 // Unit Function Attributes
 //===----------------------------------------------------------------------===//
 
-def OptNoneAttr : CIRUnitAttr<"OptNone", "optnone"> {
+def CIR_OptNoneAttr : CIR_UnitAttr<"OptNone", "optnone"> {
   let storageType = [{ OptNoneAttr }];
 }
 
-def NoThrowAttr : CIRUnitAttr<"NoThrow", "nothrow"> {
+def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
   let storageType = [{ NoThrowAttr }];
 }
 
-def ConvergentAttr : CIRUnitAttr<"Convergent", "convergent"> {
+def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }
 
@@ -1236,7 +1255,7 @@ class CIR_GlobalCtorDtor<string name, string attrMnemonic>
   }];
 }
 
-def GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor"> {
+def CIR_GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor"> {
   let summary = "Marks a function as a global constructor";
   let description = [{
     Marks the function as a global constructor in the module's constructor list.
@@ -1244,7 +1263,7 @@ def GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor"> {
   }];
 }
 
-def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor"> {
+def CIR_GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor"> {
   let summary = "Marks a function as a global destructor";
   let description = [{
       Marks a function as a global destructor in the module dtors list.
@@ -1252,7 +1271,7 @@ def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor"> {
   }];
 }
 
-def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
+def CIR_BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let summary = "Represents a bit field info";
   let description = [{
     Holds the next information about bitfields: name, storage type, a bitfield size
@@ -1282,7 +1301,7 @@ def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
 // AnnotationAttr
 //===----------------------------------------------------------------------===//
 
-def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
+def CIR_AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   let summary = "Annotation attribute for global variables and functions";
   let description = [{
     Represent C/C++ attribute of annotate in CIR.
@@ -1321,8 +1340,9 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
 // GlobalAnnotationValuesAttr
 //===----------------------------------------------------------------------===//
 
-def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
-                                          "global_annotations"> {
+def CIR_GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
+  "global_annotations"
+> {
   let summary = "Array of annotations, each element consists of name of"
                 "a global var or func and one of its annotations";
   let description = [{
@@ -1366,7 +1386,7 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
 // AddressPointAttr
 //===----------------------------------------------------------------------===//
 
-def AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
+def CIR_AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
   let summary = "Address point attribute";
 
   let description = [{
@@ -1397,4 +1417,4 @@ include "clang/CIR/Dialect/IR/CIRTBAAAttrs.td"
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
 include "clang/CIR/Dialect/IR/CIRCUDAAttrs.td"
 
-#endif // MLIR_CIR_DIALECT_CIR_ATTRS
+#endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD
