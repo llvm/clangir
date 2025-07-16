@@ -108,7 +108,7 @@ public:
   mlir::Value VisitObjCMessageExpr(ObjCMessageExpr *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitArraySubscriptExpr(Expr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitArraySubscriptExpr(Expr *E) { return emitLoadOfLValue(E); }
   mlir::Value VisitMemberExpr(MemberExpr *ME) { llvm_unreachable("NYI"); }
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
     llvm_unreachable("NYI");
@@ -419,12 +419,12 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
 
   // Atomic to non-atomic casts may be more than a no-op for some platforms and
   // for some types.
+  case CK_NoOp:
   case CK_LValueToRValue:
     return Visit(Op);
 
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
-  case CK_NoOp:
   case CK_UserDefinedConversion:
     llvm_unreachable("NYI");
 

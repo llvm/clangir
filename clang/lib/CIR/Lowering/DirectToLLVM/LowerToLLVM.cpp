@@ -43,6 +43,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -349,7 +350,7 @@ unsigned getGlobalOpTargetAddrSpace(mlir::ConversionPatternRewriter &rewriter,
                                     const mlir::TypeConverter *converter,
                                     cir::GlobalOp op) {
   auto tempPtrTy = cir::PointerType::get(rewriter.getContext(), op.getSymType(),
-                                         op.getAddrSpaceAttr());
+                                         op.getAddrSpace());
   return cast<mlir::LLVM::LLVMPointerType>(converter->convertType(tempPtrTy))
       .getAddressSpace();
 }
@@ -699,6 +700,13 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::GlobalViewAttr globalAttr) {
   } else if (auto fun = dyn_cast<cir::FuncOp>(sourceSymbol)) {
     sourceType = converter->convertType(fun.getFunctionType());
     symName = fun.getSymName();
+    sourceAddrSpace = 0;
+  } else if (auto alias = dyn_cast<mlir::LLVM::AliasOp>(sourceSymbol)) {
+    // FIXME: It seems unusual that we need to handle an LLVM dialect op here,
+    // but that's the way it happens. Should we be doing something somewhere
+    // else to lower the GlobalViewAttr sooner?
+    sourceType = alias.getType();
+    symName = alias.getSymName();
     sourceAddrSpace = 0;
   } else {
     llvm_unreachable("Unexpected GlobalOp type");
@@ -1433,13 +1441,46 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
                            willReturn);
 
   mlir::LLVM::LLVMFunctionType llvmFnTy;
+
+  // Temporary to handle the case where we need to prepend an operand if the
+  // callee is an alias.
+  SmallVector<mlir::Value> adjustedCallOperands;
+
   if (calleeAttr) { // direct call
-    auto fn =
-        mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FunctionOpInterface>(
-            op, calleeAttr);
-    assert(fn && "Did not find function for call");
-    llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(
-        converter->convertType(fn.getFunctionType()));
+    mlir::Operation *callee =
+        mlir::SymbolTable::lookupNearestSymbolFrom(op, calleeAttr);
+    if (auto fn = dyn_cast<mlir::FunctionOpInterface>(callee)) {
+      llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(
+          converter->convertType(fn.getFunctionType()));
+    } else if (auto alias = cast<mlir::LLVM::AliasOp>(callee)) {
+      // If the callee wasan alias. In that case,
+      // we need to prepend the address of the alias to the operands. The
+      // way aliases work in the LLVM dialect is a little counter-intuitive.
+      // The AliasOp itself is a pseudo-function that returns the address of
+      // the global value being aliased, but when we generate the call we
+      // need to insert an operation that gets the address of the AliasOp.
+      // This all gets sorted out when the LLVM dialect is lowered to LLVM IR.
+      auto symAttr = cast<mlir::FlatSymbolRefAttr>(calleeAttr);
+      auto addrOfAlias =
+          rewriter
+              .create<mlir::LLVM::AddressOfOp>(
+                  op->getLoc(),
+                  mlir::LLVM::LLVMPointerType::get(rewriter.getContext()),
+                  symAttr)
+              .getResult();
+      adjustedCallOperands.push_back(addrOfAlias);
+
+      // Now add the regular operands and assign this to the range value.
+      llvm::append_range(adjustedCallOperands, callOperands);
+      callOperands = adjustedCallOperands;
+
+      // Clear the callee attribute because we're calling an alias.
+      calleeAttr = {};
+      llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(alias.getType());
+    } else {
+      // Was this an ifunc?
+      return op->emitError("Unexpected callee type!");
+    }
   } else { // indirect call
     assert(op->getOperands().size() &&
            "operands list must no be empty for the indirect call");
@@ -1448,6 +1489,7 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
     auto ptyp = dyn_cast<cir::PointerType>(typ);
     auto ftyp = dyn_cast<cir::FuncType>(ptyp.getPointee());
     assert(ftyp && "expected a pointer to a function as the first operand");
+    llvm::append_range(adjustedCallOperands, callOperands);
     llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp));
   }
 
@@ -2186,10 +2228,34 @@ void CIRToLLVMFuncOpLowering::lowerFuncOpenCLKernelMetadata(
       newExtraAttrs.getDictionary(getContext())));
 }
 
+mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewriteAlias(
+    cir::FuncOp op, mlir::FlatSymbolRefAttr aliasee, mlir::Type ty,
+    OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const {
+  SmallVector<mlir::NamedAttribute, 4> attributes;
+  lowerFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
+
+  auto loc = op.getLoc();
+  auto aliasOp = rewriter.replaceOpWithNewOp<mlir::LLVM::AliasOp>(
+      op, ty, convertLinkage(op.getLinkage()), op.getName(), op.getDsoLocal(),
+      /*threadLocal=*/false, attributes);
+
+  // Create the alias body
+  mlir::OpBuilder builder(op.getContext());
+  mlir::Block *block = builder.createBlock(&aliasOp.getInitializerRegion());
+  builder.setInsertionPointToStart(block);
+  // The type of AddressOfOp is always a pointer.
+  assert(!cir::MissingFeatures::addressSpace());
+  mlir::Type ptrTy = mlir::LLVM::LLVMPointerType::get(ty.getContext());
+  auto addrOp =
+      builder.create<mlir::LLVM::AddressOfOp>(loc, ptrTy, aliasee.getValue());
+  builder.create<mlir::LLVM::ReturnOp>(loc, addrOp);
+
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     cir::FuncOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-
   auto fnType = op.getFunctionType();
   auto isDsoLocal = op.getDsoLocal();
   mlir::TypeConverter::SignatureConversion signatureConversion(
@@ -2210,6 +2276,12 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
       resultType ? resultType : mlir::LLVM::LLVMVoidType::get(getContext()),
       signatureConversion.getConvertedTypes(),
       /*isVarArg=*/fnType.isVarArg());
+
+  // If this is an alias, it needs to be lowered to llvm::AliasOp.
+  std::optional<mlir::FlatSymbolRefAttr> aliasee = op.getAliaseeAttr();
+  if (aliasee && *aliasee)
+    return matchAndRewriteAlias(op, *aliasee, llvmFnTy, adaptor, rewriter);
+
   // LLVMFuncOp expects a single FileLine Location instead of a fused
   // location.
   auto Loc = op.getLoc();
@@ -4422,32 +4494,31 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   return cir::createLowerModule(module, rewriter);
 }
 
+static unsigned
+getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
+                                   cir::LowerModule *lowerModule) {
+  if (addrSpace == cir::AddressSpace::Default)
+    return 0; // Default address space is always 0 in LLVM.
+
+  if (cir::isTargetAddressSpace(addrSpace))
+    return cir::getTargetAddressSpaceValue(addrSpace);
+
+  assert(lowerModule && "CIR AS map is not available");
+  return lowerModule->getTargetLoweringInfo()
+      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+}
+
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
 // lambda capturing experience. Also blocked by makeTripleAlwaysPresent.
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout,
                           cir::LowerModule *lowerModule) {
-  converter.addConversion(
-      [&, lowerModule](cir::PointerType type) -> mlir::Type {
-        // Drop pointee type since LLVM dialect only allows opaque pointers.
-
-        auto addrSpace =
-            mlir::cast_if_present<cir::AddressSpaceAttr>(type.getAddrSpace());
-        // Null addrspace attribute indicates the default addrspace.
-        if (!addrSpace)
-          return mlir::LLVM::LLVMPointerType::get(type.getContext());
-
-        assert(lowerModule && "CIR AS map is not available");
-        // Pass through target addrspace and map CIR addrspace to LLVM addrspace
-        // by querying the target info.
-        unsigned targetAS =
-            addrSpace.isTarget()
-                ? addrSpace.getTargetValue()
-                : lowerModule->getTargetLoweringInfo()
-                      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
-
-        return mlir::LLVM::LLVMPointerType::get(type.getContext(), targetAS);
-      });
+  converter.addConversion([&,
+                           lowerModule](cir::PointerType type) -> mlir::Type {
+    unsigned addrSpace =
+        getTargetAddrSpaceFromCIRAddrSpace(type.getAddrSpace(), lowerModule);
+    return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
+  });
   converter.addConversion(
       [&, lowerModule](cir::DataMemberType type) -> mlir::Type {
         assert(lowerModule && "CXXABI is not available");

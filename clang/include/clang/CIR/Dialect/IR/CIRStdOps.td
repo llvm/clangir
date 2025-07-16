@@ -13,8 +13,9 @@
 #ifndef LLVM_CLANG_CIR_DIALECT_IR_CIRSTDOPS
 #define LLVM_CLANG_CIR_DIALECT_IR_CIRSTDOPS
 
-class CIRStdOp<string functionName, dag args, dag res, list<Trait> traits = []>:
-    CIR_Op<"std." # functionName, traits> {
+class CIR_StdOp<string functionName, dag args, dag res, list<Trait> traits = []>
+    : CIR_Op<"std." # functionName, traits>
+{
   string funcName = functionName;
 
   let arguments = !con((ins FlatSymbolRefAttr:$original_fn), args);
@@ -50,14 +51,14 @@ class CIRStdOp<string functionName, dag args, dag res, list<Trait> traits = []>:
                                   " attr-dict");
 }
 
-def StdFindOp : CIRStdOp<"find",
+def CIR_StdFindOp : CIR_StdOp<"find",
   (ins CIR_AnyType:$first, CIR_AnyType:$last, CIR_AnyType:$pattern),
   (outs CIR_AnyType:$result),
   [AllTypesMatch<["first", "last", "result"]>]>;
-def IterBeginOp: CIRStdOp<"begin",
+def CIR_IterBeginOp: CIR_StdOp<"begin",
   (ins CIR_AnyType:$container),
   (outs CIR_AnyType:$result)>;
-def IterEndOp: CIRStdOp<"end",
+def CIR_IterEndOp: CIR_StdOp<"end",
   (ins CIR_AnyType:$container),
   (outs CIR_AnyType:$result)>;
 

@@ -2106,16 +2106,6 @@ static void printConstant(OpAsmPrinter &p, Attribute value) {
   p.printAttribute(value);
 }
 
-static ParseResult
-parseGlobalOpAddrSpace(OpAsmParser &p, cir::AddressSpaceAttr &addrSpaceAttr) {
-  return parseAddrSpaceAttribute(p, addrSpaceAttr);
-}
-
-static void printGlobalOpAddrSpace(OpAsmPrinter &p, cir::GlobalOp op,
-                                   cir::AddressSpaceAttr addrSpaceAttr) {
-  printAddrSpaceAttribute(p, addrSpaceAttr);
-}
-
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, cir::GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
                                              mlir::Region &ctorRegion,
@@ -2288,7 +2278,7 @@ LogicalResult cir::GlobalOp::verify() {
 void cir::GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, llvm::StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    cir::AddressSpaceAttr addrSpace,
+    cir::AddressSpace addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -2303,8 +2293,9 @@ void cir::GlobalOp::build(
       cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
-  if (addrSpace)
-    odsState.addAttribute(getAddrSpaceAttrName(odsState.name), addrSpace);
+  odsState.addAttribute(
+      getAddrSpaceAttrName(odsState.name),
+      cir::AddressSpaceAttr::get(odsBuilder.getContext(), addrSpace));
 
   Region *ctorRegion = odsState.addRegion();
   if (ctorBuilder) {
@@ -2367,10 +2358,10 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
            << "' does not reference a valid cir.global or cir.func";
 
   mlir::Type symTy;
-  cir::AddressSpaceAttr symAddrSpace{};
+  cir::AddressSpace symAddrSpace{};
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
-    symAddrSpace = g.getAddrSpaceAttr();
+    symAddrSpace = g.getAddrSpace();
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.
     if (getTls() && !g.getTlsModel())
@@ -2677,35 +2668,35 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
           llvm::function_ref<void(std::optional<int> prio)> createAttr)
       -> mlir::LogicalResult {
     if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
-      std::optional<int> prio;
+      std::optional<int> priority;
       if (mlir::succeeded(parser.parseOptionalLParen())) {
         auto parsedPrio = mlir::FieldParser<int>::parse(parser);
         if (mlir::failed(parsedPrio))
           return parser.emitError(parser.getCurrentLocation(),
                                   "failed to parse 'priority', of type 'int'");
-        prio = parsedPrio.value_or(int());
+        priority = parsedPrio.value_or(int());
         // Parse literal ')'
         if (parser.parseRParen())
           return failure();
       }
-      createAttr(prio);
+      createAttr(priority);
     }
     return success();
   };
 
-  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> prio) {
-        cir::GlobalCtorAttr globalCtorAttr =
-            prio ? cir::GlobalCtorAttr::get(nameAttr, *prio)
-                 : cir::GlobalCtorAttr::get(nameAttr);
-        state.addAttribute(getGlobalCtorAttrName(state.name), globalCtorAttr);
+  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> priority) {
+        auto globalCtorPriorityAttr = builder.getI32IntegerAttr(
+            priority ? *priority : DefaultGlobalCtorDtorPriority);
+        state.addAttribute(getGlobalCtorPriorityAttrName(state.name),
+                           globalCtorPriorityAttr);
       }).failed())
     return failure();
 
-  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> prio) {
-        cir::GlobalDtorAttr globalDtorAttr =
-            prio ? cir::GlobalDtorAttr::get(nameAttr, *prio)
-                 : cir::GlobalDtorAttr::get(nameAttr);
-        state.addAttribute(getGlobalDtorAttrName(state.name), globalDtorAttr);
+  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> priority) {
+        auto globalDtorPriorityAttr = builder.getI32IntegerAttr(
+            priority ? *priority : DefaultGlobalCtorDtorPriority);
+        state.addAttribute(getGlobalDtorPriorityAttrName(state.name),
+                           globalDtorPriorityAttr);
       }).failed())
     return failure();
 
@@ -2834,9 +2825,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       // These are all omitted since they are custom printed already.
       {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
        getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorAttrName(),
-       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
-       getCallingConvAttrName(), getNoProtoAttrName(),
+       getFunctionTypeAttrName(), getGlobalCtorPriorityAttrName(),
+       getGlobalDtorPriorityAttrName(), getLambdaAttrName(),
+       getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
        getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
@@ -2853,16 +2844,16 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p << ")";
   }
 
-  if (auto globalCtor = getGlobalCtorAttr()) {
+  if (auto globalCtorPriority = getGlobalCtorPriority()) {
     p << " global_ctor";
-    if (!globalCtor.isDefaultPriority())
-      p << "(" << globalCtor.getPriority() << ")";
+    if (globalCtorPriority.value() != DefaultGlobalCtorDtorPriority)
+      p << "(" << globalCtorPriority.value() << ")";
   }
 
-  if (auto globalDtor = getGlobalDtorAttr()) {
+  if (auto globalDtorPriority = getGlobalDtorPriority()) {
     p << " global_dtor";
-    if (!globalDtor.isDefaultPriority())
-      p << "(" << globalDtor.getPriority() << ")";
+    if (globalDtorPriority.value() != DefaultGlobalCtorDtorPriority)
+      p << "(" << globalDtorPriority.value() << ")";
   }
 
   if (!getExtraAttrs().getElements().empty()) {

@@ -745,7 +745,7 @@ public:
   [[nodiscard]] cir::GlobalOp
   createGlobal(mlir::ModuleOp module, mlir::Location loc, mlir::StringRef name,
                mlir::Type type, bool isConst, cir::GlobalLinkageKind linkage,
-               cir::AddressSpaceAttr addrSpace = {}) {
+               cir::AddressSpace addrSpace = cir::AddressSpace::Default) {
     mlir::OpBuilder::InsertionGuard guard(*this);
     setInsertionPointToStart(module.getBody());
     return create<cir::GlobalOp>(loc, name, type, isConst, linkage, addrSpace);
@@ -754,11 +754,10 @@ public:
   /// Creates a versioned global variable. If the symbol is already taken, an ID
   /// will be appended to the symbol. The returned global must always be queried
   /// for its name so it can be referenced correctly.
-  [[nodiscard]] cir::GlobalOp
-  createVersionedGlobal(mlir::ModuleOp module, mlir::Location loc,
-                        mlir::StringRef name, mlir::Type type, bool isConst,
-                        cir::GlobalLinkageKind linkage,
-                        cir::AddressSpaceAttr addrSpace = {}) {
+  [[nodiscard]] cir::GlobalOp createVersionedGlobal(
+      mlir::ModuleOp module, mlir::Location loc, mlir::StringRef name,
+      mlir::Type type, bool isConst, cir::GlobalLinkageKind linkage,
+      cir::AddressSpace addrSpace = cir::AddressSpace::Default) {
     // Create a unique name if the given name is already taken.
     std::string uniqueName;
     if (unsigned version = GlobalsVersioning[name.str()]++)
@@ -893,6 +892,31 @@ public:
   cir::StoreOp createFlagStore(mlir::Location loc, bool val, mlir::Value dst) {
     auto flag = getBool(val, loc);
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
+  }
+
+  /// Create a call to a masked store intrinsic.
+  /// \p loc       - expression location
+  /// \p val       - data to be stored
+  /// \p ptr       - base pointer for the store
+  /// \p alignment - alignment of the destination location
+  /// \p mask      - vector of booleans which indicates what vector lanes should
+  ///                be accessed in memory
+  mlir::Value createMaskedStore(mlir::Location loc, mlir::Value val,
+                                mlir::Value ptr, llvm::Align alignment,
+                                mlir::Value mask) {
+    mlir::Type dataTy = val.getType();
+
+    assert(mlir::isa<cir::VectorType>(dataTy) && "val should be a vector");
+    assert(mask && "mask should not be all-ones (null)");
+
+    auto alignmentValue = create<cir::ConstantOp>(
+        loc, cir::IntAttr::get(getUInt32Ty(), alignment.value()));
+
+    mlir::Value ops[] = {val, ptr, alignmentValue, mask};
+
+    return create<cir::LLVMIntrinsicCallOp>(loc, getStringAttr("masked.store"),
+                                            getVoidTy(), ops)
+        .getResult();
   }
 
   cir::VecShuffleOp

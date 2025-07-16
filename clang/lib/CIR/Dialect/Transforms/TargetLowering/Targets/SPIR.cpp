@@ -42,18 +42,17 @@ public:
       : TargetLoweringInfo(std::make_unique<SPIRVABIInfo>(LT)) {}
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      cir::AddressSpaceAttr addressSpaceAttr) const override {
-    using Kind = cir::AddressSpaceAttr::Kind;
-    switch (addressSpaceAttr.getValue()) {
-    case Kind::offload_private:
+      cir::AddressSpace addrSpace) const override {
+    switch (addrSpace) {
+    case cir::AddressSpace::OffloadPrivate:
       return 0;
-    case Kind::offload_local:
+    case cir::AddressSpace::OffloadLocal:
       return 3;
-    case Kind::offload_global:
+    case cir::AddressSpace::OffloadGlobal:
       return 1;
-    case Kind::offload_constant:
+    case cir::AddressSpace::OffloadConstant:
       return 2;
-    case Kind::offload_generic:
+    case cir::AddressSpace::OffloadGeneric:
       return 4;
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");

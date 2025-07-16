@@ -18,6 +18,9 @@
 // RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefixes=LLVM-CHECK,LLVM-X64 --input-file=%t.ll %s
 
+// This test mimics clang/test/CodeGen/X86/avx-builtins.c, which eventually
+// CIR shall be able to support fully.
+
 #include <immintrin.h>
 
 int test_mm256_extract_epi8(__m256i A) {
