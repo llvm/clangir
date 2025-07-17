@@ -10,15 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_CUDA_ATTRS
-#define MLIR_CIR_DIALECT_CIR_CUDA_ATTRS
+#ifndef CLANG_CIR_DIALECT_IR_CIRCUDAATTRS_TD
+#define CLANG_CIR_DIALECT_IR_CIRCUDAATTRS_TD
 
 //===----------------------------------------------------------------------===//
 // CUDAKernelNameAttr
 //===----------------------------------------------------------------------===//
 
-def CUDAKernelNameAttr : CIR_Attr<"CUDAKernelName",
-                                  "cu.kernel_name"> {
+def CIR_CUDAKernelNameAttr : CIR_Attr<"CUDAKernelName", "cu.kernel_name"> {
   let summary = "Device-side function name for this stub.";
   let description =
   [{
@@ -35,15 +34,14 @@ def CUDAKernelNameAttr : CIR_Attr<"CUDAKernelName",
   let assemblyFormat = "`<` $kernel_name `>`";
 }
 
-def CUDAShadowNameAttr : CIR_Attr<"CUDAShadowName",
-                                  "cu.shadow_name"> {
+def CIR_CUDAShadowNameAttr : CIR_Attr<"CUDAShadowName", "cu.shadow_name"> {
   let summary = "Device-side global variable name for this shadow.";
   let description =
   [{
     This attribute is attached to global variable definitions and records the
     mangled name of the global variable used on the device.
 
-    In CUDA, __device__, __constant__ and __shared__ variables, as well as 
+    In CUDA, __device__, __constant__ and __shared__ variables, as well as
     surface and texture variables, will generate a shadow symbol on host.
     We must preserve the correspodence in order to generate registration
     functions.
@@ -53,8 +51,9 @@ def CUDAShadowNameAttr : CIR_Attr<"CUDAShadowName",
   let assemblyFormat = "`<` $device_side_name `>`";
 }
 
-def CUDABinaryHandleAttr : CIR_Attr<"CUDABinaryHandle",
-                                  "cu.binary_handle"> {
+def CIR_CUDABinaryHandleAttr : CIR_Attr<
+  "CUDABinaryHandle", "cu.binary_handle"
+> {
   let summary = "Fat binary handle for device code.";
   let description =
   [{
@@ -70,8 +69,9 @@ def CUDABinaryHandleAttr : CIR_Attr<"CUDABinaryHandle",
   let assemblyFormat = "`<` $name `>`";
 }
 
-def CUDAExternallyInitializedAttr : CIR_Attr<"CUDAExternallyInitialized",
-                                             "cu.externally_initialized"> {
+def CIR_CUDAExternallyInitializedAttr : CIR_Attr<
+  "CUDAExternallyInitialized", "cu.externally_initialized"
+> {
   let summary = "The marked variable is externally initialized.";
   let description =
   [{
@@ -83,4 +83,4 @@ def CUDAExternallyInitializedAttr : CIR_Attr<"CUDAExternallyInitialized",
   }];
 }
 
-#endif // MLIR_CIR_DIALECT_CIR_CUDA_ATTRS
+#endif // CLANG_CIR_DIALECT_IR_CIRCUDAATTRS_TD

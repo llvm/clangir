@@ -10,16 +10,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
-#define MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
+#ifndef CLANG_CIR_DIALECT_IR_CIROPENCLATTRS_TD
+#define CLANG_CIR_DIALECT_IR_CIROPENCLATTRS_TD
 
 //===----------------------------------------------------------------------===//
 // OpenCLKernelMetadataAttr
 //===----------------------------------------------------------------------===//
 
-def OpenCLKernelMetadataAttr
-    : CIR_Attr<"OpenCLKernelMetadata", "cl.kernel_metadata"> {
-  
+def CIR_OpenCLKernelMetadataAttr : CIR_Attr<
+  "OpenCLKernelMetadata", "cl.kernel_metadata"
+> {
   let summary = "OpenCL kernel metadata";
   let description = [{
     Provide the required information of an OpenCL kernel for the SPIR-V backend.
@@ -78,7 +78,7 @@ def OpenCLKernelMetadataAttr
       // Only types in CIR carry signedness
       if (!mlir::isa<cir::CIRDialect>(hintQTy.getDialect()))
         return std::nullopt;
-      
+
       // See also clang::CodeGen::CodeGenFunction::EmitKernelMetadata
       auto hintEltQTy = mlir::dyn_cast<cir::VectorType>(hintQTy);
       auto isCIRSignedIntType = [](mlir::Type t) {
@@ -96,9 +96,9 @@ def OpenCLKernelMetadataAttr
 // OpenCLKernelArgMetadataAttr
 //===----------------------------------------------------------------------===//
 
-def OpenCLKernelArgMetadataAttr
-    : CIR_Attr<"OpenCLKernelArgMetadata", "cl.kernel_arg_metadata"> {
-  
+def CIR_OpenCLKernelArgMetadataAttr : CIR_Attr<
+  "OpenCLKernelArgMetadata", "cl.kernel_arg_metadata"
+> {
   let summary = "OpenCL kernel argument metadata";
   let description = [{
     Provide the required information of an OpenCL kernel argument for the SPIR-V
@@ -175,22 +175,20 @@ def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
 
 // TODO: It might be worthwhile to introduce a generic attribute applicable to
 // all offloading languages.
-def OpenCLKernelAttr : CIRUnitAttr<
-    "OpenCLKernel", "cl.kernel"> {
+def CIR_OpenCLKernelAttr : CIR_UnitAttr<"OpenCLKernel", "cl.kernel"> {
   let summary = "OpenCL kernel";
   let description = [{
     Indicate the function is a OpenCL kernel.
   }];
-
-  let storageType = [{ OpenCLKernelAttr }];
 }
 
 //===----------------------------------------------------------------------===//
 // OpenCLKernelUniformWorkGroupSizeAttr
 //===----------------------------------------------------------------------===//
 
-def OpenCLKernelUniformWorkGroupSizeAttr : CIRUnitAttr<
-    "OpenCLKernelUniformWorkGroupSize", "cl.uniform_work_group_size"> {
+def CIR_OpenCLKernelUniformWorkGroupSizeAttr : CIR_UnitAttr<
+  "OpenCLKernelUniformWorkGroupSize", "cl.uniform_work_group_size"
+> {
   let summary = "OpenCL kernel work-group uniformity";
   let description = [{
     In OpenCL v2.0, work groups can either be uniform or non-uniform.
@@ -206,4 +204,4 @@ def OpenCLKernelUniformWorkGroupSizeAttr : CIRUnitAttr<
   let storageType = [{ OpenCLKernelUniformWorkGroupSizeAttr }];
 }
 
-#endif // MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
+#endif // CLANG_CIR_DIALECT_IR_CIROPENCLATTRS_TD
