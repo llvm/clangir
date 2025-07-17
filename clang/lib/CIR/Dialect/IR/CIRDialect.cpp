@@ -2804,19 +2804,11 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
-  if (getCxxSpecialMember()) {
-    if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(*getCxxSpecialMember())) {
-      p << " special_member<";
-      p.printAttribute(cxxCtor);
-      p << '>';
-    } else if (auto cxxDtor =
-                   dyn_cast<cir::CXXDtorAttr>(*getCxxSpecialMember())) {
-      p << " special_member<";
-      p.printAttribute(cxxDtor);
-      p << '>';
-    } else {
-      assert(false && "expected a CXX special member");
-    }
+  if (auto specialMemberAttr = getCxxSpecialMember()) {
+    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr>(*specialMemberAttr)));
+    p << " special_member<";
+    p.printAttribute(*specialMemberAttr);
+    p << '>';
   }
 
   function_interface_impl::printFunctionAttributes(
