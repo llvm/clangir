@@ -1008,8 +1008,7 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
   // make it i8 instead.
   if (mlir::isa<mlir::LLVM::LLVMVoidType>(elementTy) ||
       mlir::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
-    elementTy = mlir::IntegerType::get(ctx, 8,
-                                       mlir::IntegerType::Signless);
+    elementTy = mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
 
   // Zero-extend, sign-extend or trunc the pointer value.
   auto index = adaptor.getStride();
