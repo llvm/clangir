@@ -29,19 +29,19 @@ int main() {
     return 0;
 }
 
-// CIR: ![[VTypeInfoA:rec_.*]] = !cir.record<struct  {!cir.ptr<!u8i>, !cir.ptr<!u8i>}>
-// CIR: ![[VTypeInfoB:rec_.*]] = !cir.record<struct  {!cir.ptr<!u8i>, !cir.ptr<!u8i>, !u32i, !u32i, !cir.ptr<!u8i>, !s64i, !cir.ptr<!u8i>, !s64i}>
-// CIR: ![[VTableTypeMother:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>}>
-// CIR: ![[VTableTypeFather:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 3>}>
-// CIR: ![[VTableTypeChild:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>, !cir.array<!cir.ptr<!u8i> x 3>}>
-// CIR: !rec_Father = !cir.record<class "Father" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
-// CIR: !rec_Mother = !cir.record<class "Mother" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
-// CIR: !rec_Child = !cir.record<class "Child" {!rec_Mother, !rec_Father} #cir.record.decl.ast>
+// CIR-DAG: ![[VTypeInfoA:rec_.*]] = !cir.record<struct  {!cir.ptr<!u8i>, !cir.ptr<!u8i>}>
+// CIR-DAG: ![[VTypeInfoB:rec_.*]] = !cir.record<struct  {!cir.ptr<!u8i>, !cir.ptr<!u8i>, !u32i, !u32i, !cir.ptr<!u8i>, !s64i, !cir.ptr<!u8i>, !s64i}>
+// CIR-DAG: ![[VTableTypeMother:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>}>
+// CIR-DAG: ![[VTableTypeFather:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 3>}>
+// CIR-DAG: ![[VTableTypeChild:rec_.*]] = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>, !cir.array<!cir.ptr<!u8i> x 3>}>
+// CIR-DAG: !rec_Father = !cir.record<class "Father" {!cir.ptr<!cir.vtable>} #cir.record.decl.ast>
+// CIR-DAG: !rec_Mother = !cir.record<class "Mother" {!cir.ptr<!cir.vtable>} #cir.record.decl.ast>
+// CIR-DAG: !rec_Child = !cir.record<class "Child" {!rec_Mother, !rec_Father} #cir.record.decl.ast>
 
 // CIR: cir.func linkonce_odr @_ZN6MotherC2Ev(%arg0: !cir.ptr<!rec_Mother>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Mother>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store{{.*}} %2, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.vtable>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Mother>), !cir.ptr<!cir.ptr<!cir.vtable>>
+// CIR:   cir.store{{.*}} %2, %{{[0-9]+}} : !cir.ptr<!cir.vtable>, !cir.ptr<!cir.ptr<!cir.vtable>>
 // CIR:   cir.return
 // CIR: }
 
@@ -52,13 +52,13 @@ int main() {
 // LLVM-DAG: }
 
 // CIR: cir.func linkonce_odr @_ZN5ChildC2Ev(%arg0: !cir.ptr<!rec_Child>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Child>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 1, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.vtable>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Child>), !cir.ptr<!cir.ptr<!cir.vtable>>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.vtable>, !cir.ptr<!cir.ptr<!cir.vtable>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 1, offset = 2>) : !cir.ptr<!cir.vtable>
 // CIR:   %7 = cir.base_class_addr %1 : !cir.ptr<!rec_Child> nonnull [8] -> !cir.ptr<!rec_Father>
-// CIR:   %8 = cir.cast(bitcast, %7 : !cir.ptr<!rec_Father>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>> loc(#loc8)
-// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
+// CIR:   %8 = cir.cast(bitcast, %7 : !cir.ptr<!rec_Father>), !cir.ptr<!cir.ptr<!cir.vtable>> loc(#loc8)
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.vtable>, !cir.ptr<!cir.ptr<!cir.vtable>>
 // CIR:   cir.return
 // CIR: }
 
