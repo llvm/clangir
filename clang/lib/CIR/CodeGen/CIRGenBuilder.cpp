@@ -28,7 +28,7 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   return arrayPtr;
 }
 
-mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &TI,
+mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
                                                mlir::Location loc,
                                                mlir::Value index) {
   // Get the array index type.
