@@ -1332,6 +1332,58 @@ public:
   }
 };
 
+class CIRGetElementOpLowering
+    : public mlir::OpConversionPattern<cir::GetElementOp> {
+  using mlir::OpConversionPattern<cir::GetElementOp>::OpConversionPattern;
+
+  bool isLoadStoreOrGetProducer(cir::GetElementOp op) const {
+    for (auto *user : op->getUsers()) {
+      if (!op->isBeforeInBlock(user))
+        return false;
+      if (isa<cir::LoadOp, cir::StoreOp, cir::GetElementOp>(*user))
+        continue;
+      return false;
+    }
+    return true;
+  }
+
+  // Rewrite
+  //        cir.get_element(%base[%index])
+  // to
+  //        memref.reinterpret_cast (%base, %stride)
+  //
+  // MemRef Dialect doesn't have GEP-like operation. memref.reinterpret_cast
+  // only been used to propagate %base and %index to memref.load/store and
+  // should be erased after the conversion.
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetElementOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Only rewrite if all users are load/stores.
+    if (!isLoadStoreOrGetProducer(op))
+      return mlir::failure();
+
+    // Cast the index to the index type, if needed.
+    auto index = adaptor.getIndex();
+    auto indexType = rewriter.getIndexType();
+    if (index.getType() != indexType)
+      index = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
+                                                        index);
+
+    // Convert the destination type.
+    auto dstType =
+        cast<mlir::MemRefType>(getTypeConverter()->convertType(op.getType()));
+
+    // Replace the GetElementOp with a memref.reinterpret_cast.
+    rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
+        op, dstType, adaptor.getBase(),
+        /* offset */ index,
+        /* sizes */ std::nullopt,
+        /* strides */ std::nullopt);
+
+    return mlir::success();
+  }
+};
+
 class CIRPtrStrideOpLowering
     : public mlir::OpConversionPattern<cir::PtrStrideOp> {
 public:
@@ -1363,7 +1415,7 @@ public:
     for (auto *user : op->getUsers()) {
       if (!op->isBeforeInBlock(user))
         return false;
-      if (isa<cir::LoadOp>(*user) || isa<cir::StoreOp>(*user))
+      if (isa<cir::LoadOp, cir::StoreOp, cir::GetElementOp>(*user))
         continue;
       auto castOp = dyn_cast<cir::CastOp>(*user);
       if (castOp && (castOp.getKind() == cir::CastKind::array_to_ptrdecay))
@@ -1455,17 +1507,18 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRFuncOpLowering, CIRScopeOpLowering, CIRBrCondOpLowering,
            CIRTernaryOpLowering, CIRYieldOpLowering, CIRCosOpLowering,
            CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-           CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-           CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-           CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
-           CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering,
-           CIRPtrStrideOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-           CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-           CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-           CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
-           CIRTrapOpLowering>(converter, patterns.getContext());
+           CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
+           CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
+           CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
+           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
+           CIRRoundOpLowering, CIRPtrStrideOpLowering, CIRSinOpLowering,
+           CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+           CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+           CIRBitParityOpLowering, CIRIfOpLowering, CIRVectorCreateLowering,
+           CIRVectorInsertLowering, CIRVectorExtractLowering,
+           CIRVectorCmpOpLowering, CIRACosOpLowering, CIRASinOpLowering,
+           CIRUnreachableOpLowering, CIRTanOpLowering, CIRTrapOpLowering>(
+          converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

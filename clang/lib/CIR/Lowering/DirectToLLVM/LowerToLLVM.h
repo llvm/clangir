@@ -158,6 +158,22 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMGetElementOpLowering
+    : public mlir::OpConversionPattern<cir::GetElementOp> {
+  mlir::DataLayout const &dataLayout;
+
+public:
+  CIRToLLVMGetElementOpLowering(const mlir::TypeConverter &typeConverter,
+                                mlir::MLIRContext *context,
+                                mlir::DataLayout const &dataLayout)
+      : OpConversionPattern(typeConverter, context), dataLayout(dataLayout) {}
+  using mlir::OpConversionPattern<cir::GetElementOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetElementOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMBaseClassAddrOpLowering
     : public mlir::OpConversionPattern<cir::BaseClassAddrOp> {
 public:

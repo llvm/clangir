@@ -1254,6 +1254,12 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
     return;
   }
 
+  if (auto getElemOp = dyn_cast<GetElementOp>(dataSrcOp)) {
+    getPmap()[addr].clear();
+    getPmap()[addr].insert(State::getLocalValue(getElemOp.getBase()));
+    return;
+  }
+
   // Initializes ptr types out of known lib calls marked with pointer
   // attributes. TODO: find a better way to tag this.
   if (auto callOp = dyn_cast<CallOp>(dataSrcOp)) {
@@ -1945,8 +1951,7 @@ void LifetimeCheckPass::dumpPmap(PMapType &pmap) {
   int entry = 0;
   for (auto &mapEntry : pmap) {
     llvm::errs() << "  " << entry << ": " << getVarNameFromValue(mapEntry.first)
-                 << "  "
-                 << "=> ";
+                 << "  " << "=> ";
     printPset(mapEntry.second);
     llvm::errs() << "\n";
     entry++;
