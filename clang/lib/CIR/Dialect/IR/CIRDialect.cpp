@@ -2616,9 +2616,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     cir::CXXDtorAttr dtorAttr;
     if (parser.parseLess().failed())
       return failure();
-    if (auto oa = parser.parseOptionalAttribute(ctorAttr); oa.has_value())
+    if (parser.parseOptionalAttribute(ctorAttr).has_value())
       state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
-    if (auto oa = parser.parseOptionalAttribute(dtorAttr); oa.has_value())
+    if (parser.parseOptionalAttribute(dtorAttr).has_value())
       state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
     if (parser.parseGreater().failed())
       return failure();
