@@ -28,11 +28,47 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   return arrayPtr;
 }
 
-mlir::Value CIRGenBuilderTy::getArrayElement(mlir::Location arrayLocBegin,
+mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &TI,
+                                               mlir::Location loc,
+                                               mlir::Value index) {
+  // Get the array index type.
+  auto arrayIndexWidth = TI.getTypeWidth(clang::TargetInfo::IntType::SignedInt);
+  mlir::Type arrayIndexType = getSIntNTy(arrayIndexWidth);
+
+  // If this is a boolean, zero-extend it to the array index type.
+  if (auto boolTy = mlir::dyn_cast<cir::BoolType>(index.getType()))
+    return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::bool_to_int,
+                               index);
+
+  // If this an integer, ensure that it is at least as width as the array index
+  // type.
+  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType()))
+    if (intTy.getWidth() < arrayIndexWidth)
+      return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::integral,
+                                 index);
+
+  return index;
+}
+
+mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &TI,
+                                             mlir::Location arrayLocBegin,
                                              mlir::Location arrayLocEnd,
                                              mlir::Value arrayPtr,
                                              mlir::Type eltTy, mlir::Value idx,
                                              bool shouldDecay) {
+  // If the array pointer is not decayed, emit a GetElementOp.
+  if (shouldDecay)
+    if (auto arrayPtrTy = dyn_cast<cir::PointerType>(arrayPtr.getType()))
+      if (auto arrayTy = dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee()))
+        if (arrayTy == eltTy) {
+          auto eltPtrTy =
+              getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
+          return create<cir::GetElementOp>(
+              arrayLocEnd, eltPtrTy, arrayPtr,
+              promoteArrayIndex(TI, arrayLocBegin, idx));
+        }
+
+  // If we don't have sufficient type information, emit a PtrStrideOp.
   mlir::Value basePtr = arrayPtr;
   if (shouldDecay)
     basePtr = maybeBuildArrayDecay(arrayLocBegin, arrayPtr, eltTy);

@@ -16,6 +16,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
@@ -1030,10 +1031,15 @@ public:
     return create<cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr, memberPtr);
   }
 
+  /// Promote a value for use as an array index.
+  mlir::Value promoteArrayIndex(const clang::TargetInfo &TargetInfo,
+                                mlir::Location loc, mlir::Value index);
+
   /// Create a cir.ptr_stride operation to get access to an array element.
   /// idx is the index of the element to access, shouldDecay is true if the
   /// result should decay to a pointer to the element type.
-  mlir::Value getArrayElement(mlir::Location arrayLocBegin,
+  mlir::Value getArrayElement(const clang::TargetInfo &TargetInfo,
+                              mlir::Location arrayLocBegin,
                               mlir::Location arrayLocEnd, mlir::Value arrayPtr,
                               mlir::Type eltTy, mlir::Value idx,
                               bool shouldDecay);
