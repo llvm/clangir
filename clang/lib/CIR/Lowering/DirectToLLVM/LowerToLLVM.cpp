@@ -2004,8 +2004,14 @@ mlir::LogicalResult CIRToLLVMVecCmpOpLowering::matchAndRewrite(
   } else {
     return op.emitError() << "unsupported type for VecCmpOp: " << elementType;
   }
-  rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(
-      op, typeConverter->convertType(op.getType()), bitResult);
+
+  // Check if the types are the same before generating SExtOp
+  auto targetType = typeConverter->convertType(op.getType());
+  if (bitResult.getType() == targetType)
+    rewriter.replaceOp(op, bitResult);
+  else
+    rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(op, targetType, bitResult);
+
   return mlir::success();
 }
 
