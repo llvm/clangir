@@ -32,7 +32,7 @@ mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
                                                mlir::Location loc,
                                                mlir::Value index) {
   // Get the array index type.
-  auto arrayIndexWidth = TI.getTypeWidth(clang::TargetInfo::IntType::SignedInt);
+  auto arrayIndexWidth = ti.getTypeWidth(clang::TargetInfo::IntType::SignedInt);
   mlir::Type arrayIndexType = getSIntNTy(arrayIndexWidth);
 
   // If this is a boolean, zero-extend it to the array index type.
@@ -50,23 +50,23 @@ mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
   return index;
 }
 
-mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &TI,
+mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
                                              mlir::Location arrayLocBegin,
                                              mlir::Location arrayLocEnd,
                                              mlir::Value arrayPtr,
                                              mlir::Type eltTy, mlir::Value idx,
                                              bool shouldDecay) {
+  auto arrayPtrTy = dyn_cast<cir::PointerType>(arrayPtr.getType());
+  assert(arrayPtrTy && "expected pointer type");
+
   // If the array pointer is not decayed, emit a GetElementOp.
-  if (shouldDecay)
-    if (auto arrayPtrTy = dyn_cast<cir::PointerType>(arrayPtr.getType()))
-      if (auto arrayTy = dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee()))
-        if (arrayTy == eltTy) {
-          auto eltPtrTy =
-              getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
-          return create<cir::GetElementOp>(
-              arrayLocEnd, eltPtrTy, arrayPtr,
-              promoteArrayIndex(TI, arrayLocBegin, idx));
-        }
+  auto arrayTy = dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
+  if (shouldDecay && arrayTy && arrayTy == eltTy) {
+    auto eltPtrTy =
+        getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
+    return create<cir::GetElementOp>(arrayLocEnd, eltPtrTy, arrayPtr,
+                                     promoteArrayIndex(ti, arrayLocBegin, idx));
+  }
 
   // If we don't have sufficient type information, emit a PtrStrideOp.
   mlir::Value basePtr = arrayPtr;
