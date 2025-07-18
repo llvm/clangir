@@ -967,7 +967,7 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
   // to
   bool rewriteSub = false;
   auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
-  if (sub)
+  if (sub) {
     if (auto lhsConst = dyn_cast<mlir::LLVM::ConstantOp>(
             sub.getOperand(0).getDefiningOp())) {
       auto lhsConstInt = dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
@@ -976,6 +976,7 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
         index = sub.getOperand(1);
       }
     }
+  }
 
   // Handle the cast
   auto llvmDstType = mlir::IntegerType::get(rewriter.getContext(), layoutWidth);
