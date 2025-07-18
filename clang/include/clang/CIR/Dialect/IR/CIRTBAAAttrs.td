@@ -10,6 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
+#define CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
+
 include "clang/CIR/Dialect/IR/CIRTypes.td"
 
 //===----------------------------------------------------------------------===//
@@ -20,12 +23,16 @@ def CIR_TBAAAttr : CIR_Attr<"TBAA", "tbaa", []> {
   let summary = "CIR dialect TBAA base attribute";
 }
 
+class CIR_TBAAAttrCase<string Name, string StorageName>
+    : CIR_Attr<Name, StorageName, [], "TBAAAttr">;
+
 //===----------------------------------------------------------------------===//
 // TBAAOmnipotentCharAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_TBAAOmnipotentChar
-    : CIR_Attr<"TBAAOmnipotentChar", "tbaa_omnipotent_char", [], "TBAAAttr"> {
+def CIR_TBAAOmnipotentCharAttr : CIR_TBAAAttrCase<
+  "TBAAOmnipotentChar", "tbaa_omnipotent_char"
+> {
   let summary = "Describes a special scalar type, the omnipotent char type.";
 }
 
@@ -33,8 +40,9 @@ def CIR_TBAAOmnipotentChar
 // TBAAVTablePointerAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_TBAAVTablePointerAttr
-    : CIR_Attr<"TBAAVTablePointer", "tbaa_vptr", [], "TBAAAttr"> {
+def CIR_TBAAVTablePointerAttr : CIR_TBAAAttrCase<
+  "TBAAVTablePointer", "tbaa_vptr"
+> {
   let summary = "Describes a special scalar type, the vtable pointer type.";
   let parameters = (ins CIR_AnyType:$type);
   let assemblyFormat = "`<` struct(params) `>`";
@@ -44,17 +52,17 @@ def CIR_TBAAVTablePointerAttr
 // TBAAScalarAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_TBAAScalarAttr : CIR_Attr<"TBAAScalar", "tbaa_scalar", [], "TBAAAttr"> {
+def CIR_TBAAScalarAttr : CIR_TBAAAttrCase< "TBAAScalar", "tbaa_scalar"> {
   let summary = "Describes a scalar type in TBAA with an identifier.";
 
-  let parameters = (ins StringRefParameter<>:$id, 
-                        CIR_AnyType:$type, 
+  let parameters = (ins StringRefParameter<>:$id,
+                        CIR_AnyType:$type,
                         OptionalParameter<"cir::TBAAScalarAttr">:$parent);
 
   let description = [{
     Define a TBAA scalar attribute.
-    The optional `parent` attribute is used to describe the parent type of the 
-    scalar type. If the `parent` is null or omitted, the parent type is the 
+    The optional `parent` attribute is used to describe the parent type of the
+    scalar type. If the `parent` is null or omitted, the parent type is the
     `omnipotent char` type.
 
     Example:
@@ -64,16 +72,16 @@ def CIR_TBAAScalarAttr : CIR_Attr<"TBAAScalar", "tbaa_scalar", [], "TBAAAttr"> {
     #tbaa_scalar1 = #cir.tbaa_scalar<id = "long long", type = !s64i>
 
     #tbaa_scalar2 = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!s32i>>
-    #tbaa_scalar3 = #cir.tbaa_scalar<id = "p1 int", type = !cir.ptr<!s32i>, 
+    #tbaa_scalar3 = #cir.tbaa_scalar<id = "p1 int", type = !cir.ptr<!s32i>,
                                      parent = #tbaa_scalar2>
     ```
-    
+
     See the following link for more details:
     https://llvm.org/docs/LangRef.html#tbaa-metadata
   }];
 
   let builders = [
-    AttrBuilder<(ins "llvm::StringRef":$id, 
+    AttrBuilder<(ins "llvm::StringRef":$id,
                      "mlir::Type":$type), [{
       return $_get($_ctxt, id, type, /*parent =*/ nullptr);
     }]>
@@ -82,7 +90,7 @@ def CIR_TBAAScalarAttr : CIR_Attr<"TBAAScalar", "tbaa_scalar", [], "TBAAAttr"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CIR_TBAATagAttr : CIR_Attr<"TBAATag", "tbaa_tag", [], "TBAAAttr"> {
+def CIR_TBAATagAttr : CIR_TBAAAttrCase<"TBAATag", "tbaa_tag"> {
   let parameters = (ins CIR_TBAAAttr
                     : $base, CIR_TBAAAttr
                     : $access, "int64_t"
@@ -91,7 +99,7 @@ def CIR_TBAATagAttr : CIR_Attr<"TBAATag", "tbaa_tag", [], "TBAAAttr"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member", []> {
+def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member"> {
   let summary = "Attribute representing a member of a TBAA structured type.";
   let parameters = (ins "TBAAAttr":$type_desc,
                         "int64_t":$offset);
@@ -137,8 +145,7 @@ def CIR_TBAAMemberAttrArray : ArrayRefParameter<"TBAAMemberAttr"> {
   }];
 }
 
-def CIR_TBAAStructAttr : CIR_Attr<"TBAAStruct",
-                                  "tbaa_struct", [], "TBAAAttr"> {
+def CIR_TBAAStructAttr : CIR_TBAAAttrCase<"TBAAStruct", "tbaa_struct"> {
   let summary = "Describes a struct type in TBAA";
 
   let parameters = (ins StringRefParameter<> : $id,
@@ -164,10 +171,12 @@ def CIR_TBAAStructAttr : CIR_Attr<"TBAAStruct",
 }
 
 def CIR_AnyTBAAAttr : AnyAttrOf<[
-  CIR_TBAAAttr, 
-  CIR_TBAAOmnipotentChar,
+  CIR_TBAAAttr,
+  CIR_TBAAOmnipotentCharAttr,
   CIR_TBAAVTablePointerAttr,
   CIR_TBAAScalarAttr,
   CIR_TBAAStructAttr,
   CIR_TBAATagAttr
 ]>;
+
+#endif // CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD

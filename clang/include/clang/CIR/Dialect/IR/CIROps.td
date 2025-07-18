@@ -293,7 +293,7 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
   let arguments = (ins
     CIR_DynamicCastKind:$kind,
     CIR_PtrToRecordType:$src,
-    OptionalAttr<DynamicCastInfoAttr>:$info,
+    OptionalAttr<CIR_DynamicCastInfoAttr>:$info,
     UnitAttr:$relative_layout
   );
 
@@ -1904,9 +1904,13 @@ def CIR_CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
     ```
   }];
 
+  let arguments = (ins
+    CIR_AnyType:$lhs,
+    CIR_AnyType:$rhs,
+    CIR_CmpThreeWayInfoAttr:$info
+  );
+
   let results = (outs CIR_AnySIntType:$result);
-  let arguments = (ins CIR_AnyType:$lhs, CIR_AnyType:$rhs,
-                       CmpThreeWayInfoAttr:$info);
 
   let assemblyFormat = [{
     `(` $lhs `:` type($lhs) `,` $rhs `,` qualified($info) `)`
@@ -2599,9 +2603,12 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
     ```
   }];
 
-  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
-                       Optional<CIR_AnyType>:$sym_addr,
-                       AddressPointAttr:$address_point);
+  let arguments = (ins
+    OptionalAttr<FlatSymbolRefAttr>:$name,
+    Optional<CIR_AnyType>:$sym_addr,
+    CIR_AddressPointAttr:$address_point
+  );
+
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2728,7 +2735,7 @@ def CIR_SetBitfieldOp : CIR_Op<"set_bitfield"> {
   let arguments = (ins
     Arg<CIR_PointerType, "the address to store the value", [MemWrite]>:$addr,
     CIR_AnyType:$src,
-    BitfieldInfoAttr:$bitfield_info,
+    CIR_BitfieldInfoAttr:$bitfield_info,
     UnitAttr:$is_volatile
   );
 
@@ -2806,9 +2813,9 @@ def CIR_GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
   let arguments = (ins
     Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
-    BitfieldInfoAttr:$bitfield_info,
+    CIR_BitfieldInfoAttr:$bitfield_info,
     UnitAttr:$is_volatile
-    );
+  );
 
   let results = (outs CIR_IntType:$result);
 
@@ -3708,7 +3715,7 @@ def FuncOp : CIR_Op<"func", [
     DefaultValuedAttr<
       CIR_CallingConv, "CallingConv::C"
     >:$calling_conv,
-    ExtraFuncAttr:$extra_attrs,
+    CIR_ExtraFuncAttr:$extra_attrs,
     OptionalAttr<StrAttr>:$sym_visibility,
     UnitAttr:$comdat,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
@@ -3983,7 +3990,7 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []>
     Variadic<CIR_AnyType>:$arg_ops,
     DefaultValuedAttr<CIR_CallingConv, "CallingConv::C">:$calling_conv,
     DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect,
-    ExtraFuncAttr:$extra_attrs,
+    CIR_ExtraFuncAttr:$extra_attrs,
     OptionalAttr<ASTCallExprInterface>:$ast
   );
 }
@@ -4272,12 +4279,12 @@ def CIR_AwaitOp : CIR_Op<"await",[
 
 // Represents the unwind region where unwind continues or
 // the program std::terminate's.
-def CIR_CatchUnwind : CIRUnitAttr<"CatchUnwind", "unwind"> {
+def CIR_CatchUnwind : CIR_UnitAttr<"CatchUnwind", "unwind"> {
   let storageType = [{ CatchUnwind }];
 }
 
 // Represents the catch_all region.
-def CIR_CatchAll : CIRUnitAttr<"CatchAll", "all"> {
+def CIR_CatchAll : CIR_UnitAttr<"CatchAll", "all"> {
   let storageType = [{ CatchAllAttr }];
 }
 
