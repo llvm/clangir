@@ -42,10 +42,11 @@ mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
 
   // If this an integer, ensure that it is at least as width as the array index
   // type.
-  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType()))
+  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType())) {
     if (intTy.getWidth() < arrayIndexWidth)
       return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::integral,
                                  index);
+  }
 
   return index;
 }
