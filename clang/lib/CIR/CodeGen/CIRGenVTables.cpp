@@ -137,11 +137,10 @@ void CIRGenModule::emitDeferredVTables() {
 #endif
 
   for (const CXXRecordDecl *RD : DeferredVTables)
-    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD)) {
+    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD))
       VTables.GenerateClassData(RD);
-    } else if (shouldOpportunisticallyEmitVTables()) {
-      llvm_unreachable("NYI");
-    }
+    else if (shouldOpportunisticallyEmitVTables())
+      opportunisticVTables.push_back(RD);
 
   assert(savedSize == DeferredVTables.size() &&
          "deferred extra vtables during vtable emission?");

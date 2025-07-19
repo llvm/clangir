@@ -3373,7 +3373,7 @@ void CIRGenModule::Release() {
   assert(!MissingFeatures::emitModuleInitializers());
   emitDeferred(getCodeGenOpts().ClangIRBuildDeferredThreshold);
   assert(!MissingFeatures::emittedDeferredDecls());
-  assert(!MissingFeatures::emitVTablesOpportunistically());
+  emitVTablesOpportunistically();
   assert(!MissingFeatures::applyGlobalValReplacements());
   applyReplacements();
   assert(!MissingFeatures::emitMultiVersionFunctions());
@@ -4013,8 +4013,6 @@ cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
 }
 
 bool CIRGenModule::shouldOpportunisticallyEmitVTables() {
-  if (codeGenOpts.OptimizationLevel != 0)
-    llvm_unreachable("NYI");
   return codeGenOpts.OptimizationLevel > 0;
 }
 
@@ -4243,6 +4241,25 @@ void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,
     global.setAnnotationsAttr(builder.getArrayAttr(annotations));
   else if (auto func = dyn_cast<cir::FuncOp>(gv))
     func.setAnnotationsAttr(builder.getArrayAttr(annotations));
+}
+
+void CIRGenModule::emitVTablesOpportunistically() {
+  // Try to emit external vtables as available_externally if they have emitted
+  // all inlined virtual functions.  It runs after EmitDeferred() and therefore
+  // is not allowed to create new references to things that need to be emitted
+  // lazily. Note that it also uses fact that we eagerly emitting RTTI.
+
+  assert(
+      (opportunisticVTables.empty() || shouldOpportunisticallyEmitVTables()) &&
+      "Only emit opportunistic vtables with optimizations");
+
+  for (const CXXRecordDecl *RD : opportunisticVTables) {
+    assert(getVTables().isVTableExternal(RD) &&
+           "This queue should only contain external vtables");
+    if (getCXXABI().canSpeculativelyEmitVTable(RD))
+      VTables.GenerateClassData(RD);
+  }
+  opportunisticVTables.clear();
 }
 
 void CIRGenModule::emitGlobalAnnotations() {
