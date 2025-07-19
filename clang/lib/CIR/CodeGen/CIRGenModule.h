@@ -573,6 +573,9 @@ public:
   /// A queue of (optional) vtables to consider emitting.
   std::vector<const clang::CXXRecordDecl *> DeferredVTables;
 
+  /// A queue of (optional) vtables that may be emitted opportunistically.
+  std::vector<const CXXRecordDecl *> opportunisticVTables;
+
   mlir::Type getVTableComponentType();
   CIRGenVTables &getVTables() { return VTables; }
 
@@ -782,6 +785,12 @@ public:
 
   /// Emit any needed decls for which code generation was deferred.
   void emitDeferred(unsigned recursionLimit);
+
+  /// Try to emit external vtables as available_externally if they have emitted
+  /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
+  /// is not allowed to create new references to things that need to be emitted
+  /// lazily.
+  void emitVTablesOpportunistically();
 
   /// Helper for `emitDeferred` to apply actual codegen.
   void emitGlobalDecl(clang::GlobalDecl &D);
