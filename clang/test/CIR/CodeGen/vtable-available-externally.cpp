@@ -4,7 +4,7 @@
 // RUN: FileCheck -allow-deprecated-dag-overlap --check-prefix=CHECK-FORCE-EMIT %s < %t.opt
 
 // CHECK: cir.global{{.*}} external @_ZTV1A
-// CHECK-FORCE-EMIT-DAG: cir.global{{.*}} available_externally @_ZTV1A
+// CHECK-FORCE-EMIT: cir.global{{.*}} available_externally @_ZTV1A
 struct A {
   A();
   virtual void f();
