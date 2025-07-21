@@ -1038,7 +1038,7 @@ public:
   /// Create a cir.ptr_stride operation to get access to an array element.
   /// idx is the index of the element to access, shouldDecay is true if the
   /// result should decay to a pointer to the element type.
-  mlir::Value getArrayElement(const clang::TargetInfo &TargetInfo,
+  mlir::Value getArrayElement(const clang::TargetInfo &targetInfo,
                               mlir::Location arrayLocBegin,
                               mlir::Location arrayLocEnd, mlir::Value arrayPtr,
                               mlir::Type eltTy, mlir::Value idx,
