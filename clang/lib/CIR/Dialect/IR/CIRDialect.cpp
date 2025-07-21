@@ -3842,7 +3842,7 @@ LogicalResult cir::GetMethodOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::GetElementOp::verify() {
-  auto arrayTy = cast<ArrayType>(getBaseType().getPointee());
+  auto arrayTy = mlir::cast<cir::ArrayType>(getBaseType().getPointee());
   if (getElementType() != arrayTy.getElementType())
     return emitError() << "element type mismatch";
 

@@ -958,7 +958,7 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
   if (!indexOp)
     return index;
 
-  auto indexType = cast<mlir::IntegerType>(index.getType());
+  auto indexType = mlir::cast<mlir::IntegerType>(index.getType());
   auto width = indexType.getWidth();
   if (layoutWidth == width)
     return index;
@@ -966,11 +966,11 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
   // If the index definition is a unary minus (index = sub 0, x), then we need
   // to
   bool rewriteSub = false;
-  auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
+  auto sub = mlir::dyn_cast<mlir::LLVM::SubOp>(indexOp);
   if (sub) {
     if (auto lhsConst = dyn_cast<mlir::LLVM::ConstantOp>(
             sub.getOperand(0).getDefiningOp())) {
-      auto lhsConstInt = dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
+      auto lhsConstInt = mlir::dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
       if (lhsConstInt && lhsConstInt.getValue() == 0) {
         rewriteSub = true;
         index = sub.getOperand(1);
@@ -1018,7 +1018,7 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
           LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType())) {
     bool isUnsigned = false;
     if (auto strideTy =
-            dyn_cast<cir::IntType>(ptrStrideOp.getOperand(1).getType()))
+            mlir::dyn_cast<cir::IntType>(ptrStrideOp.getOperand(1).getType()))
       isUnsigned = strideTy.isUnsigned();
     index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
   }

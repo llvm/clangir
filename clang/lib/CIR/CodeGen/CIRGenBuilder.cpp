@@ -57,11 +57,11 @@ mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
                                              mlir::Value arrayPtr,
                                              mlir::Type eltTy, mlir::Value idx,
                                              bool shouldDecay) {
-  auto arrayPtrTy = dyn_cast<cir::PointerType>(arrayPtr.getType());
+  auto arrayPtrTy = mlir::dyn_cast<cir::PointerType>(arrayPtr.getType());
   assert(arrayPtrTy && "expected pointer type");
 
   // If the array pointer is not decayed, emit a GetElementOp.
-  auto arrayTy = dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
+  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
   if (shouldDecay && arrayTy && arrayTy == eltTy) {
     auto eltPtrTy =
         getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
