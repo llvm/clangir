@@ -199,6 +199,24 @@ void complex_to_bool() {
 
 // CHECK: }
 
+void lvalue_to_rvalue_bitcast() {
+  void *ptr;
+  int _Complex complex = __builtin_bit_cast(int _Complex, ptr);
+}
+
+// CHECK-LABEL: @lvalue_to_rvalue_bitcast()
+
+// CIR-BEFORE: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.complex<!s32i>>
+
+// CIR-AFTER: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.complex<!s32i>>
+
+// LLVM: %[[PTR_ADDR:.*]] = alloca ptr, i64 1, align 8
+// LLVM: %[[COMPLEX_ADDR:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: %[[PTR_TO_COMPLEX:.*]] = load { i32, i32 }, ptr %[[PTR_ADDR]], align 8
+// LLVM: store { i32, i32 } %[[PTR_TO_COMPLEX]], ptr %[[COMPLEX_ADDR]], align 4
+
+// CHECK: }
+
 void promotion() {
   cd = cf + cf;
 }
