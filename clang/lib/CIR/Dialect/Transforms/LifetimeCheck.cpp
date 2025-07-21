@@ -1951,7 +1951,7 @@ void LifetimeCheckPass::dumpPmap(PMapType &pmap) {
   int entry = 0;
   for (auto &mapEntry : pmap) {
     llvm::errs() << "  " << entry << ": " << getVarNameFromValue(mapEntry.first)
-                 << "  " << "=> ";
+                 << "  => ";
     printPset(mapEntry.second);
     llvm::errs() << "\n";
     entry++;
