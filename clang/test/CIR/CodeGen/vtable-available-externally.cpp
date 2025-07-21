@@ -17,6 +17,8 @@ void f(A* a) {
   a->f();
 };
 
+// CHECK-LABEL: cir.func{{.*}} @_Z1gv
+// CHECK:         cir.call @_Z1fP1A
 void g() {
   A a;
   f(&a);
