@@ -199,6 +199,43 @@ void complex_to_bool() {
 
 // CHECK: }
 
+void complex_to_complex_cast() {
+  cd = cf;
+  ci = cs;
+}
+
+// CIR-BEFORE: %[[TMP:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.complex<!cir.float>>, !cir.complex<!cir.float>
+// CIR-BEFORE: %[[FP_COMPLEX:.*]] = cir.cast(float_complex, %[[TMP]] : !cir.complex<!cir.float>), !cir.complex<!cir.double>
+
+// CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.*}} : !cir.complex<!cir.float> -> !cir.float
+// CIR-AFTER: %[[#IMAG:]] = cir.complex.imag %{{.*}} : !cir.complex<!cir.float> -> !cir.float
+// CIR-AFTER: %[[#REAL_FP_CAST:]] = cir.cast(floating, %[[#REAL]] : !cir.float), !cir.double
+// CIR-AFTER: %[[#IMAG_FP_CAST:]] = cir.cast(floating, %[[#IMAG]] : !cir.float), !cir.double
+// CIR-AFTER: %{{.*}} = cir.complex.create %[[#REAL_FP_CAST]], %[[#IMAG_FP_CAST]] : !cir.double -> !cir.complex<!cir.double>
+
+// LLVM: %[[#REAL:]] = extractvalue { float, float } %{{.*}}, 0
+// LLVM: %[[#IMAG:]] = extractvalue { float, float } %{{.*}}, 1
+// LLVM: %[[#REAL_FP_CAST:]] = fpext float %[[#REAL]] to double
+// LLVM: %[[#IMAG_FP_CAST:]] = fpext float %[[#IMAG]] to double
+// LLVM: %[[TMP:.*]] = insertvalue { double, double } undef, double %[[#REAL_FP_CAST]], 0
+// LLVM: %{{.*}} = insertvalue { double, double } %[[TMP]], double %[[#IMAG_FP_CAST]], 1
+
+// CIR-BEFORE: %[[TMP:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.complex<!s16i>>, !cir.complex<!s16i>
+// CIR-BEFORE: %[[INT_COMPLEX:.*]] = cir.cast(int_complex, %[[TMP]] : !cir.complex<!s16i>), !cir.complex<!s32i>
+
+// CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.*}} : !cir.complex<!s16i> -> !s16i
+// CIR-AFTER: %[[#IMAG:]] = cir.complex.imag %{{.*}} : !cir.complex<!s16i> -> !s16i
+// CIR-AFTER: %[[#REAL_INT_CAST:]] = cir.cast(integral, %[[#REAL]] : !s16i), !s32i
+// CIR-AFTER: %[[#IMAG_INT_CAST:]] = cir.cast(integral, %[[#IMAG]] : !s16i), !s32i
+// CIR-AFTER: %{{.*}} = cir.complex.create %[[#REAL_INT_CAST]], %[[#IMAG_INT_CAST]] : !s32i -> !cir.complex<!s32i>
+
+// LLVM: %[[#REAL:]] = extractvalue { i16, i16 } %{{.*}}, 0
+// LLVM: %[[#IMAG:]] = extractvalue { i16, i16 } %{{.*}}, 1
+// LLVM: %[[#REAL_INT_CAST:]] = sext i16 %[[#REAL]] to i32
+// LLVM: %[[#IMAG_INT_CAST:]] = sext i16 %[[#IMAG]] to i32
+// LLVM: %[[TMP:.*]] = insertvalue { i32, i32 } undef, i32 %[[#REAL_INT_CAST]], 0
+// LLVM: %{{.*}} = insertvalue { i32, i32 } %[[TMP]], i32 %[[#IMAG_INT_CAST]], 1
+
 void promotion() {
   cd = cf + cf;
 }

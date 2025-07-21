@@ -529,7 +529,7 @@ static mlir::Value lowerComplexToComplexCast(MLIRContext &ctx, CastOp op) {
       mlir::cast<cir::ComplexType>(op.getType()).getElementType();
 
   auto srcReal = builder.createComplexReal(op.getLoc(), src);
-  auto srcImag = builder.createComplexReal(op.getLoc(), src);
+  auto srcImag = builder.createComplexImag(op.getLoc(), src);
 
   cir::CastKind scalarCastKind;
   switch (op.getKind()) {
