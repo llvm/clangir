@@ -574,7 +574,7 @@ public:
   std::vector<const clang::CXXRecordDecl *> DeferredVTables;
 
   /// A queue of (optional) vtables that may be emitted opportunistically.
-  std::vector<const CXXRecordDecl *> opportunisticVTables;
+  std::vector<const clang::CXXRecordDecl *> opportunisticVTables;
 
   mlir::Type getVTableComponentType();
   CIRGenVTables &getVTables() { return VTables; }
