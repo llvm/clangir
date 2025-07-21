@@ -4253,11 +4253,11 @@ void CIRGenModule::emitVTablesOpportunistically() {
       (opportunisticVTables.empty() || shouldOpportunisticallyEmitVTables()) &&
       "Only emit opportunistic vtables with optimizations");
 
-  for (const CXXRecordDecl *RD : opportunisticVTables) {
-    assert(getVTables().isVTableExternal(RD) &&
+  for (const CXXRecordDecl *rd : opportunisticVTables) {
+    assert(getVTables().isVTableExternal(rd) &&
            "This queue should only contain external vtables");
-    if (getCXXABI().canSpeculativelyEmitVTable(RD))
-      VTables.GenerateClassData(RD);
+    if (getCXXABI().canSpeculativelyEmitVTable(rd))
+      VTables.GenerateClassData(rd);
   }
   opportunisticVTables.clear();
 }
