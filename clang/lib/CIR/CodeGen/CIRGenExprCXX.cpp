@@ -1241,7 +1241,9 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
       NormalAndEHCleanup, Ptr.getPointer(), OperatorDelete, ElementType);
 
   if (Dtor) {
-    llvm_unreachable("NYI");
+    CGF.emitCXXDestructorCall(Dtor, Dtor_Complete,
+                              /*ForVirtualBase=*/false,
+                              /*Delegating=*/false, Ptr, ElementType);
   } else if (auto Lifetime = ElementType.getObjCLifetime()) {
     switch (Lifetime) {
     case Qualifiers::OCL_None:

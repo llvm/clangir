@@ -13,3 +13,18 @@ namespace test1 {
   // CHECK: %[[CONST:.*]] = cir.const #cir.int<4> : !u64i
   // CHECK: cir.call @_ZN5test11AdlEPvm({{.*}}, %[[CONST]])
 }
+
+namespace test2 {
+  struct A {
+    ~A() {}
+  };
+  struct B {
+    A *a;
+    ~B();
+  };
+    // CHECK-LABEL: cir.func{{.*}} @_ZN5test21BD2Ev
+    // CHECK:         cir.call @_ZN5test21AD2Ev
+    // CHECK:         cir.call @_ZdlPvm
+    // CHECK:         cir.return
+    B::~B() { delete a; }
+}
