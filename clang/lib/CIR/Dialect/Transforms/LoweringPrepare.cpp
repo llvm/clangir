@@ -480,110 +480,89 @@ void LoweringPreparePass::lowerBinOp(BinOp op) {
   op.erase();
 }
 
-static mlir::Value lowerScalarToComplexCast(MLIRContext &ctx, CastOp op) {
-  CIRBaseBuilderTy builder(ctx);
+static mlir::Value lowerScalarToComplexCast(mlir::MLIRContext &ctx,
+                                            cir::CastOp op) {
+  cir::CIRBaseBuilderTy builder(ctx);
   builder.setInsertionPoint(op);
 
-  auto src = op.getSrc();
-  auto imag = builder.getNullValue(src.getType(), op.getLoc());
+  mlir::Value src = op.getSrc();
+  mlir::Value imag = builder.getNullValue(src.getType(), op.getLoc());
   return builder.createComplexCreate(op.getLoc(), src, imag);
 }
 
-static mlir::Value lowerComplexToScalarCast(MLIRContext &ctx, CastOp op) {
-  CIRBaseBuilderTy builder(ctx);
+static mlir::Value lowerComplexToScalarCast(mlir::MLIRContext &ctx,
+                                            cir::CastOp op,
+                                            cir::CastKind elemToBoolKind) {
+  cir::CIRBaseBuilderTy builder(ctx);
   builder.setInsertionPoint(op);
 
-  auto src = op.getSrc();
-
+  mlir::Value src = op.getSrc();
   if (!mlir::isa<cir::BoolType>(op.getType()))
     return builder.createComplexReal(op.getLoc(), src);
 
   // Complex cast to bool: (bool)(a+bi) => (bool)a || (bool)b
-  auto srcReal = builder.createComplexReal(op.getLoc(), src);
-  auto srcImag = builder.createComplexImag(op.getLoc(), src);
+  mlir::Value srcReal = builder.createComplexReal(op.getLoc(), src);
+  mlir::Value srcImag = builder.createComplexImag(op.getLoc(), src);
 
-  cir::CastKind elemToBoolKind;
-  if (op.getKind() == cir::CastKind::float_complex_to_bool)
-    elemToBoolKind = cir::CastKind::float_to_bool;
-  else if (op.getKind() == cir::CastKind::int_complex_to_bool)
-    elemToBoolKind = cir::CastKind::int_to_bool;
-  else
-    llvm_unreachable("invalid complex to bool cast kind");
-
-  auto boolTy = builder.getBoolTy();
-  auto srcRealToBool =
+  cir::BoolType boolTy = builder.getBoolTy();
+  mlir::Value srcRealToBool =
       builder.createCast(op.getLoc(), elemToBoolKind, srcReal, boolTy);
-  auto srcImagToBool =
+  mlir::Value srcImagToBool =
       builder.createCast(op.getLoc(), elemToBoolKind, srcImag, boolTy);
-
-  // srcRealToBool || srcImagToBool
   return builder.createLogicalOr(op.getLoc(), srcRealToBool, srcImagToBool);
 }
 
-static mlir::Value lowerComplexToComplexCast(MLIRContext &ctx, CastOp op) {
+static mlir::Value lowerComplexToComplexCast(mlir::MLIRContext &ctx,
+                                             cir::CastOp op,
+                                             cir::CastKind scalarCastKind) {
   CIRBaseBuilderTy builder(ctx);
   builder.setInsertionPoint(op);
 
-  auto src = op.getSrc();
+  mlir::Value src = op.getSrc();
   auto dstComplexElemTy =
       mlir::cast<cir::ComplexType>(op.getType()).getElementType();
 
-  auto srcReal = builder.createComplexReal(op.getLoc(), src);
-  auto srcImag = builder.createComplexReal(op.getLoc(), src);
+  mlir::Value srcReal = builder.createComplexReal(op.getLoc(), src);
+  mlir::Value srcImag = builder.createComplexImag(op.getLoc(), src);
 
-  cir::CastKind scalarCastKind;
-  switch (op.getKind()) {
-  case cir::CastKind::float_complex:
-    scalarCastKind = cir::CastKind::floating;
-    break;
-  case cir::CastKind::float_complex_to_int_complex:
-    scalarCastKind = cir::CastKind::float_to_int;
-    break;
-  case cir::CastKind::int_complex:
-    scalarCastKind = cir::CastKind::integral;
-    break;
-  case cir::CastKind::int_complex_to_float_complex:
-    scalarCastKind = cir::CastKind::int_to_float;
-    break;
-  default:
-    llvm_unreachable("invalid complex to complex cast kind");
-  }
-
-  auto dstReal = builder.createCast(op.getLoc(), scalarCastKind, srcReal,
-                                    dstComplexElemTy);
-  auto dstImag = builder.createCast(op.getLoc(), scalarCastKind, srcImag,
-                                    dstComplexElemTy);
+  mlir::Value dstReal = builder.createCast(op.getLoc(), scalarCastKind, srcReal,
+                                           dstComplexElemTy);
+  mlir::Value dstImag = builder.createCast(op.getLoc(), scalarCastKind, srcImag,
+                                           dstComplexElemTy);
   return builder.createComplexCreate(op.getLoc(), dstReal, dstImag);
 }
 
 void LoweringPreparePass::lowerCastOp(CastOp op) {
-  mlir::Value loweredValue;
-  switch (op.getKind()) {
-  case cir::CastKind::float_to_complex:
-  case cir::CastKind::int_to_complex:
-    loweredValue = lowerScalarToComplexCast(getContext(), op);
-    break;
+  mlir::MLIRContext &ctx = getContext();
+  mlir::Value loweredValue = [&]() -> mlir::Value {
+    switch (op.getKind()) {
+    case cir::CastKind::float_to_complex:
+    case cir::CastKind::int_to_complex:
+      return lowerScalarToComplexCast(ctx, op);
+    case cir::CastKind::float_complex_to_real:
+    case cir::CastKind::int_complex_to_real:
+      return lowerComplexToScalarCast(ctx, op, op.getKind());
+    case cir::CastKind::float_complex_to_bool:
+      return lowerComplexToScalarCast(ctx, op, cir::CastKind::float_to_bool);
+    case cir::CastKind::int_complex_to_bool:
+      return lowerComplexToScalarCast(ctx, op, cir::CastKind::int_to_bool);
+    case cir::CastKind::float_complex:
+      return lowerComplexToComplexCast(ctx, op, cir::CastKind::floating);
+    case cir::CastKind::float_complex_to_int_complex:
+      return lowerComplexToComplexCast(ctx, op, cir::CastKind::float_to_int);
+    case cir::CastKind::int_complex:
+      return lowerComplexToComplexCast(ctx, op, cir::CastKind::integral);
+    case cir::CastKind::int_complex_to_float_complex:
+      return lowerComplexToComplexCast(ctx, op, cir::CastKind::int_to_float);
+    default:
+      return nullptr;
+    }
+  }();
 
-  case cir::CastKind::float_complex_to_real:
-  case cir::CastKind::int_complex_to_real:
-  case cir::CastKind::float_complex_to_bool:
-  case cir::CastKind::int_complex_to_bool:
-    loweredValue = lowerComplexToScalarCast(getContext(), op);
-    break;
-
-  case cir::CastKind::float_complex:
-  case cir::CastKind::float_complex_to_int_complex:
-  case cir::CastKind::int_complex:
-  case cir::CastKind::int_complex_to_float_complex:
-    loweredValue = lowerComplexToComplexCast(getContext(), op);
-    break;
-
-  default:
-    return;
+  if (loweredValue) {
+    op.replaceAllUsesWith(loweredValue);
+    op.erase();
   }
-
-  op.replaceAllUsesWith(loweredValue);
-  op.erase();
 }
 
 static mlir::Value buildComplexBinOpLibCall(
