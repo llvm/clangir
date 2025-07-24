@@ -1227,7 +1227,8 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
           }
         }
         if (UseVirtualCall) {
-          llvm_unreachable("NYI");
+          CGF.CGM.getCXXABI().emitVirtualObjectDelete(CGF, DE, Ptr, ElementType,
+                                                      Dtor);
           return false;
         }
       }

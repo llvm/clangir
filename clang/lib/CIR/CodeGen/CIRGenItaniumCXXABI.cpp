@@ -187,6 +187,9 @@ public:
                           QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
+  void emitVirtualObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
+                               Address Ptr, QualType ElementType,
+                               const CXXDestructorDecl *Dtor) override;
   virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
   virtual void emitThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) override;
   CatchTypeInfo
@@ -205,6 +208,10 @@ public:
   CIRGenCallee getVirtualFunctionPointer(CIRGenFunction &CGF, GlobalDecl GD,
                                          Address This, mlir::Type Ty,
                                          SourceLocation Loc) override;
+  mlir::Value emitVirtualDestructorCall(CIRGenFunction &CGF,
+                                        const CXXDestructorDecl *Dtor,
+                                        CXXDtorType DtorType, Address This,
+                                        DeleteOrMemberCallExpr E) override;
   mlir::Value getVTableAddressPoint(BaseSubobject Base,
                                     const CXXRecordDecl *VTableClass) override;
   mlir::Value getVTableAddressPointInStructorWithVTT(
@@ -2186,6 +2193,33 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
     llvm_unreachable("NYI");
 }
 
+mlir::Value CIRGenItaniumCXXABI::emitVirtualDestructorCall(
+    CIRGenFunction &CGF, const CXXDestructorDecl *dtor, CXXDtorType dtorType,
+    Address thisAddr, DeleteOrMemberCallExpr expr) {
+  auto *callExpr = dyn_cast<const CXXMemberCallExpr *>(expr);
+  auto *delExpr = dyn_cast<const CXXDeleteExpr *>(expr);
+  assert((callExpr != nullptr) ^ (delExpr != nullptr));
+  assert(callExpr == nullptr || callExpr->arg_begin() == callExpr->arg_end());
+  assert(dtorType == Dtor_Deleting || dtorType == Dtor_Complete);
+
+  GlobalDecl globalDecl(dtor, dtorType);
+  const CIRGenFunctionInfo *fnInfo =
+      &CGM.getTypes().arrangeCXXStructorDeclaration(globalDecl);
+  auto fnTy = CGF.CGM.getTypes().GetFunctionType(*fnInfo);
+  auto callee = CIRGenCallee::forVirtual(callExpr, globalDecl, thisAddr, fnTy);
+
+  QualType thisTy;
+  if (callExpr) {
+    thisTy = callExpr->getObjectType();
+  } else {
+    thisTy = delExpr->getDestroyedType();
+  }
+
+  CGF.emitCXXDestructorCall(globalDecl, callee, thisAddr.emitRawPointer(),
+                            thisTy, nullptr, QualType(), nullptr);
+  return nullptr;
+}
+
 void CIRGenItaniumCXXABI::emitVirtualInheritanceTables(
     const CXXRecordDecl *RD) {
   CIRGenVTables &VTables = CGM.getVTables();
@@ -2714,6 +2748,23 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
 /// member pointers, for which '0' is a valid offset.
 bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return MPT->isMemberFunctionPointer();
+}
+
+/// The Itanium ABI always places an offset to the complete object
+/// at entry -2 in the vtable.
+void CIRGenItaniumCXXABI::emitVirtualObjectDelete(
+    CIRGenFunction &CGF, const CXXDeleteExpr *delExpr, Address ptr,
+    QualType elementType, const CXXDestructorDecl *dtor) {
+  bool useGlobalDelete = delExpr->isGlobalDelete();
+  if (useGlobalDelete) {
+    llvm_unreachable("NYI");
+  }
+
+  CXXDtorType dtorType = useGlobalDelete ? Dtor_Complete : Dtor_Deleting;
+  emitVirtualDestructorCall(CGF, dtor, dtorType, ptr, delExpr);
+
+  if (useGlobalDelete)
+    llvm_unreachable("NYI");
 }
 
 /************************** Array allocation cookies **************************/
