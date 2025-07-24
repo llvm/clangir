@@ -55,6 +55,6 @@ void t_new_constant_size_constructor() {
 // AFTER:      cir.yield
 // AFTER:    } while {
 // AFTER:      %[[CUR_ELEM_PTR2:.*]] = cir.load %[[CUR_ELEM_ALLOCA]] : !cir.ptr<!cir.ptr<!rec_E>>, !cir.ptr<!rec_E>
-// AFTER:      %[[END_TEST:.*]] = cir.cmp(eq, %[[CUR_ELEM_PTR2]], %[[END_PTR]]) : !cir.ptr<!rec_E>, !cir.bool
+// AFTER:      %[[END_TEST:.*]] = cir.cmp(ne, %[[CUR_ELEM_PTR2]], %[[END_PTR]]) : !cir.ptr<!rec_E>, !cir.bool
 // AFTER:      cir.condition(%[[END_TEST]])
 // AFTER:    }
