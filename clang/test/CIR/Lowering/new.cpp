@@ -207,7 +207,7 @@ void t_new_constant_size_constructor() {
 // LLVM:    br label %[[INIT_ELEM_BB:.*]]
 // LLVM:  [[LOOP_INC_BB:.*]]:
 // LLVM:    %[[NEXT_ELEM_PTR:.*]] = load ptr
-// LLVM:    %[[END_TEST:.*]] = icmp eq ptr %[[NEXT_ELEM_PTR]], %[[END_PTR]]
+// LLVM:    %[[END_TEST:.*]] = icmp ne ptr %[[NEXT_ELEM_PTR]], %[[END_PTR]]
 // LLVM:    br i1 %[[END_TEST]], label %[[INIT_ELEM_BB]], label %[[EXIT_BB:.*]]
 // LLVM:  [[INIT_ELEM_BB]]:
 // LLVM:    %[[CUR_ELEM_PTR:.*]] = load ptr
