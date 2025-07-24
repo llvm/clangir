@@ -568,7 +568,10 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_movdqa64store512_mask:
   case X86::BI__builtin_ia32_storeaps512_mask:
   case X86::BI__builtin_ia32_storeapd512_mask:
-    llvm_unreachable("vfmaddsubph256_round_mask3 NYI");
+    return emitX86MaskedStore(
+        *this, Ops,
+        getContext().getTypeAlignInChars(E->getArg(1)->getType()).getAsAlign(),
+        getLoc(E->getExprLoc()));
 
   case X86::BI__builtin_ia32_loadups128_mask:
   case X86::BI__builtin_ia32_loadups256_mask:
