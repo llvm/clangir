@@ -3838,6 +3838,18 @@ LogicalResult cir::GetMethodOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// GetMemberOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::GetElementOp::verify() {
+  auto arrayTy = mlir::cast<cir::ArrayType>(getBaseType().getPointee());
+  if (getElementType() != arrayTy.getElementType())
+    return emitError() << "element type mismatch";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // InlineAsmOp Definitions
 //===----------------------------------------------------------------------===//
 
