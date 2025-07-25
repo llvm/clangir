@@ -399,8 +399,7 @@ void qux(void) {
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.get_global @g : !cir.ptr<!cir.array<!rec_PackedS2 x 3>>
 // CHECK: %[[#V3:]] = cir.const #cir.int<1> : !s32i
-// CHECK: %[[#V4:]] = cir.cast(array_to_ptrdecay, %[[#V2]] : !cir.ptr<!cir.array<!rec_PackedS2 x 3>>), !cir.ptr<!rec_PackedS2>
-// CHECK: %[[#V5:]] = cir.ptr_stride(%[[#V4]] : !cir.ptr<!rec_PackedS2>, %[[#V3]] : !s32i), !cir.ptr<!rec_PackedS2>
+// CHECK: %[[#V5:]] = cir.get_element %[[#V2]][%[[#V3]]] : (!cir.ptr<!cir.array<!rec_PackedS2 x 3>>, !s32i) -> !cir.ptr<!rec_PackedS2>
 // CHECK: cir.store{{.*}} %[[#V5]], %[[#V0]] : !cir.ptr<!rec_PackedS2>, !cir.ptr<!cir.ptr<!rec_PackedS2>>
 // CHECK: %[[#V6:]] = cir.load deref{{.*}}  %[[#V0]] : !cir.ptr<!cir.ptr<!rec_PackedS2>>, !cir.ptr<!rec_PackedS2>
 // CHECK: %[[#V7:]] = cir.cast(bitcast, %[[#V6]] : !cir.ptr<!rec_PackedS2>), !cir.ptr<!void>

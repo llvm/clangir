@@ -88,8 +88,7 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
 }
 // CHECK-DAG: cir.func dso_local @shouldGenerateAndAccessStructArrays
 // CHECK-DAG: %[[#STRIDE:]] = cir.const #cir.int<0> : !s32i
-// CHECK-DAG: %[[#DARR:]] = cir.cast(array_to_ptrdecay, %{{.+}} : !cir.ptr<!cir.array<!rec_Bar x 1>>), !cir.ptr<!rec_Bar>
-// CHECK-DAG: %[[#ELT:]] = cir.ptr_stride(%[[#DARR]] : !cir.ptr<!rec_Bar>, %[[#STRIDE]] : !s32i), !cir.ptr<!rec_Bar>
+// CHECK-DAG: %[[#ELT:]] = cir.get_element %{{.+}}[%[[#STRIDE]]] : (!cir.ptr<!cir.array<!rec_Bar x 1>>, !s32i) -> !cir.ptr<!rec_Bar>
 // CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!rec_Bar>
 
 // CHECK-DAG: cir.func dso_local @local_decl
