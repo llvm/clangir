@@ -108,6 +108,19 @@ static mlir::Value emitX86MaskedStore(CIRGenFunction &cgf,
                                             maskVec);
 }
 
+static mlir::Value emitX86MaskedLoad(CIRGenFunction &cgf,
+                                     ArrayRef<mlir::Value> ops,
+                                     llvm::Align alignment,
+                                     mlir::Location loc) {
+  mlir::Type ty = ops[1].getType();
+  mlir::Value ptr = ops[0];
+  mlir::Value maskVec =
+      getMaskVecValue(cgf, ops[2], cast<cir::VectorType>(ty).getSize(), loc);
+
+  return cgf.getBuilder().createMaskedLoad(loc, ty, ptr, alignment, maskVec,
+                                           ops[1]);
+}
+
 static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
                                    mlir::Type dstTy, mlir::Location loc) {
   unsigned numberOfElements = cast<cir::VectorType>(dstTy).getSize();
@@ -591,13 +604,15 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_loaddqudi128_mask:
   case X86::BI__builtin_ia32_loaddqudi256_mask:
   case X86::BI__builtin_ia32_loaddqudi512_mask:
-    llvm_unreachable("vfmaddsubph256_round_mask3 NYI");
+    return emitX86MaskedLoad(*this, Ops, llvm::Align(1),
+                             getLoc(E->getExprLoc()));
 
   case X86::BI__builtin_ia32_loadsbf16128_mask:
   case X86::BI__builtin_ia32_loadsh128_mask:
   case X86::BI__builtin_ia32_loadss128_mask:
   case X86::BI__builtin_ia32_loadsd128_mask:
-    llvm_unreachable("vfmaddsubph256_round_mask3 NYI");
+    return emitX86MaskedLoad(*this, Ops, llvm::Align(1),
+                             getLoc(E->getExprLoc()));
 
   case X86::BI__builtin_ia32_loadaps128_mask:
   case X86::BI__builtin_ia32_loadaps256_mask:
@@ -611,7 +626,10 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_movdqa64load128_mask:
   case X86::BI__builtin_ia32_movdqa64load256_mask:
   case X86::BI__builtin_ia32_movdqa64load512_mask:
-    llvm_unreachable("vfmaddsubph256_round_mask3 NYI");
+    return emitX86MaskedLoad(
+        *this, Ops,
+        getContext().getTypeAlignInChars(E->getArg(1)->getType()).getAsAlign(),
+        getLoc(E->getExprLoc()));
 
   case X86::BI__builtin_ia32_expandloaddf128_mask:
   case X86::BI__builtin_ia32_expandloaddf256_mask:
