@@ -652,8 +652,7 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
 
   // Update the alloca with more info on initialization.
   assert(addr.getPointer() && "expected pointer to exist");
-  auto SrcAlloca =
-      dyn_cast_or_null<cir::AllocaOp>(addr.getPointer().getDefiningOp());
+  auto SrcAlloca = addr.getDefiningOp<cir::AllocaOp>();
   if (currVarDecl && SrcAlloca) {
     const VarDecl *VD = currVarDecl;
     assert(VD && "VarDecl expected");
@@ -1328,8 +1327,7 @@ LValue CIRGenFunction::emitUnaryOpLValue(const UnaryOperator *E) {
         emitPointerWithAlignment(E->getSubExpr(), &BaseInfo, &TBAAInfo);
 
     // Tag 'load' with deref attribute.
-    if (auto loadOp =
-            dyn_cast<cir::LoadOp>(Addr.getPointer().getDefiningOp())) {
+    if (auto loadOp = Addr.getDefiningOp<cir::LoadOp>()) {
       loadOp.setIsDerefAttr(mlir::UnitAttr::get(&getMLIRContext()));
     }
 
@@ -2221,8 +2219,7 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
     if (const clang::ValueDecl *extDecl = M->getExtendingDecl()) {
       auto extDeclAddrIter = CGF.LocalDeclMap.find(extDecl);
       if (extDeclAddrIter != CGF.LocalDeclMap.end()) {
-        extDeclAlloca = dyn_cast_if_present<cir::AllocaOp>(
-            extDeclAddrIter->second.getDefiningOp());
+        extDeclAlloca = extDeclAddrIter->second.getDefiningOp<cir::AllocaOp>();
       }
     }
     mlir::OpBuilder::InsertPoint ip;
@@ -2337,7 +2334,7 @@ LValue CIRGenFunction::emitMaterializeTemporaryExpr(
   Address Alloca = Address::invalid();
   Address Object = createReferenceTemporary(*this, M, E, &Alloca);
 
-  if (auto Var = dyn_cast<cir::GlobalOp>(Object.getPointer().getDefiningOp())) {
+  if (auto Var = Object.getDefiningOp<cir::GlobalOp>()) {
     // TODO(cir): add something akin to stripPointerCasts() to ptr above
     assert(0 && "NYI");
   } else {
@@ -2867,7 +2864,7 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
     addr = builder.createAlloca(loc, /*addr type*/ localVarPtrTy,
                                 /*var type*/ ty, name, alignIntAttr, arraySize);
     if (currVarDecl) {
-      auto alloca = cast<cir::AllocaOp>(addr.getDefiningOp());
+      auto alloca = addr.getDefiningOp<cir::AllocaOp>();
       alloca.setAstAttr(ASTVarDeclAttr::get(&getMLIRContext(), currVarDecl));
     }
   }
@@ -3097,9 +3094,9 @@ cir::AllocaOp CIRGenFunction::CreateTempAlloca(mlir::Type Ty,
                                                const Twine &Name,
                                                mlir::Value ArraySize,
                                                bool insertIntoFnEntryBlock) {
-  return cast<cir::AllocaOp>(emitAlloca(Name.str(), Ty, Loc, CharUnits(),
-                                        insertIntoFnEntryBlock, ArraySize)
-                                 .getDefiningOp());
+  return emitAlloca(Name.str(), Ty, Loc, CharUnits(), insertIntoFnEntryBlock,
+                    ArraySize)
+      .getDefiningOp<cir::AllocaOp>();
 }
 
 /// This creates an alloca and inserts it into the provided insertion point
@@ -3109,9 +3106,8 @@ cir::AllocaOp CIRGenFunction::CreateTempAlloca(mlir::Type Ty,
                                                mlir::OpBuilder::InsertPoint ip,
                                                mlir::Value ArraySize) {
   assert(ip.isSet() && "Insertion point is not set");
-  return cast<cir::AllocaOp>(
-      emitAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize)
-          .getDefiningOp());
+  return emitAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize)
+      .getDefiningOp<cir::AllocaOp>();
 }
 
 /// Just like CreateTempAlloca above, but place the alloca into the function

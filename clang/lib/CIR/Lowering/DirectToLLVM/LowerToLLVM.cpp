@@ -968,8 +968,8 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
   bool rewriteSub = false;
   auto sub = mlir::dyn_cast<mlir::LLVM::SubOp>(indexOp);
   if (sub) {
-    if (auto lhsConst = dyn_cast<mlir::LLVM::ConstantOp>(
-            sub.getOperand(0).getDefiningOp())) {
+    if (auto lhsConst =
+            sub.getOperand(0).getDefiningOp<mlir::LLVM::ConstantOp>()) {
       auto lhsConstInt = mlir::dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
       if (lhsConstInt && lhsConstInt.getValue() == 0) {
         rewriteSub = true;
@@ -1220,14 +1220,12 @@ mlir::LogicalResult CIRToLLVMBrCondOpLowering::matchAndRewrite(
   if (auto defOp = brOp.getCond().getDefiningOp())
     hasOneUse = defOp->getResult(0).hasOneUse();
 
-  if (auto defOp = adaptor.getCond().getDefiningOp()) {
-    if (auto zext = dyn_cast<mlir::LLVM::ZExtOp>(defOp)) {
-      if (zext->use_empty() &&
-          zext->getOperand(0).getType() == rewriter.getI1Type()) {
-        i1Condition = zext->getOperand(0);
-        if (hasOneUse)
-          rewriter.eraseOp(zext);
-      }
+  if (auto zext = adaptor.getCond().getDefiningOp<mlir::LLVM::ZExtOp>()) {
+    if (zext->use_empty() &&
+        zext->getOperand(0).getType() == rewriter.getI1Type()) {
+      i1Condition = zext->getOperand(0);
+      if (hasOneUse)
+        rewriter.eraseOp(zext);
     }
   }
 
@@ -1773,10 +1771,9 @@ getLLVMMemOrder(std::optional<cir::MemOrder> &memorder) {
 }
 
 static bool isLoadOrStoreInvariant(mlir::Value addr) {
-  if (auto addrAllocaOp =
-          mlir::dyn_cast_if_present<cir::AllocaOp>(addr.getDefiningOp()))
+  if (auto addrAllocaOp = addr.getDefiningOp<cir::AllocaOp>())
     return addrAllocaOp.getConstant();
-  if (mlir::isa_and_present<cir::InvariantGroupOp>(addr.getDefiningOp()))
+  if (addr.getDefiningOp<cir::InvariantGroupOp>())
     return true;
   return false;
 }
@@ -2087,7 +2084,7 @@ mlir::LogicalResult CIRToLLVMVecSplatOpLowering::matchAndRewrite(
   mlir::Value indexValue =
       rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI64Type(), 0);
   mlir::Value elementValue = adaptor.getValue();
-  if (mlir::isa<mlir::LLVM::PoisonOp>(elementValue.getDefiningOp())) {
+  if (elementValue.getDefiningOp<mlir::LLVM::PoisonOp>()) {
     // If the splat value is poison, then we can just use poison value
     // for the entire vector.
     rewriter.replaceOp(op, poison);

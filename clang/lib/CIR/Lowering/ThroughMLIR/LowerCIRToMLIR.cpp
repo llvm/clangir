@@ -138,11 +138,11 @@ public:
         // %global = memref.get_global %frm_str
         // %* = memref.reinterpret_cast (%global, 0)
         if (auto reinterpret_castOP =
-                mlir::dyn_cast_or_null<mlir::memref::ReinterpretCastOp>(
-                    adaptor.getOperands()[0].getDefiningOp())) {
+                adaptor.getOperands()[0]
+                    .getDefiningOp<mlir::memref::ReinterpretCastOp>()) {
           if (auto getGlobalOp =
-                  mlir::dyn_cast_or_null<mlir::memref::GetGlobalOp>(
-                      reinterpret_castOP->getOperand(0).getDefiningOp())) {
+                  reinterpret_castOP->getOperand(0)
+                      .getDefiningOp<mlir::memref::GetGlobalOp>()) {
             mlir::ModuleOp parentModule = op->getParentOfType<mlir::ModuleOp>();
 
             auto context = rewriter.getContext();
@@ -310,9 +310,8 @@ static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
                                SmallVector<mlir::Value> &indices,
                                SmallVector<mlir::Operation *> &eraseList,
                                mlir::ConversionPatternRewriter &rewriter) {
-  while (mlir::Operation *addrOp = addr.getDefiningOp()) {
-    if (!isa<mlir::memref::ReinterpretCastOp>(addrOp))
-      break;
+  while (mlir::Operation *addrOp =
+             addr.getDefiningOp<mlir::memref::ReinterpretCastOp>()) {
     indices.push_back(addrOp->getOperand(1));
     addr = addrOp->getOperand(0);
     eraseList.push_back(addrOp);
@@ -1392,10 +1391,7 @@ public:
   // Return true if PtrStrideOp is produced by cast with array_to_ptrdecay kind
   // and they are in the same block.
   inline bool isCastArrayToPtrConsumer(cir::PtrStrideOp op) const {
-    auto defOp = op->getOperand(0).getDefiningOp();
-    if (!defOp)
-      return false;
-    auto castOp = dyn_cast<cir::CastOp>(defOp);
+    auto castOp = op->getOperand(0).getDefiningOp<cir::CastOp>();
     if (!castOp)
       return false;
     if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
@@ -1445,10 +1441,9 @@ public:
       return mlir::failure();
     if (!isLoadStoreOrCastArrayToPtrProduer(op))
       return mlir::failure();
-    auto baseOp = adaptor.getBase().getDefiningOp();
+    auto baseOp =
+        adaptor.getBase().getDefiningOp<mlir::memref::ReinterpretCastOp>();
     if (!baseOp)
-      return mlir::failure();
-    if (!isa<mlir::memref::ReinterpretCastOp>(baseOp))
       return mlir::failure();
     auto base = baseOp->getOperand(0);
     auto dstType = op.getType();
