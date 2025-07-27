@@ -1149,13 +1149,16 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   bool checkZeroLength = true;
 
   // But if the array length is constant, we can suppress that.
-  auto constantCount = dyn_cast<cir::ConstantOp>(length.getDefiningOp());
-  if (constantCount) {
-    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
-    // ...and if it's constant zero, we can just skip the entire thing.
-    if (constIntAttr && constIntAttr.getUInt() == 0)
-      return;
-    checkZeroLength = false;
+  if (auto constantCount = length.getDefiningOp<cir::ConstantOp>()) {
+    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
+      // ...and if it's constant zero, we can just skip the entire thing.
+      if (constIntAttr.getUInt() == 0)
+        return;
+      checkZeroLength = false;
+    }
+
+    if (constantCount.use_empty())
+      constantCount.erase();
   } else {
     llvm_unreachable("NYI");
   }
@@ -1164,8 +1167,6 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   mlir::Value end; // Use this for future non-constant counts.
   emitArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
                    useEHCleanupForArray);
-  if (constantCount.use_empty())
-    constantCount.erase();
 }
 
 CIRGenFunction::Destroyer *

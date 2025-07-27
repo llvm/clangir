@@ -382,14 +382,11 @@ static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
   auto &builder = cgf.getBuilder();
   mlir::Value orderingVal = cgf.emitScalarExpr(expr->getArg(0));
 
-  auto constOrdering =
-      mlir::dyn_cast<cir::ConstantOp>(orderingVal.getDefiningOp());
+  auto constOrdering = orderingVal.getDefiningOp<cir::ConstantOp>();
   if (!constOrdering)
     llvm_unreachable("NYI: variable ordering not supported");
 
-  auto constOrderingAttr =
-      mlir::dyn_cast<cir::IntAttr>(constOrdering.getValue());
-  if (constOrderingAttr) {
+  if (auto constOrderingAttr = constOrdering.getValueAttr<cir::IntAttr>()) {
     cir::MemOrder ordering =
         static_cast<cir::MemOrder>(constOrderingAttr.getUInt());
 

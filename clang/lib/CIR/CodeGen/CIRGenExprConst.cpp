@@ -2113,8 +2113,7 @@ mlir::Attribute ConstantEmitter::emitAbstract(SourceLocation loc,
 mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
                                                    CIRGenModule &CGM,
                                                    QualType T) {
-  auto cstOp =
-      dyn_cast<cir::ConstantOp>(CGM.emitNullConstant(T, loc).getDefiningOp());
+  auto cstOp = CGM.emitNullConstant(T, loc).getDefiningOp<cir::ConstantOp>();
   assert(cstOp && "expected cir.const op");
   return emitForMemory(CGM, cstOp.getValue(), T);
 }

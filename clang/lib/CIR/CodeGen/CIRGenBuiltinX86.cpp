@@ -68,10 +68,7 @@ translateX86ToMsvcIntrin(unsigned BuiltinID) {
 
 /// Get integer from a mlir::Value that is an int constant or a constant op.
 static int64_t getIntValueFromConstOp(mlir::Value val) {
-  auto constOp = mlir::cast<cir::ConstantOp>(val.getDefiningOp());
-  return (mlir::cast<cir::IntAttr>(constOp.getValue()))
-      .getValue()
-      .getSExtValue();
+  return val.getDefiningOp<cir::ConstantOp>().getIntValue().getSExtValue();
 }
 
 // Convert the mask from an integer type to a vector of i1.
@@ -274,9 +271,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vec_ext_v4di: {
     unsigned NumElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
 
-    auto constOp = cast<cir::ConstantOp>(Ops[1].getDefiningOp());
-    auto intAttr = cast<cir::IntAttr>(constOp.getValue());
-    uint64_t index = intAttr.getValue().getZExtValue();
+    uint64_t index =
+        Ops[1].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
 
     index &= NumElts - 1;
 
@@ -301,9 +297,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vec_set_v4di: {
     unsigned NumElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
 
-    auto constOp = cast<cir::ConstantOp>(Ops[2].getDefiningOp());
-    auto intAttr = cast<cir::IntAttr>(constOp.getValue());
-    uint64_t index = intAttr.getValue().getZExtValue();
+    uint64_t index =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
 
     index &= NumElts - 1;
 

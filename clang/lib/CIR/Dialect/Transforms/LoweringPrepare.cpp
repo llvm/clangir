@@ -1423,8 +1423,7 @@ static std::string getGlobalVarNameForConstString(cir::StoreOp op,
 void LoweringPreparePass::lowerToMemCpy(StoreOp op) {
   // Now that basic filter is done, do more checks before proceding with the
   // transformation.
-  auto cstOp =
-      dyn_cast_if_present<cir::ConstantOp>(op.getValue().getDefiningOp());
+  auto cstOp = op.getValue().getDefiningOp<cir::ConstantOp>();
   if (!cstOp)
     return;
 

@@ -1678,8 +1678,8 @@ static bool isPreserveAIArrayBase(CIRGenFunction &CGF, const Expr *ArrayBase) {
 
 static mlir::IntegerAttr getConstantIndexOrNull(mlir::Value idx) {
   // TODO(cir): should we consider using MLIRs IndexType instead of IntegerAttr?
-  if (auto constantOp = dyn_cast<cir::ConstantOp>(idx.getDefiningOp()))
-    return mlir::dyn_cast<mlir::IntegerAttr>(constantOp.getValue());
+  if (auto constantOp = idx.getDefiningOp<cir::ConstantOp>())
+    return constantOp.getValueAttr<mlir::IntegerAttr>();
   return {};
 }
 
@@ -1687,8 +1687,7 @@ static CharUnits getArrayElementAlign(CharUnits arrayAlign, mlir::Value idx,
                                       CharUnits eltSize) {
   // If we have a constant index, we can use the exact offset of the
   // element we're accessing.
-  auto constantIdx = getConstantIndexOrNull(idx);
-  if (constantIdx) {
+  if (auto constantIdx = getConstantIndexOrNull(idx)) {
     CharUnits offset = constantIdx.getValue().getZExtValue() * eltSize;
     return arrayAlign.alignmentAtOffset(offset);
     // Otherwise, use the worst-case alignment for any element.
