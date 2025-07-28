@@ -19,7 +19,7 @@ kernel void func1(global int *data) {
 // LLVM: @func2
 kernel void func2(global int *data) {
     private int arr[32] = {data[2]};
-    // CIR: %{{[0-9]+}} = cir.cast(array_to_ptrdecay, %{{[0-9]+}} : !cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_private)>), !cir.ptr<!s32i, addrspace(offload_private)>
+    // CIR: %{{[0-9]+}} = cir.get_element %{{[0-9]+}}[%{{[0-9]+}}] : (!cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_private)>, !s32i) -> !cir.ptr<!s32i, addrspace(offload_private)>
 
-    // LLVM: %{{[0-9]+}} = getelementptr i32, ptr %3, i32 0
+    // LLVM: %{{[0-9]+}} = getelementptr [32 x i32], ptr %3, i32 0, i64 0
 }
