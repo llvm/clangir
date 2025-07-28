@@ -2060,6 +2060,8 @@ public:
                                        const CXXMethodDecl *MD,
                                        ReturnValueSlot ReturnValue);
 
+  RValue emitCXXPseudoDestructorExpr(const CXXPseudoDestructorExpr *expr);
+
   void emitCXXTemporary(const CXXTemporary *Temporary, QualType TempType,
                         Address Ptr);
 

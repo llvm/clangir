@@ -105,6 +105,17 @@ bool bar2() { return foo(1) && foo(2); }
 // CHECK:       }) : (!cir.bool) -> !cir.bool
 // CHECK:     cir.call @_ZN1XD2Ev
 
+typedef int I;
+void pseudo_dtor() {
+  I x = 10;
+  x.I::~I();
+}
+// CHECK: cir.func dso_local @_Z11pseudo_dtorv()
+// CHECK:   %[[INT:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>
+// CHECK:   %[[TEN:.*]] = cir.const #cir.int<10> : !s32i
+// CHECK:   cir.store{{.*}} %[[TEN]], %[[INT]] : !s32i, !cir.ptr<!s32i>
+// CHECK:   cir.return
+
 // @B::~B() #1 definition call into base @A::~A()
 // CHECK:  cir.func linkonce_odr @_ZN1BD2Ev{{.*}}{
 // CHECK:    cir.call @_ZN1AD2Ev(

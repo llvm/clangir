@@ -1578,6 +1578,55 @@ RValue CIRGenFunction::emitCXXDestructorCall(GlobalDecl Dtor,
                      : getLoc(Dtor.getDecl()->getSourceRange()));
 }
 
+RValue CIRGenFunction::emitCXXPseudoDestructorExpr(
+    const CXXPseudoDestructorExpr *expr) {
+  QualType destroyedType = expr->getDestroyedType();
+  if (destroyedType.hasStrongOrWeakObjCLifetime()) {
+    // Automatic Reference Counting:
+    //   If the pseudo-expression names a retainable object with weak or
+    //   strong lifetime, the object shall be released.
+    Expr *baseExpr = expr->getBase();
+    Address baseValue = Address::invalid();
+    Qualifiers baseQuals;
+
+    // If this is s.x, emit s as an lvalue. If it is s->x, emit s as a scalar.
+    if (expr->isArrow()) {
+      baseValue = emitPointerWithAlignment(baseExpr);
+      const auto *ptrTy = baseExpr->getType()->castAs<PointerType>();
+      baseQuals = ptrTy->getPointeeType().getQualifiers();
+    } else {
+      LValue baseLV = emitLValue(baseExpr);
+      baseValue = baseLV.getAddress();
+      QualType baseTy = baseExpr->getType();
+      baseQuals = baseTy.getQualifiers();
+    }
+
+    switch (destroyedType.getObjCLifetime()) {
+    case Qualifiers::OCL_None:
+    case Qualifiers::OCL_ExplicitNone:
+    case Qualifiers::OCL_Autoreleasing:
+      break;
+
+    case Qualifiers::OCL_Strong:
+      llvm_unreachable("NYI, emitArcRelease");
+      break;
+
+    case Qualifiers::OCL_Weak:
+      llvm_unreachable("NYI, emitARCDestroyWeak");
+      break;
+    }
+  } else {
+    // C++ [expr.pseudo]p1:
+    //   The result shall only be used as the operand for the function call
+    //   operator (), and the result of such a call has type void. The only
+    //   effect is the evaluation of the postfix-expression before the dot or
+    //   arrow.
+    emitIgnoredExpr(expr->getBase());
+  }
+
+  return RValue::get(nullptr);
+}
+
 /// Emit a call to an operator new or operator delete function, as implicitly
 /// created by new-expressions and delete-expressions.
 static RValue emitNewDeleteCall(CIRGenFunction &CGF,
