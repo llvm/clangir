@@ -488,7 +488,7 @@ void CIRRecordLowering::accumulateVPtrs() {
 }
 
 mlir::Type CIRRecordLowering::getVFPtrType() {
-  return builder.getVirtualFnPtrType();
+  return cir::VPtrType::get(builder.getContext());
 }
 
 void CIRRecordLowering::fillOutputFields() {

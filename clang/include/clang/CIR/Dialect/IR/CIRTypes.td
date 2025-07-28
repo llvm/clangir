@@ -344,17 +344,31 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 }
 
 //===----------------------------------------------------------------------===//
-// CIR_VTableType
+// CIR_VPtrType
 //===----------------------------------------------------------------------===//
 
-def CIR_VTableType : CIR_Type<"VTable", "vtable",
+def CIR_VPtrType : CIR_Type<"VPtr", "vptr",
     [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
 
-  let summary = "CIR type that is used for pointers that point to a C++ vtable";
+  let summary = "CIR type that is used for the vptr member of C++ objects";
   let description = [{
-    `cir.vtable` is a special type used as the pointee type for pointers to
-    vtables. This avoids using arbitrary pointer types to declare vtable
-    pointer values.
+    `cir.vptr` is a special type used as the type for the vptr member of a C++
+    object. This avoids using arbitrary pointer types to declare vptr values
+    and allows stronger type-based checking for operations that use or provide
+    access to the vptr.
+
+    This type will be the element type of the 'vptr' member of structures that
+    require a vtable pointer. A pointer to this type is returned by the
+    `cir.vtable.address_point` and `cir.vtable.get_vptr` operations, and this
+    pointer may be passed to the `cir.vtable.get_virtual_fn_addr` operation to
+    get the address of a virtual function pointer.
+
+    The pointer may also be cast to other pointer types in order to perform
+    pointer arithmetic based on information encoded in the AST layout to get
+    the offset from a pointer to a dynamic object to the base object pointer,
+    the base object offset value from the vtable, or the type information
+    entry for an object.
+    TODO: We should have special operations to do that too.
   }];
 }
 
@@ -768,7 +782,7 @@ def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
   CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType,
-  CIR_VTableType
+  CIR_VPtrType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

@@ -425,8 +425,8 @@ public:
     llvm_unreachable("unsupported long double format");
   }
 
-  mlir::Type getVirtualFnPtrType() {
-    return cir::PointerType::get(cir::VTableType::get(getContext()));
+  mlir::Type getPtrToVPtrType() {
+    return getPointerTo(cir::VPtrType::get(getContext()));
   }
 
   cir::FuncType getFuncType(llvm::ArrayRef<mlir::Type> params, mlir::Type retTy,

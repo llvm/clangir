@@ -561,6 +561,12 @@ LogicalResult cir::CastOp::verify() {
       return success();
     }
 
+    // Allow casting cir.vptr to pointer types.
+    // TODO: Add operations to get object offset and type info and remove this.
+    if (mlir::isa<cir::VPtrType>(srcType) &&
+        mlir::dyn_cast<cir::PointerType>(resType))
+      return success();
+
     // Handle the data member pointer types.
     if (mlir::isa<cir::DataMemberType>(srcType) &&
         mlir::isa<cir::DataMemberType>(resType))
@@ -2421,7 +2427,7 @@ LogicalResult cir::VTableAddrPointOp::verify() {
     return success();
 
   auto resultType = getAddr().getType();
-  auto resTy = cir::PointerType::get(cir::VTableType::get(getContext()));
+  auto resTy = cir::PointerType::get(cir::VPtrType::get(getContext()));
 
   if (resultType != resTy)
     return emitOpError("result type must be '")

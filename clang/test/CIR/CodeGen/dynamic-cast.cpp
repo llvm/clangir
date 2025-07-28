@@ -73,9 +73,11 @@ void *ptr_cast_to_complete(Base *ptr) {
 //      AFTER:   %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base>>, !cir.ptr<!rec_Base>
 // AFTER-NEXT:   %[[#SRC_IS_NOT_NULL:]] = cir.cast(ptr_to_bool, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.bool
 // AFTER-NEXT:   %{{.+}} = cir.ternary(%[[#SRC_IS_NOT_NULL]], true {
-// AFTER-NEXT:     %[[#VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.ptr<!cir.ptr<!s64i>>
-// AFTER-NEXT:     %[[#VPTR:]] = cir.load{{.*}} %[[#VPTR_PTR]] : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
-// AFTER-NEXT:     %[[#BASE_OFFSET_PTR:]] = cir.vtable.address_point( %[[#VPTR]] : !cir.ptr<!s64i>, address_point = <index = 0, offset = -2>) : !cir.ptr<!s64i>
+// AFTER-NEXT:     %[[#VPTR_PTR:]] = cir.vtable.get_vptr %[[#SRC]] : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+// AFTER-NEXT:     %[[#VPTR:]] = cir.load %[[#VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+// AFTER-NEXT:     %[[#ELEM_PTR:]] = cir.cast(bitcast, %[[#VPTR]] : !cir.vptr), !cir.ptr<!s64i>
+// AFTER-NEXT:     %[[#MINUS_TWO:]] = cir.const #cir.int<-2> : !s64i
+// AFTER-NEXT:     %[[#BASE_OFFSET_PTR:]] = cir.ptr_stride(%[[#ELEM_PTR]] : !cir.ptr<!s64i>, %[[#MINUS_TWO:]] : !s64i), !cir.ptr<!s64i>
 // AFTER-NEXT:     %[[#BASE_OFFSET:]] = cir.load align(8) %[[#BASE_OFFSET_PTR]] : !cir.ptr<!s64i>, !s64i
 // AFTER-NEXT:     %[[#SRC_BYTES_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.ptr<!u8i>
 // AFTER-NEXT:     %[[#DST_BYTES_PTR:]] = cir.ptr_stride(%[[#SRC_BYTES_PTR]] : !cir.ptr<!u8i>, %[[#BASE_OFFSET]] : !s64i), !cir.ptr<!u8i>

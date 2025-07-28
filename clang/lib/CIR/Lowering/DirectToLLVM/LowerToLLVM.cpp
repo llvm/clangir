@@ -3890,6 +3890,31 @@ mlir::LogicalResult CIRToLLVMVTableAddrPointOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMVTableGetVptrOpLowering::matchAndRewrite(
+    cir::VTableGetVptrOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  // cir.vtable.get_vptr is equivalent to a bitcast from the source object
+  // pointer to the vptr type. Since the LLVM dialect uses opaque pointers
+  // we can just replace uses of this operation with the original pointer.
+  mlir::Value srcVal = op.getSrc();
+  rewriter.replaceAllUsesWith(op, srcVal);
+  rewriter.eraseOp(op);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMVTableGetVirtualFnAddrOpLowering::matchAndRewrite(
+    cir::VTableGetVirtualFnAddrOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  const auto *converter = getTypeConverter();
+  auto targetType = converter->convertType(op.getType());
+  mlir::Type eltType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+  llvm::SmallVector<mlir::LLVM::GEPArg> offsets =
+      llvm::SmallVector<mlir::LLVM::GEPArg>{op.getIndex()};
+  rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+      op, targetType, eltType, adaptor.getVptr(), offsets, true);
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMStackSaveOpLowering::matchAndRewrite(
     cir::StackSaveOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4540,6 +4565,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMVecSplatOpLowering,
       CIRToLLVMVecTernaryOpLowering,
       CIRToLLVMVTableAddrPointOpLowering,
+      CIRToLLVMVTableGetVptrOpLowering,
+      CIRToLLVMVTableGetVirtualFnAddrOpLowering,
       CIRToLLVMVTTAddrPointOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
@@ -4583,6 +4610,10 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     unsigned addrSpace =
         getTargetAddrSpaceFromCIRAddrSpace(type.getAddrSpace(), lowerModule);
     return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
+  });
+  converter.addConversion([&](cir::VPtrType type) -> mlir::Type {
+    assert(!cir::MissingFeatures::addressSpace());
+    return mlir::LLVM::LLVMPointerType::get(type.getContext());
   });
   converter.addConversion(
       [&, lowerModule](cir::DataMemberType type) -> mlir::Type {

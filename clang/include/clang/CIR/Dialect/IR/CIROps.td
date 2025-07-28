@@ -2595,7 +2595,7 @@ def CIR_GetGlobalOp : CIR_Op<"get_global", [
 // VTableAddrPointOp
 //===----------------------------------------------------------------------===//
 
-def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
+def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
   Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>
 ]> {
   let summary = "Get the vtable (global variable) address point";
@@ -2604,17 +2604,18 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
     (address point) of a C++ virtual table. An object internal `__vptr`
     gets initializated on top of the value returned by this operation.
 
-    `address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
-    (as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
-    point within that vtable.
+    `address_point.index` (vtable index) provides the appropriate vtable within
+    the vtable group (as specified by Itanium ABI), and `address_point.offset`
+    (address point index) the actual address point within that vtable.
 
-    The return type is always a `!cir.ptr<!cir.vtable>`.
+    The return type is always `!cir.ptr<!cir.vptr>`.
 
     Example:
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.vtable_ptr
+    %3 = cir.vtable.address_point(@_ZTV1B,
+              address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.vptr>
     ```
   }];
 
@@ -2624,7 +2625,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
     CIR_AddressPointAttr:$address_point
   );
 
-  let results = (outs Res<CIR_PointerType, "", []>:$addr);
+  let results = (outs Res<CIR_PtrToVPtr, "", []>:$addr);
 
   let assemblyFormat = [{
     `(`
@@ -2637,6 +2638,101 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
   }];
 
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// VTableGetVptr
+//===----------------------------------------------------------------------===//
+
+def CIR_VTableGetVptrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
+  let summary = "Get a the address of the vtable pointer for an object";
+  let description = [{
+    The `vtable.get_vptr` operation retrieves the address of the vptr for a
+    C++ object. This operation requires that the object pointer points to
+    the start of a complete object. (TODO: Describe how we get that).
+    The vptr will always be at offset zero in the object, but this operation
+    is more explicit about what is being retrieved than a direct bitcast.
+
+    The return type is always `!cir.ptr<!cir.vptr>`.
+
+    Example:
+    ```mlir
+    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
+    %3 = cir.vtable.get_vptr %2 : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+    ```
+  }];
+
+  let arguments = (ins
+                   Arg<CIR_PointerType, "the vptr address", [MemRead]>:$src);
+
+  let results = (outs CIR_PtrToVPtr:$vptr_ty);
+
+
+  let assemblyFormat = [{
+      $src `:` qualified(type($src)) `->` qualified(type($vptr_ty)) attr-dict
+  }];
+
+}
+
+//===----------------------------------------------------------------------===//
+// VTableGetVirtualFnAddrOp
+//===----------------------------------------------------------------------===//
+
+def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
+  Pure
+]> {
+  let summary = "Get a the address of a virtual function pointer";
+  let description = [{
+    The `vtable.get_virtual_fn_addr` operation retrieves the address of a
+    virtual function pointer from an object's vtable (__vptr).
+    This is an abstraction to perform the basic pointer arithmetic to get
+    the address of the virtual function pointer, which can then be loaded and
+    called.
+
+    The return type is a pointer-to-pointer to the function type.
+
+    Example:
+    ```mlir
+    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
+    %3 = cir.vtable.get_vptr %2 : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+    %4 = cir.load %3 : !cir.ptr<!cir.vptr>, !cir.vptr
+    %5 = cir.vtable.get_virtual_fn_addr(%4, index = 2) : !cir.vptr
+                  -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C>) -> !s32i>>>
+    %6 = cir.load align(8) %5 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C>)
+                                                                 -> !s32i>>>,
+                                !cir.ptr<!cir.func<(!cir.ptr<!rec_C>) -> !s32i>>
+    %7 = cir.call %6(%2) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_C>) -> !s32i>>,
+                            !cir.ptr<!rec_C>) -> !s32i
+    ```
+  }];
+
+  let arguments = (ins
+    Arg<CIR_VPtrType, "vptr", [MemRead]>:$vptr,
+    IndexAttr:$index_attr);
+
+  let results = (outs CIR_PointerType:$vfptr_ty);
+
+  let assemblyFormat = [{
+    `(`
+      $vptr `,` `index` `=` $index_attr
+    `)`
+    `:` qualified(type($vptr)) `,` qualified(type($vfptr_ty)) attr-dict
+  }];
+
+  let builders = [
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$value,
+                   "unsigned":$index),
+    [{
+      mlir::APInt fnIdx(64, index);
+      build($_builder, $_state, type, value, fnIdx);
+    }]>
+  ];
+
+  let extraClassDeclaration = [{
+    /// Return the index of the record member being accessed.
+    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
+  }];
 }
 
 //===----------------------------------------------------------------------===//
