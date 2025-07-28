@@ -2209,11 +2209,10 @@ mlir::Value CIRGenItaniumCXXABI::emitVirtualDestructorCall(
   auto callee = CIRGenCallee::forVirtual(callExpr, globalDecl, thisAddr, fnTy);
 
   QualType thisTy;
-  if (callExpr) {
+  if (callExpr)
     thisTy = callExpr->getObjectType();
-  } else {
+  else
     thisTy = delExpr->getDestroyedType();
-  }
 
   CGF.emitCXXDestructorCall(globalDecl, callee, thisAddr.emitRawPointer(),
                             thisTy, nullptr, QualType(), nullptr);
@@ -2756,9 +2755,8 @@ void CIRGenItaniumCXXABI::emitVirtualObjectDelete(
     CIRGenFunction &CGF, const CXXDeleteExpr *delExpr, Address ptr,
     QualType elementType, const CXXDestructorDecl *dtor) {
   bool useGlobalDelete = delExpr->isGlobalDelete();
-  if (useGlobalDelete) {
+  if (useGlobalDelete)
     llvm_unreachable("NYI");
-  }
 
   CXXDtorType dtorType = useGlobalDelete ? Dtor_Complete : Dtor_Deleting;
   emitVirtualDestructorCall(CGF, dtor, dtorType, ptr, delExpr);
