@@ -125,3 +125,63 @@ long double f2(int n, ...) {
 // CIR: [[CAST_ALIGNED_VALUE:%.+]] = cir.load [[CAST_ALIGNED]]
 // CIR: cir.store{{.*}} [[CAST_ALIGNED_VALUE]], [[RES]]
 // CIR. cir.via.end
+
+const char *f3(va_list args) {
+  return va_arg(args, const char *);
+}
+
+// CHECK: define{{.*}} @f3
+// CHECK: [[VA_LIST_ALLOCA:%.+]] = alloca ptr
+// ...
+// CHECK: [[VA_LIST:%.+]] = load {{.*}} [[VA_LIST_ALLOCA]]
+// CHECK: [[OFFSET_PTR:%.+]] = getelementptr {{.*}} [[VA_LIST]], i32 0, i32 0
+// CHECK: [[OFFSET:%.+]] = load {{.*}}, ptr [[OFFSET_PTR]]
+// CHECK: [[CMP:%.+]] = icmp ule i32 [[OFFSET]], 40
+// CHECK: br i1 [[CMP]], label %[[THEN_BB:.+]], label %[[ELSE_BB:.+]]
+//
+// CHECK: [[THEN_BB]]:
+// ...
+// CHECK:   [[NEW_OFFSET:%.+]] = add i32 [[OFFSET]], 8
+// CHECK:   store i32 [[NEW_OFFSET]], ptr [[OFFSET_PTR]]
+// CHECK:   br label %[[CONT_BB:.+]]
+//
+// CHECK: [[ELSE_BB]]:
+// ...
+// CHECK:   [[OVERFLOW_ARG_AREA_ADDR:%.+]] = getelementptr {{.*}} [[VA_LIST]], i32 0, i32 2
+// CHECK:   [[OVERFLOW_ARG_AREA:%.+]] = load ptr, ptr [[OVERFLOW_ARG_AREA_ADDR]]
+// CHECK:   [[OVERFLOW_ARG_AREA_OFFSET:%.+]] = getelementptr {{.*}} [[OVERFLOW_ARG_AREA]], i64 8
+// CHECK:   store ptr [[OVERFLOW_ARG_AREA_OFFSET]], ptr [[OVERFLOW_ARG_AREA_ADDR]]
+// CHECK:   br label %[[CONT_BB]]
+//
+// CHECK: [[CONT_BB]]:
+// ...
+// CHECK: ret
+
+// CIR-LABEL:   cir.func dso_local @f3(
+// CIR:           %[[VALIST_VAR:.*]] = cir.alloca !cir.ptr<!rec___va_list_tag>, !cir.ptr<!cir.ptr<!rec___va_list_tag>>, ["args", init] {alignment = 8 : i64}
+// CIR:           %[[VALIST:.*]] = cir.load align(8) %[[VALIST_VAR]] : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
+// CIR:           %[[GP_OFFSET_PTR:.*]] = cir.get_member %[[VALIST]][0] {name = "gp_offset"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!u32i>
+// CIR:           %[[GP_OFFSET:.*]] = cir.load %[[GP_OFFSET_PTR]] : !cir.ptr<!u32i>, !u32i
+// CIR:           %[[VAL_6:.*]] = cir.const #cir.int<40> : !u32i
+// CIR:           %[[VAL_7:.*]] = cir.cmp(le, %[[GP_OFFSET]], %[[VAL_6]]) : !u32i, !cir.bool
+// CIR:           cir.brcond %[[VAL_7]]
+
+// CIR:           %[[REG_SAVE_AREA_PTR:.*]] = cir.get_member %[[VALIST]][3] {name = "reg_save_area"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!cir.ptr<!void>>
+// CIR:           %[[REG_SAVE_AREA:.*]] = cir.load %[[REG_SAVE_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// CIR:           %[[CUR_REG_SAVE_AREA:.*]] = cir.ptr_stride(%[[REG_SAVE_AREA]] : !cir.ptr<!void>, %[[GP_OFFSET]] : !u32i), !cir.ptr<!void>
+// CIR:           %[[VAL_11:.*]] = cir.const #cir.int<8> : !u32i
+// CIR:           %[[NEW_REG_SAVE_AREA:.*]] = cir.binop(add, %[[GP_OFFSET]], %[[VAL_11]]) : !u32i
+// CIR:           cir.store %[[NEW_REG_SAVE_AREA]], %[[GP_OFFSET_PTR]] : !u32i, !cir.ptr<!u32i>
+// CIR:           cir.br ^[[CONT_BB:.*]](%[[CUR_REG_SAVE_AREA]] : !cir.ptr<!void>)
+
+// CIR:           %[[OVERFLOW_ARG_AREA_PTR:.*]] = cir.get_member %[[VALIST]][2] {name = "overflow_arg_area"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!cir.ptr<!void>>
+// CIR:           %[[OVERFLOW_ARG_AREA:.*]] = cir.load %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// CIR:           %[[VAL_15:.*]] = cir.const #cir.int<8> : !s32i
+// CIR:           %[[CUR_OVERFLOW_ARG_AREA:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>), !cir.ptr<!s8i>
+// CIR:           %[[NEW_OVERFLOW_ARG_AREA:.*]] = cir.ptr_stride(%[[CUR_OVERFLOW_ARG_AREA]] : !cir.ptr<!s8i>, %[[VAL_15]] : !s32i), !cir.ptr<!s8i>
+// CIR:           %[[VAL_18:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.ptr<!s8i>>
+// CIR:           cir.store %[[NEW_OVERFLOW_ARG_AREA]], %[[VAL_18]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
+// CIR:           cir.br ^[[CONT_BB]](%[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)
+
+// ...
+// CIR:           cir.return

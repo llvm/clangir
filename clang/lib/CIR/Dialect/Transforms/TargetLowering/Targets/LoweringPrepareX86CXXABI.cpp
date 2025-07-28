@@ -91,7 +91,8 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
   // Let's hope LLVM's va_arg instruction can take care of it.
   // Remove this when X86_64ABIInfo::classify can take care of every type.
   if (!mlir::isa<VoidType, IntType, SingleType, DoubleType, BoolType,
-                 cir::RecordType, LongDoubleType>(op.getType()))
+                 cir::RecordType, LongDoubleType, cir::PointerType>(
+          op.getType()))
     return nullptr;
 
   // Assume that va_list type is correct; should be pointer to LLVM type:
