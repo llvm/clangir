@@ -46,3 +46,39 @@ void test_mm_mask_store_sd(double * __P, __mmask8 __U, __m128d __A){
   // LLVM: call void @llvm.masked.store.v2f64.p0(<2 x double> %{{.*}}, ptr %{{.*}}, i32 1, <2 x i1> %{{.*}})
   _mm_mask_store_sd(__P, __U, __A);
 }
+
+void test_mm512_mask_store_pd(void *p, __m512d a, __mmask8 m){
+  // CIR-LABEL: _mm512_mask_store_pd
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.store" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!cir.double x 8>, !cir.ptr<!cir.vector<!cir.double x 8>>, !u32i, !cir.vector<!cir.int<s, 1> x 8>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_store_pd
+  // LLVM: @llvm.masked.store.v8f64.p0(<8 x double> %{{.*}}, ptr %{{.*}}, i32 64, <8 x i1> %{{.*}})
+  _mm512_mask_store_pd(p, m, a);
+}
+
+void test_mm512_mask_store_epi32(void *__P, __mmask16 __U, __m512i __A) {
+  // CIR-LABEL: _mm512_mask_store_epi32
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.store" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s32i x 16>, !cir.ptr<!cir.vector<!s32i x 16>>, !u32i, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_store_epi32
+  // LLVM: @llvm.masked.store.v16i32.p0(<16 x i32> %{{.*}}, ptr %{{.*}}, i32 64, <16 x i1> %{{.*}})
+  return _mm512_mask_store_epi32(__P, __U, __A); 
+}
+
+void test_mm512_mask_store_epi64(void *__P, __mmask8 __U, __m512i __A) {
+  // CIR-LABEL: _mm512_mask_store_epi64
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.store" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s64i x 8>, !cir.ptr<!cir.vector<!s64i x 8>>, !u32i, !cir.vector<!cir.int<s, 1> x 8>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_store_epi64
+  // LLVM: @llvm.masked.store.v8i64.p0(<8 x i64> %{{.*}}, ptr %{{.*}}, i32 64, <8 x i1> %{{.*}})
+  return _mm512_mask_store_epi64(__P, __U, __A); 
+}
+
+void test_mm512_mask_store_ps(void *p, __m512 a, __mmask16 m){
+  // CIR-LABEL: _mm512_mask_store_ps
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.store" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!cir.float x 16>, !cir.ptr<!cir.vector<!cir.float x 16>>, !u32i, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_store_ps
+  // LLVM: @llvm.masked.store.v16f32.p0(<16 x float> %{{.*}}, ptr %{{.*}}, i32 64, <16 x i1> %{{.*}})
+  _mm512_mask_store_ps(p, m, a);
+}
