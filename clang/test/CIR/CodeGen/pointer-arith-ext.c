@@ -82,7 +82,8 @@ FP f7(FP a, int b) { return a - b; }
 // Similar to f7, just make sure it does not crash.
 FP f7_1(FP a, int b) { return (a -= b); }
 
-void f8(void *a, int b) { return *(a + b); }
+void *id(void *a) { return a; }
+void f8(void *a, int b) { return *(id(a + b)); }
 // CIR-LABEL: f8
 // CIR: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR: %[[STRIDE:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i

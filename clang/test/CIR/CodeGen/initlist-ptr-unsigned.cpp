@@ -26,9 +26,10 @@ void test() {
 // CIR: cir.scope {
 // CIR: [[LIST_PTR:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: [[ARRAY:%.*]] = cir.alloca !cir.array<!s32i x 1>, !cir.ptr<!cir.array<!s32i x 1>>,
-// CIR: [[DECAY_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[ARRAY]] : !cir.ptr<!cir.array<!s32i x 1>>), !cir.ptr<!s32i>
+// CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR: [[FIRST_ELEM:%.*]] = cir.get_element [[ARRAY]][[[ZERO]]] : (!cir.ptr<!cir.array<!s32i x 1>>, !s32i) -> !cir.ptr<!s32i>
 // CIR: [[SEVEN:%.*]] = cir.const #cir.int<7> : !s32i
-// CIR: cir.store{{.*}} [[SEVEN]], [[DECAY_PTR]] : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store{{.*}} [[SEVEN]], [[FIRST_ELEM]] : !s32i, !cir.ptr<!s32i>
 // CIR: [[FLD_C:%.*]] = cir.get_member [[LIST_PTR]][0] {name = "c"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!cir.ptr<!s32i>>
 // CIR: [[ARRAY_PTR:%.*]] = cir.cast(bitcast, [[FLD_C]] : !cir.ptr<!cir.ptr<!s32i>>), !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
 // CIR: cir.store{{.*}} [[ARRAY]], [[ARRAY_PTR]] : !cir.ptr<!cir.array<!s32i x 1>>, !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
@@ -51,7 +52,7 @@ void test() {
 // LLVM:  [[ELEM_ARRAY:%.*]] = alloca [1 x i32], i64 1, align 4
 // LLVM: br label %[[SCOPE_START:.*]]
 // LLVM: [[SCOPE_START]]: ; preds = %0
-// LLVM:  [[PTR_FIRST_ELEM:%.*]] = getelementptr i32, ptr [[ELEM_ARRAY]], i32 0
+// LLVM:  [[PTR_FIRST_ELEM:%.*]] = getelementptr [1 x i32], ptr [[ELEM_ARRAY]], i32 0, i64 0
 // LLVM:  store i32 7, ptr [[PTR_FIRST_ELEM]], align 4
 // LLVM:  [[ELEM_ARRAY_PTR:%.*]] = getelementptr %"class.std::initializer_list<int>", ptr [[INIT_STRUCT]], i32 0, i32 0
 // LLVM:  store ptr [[ELEM_ARRAY]], ptr [[ELEM_ARRAY_PTR]], align 8
