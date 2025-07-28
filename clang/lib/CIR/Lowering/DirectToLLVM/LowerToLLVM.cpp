@@ -951,6 +951,51 @@ static mlir::Value getLLVMIntCast(mlir::ConversionPatternRewriter &rewriter,
   return rewriter.create<mlir::LLVM::TruncOp>(loc, llvmDstIntTy, llvmSrc);
 }
 
+static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
+                                mlir::Value index, uint64_t layoutWidth,
+                                bool isUnsigned) {
+  auto indexOp = index.getDefiningOp();
+  if (!indexOp)
+    return index;
+
+  auto indexType = mlir::cast<mlir::IntegerType>(index.getType());
+  auto width = indexType.getWidth();
+  if (layoutWidth == width)
+    return index;
+
+  // If the index definition is a unary minus (index = sub 0, x), then we need
+  // to
+  bool rewriteSub = false;
+  auto sub = mlir::dyn_cast<mlir::LLVM::SubOp>(indexOp);
+  if (sub) {
+    if (auto lhsConst = dyn_cast<mlir::LLVM::ConstantOp>(
+            sub.getOperand(0).getDefiningOp())) {
+      auto lhsConstInt = mlir::dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
+      if (lhsConstInt && lhsConstInt.getValue() == 0) {
+        rewriteSub = true;
+        index = sub.getOperand(1);
+      }
+    }
+  }
+
+  // Handle the cast
+  auto llvmDstType = mlir::IntegerType::get(rewriter.getContext(), layoutWidth);
+  index = getLLVMIntCast(rewriter, index, llvmDstType, isUnsigned, width,
+                         layoutWidth);
+
+  if (rewriteSub) {
+    index = rewriter.create<mlir::LLVM::SubOp>(
+        index.getLoc(),
+        rewriter.create<mlir::LLVM::ConstantOp>(index.getLoc(), index.getType(),
+                                                0),
+        index);
+    // TODO: check if the sub is trivially dead now.
+    rewriter.eraseOp(sub);
+  }
+
+  return index;
+}
+
 mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
     cir::PtrStrideOp ptrStrideOp, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -964,48 +1009,65 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
   // make it i8 instead.
   if (mlir::isa<mlir::LLVM::LLVMVoidType>(elementTy) ||
       mlir::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
-    elementTy = mlir::IntegerType::get(elementTy.getContext(), 8,
-                                       mlir::IntegerType::Signless);
+    elementTy = mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
 
   // Zero-extend, sign-extend or trunc the pointer value.
   auto index = adaptor.getStride();
-  auto width = mlir::cast<mlir::IntegerType>(index.getType()).getWidth();
   mlir::DataLayout LLVMLayout(ptrStrideOp->getParentOfType<mlir::ModuleOp>());
-  auto layoutWidth =
-      LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
-  auto indexOp = index.getDefiningOp();
-  if (indexOp && layoutWidth && width != *layoutWidth) {
-    // If the index comes from a subtraction, make sure the extension happens
-    // before it. To achieve that, look at unary minus, which already got
-    // lowered to "sub 0, x".
-    auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
-    auto unary = dyn_cast_if_present<cir::UnaryOp>(
-        ptrStrideOp.getStride().getDefiningOp());
-    bool rewriteSub =
-        unary && unary.getKind() == cir::UnaryOpKind::Minus && sub;
-    if (rewriteSub)
-      index = indexOp->getOperand(1);
-
-    // Handle the cast
-    auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
-    index = getLLVMIntCast(rewriter, index, llvmDstType,
-                           ptrStrideOp.getStride().getType().isUnsigned(),
-                           width, *layoutWidth);
-
-    // Rewrite the sub in front of extensions/trunc
-    if (rewriteSub) {
-      index = rewriter.create<mlir::LLVM::SubOp>(
-          index.getLoc(),
-          rewriter.create<mlir::LLVM::ConstantOp>(index.getLoc(),
-                                                  index.getType(), 0),
-          index);
-      rewriter.eraseOp(sub);
-    }
+  if (auto layoutWidth =
+          LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType())) {
+    bool isUnsigned = false;
+    if (auto strideTy =
+            mlir::dyn_cast<cir::IntType>(ptrStrideOp.getOperand(1).getType()))
+      isUnsigned = strideTy.isUnsigned();
+    index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
   }
 
   rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
       ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
   return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMGetElementOpLowering::matchAndRewrite(
+    cir::GetElementOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+
+  if (auto arrayTy =
+          mlir::dyn_cast<cir::ArrayType>(op.getBaseType().getPointee())) {
+    auto *tc = getTypeConverter();
+    const auto llResultTy = tc->convertType(op.getType());
+    auto elementTy = convertTypeForMemory(*tc, dataLayout, op.getElementType());
+    auto *ctx = elementTy.getContext();
+
+    // void and function types doesn't really have a layout to use in GEPs,
+    // make it i8 instead.
+    if (mlir::isa<mlir::LLVM::LLVMVoidType>(elementTy) ||
+        mlir::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
+      elementTy = mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
+
+    // Zero-extend, sign-extend or trunc the index value.
+    auto index = adaptor.getIndex();
+    mlir::DataLayout LLVMLayout(op->getParentOfType<mlir::ModuleOp>());
+    if (auto layoutWidth =
+            LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType())) {
+      bool isUnsigned = false;
+      if (auto strideTy = dyn_cast<cir::IntType>(op.getOperand(1).getType()))
+        isUnsigned = strideTy.isUnsigned();
+      index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
+    }
+
+    // Since the base address is a pointer to an aggregate, the first
+    // offset is always zero. The second offset tell us which member it
+    // will access.
+    const auto llArrayTy = getTypeConverter()->convertType(arrayTy);
+    llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, index};
+    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, llResultTy, llArrayTy,
+                                                   adaptor.getBase(), offset);
+
+    return mlir::success();
+  }
+
+  llvm_unreachable("NYI, GetElementOp lowering to LLVM for non-Array");
 }
 
 mlir::LogicalResult CIRToLLVMBaseClassAddrOpLowering::matchAndRewrite(
@@ -4388,6 +4450,7 @@ void populateCIRToLLVMConversionPatterns(
   patterns.add<
       // clang-format off
       CIRToLLVMPtrStrideOpLowering,
+      CIRToLLVMGetElementOpLowering,
       CIRToLLVMInlineAsmOpLowering
       // clang-format on
       >(converter, patterns.getContext(), dataLayout);

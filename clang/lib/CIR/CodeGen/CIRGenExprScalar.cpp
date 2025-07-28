@@ -728,7 +728,7 @@ public:
     return nullptr;
   }
   mlir::Value VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
-    llvm_unreachable("NYI");
+    return CGF.getBuilder().getBool(E->getValue(), CGF.getLoc(E->getExprLoc()));
   }
 
   /// Perform a pointer to boolean conversion.

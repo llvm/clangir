@@ -1710,8 +1710,8 @@ emitArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
   // that would enhance tracking this later in CIR?
   if (inbounds)
     assert(!cir::MissingFeatures::emitCheckedInBoundsGEP() && "NYI");
-  return CGM.getBuilder().getArrayElement(beginLoc, endLoc, ptr, eltTy, idx,
-                                          shouldDecay);
+  return CGM.getBuilder().getArrayElement(CGF.getTarget(), beginLoc, endLoc,
+                                          ptr, eltTy, idx, shouldDecay);
 }
 
 static QualType getFixedSizeElementType(const ASTContext &astContext,
