@@ -54,7 +54,7 @@ class CIRGenCallee {
   enum class SpecialKind : uintptr_t {
     Invalid,
     Builtin,
-    PsuedoDestructor,
+    PseudoDestructor,
     Virtual,
 
     Last = Virtual
@@ -128,8 +128,20 @@ public:
     return result;
   }
 
-  bool isPsuedoDestructor() const {
-    return KindOrFunctionPointer == SpecialKind::PsuedoDestructor;
+  static CIRGenCallee
+  forPseudoDestructor(const clang::CXXPseudoDestructorExpr *expr) {
+    CIRGenCallee result(SpecialKind::PseudoDestructor);
+    result.PseudoDestructorInfo.Expr = expr;
+    return result;
+  }
+
+  bool isPseudoDestructor() const {
+    return KindOrFunctionPointer == SpecialKind::PseudoDestructor;
+  }
+
+  const CXXPseudoDestructorExpr *getPseudoDestructorExpr() const {
+    assert(isPseudoDestructor());
+    return PseudoDestructorInfo.Expr;
   }
 
   bool isOrdinary() const {
