@@ -163,9 +163,9 @@ struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
       index = rewriter.create<cir::BinOp>(op->getLoc(), cir::BinOpKind::Add,
                                           elemIndex, index);
 
-    } else
+    } else {
       return mlir::failure();
-
+    }
     rewriter.replaceOpWithNewOp<cir::GetElementOp>(op, op.getType(), base,
                                                    index);
     return mlir::success();
@@ -190,8 +190,9 @@ struct SimplifyCastOp : public OpRewritePattern<CastOp> {
           return mlir::failure();
       } else if (isa<cir::GetMemberOp>(user)) {
         continue;
-      } else
+      } else {
         return mlir::failure();
+      }
     }
 
     // REWRITE cast array_to_ptrdecay %base
