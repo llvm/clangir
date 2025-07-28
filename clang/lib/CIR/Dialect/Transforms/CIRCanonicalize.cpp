@@ -144,7 +144,7 @@ struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
   LogicalResult matchAndRewrite(PtrStrideOp op,
                                 PatternRewriter &rewriter) const override {
     mlir::Value base = op.getBase(), index = op.getStride();
-    if (auto castOp = dyn_cast<cir::CastOp>(base.getDefiningOp())) {
+    if (auto castOp = base.getDefiningOp<cir::CastOp>()) {
       // REWRITE ptr_stride(cast array_to_ptrdecay %base), %index)
       //      => get_element %base[%index]
       if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
@@ -152,8 +152,7 @@ struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
 
       base = castOp.getOperand();
 
-    } else if (auto getElemOp =
-                   dyn_cast<cir::GetElementOp>(base.getDefiningOp())) {
+    } else if (auto getElemOp = base.getDefiningOp<cir::GetElementOp>()) {
       // REWRITE ptr_stride(get_element %base[%index]), %stride)
       //      => get_element %base[%index + %stride]
       auto elemIndex = getElemOp.getIndex();
