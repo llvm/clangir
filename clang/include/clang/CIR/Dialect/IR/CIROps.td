@@ -3776,6 +3776,7 @@ def FuncOp : CIR_Op<"func", [
     CIR_OptionalPriorityAttr:$global_ctor_priority,
     CIR_OptionalPriorityAttr:$global_dtor_priority,
     OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
     OptionalAttr<AnyASTFunctionDeclAttr>:$ast
   );
 
