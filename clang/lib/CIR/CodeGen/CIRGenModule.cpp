@@ -75,6 +75,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 #include <iterator>
 #include <memory>
@@ -2740,6 +2741,31 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     // Initialize with empty dict of extra attributes.
     f.setExtraAttrsAttr(
         cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
+
+    if (fd) {
+      if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
+        auto cxxDtor = cir::CXXDtorAttr::get(
+            convertType(getASTContext().getTypeDeclType(
+                ElaboratedTypeKeyword::None, std::nullopt,
+                dtor->getParent())));
+        f.setCxxSpecialMemberAttr(cxxDtor);
+      }
+
+      if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+        cir::CtorKind ctorKind = cir::CtorKind::Custom;
+        if (ctor->isDefaultConstructor())
+          ctorKind = cir::CtorKind::Default;
+        if (ctor->isCopyConstructor())
+          ctorKind = cir::CtorKind::Copy;
+
+        auto cxxCtor = cir::CXXCtorAttr::get(
+            convertType(getASTContext().getTypeDeclType(
+                ElaboratedTypeKeyword::None, std::nullopt,
+                ctor->getParent())),
+            ctorKind);
+        f.setCxxSpecialMemberAttr(cxxCtor);
+      }
+    }
 
     if (!curCGF)
       theModule.push_back(f);

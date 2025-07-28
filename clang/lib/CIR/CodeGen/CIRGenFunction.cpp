@@ -32,6 +32,7 @@
 #include "CIRGenTBAA.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Support/LogicalResult.h"
+#include <optional>
 
 using namespace clang;
 using namespace clang::CIRGen;
@@ -765,15 +766,33 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
-    if (isa<CXXDestructorDecl>(fd))
+    if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
+      auto cxxDtor = cir::CXXDtorAttr::get(
+          convertType(getContext().getTypeDeclType(
+              ElaboratedTypeKeyword::None, std::nullopt, dtor->getParent())));
+      fn.setCxxSpecialMemberAttr(cxxDtor);
+
       emitDestructorBody(args);
-    else if (isa<CXXConstructorDecl>(fd))
+    } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+      cir::CtorKind ctorKind = cir::CtorKind::Custom;
+      if (ctor->isDefaultConstructor())
+        ctorKind = cir::CtorKind::Default;
+      if (ctor->isCopyConstructor())
+        ctorKind = cir::CtorKind::Copy;
+
+      auto cxxCtor = cir::CXXCtorAttr::get(
+          convertType(getContext().getTypeDeclType(ElaboratedTypeKeyword::None,
+                                                   std::nullopt,
+                                                   ctor->getParent())),
+          ctorKind);
+      fn.setCxxSpecialMemberAttr(cxxCtor);
+
       emitConstructorBody(args);
-    else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
-             fd->hasAttr<CUDAGlobalAttr>())
+    } else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
+               fd->hasAttr<CUDAGlobalAttr>()) {
       CGM.getCUDARuntime().emitDeviceStub(*this, fn, args);
-    else if (isa<CXXMethodDecl>(fd) &&
-             cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
+    } else if (isa<CXXMethodDecl>(fd) &&
+               cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
       // The lambda static invoker function is special, because it forwards or
       // clones the body of the function call operator (but is actually
       // static).
@@ -789,8 +808,9 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         fn.erase();
         return nullptr;
       }
-    } else
+    } else {
       llvm_unreachable("no definition for emitted function");
+    }
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
