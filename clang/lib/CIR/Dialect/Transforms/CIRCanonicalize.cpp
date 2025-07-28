@@ -172,19 +172,19 @@ struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
   }
 };
 
-struct SimplifyCastOp : public OpRewritePattern<CastOp> {
-  using OpRewritePattern<CastOp>::OpRewritePattern;
-  LogicalResult matchAndRewrite(CastOp op,
+struct SimplifyCastOp : public OpRewritePattern<cir::CastOp> {
+  using OpRewritePattern<cir::CastOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(cir::CastOp op,
                                 PatternRewriter &rewriter) const override {
     if (op.getKind() != cir::CastKind::array_to_ptrdecay)
       return mlir::failure();
 
     auto elemTy = cast<cir::PointerType>(op.getType()).getPointee();
     for (auto *user : op->getUsers()) {
-      if (auto loadOp = dyn_cast<LoadOp>(user)) {
+      if (auto loadOp = dyn_cast<cir::LoadOp>(user)) {
         if (elemTy != loadOp.getType())
           return mlir::failure();
-      } else if (auto storeOp = dyn_cast<StoreOp>(user)) {
+      } else if (auto storeOp = dyn_cast<cir::StoreOp>(user)) {
         if (storeOp.getAddr() != op.getResult() ||
             elemTy != storeOp.getValue().getType())
           return mlir::failure();
