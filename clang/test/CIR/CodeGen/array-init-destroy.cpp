@@ -50,7 +50,7 @@ void x() {
 // AFTER:   cir.yield
 // AFTER: } while {
 // AFTER:   %[[ArrayElt:.*]] = cir.load %[[TmpIdx]] : !cir.ptr<!cir.ptr<!rec_xpto>>, !cir.ptr<!rec_xpto>
-// AFTER:   %[[ExitCond:.*]] = cir.cmp(eq, %[[ArrayElt]], %[[ArrayPastEnd]]) : !cir.ptr<!rec_xpto>, !cir.bool
+// AFTER:   %[[ExitCond:.*]] = cir.cmp(ne, %[[ArrayElt]], %[[ArrayPastEnd]]) : !cir.ptr<!rec_xpto>, !cir.bool
 // AFTER:   cir.condition(%[[ExitCond]])
 // AFTER: }
 

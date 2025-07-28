@@ -2257,6 +2257,7 @@ LogicalResult cir::GlobalOp::verify() {
   case GlobalLinkageKind::CommonLinkage:
   case GlobalLinkageKind::WeakAnyLinkage:
   case GlobalLinkageKind::WeakODRLinkage:
+  case GlobalLinkageKind::AvailableExternallyLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
@@ -2265,9 +2266,6 @@ LogicalResult cir::GlobalOp::verify() {
                          << stringifyGlobalLinkageKind(getLinkage())
                          << "' linkage";
     break;
-  default:
-    return emitError() << stringifyGlobalLinkageKind(getLinkage())
-                       << ": verifier not implemented\n";
   }
 
   // TODO: verify visibility for declarations?
@@ -2529,6 +2527,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2607,6 +2606,20 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Parse CXXSpecialMember attribute
+  if (parser.parseOptionalKeyword("special_member").succeeded()) {
+    cir::CXXCtorAttr ctorAttr;
+    cir::CXXDtorAttr dtorAttr;
+    if (parser.parseLess().failed())
+      return failure();
+    if (parser.parseOptionalAttribute(ctorAttr).has_value())
+      state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
+    if (parser.parseOptionalAttribute(dtorAttr).has_value())
+      state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
+    if (parser.parseGreater().failed())
+      return failure();
   }
 
   // If additional attributes are present, parse them.
@@ -2789,6 +2802,13 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (auto specialMemberAttr = getCxxSpecialMember()) {
+    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr>(*specialMemberAttr)));
+    p << " special_member<";
+    p.printAttribute(*specialMemberAttr);
+    p << '>';
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2799,7 +2819,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
@@ -3833,6 +3853,18 @@ LogicalResult cir::GetMethodOp::verify() {
   if (calleeArgsTy.slice(1) != methodFuncArgsTy)
     return emitError()
            << "callee parameters and method parameters do not match";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// GetMemberOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::GetElementOp::verify() {
+  auto arrayTy = mlir::cast<cir::ArrayType>(getBaseType().getPointee());
+  if (getElementType() != arrayTy.getElementType())
+    return emitError() << "element type mismatch";
 
   return mlir::success();
 }

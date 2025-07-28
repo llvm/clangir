@@ -954,9 +954,9 @@ void AggExprEmitter::VisitCXXStdInitializerListExpr(
                            ArrayType->getElementType()) &&
            "Expected std::initializer_list second field to be const E *");
 
-    auto ArrayEnd =
-        Builder.getArrayElement(loc, loc, ArrayPtr.getPointer(),
-                                ArrayPtr.getElementType(), Size, false);
+    auto ArrayEnd = Builder.getArrayElement(
+        CGF.getTarget(), loc, loc, ArrayPtr.getPointer(),
+        ArrayPtr.getElementType(), Size, false);
     CGF.emitStoreThroughLValue(RValue::get(ArrayEnd), EndOrLength);
   }
 }

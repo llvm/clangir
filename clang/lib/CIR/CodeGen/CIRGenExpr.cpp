@@ -576,10 +576,11 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
       emitIgnoredExpr(ME->getBase());
       return emitDirectCallee(CGM, FD);
     }
+  } else if (auto *PDE = dyn_cast<CXXPseudoDestructorExpr>(E)) {
+    return CIRGenCallee::forPseudoDestructor(PDE);
   }
 
   assert(!dyn_cast<SubstNonTypeTemplateParmExpr>(E) && "NYI");
-  assert(!dyn_cast<CXXPseudoDestructorExpr>(E) && "NYI");
 
   // Otherwise, we have an indirect reference.
   mlir::Value calleePtr;
@@ -1420,7 +1421,8 @@ RValue CIRGenFunction::emitCallExpr(const clang::CallExpr *E,
     return emitBuiltinExpr(callee.getBuiltinDecl(), callee.getBuiltinID(), E,
                            ReturnValue);
 
-  assert(!callee.isPsuedoDestructor() && "NYI");
+  if (callee.isPseudoDestructor())
+    return emitCXXPseudoDestructorExpr(callee.getPseudoDestructorExpr());
 
   return emitCall(E->getCallee()->getType(), callee, E, ReturnValue);
 }
@@ -1710,8 +1712,8 @@ emitArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
   // that would enhance tracking this later in CIR?
   if (inbounds)
     assert(!cir::MissingFeatures::emitCheckedInBoundsGEP() && "NYI");
-  return CGM.getBuilder().getArrayElement(beginLoc, endLoc, ptr, eltTy, idx,
-                                          shouldDecay);
+  return CGM.getBuilder().getArrayElement(CGF.getTarget(), beginLoc, endLoc,
+                                          ptr, eltTy, idx, shouldDecay);
 }
 
 static QualType getFixedSizeElementType(const ASTContext &astContext,
