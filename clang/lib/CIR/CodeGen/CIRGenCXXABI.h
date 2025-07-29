@@ -182,6 +182,11 @@ public:
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                                   cir::FuncOp dtor, mlir::Value Addr) = 0;
 
+  virtual void emitVirtualObjectDelete(CIRGenFunction &CGF,
+                                       const CXXDeleteExpr *DE, Address Ptr,
+                                       QualType ElementType,
+                                       const CXXDestructorDecl *Dtor) = 0;
+
   virtual size_t getSrcArgforCopyCtor(const CXXConstructorDecl *,
                                       FunctionArgList &Args) const = 0;
 
@@ -211,6 +216,15 @@ public:
   /// Emits the VTable definitions required for the given record type.
   virtual void emitVTableDefinitions(CIRGenVTables &CGVT,
                                      const CXXRecordDecl *RD) = 0;
+
+  using DeleteOrMemberCallExpr =
+      llvm::PointerUnion<const CXXDeleteExpr *, const CXXMemberCallExpr *>;
+
+  virtual mlir::Value emitVirtualDestructorCall(CIRGenFunction &CGF,
+                                                const CXXDestructorDecl *Dtor,
+                                                CXXDtorType DtorType,
+                                                Address This,
+                                                DeleteOrMemberCallExpr E) = 0;
 
   /// Emit any tables needed to implement virtual inheritance.  For Itanium,
   /// this emits virtual table tables.
