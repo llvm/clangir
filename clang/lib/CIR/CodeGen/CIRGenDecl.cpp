@@ -331,7 +331,7 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
     // out of it while trying to build the expression, mark it as such.
     auto addr = lv.getAddress().getPointer();
     assert(addr && "Should have an address");
-    auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(addr.getDefiningOp());
+    auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
     assert(allocaOp && "Address should come straight out of the alloca");
 
     if (!allocaOp.use_empty())
@@ -617,7 +617,7 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   // TODO(cir): we should have a way to represent global ops as values without
   // having to emit a get global op. Sometimes these emissions are not used.
   auto addr = getBuilder().createGetGlobal(globalOp);
-  auto getAddrOp = mlir::cast<cir::GetGlobalOp>(addr.getDefiningOp());
+  auto getAddrOp = addr.getDefiningOp<cir::GetGlobalOp>();
 
   CharUnits alignment = getContext().getDeclAlign(&D);
 

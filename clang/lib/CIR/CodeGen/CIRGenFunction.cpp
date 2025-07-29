@@ -293,7 +293,7 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addr = emitAlloca(namedVar->getName(), ty, loc, alignment);
-  auto allocaOp = cast<cir::AllocaOp>(addr.getDefiningOp());
+  auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
   if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
   if (ty->isReferenceType() || ty.isConstQualified())
@@ -313,7 +313,7 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  auto allocaOp = cast<cir::AllocaOp>(addrVal.getDefiningOp());
+  auto allocaOp = addrVal.getDefiningOp<cir::AllocaOp>();
   if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
   if (ty->isReferenceType() || ty.isConstQualified())
@@ -1986,7 +1986,7 @@ void CIRGenFunction::emitVarAnnotations(const VarDecl *decl, mlir::Value val) {
   for (const auto *annot : decl->specific_attrs<AnnotateAttr>()) {
     annotations.push_back(CGM.emitAnnotateAttr(annot));
   }
-  auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(val.getDefiningOp());
+  auto allocaOp = val.getDefiningOp<cir::AllocaOp>();
   assert(allocaOp && "expects available alloca");
   allocaOp.setAnnotationsAttr(builder.getArrayAttr(annotations));
 }

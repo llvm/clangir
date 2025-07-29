@@ -477,7 +477,7 @@ static std::string getVarNameFromValue(mlir::Value v) {
   if (auto allocaOp = dyn_cast<AllocaOp>(srcOp))
     return allocaOp.getName().str();
   if (auto getElemOp = dyn_cast<GetMemberOp>(srcOp)) {
-    auto parent = dyn_cast<AllocaOp>(getElemOp.getAddr().getDefiningOp());
+    auto parent = getElemOp.getAddr().getDefiningOp<cir::AllocaOp>();
     if (parent) {
       llvm::SmallString<128> finalName;
       llvm::raw_svector_ostream Out(finalName);
@@ -760,9 +760,9 @@ void LifetimeCheckPass::checkReturn(ReturnOp retOp) {
 
   // The return value is loaded from the return slot before
   // returning.
-  auto loadOp = dyn_cast<LoadOp>(retOp.getOperand(0).getDefiningOp());
+  auto loadOp = retOp.getOperand(0).getDefiningOp<cir::LoadOp>();
   assert(loadOp && "expected cir.load");
-  if (!isa<AllocaOp>(loadOp.getAddr().getDefiningOp()))
+  if (!loadOp.getAddr().getDefiningOp<cir::AllocaOp>())
     return;
 
   // Keep track of interesting lambda.
@@ -1083,10 +1083,10 @@ void LifetimeCheckPass::checkCoroTaskStore(StoreOp storeOp) {
   // Bind values that are coming from alloca's (like %arg0 above) to the
   // pset of %task - this effectively leads to some invalidation of %task
   // when %arg0 finishes its lifetime at the end of the enclosing cir.scope.
-  if (auto call = dyn_cast<cir::CallOp>(taskTmp.getDefiningOp())) {
+  if (auto call = taskTmp.getDefiningOp<cir::CallOp>()) {
     bool potentialTaintedTask = false;
     for (auto arg : call.getArgOperands()) {
-      auto alloca = dyn_cast<cir::AllocaOp>(arg.getDefiningOp());
+      auto alloca = arg.getDefiningOp<cir::AllocaOp>();
       if (alloca && currScope->localValues.count(alloca)) {
         getPmap()[taskAddr].insert(State::getLocalValue(alloca));
         potentialTaintedTask = true;
@@ -1103,11 +1103,11 @@ void LifetimeCheckPass::checkCoroTaskStore(StoreOp storeOp) {
 }
 
 mlir::Value LifetimeCheckPass::getLambdaFromMemberAccess(mlir::Value addr) {
-  auto op = addr.getDefiningOp();
   // FIXME: we likely want to consider more indirections here...
-  if (!isa<cir::GetMemberOp>(op))
+  auto op = addr.getDefiningOp<cir::GetMemberOp>();
+  if (!op)
     return nullptr;
-  auto allocaOp = dyn_cast<cir::AllocaOp>(op->getOperand(0).getDefiningOp());
+  auto allocaOp = op->getOperand(0).getDefiningOp<cir::AllocaOp>();
   if (!allocaOp || !isLambdaType(allocaOp.getAllocaType()))
     return nullptr;
   return allocaOp;
@@ -1117,7 +1117,7 @@ void LifetimeCheckPass::checkLambdaCaptureStore(StoreOp storeOp) {
   auto localByRefAddr = storeOp.getValue();
   auto lambdaCaptureAddr = storeOp.getAddr();
 
-  if (!isa_and_nonnull<cir::AllocaOp>(localByRefAddr.getDefiningOp()))
+  if (!localByRefAddr.getDefiningOp<cir::AllocaOp>())
     return;
   auto lambdaAddr = getLambdaFromMemberAccess(lambdaCaptureAddr);
   if (!lambdaAddr)
@@ -1178,7 +1178,7 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
                                        mlir::Location loc) {
 
   auto getArrayFromSubscript = [&](PtrStrideOp strideOp) -> mlir::Value {
-    auto castOp = dyn_cast<CastOp>(strideOp.getBase().getDefiningOp());
+    auto castOp = strideOp.getBase().getDefiningOp<cir::CastOp>();
     if (!castOp)
       return {};
     if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
@@ -1284,11 +1284,11 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   // Decompose store's to aggregates into multiple updates to individual fields.
   if (aggregates.count(addr)) {
     auto data = storeOp.getValue();
-    auto dataSrcOp = data.getDefiningOp();
-    // Only interested in updating and tracking fields, anything besides
-    // constants isn't really relevant.
-    if (dataSrcOp && isa<ConstantOp>(dataSrcOp))
+    if (data.getDefiningOp<cir::ConstantOp>()) {
+      // Only interested in updating and tracking fields, anything besides
+      // constants isn't really relevant.
       updatePointsTo(addr, data, data.getLoc());
+    }
     return;
   }
 
@@ -1343,7 +1343,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
     case InvalidStyle::EndOfScope: {
       if (tasks.count(histKey)) {
         llvm::StringRef resource = "resource";
-        if (auto allocaOp = dyn_cast<AllocaOp>(info.val->getDefiningOp())) {
+        if (auto allocaOp = info.val->getDefiningOp<cir::AllocaOp>()) {
           if (isLambdaType(allocaOp.getAllocaType()))
             resource = "lambda";
         }
@@ -1419,7 +1419,7 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
     D << "returned lambda captures local variable";
   else if (derefStyle == DerefStyle::CallParam ||
            derefStyle == DerefStyle::IndirectCallParam) {
-    bool isAgg = isa_and_nonnull<GetMemberOp>(addr.getDefiningOp());
+    bool isAgg = addr.getDefiningOp<cir::GetMemberOp>();
     D << "passing ";
     if (!isAgg)
       D << "invalid pointer";
@@ -1464,7 +1464,7 @@ mlir::Value LifetimeCheckPass::getThisParamPointerCategory(CallOp callOp) {
   auto thisptr = callOp.getArgOperand(0);
   if (ptrs.count(thisptr))
     return thisptr;
-  if (auto loadOp = dyn_cast_or_null<LoadOp>(thisptr.getDefiningOp())) {
+  if (auto loadOp = thisptr.getDefiningOp<cir::LoadOp>()) {
     if (ptrs.count(loadOp.getAddr()))
       return loadOp.getAddr();
   }
@@ -1476,7 +1476,7 @@ mlir::Value LifetimeCheckPass::getThisParamOwnerCategory(CallOp callOp) {
   auto thisptr = callOp.getArgOperand(0);
   if (owners.count(thisptr))
     return thisptr;
-  if (auto loadOp = dyn_cast_or_null<LoadOp>(thisptr.getDefiningOp())) {
+  if (auto loadOp = thisptr.getDefiningOp<cir::LoadOp>()) {
     if (owners.count(loadOp.getAddr()))
       return loadOp.getAddr();
   }
@@ -1580,7 +1580,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp, cir::CXXCtorAttr ctor) {
 
     // Not interested in block/function arguments or any indirect
     // provided alloca address.
-    if (!dyn_cast_or_null<AllocaOp>(addr.getDefiningOp()))
+    if (!addr.getDefiningOp<cir::AllocaOp>())
       return;
 
     markPsetNull(addr, callOp.getLoc());

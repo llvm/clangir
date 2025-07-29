@@ -370,7 +370,7 @@ public:
     // direclty in the parent scope removing the need to hoist it.
     assert(retAlloca.getDefiningOp() && "expected a alloca op");
     CGF.getBuilder().hoistAllocaToParentRegion(
-        cast<cir::AllocaOp>(retAlloca.getDefiningOp()));
+        retAlloca.getDefiningOp<cir::AllocaOp>());
 
     return CGF.emitLoadOfScalar(CGF.makeAddrLValue(retAlloca, E->getType()),
                                 E->getExprLoc());
