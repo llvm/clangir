@@ -2653,10 +2653,10 @@ inline mlir::Value DominatingCIRValue::restore(CIRGenFunction &CGF,
     return value.getPointer();
 
   // Otherwise, it should be an alloca instruction, as set up in save().
-  auto alloca = mlir::cast<cir::AllocaOp>(value.getPointer().getDefiningOp());
+  auto alloca = value.getPointer().getDefiningOp<cir::AllocaOp>();
   mlir::Value val = CGF.getBuilder().createAlignedLoad(
       alloca.getLoc(), alloca.getType(), alloca);
-  cir::LoadOp loadOp = mlir::cast<cir::LoadOp>(val.getDefiningOp());
+  cir::LoadOp loadOp = val.getDefiningOp<cir::LoadOp>();
   loadOp.setAlignment(alloca.getAlignment());
   return val;
 }

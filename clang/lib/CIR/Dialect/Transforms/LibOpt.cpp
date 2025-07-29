@@ -172,8 +172,8 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   // Build memchr op:
   //  void *memchr(const void *s, int c, size_t n);
   auto memChr = [&] {
-    if (auto iterBegin = dyn_cast<IterBeginOp>(first.getDefiningOp());
-        iterBegin && isa<IterEndOp>(last.getDefiningOp())) {
+    if (auto iterBegin = first.getDefiningOp<IterBeginOp>();
+        iterBegin && last.getDefiningOp<IterEndOp>()) {
       // Both operands have the same type, use iterBegin.
 
       // Look at this pointer to retrieve container information.
