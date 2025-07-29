@@ -1412,7 +1412,7 @@ static std::string getGlobalVarNameForConstString(cir::StoreOp op,
     Out << "module.";
   }
 
-  auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(op.getAddr().getDefiningOp());
+  auto allocaOp = op.getAddr().getDefiningOp<cir::AllocaOp>();
   if (allocaOp && !allocaOp.getName().empty())
     Out << allocaOp.getName();
   else

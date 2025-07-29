@@ -149,8 +149,8 @@ mlir::LogicalResult SCFLoop::findStepAndIV() {
       return mlir::failure();
 
     mlir::Value value = binary.getRhs();
-    if (auto constValue = dyn_cast<ConstantOp>(value.getDefiningOp());
-        isa<IntAttr>(constValue.getValue()))
+    if (auto constValue = value.getDefiningOp<cir::ConstantOp>();
+        constValue.getValueAttr<cir::IntAttr>())
       step = getConstant(constValue);
 
     if (binary.getKind() == BinOpKind::Add)
