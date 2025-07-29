@@ -1025,7 +1025,7 @@ void cir::StoreOp::setAtomic(cir::MemOrder order) {
 
 OpFoldResult cir::VecCreateOp::fold(FoldAdaptor adaptor) {
   if (llvm::any_of(getElements(), [](mlir::Value value) {
-        return !mlir::isa<cir::ConstantOp>(value.getDefiningOp());
+        return !value.getDefiningOp<cir::ConstantOp>();
       }))
     return {};
 

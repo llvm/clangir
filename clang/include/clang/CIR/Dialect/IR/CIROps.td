@@ -459,6 +459,21 @@ def CIR_ConstantOp : CIR_Op<"const",[
        return ptrAttr.isNullValue();
       return false;
      }
+
+     template <typename T>
+     T getValueAttr() { return mlir::dyn_cast<T>(getValue()); }
+
+     llvm::APInt getIntValue() {
+       if (const auto intAttr = getValueAttr<cir::IntAttr>())
+         return intAttr.getValue();
+       llvm_unreachable("Expected an IntAttr in ConstantOp");
+     }
+
+     bool getBoolValue() {
+       if (const auto boolAttr = getValueAttr<cir::BoolAttr>())
+         return boolAttr.getValue();
+       llvm_unreachable("Expected a BoolAttr in ConstantOp");
+     }
   }];
 
   let hasFolder = 1;

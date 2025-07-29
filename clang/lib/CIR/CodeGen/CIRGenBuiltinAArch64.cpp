@@ -2123,10 +2123,7 @@ castVecOfFPTypeToVecOfIntWithSameWidth(CIRGenBuilderTy &builder,
 
 /// Get integer from a mlir::Value that is an int constant or a constant op.
 static int64_t getIntValueFromConstOp(mlir::Value val) {
-  auto constOp = mlir::cast<cir::ConstantOp>(val.getDefiningOp());
-  return (mlir::cast<cir::IntAttr>(constOp.getValue()))
-      .getValue()
-      .getSExtValue();
+  return val.getDefiningOp<cir::ConstantOp>().getIntValue().getSExtValue();
 }
 
 static mlir::Value emitNeonSplat(CIRGenBuilderTy &builder, mlir::Location loc,
