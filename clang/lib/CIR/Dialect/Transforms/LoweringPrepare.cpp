@@ -84,6 +84,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   void lowerGlobalOp(GlobalOp op);
   void lowerDynamicCastOp(DynamicCastOp op);
   void lowerStdFindOp(StdFindOp op);
+  void lowerStdVectorCtorOp(StdVectorCtorOp op);
+  void lowerStdVectorDtorOp(StdVectorDtorOp op);
   void lowerIterBeginOp(IterBeginOp op);
   void lowerIterEndOp(IterEndOp op);
   void lowerToMemCpy(StoreOp op);
@@ -1474,6 +1476,28 @@ void LoweringPreparePass::lowerStdFindOp(StdFindOp op) {
   op.erase();
 }
 
+void LoweringPreparePass::lowerStdVectorCtorOp(StdVectorCtorOp op) {
+  CIRBaseBuilderTy builder(getContext());
+  builder.setInsertionPointAfter(op.getOperation());
+  auto call =
+      builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(), mlir::Type{},
+                           mlir::ValueRange{op.getOperand()});
+
+  op.replaceAllUsesWith(call);
+  op.erase();
+}
+
+void LoweringPreparePass::lowerStdVectorDtorOp(StdVectorDtorOp op) {
+  CIRBaseBuilderTy builder(getContext());
+  builder.setInsertionPointAfter(op.getOperation());
+  auto call =
+      builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(), mlir::Type{},
+                           mlir::ValueRange{op.getOperand()});
+
+  op.replaceAllUsesWith(call);
+  op.erase();
+}
+
 void LoweringPreparePass::lowerIterBeginOp(IterBeginOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
@@ -1585,6 +1609,10 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     lowerDynamicCastOp(dynamicCast);
   } else if (auto stdFind = dyn_cast<StdFindOp>(op)) {
     lowerStdFindOp(stdFind);
+  } else if (auto stdVectorCtorOp = dyn_cast<StdVectorCtorOp>(op)) {
+    lowerStdVectorCtorOp(stdVectorCtorOp);
+  } else if (auto stdVectorDtorOp = dyn_cast<StdVectorDtorOp>(op)) {
+    lowerStdVectorDtorOp(stdVectorDtorOp);
   } else if (auto iterBegin = dyn_cast<IterBeginOp>(op)) {
     lowerIterBeginOp(iterBegin);
   } else if (auto iterEnd = dyn_cast<IterEndOp>(op)) {
@@ -1630,8 +1658,9 @@ void LoweringPreparePass::runOnOperation() {
 
   op->walk([&](Operation *op) {
     if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,
-            GlobalOp, DynamicCastOp, StdFindOp, IterEndOp, IterBeginOp,
-            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
+            GlobalOp, DynamicCastOp, StdFindOp, StdVectorCtorOp,
+            StdVectorDtorOp, IterEndOp, IterBeginOp, ArrayCtor, ArrayDtor,
+            cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
       opsToTransform.push_back(op);
   });
 
