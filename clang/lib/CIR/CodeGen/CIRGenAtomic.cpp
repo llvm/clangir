@@ -330,20 +330,22 @@ Address AtomicInfo::CreateTempAlloca() const {
   return TempAlloca;
 }
 
-// If the value comes from a ConstOp + IntAttr, retrieve and skip a series
-// of casts if necessary.
-//
-// FIXME(cir): figure out warning issue and move this to CIRBaseBuilder.h
-static cir::IntAttr getConstOpIntAttr(mlir::Value v) {
-  mlir::Operation *op = v.getDefiningOp();
-  cir::IntAttr constVal;
-  while (auto c = dyn_cast<cir::CastOp>(op))
-    op = c.getOperand().getDefiningOp();
-  if (auto c = dyn_cast<cir::ConstantOp>(op)) {
-    if (mlir::isa<cir::IntType>(c.getType()))
-      constVal = mlir::cast<cir::IntAttr>(c.getValue());
-  }
-  return constVal;
+static mlir::Value stripCasts(mlir::Value value) {
+  while (auto castOp = value.getDefiningOp<cir::CastOp>())
+    value = castOp.getOperand();
+  return value;
+}
+
+static cir::ConstantOp extractConstant(mlir::Value v) {
+  return stripCasts(v).getDefiningOp<cir::ConstantOp>();
+}
+
+// If the value comes from a ConstOp + IntAttr, retrieve and skip a series of
+// casts if necessary.
+static cir::IntAttr extractIntAttr(mlir::Value v) {
+  if (auto c = extractConstant(v))
+    return c.getValueAttr<cir::IntAttr>();
+  return {};
 }
 
 // Inspect a value that is the strong/weak flag for a compare-exchange.  If it
@@ -351,19 +353,18 @@ static cir::IntAttr getConstOpIntAttr(mlir::Value v) {
 // boolean value and return true.  Otherwise leave `val` unchanged and return
 // false.
 static bool isCstWeak(mlir::Value weakVal, bool &val) {
-  mlir::Operation *op = weakVal.getDefiningOp();
-  while (auto c = dyn_cast<cir::CastOp>(op)) {
-    op = c.getOperand().getDefiningOp();
-  }
-  if (auto c = dyn_cast<cir::ConstantOp>(op)) {
-    if (mlir::isa<cir::IntType>(c.getType())) {
-      val = mlir::cast<cir::IntAttr>(c.getValue()).getUInt() != 0;
+  if (auto c = extractConstant(weakVal)) {
+    if (auto attr = c.getValueAttr<cir::IntAttr>()) {
+      val = attr.getUInt() != 0;
       return true;
-    } else if (mlir::isa<cir::BoolType>(c.getType())) {
-      val = mlir::cast<cir::BoolAttr>(c.getValue()).getValue();
+    }
+
+    if (auto attr = c.getValueAttr<cir::BoolAttr>()) {
+      val = attr.getValue();
       return true;
     }
   }
+
   return false;
 }
 
@@ -456,7 +457,7 @@ static void emitAtomicCmpXchgFailureSet(
     cir::MemOrder SuccessOrder, cir::MemScopeKind Scope) {
 
   cir::MemOrder FailureOrder;
-  if (auto ordAttr = getConstOpIntAttr(FailureOrderVal)) {
+  if (auto ordAttr = extractIntAttr(FailureOrderVal)) {
     // We should not ever get to a case where the ordering isn't a valid CABI
     // value, but it's hard to enforce that in general.
     auto ord = ordAttr.getUInt();
@@ -805,7 +806,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *Expr, Address Dest,
   }
 
   // Handle constant scope.
-  if (getConstOpIntAttr(Scope)) {
+  if (extractIntAttr(Scope)) {
     assert(!cir::MissingFeatures::syncScopeID());
     llvm_unreachable("NYI");
     return;
@@ -1208,7 +1209,7 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
                 E->getOp() == AtomicExpr::AO__scoped_atomic_load ||
                 E->getOp() == AtomicExpr::AO__scoped_atomic_load_n;
 
-  if (auto ordAttr = getConstOpIntAttr(Order)) {
+  if (auto ordAttr = extractIntAttr(Order)) {
     // We should not ever get to a case where the ordering isn't a valid CABI
     // value, but it's hard to enforce that in general.
     auto ord = ordAttr.getUInt();

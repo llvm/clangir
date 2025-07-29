@@ -1833,13 +1833,16 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
   // llvm::BranchInst *zeroCheckBranch = nullptr;
 
   // Optimize for a constant count.
-  auto constantCount = dyn_cast<cir::ConstantOp>(numElements.getDefiningOp());
-  if (constantCount) {
-    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
-    // Just skip out if the constant count is zero.
-    if (constIntAttr && constIntAttr.getUInt() == 0)
-      return;
-    // Otherwise, emit the check.
+  if (auto constantCount = numElements.getDefiningOp<cir::ConstantOp>()) {
+    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
+      // Just skip out if the constant count is zero.
+      if (constIntAttr.getUInt() == 0)
+        return;
+      // Otherwise, emit the check.
+    }
+
+    if (constantCount.use_empty())
+      constantCount.erase();
   } else {
     llvm_unreachable("NYI");
   }
@@ -1902,9 +1905,6 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
           builder.create<cir::YieldOp>(loc);
         });
   }
-
-  if (constantCount.use_empty())
-    constantCount.erase();
 }
 
 static bool canEmitDelegateCallArgs(CIRGenFunction &CGF,
