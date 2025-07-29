@@ -1099,12 +1099,12 @@ void CIRGenFunction::emitNewArrayInitializer(
 
   // If all elements have already been initialized, skip any further
   // initialization.
-  auto ConstOp = dyn_cast<cir::ConstantOp>(NumElements.getDefiningOp());
-  if (ConstOp) {
-    auto ConstIntAttr = mlir::dyn_cast<cir::IntAttr>(ConstOp.getValue());
-    // Just skip out if the constant count is zero.
-    if (ConstIntAttr && ConstIntAttr.getUInt() <= InitListElements)
-      return;
+  if (auto ConstOp = NumElements.getDefiningOp<cir::ConstantOp>()) {
+    if (auto ConstIntAttr = ConstOp.getValueAttr<cir::IntAttr>()) {
+      // Just skip out if the constant count is zero.
+      if (ConstIntAttr.getUInt() <= InitListElements)
+        return;
+    }
   }
 
   assert(Init && "have trailing elements to initialize but no initializer");
