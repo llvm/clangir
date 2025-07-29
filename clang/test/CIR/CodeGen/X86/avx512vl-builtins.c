@@ -401,3 +401,129 @@ __m256i test_mm256_maskz_load_epi64(__mmask8 __U, void const *__P) {
   // LLVM: @llvm.masked.load.v4i64.p0(ptr %{{.*}}, i32 32, <4 x i1> %{{.*}}, <4 x i64> %{{.*}})
   return _mm256_maskz_load_epi64(__U, __P); 
 }
+
+__m128d test_mm_mask_expandloadu_pd(__m128d __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_mask_expandloadu_pd
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.int<s, 1> x 2>, !cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
+
+  // LLVM-LABEL: @test_mm_mask_expandloadu_pd
+  // LLVM: @llvm.masked.expandload.v2f64(ptr %{{.*}}, <2 x i1> %{{.*}}, <2 x double> %{{.*}})
+  return _mm_mask_expandloadu_pd(__W,__U,__P); 
+}
+
+__m128d test_mm_maskz_expandloadu_pd(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_maskz_expandloadu_pd
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %4, %8, %5 : (!cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.int<s, 1> x 2>, !cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
+
+  // LLVM-LABEL: @test_mm_maskz_expandloadu_pd
+  // LLVM: @llvm.masked.expandload.v2f64(ptr %{{.*}}, <2 x i1> %{{.*}}, <2 x double> %{{.*}})
+  return _mm_maskz_expandloadu_pd(__U,__P); 
+}
+
+__m256d test_mm256_mask_expandloadu_pd(__m256d __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm256_mask_expandloadu_pd
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.double x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!cir.double x 4>) -> !cir.vector<!cir.double x 4>
+
+  // LLVM-LABEL: @test_mm256_mask_expandloadu_pd
+  // LLVM: @llvm.masked.expandload.v4f64(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x double> %{{.*}})
+  return _mm256_mask_expandloadu_pd(__W,__U,__P); 
+}
+
+__m256d test_mm256_maskz_expandloadu_pd(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm256_maskz_expandloadu_pd
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.double x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!cir.double x 4>) -> !cir.vector<!cir.double x 4>
+
+  // LLVM-LABEL: @test_mm256_maskz_expandloadu_pd
+  // LLVM: @llvm.masked.expandload.v4f64(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x double> %{{.*}})
+  return _mm256_maskz_expandloadu_pd(__U,__P); 
+}
+
+__m128 test_mm_mask_expandloadu_ps(__m128 __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_mask_expandloadu_ps
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_mm_mask_expandloadu_ps
+  // LLVM: @llvm.masked.expandload.v4f32(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x float> %{{.*}})
+  return _mm_mask_expandloadu_ps(__W,__U,__P); 
+}
+
+__m128 test_mm_maskz_expandloadu_ps(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_maskz_expandloadu_ps
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_mm_maskz_expandloadu_ps
+  // LLVM: @llvm.masked.expandload.v4f32(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x float> %{{.*}})
+  return _mm_maskz_expandloadu_ps(__U,__P); 
+}
+
+__m256 test_mm256_mask_expandloadu_ps(__m256 __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm256_mask_expandloadu_ps
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.float x 8>>, !cir.vector<!cir.int<s, 1> x 8>, !cir.vector<!cir.float x 8>) -> !cir.vector<!cir.float x 8>
+
+  // LLVM-LABEL: @test_mm256_mask_expandloadu_ps
+  // LLVM: @llvm.masked.expandload.v8f32(ptr %{{.*}}, <8 x i1> %{{.*}}, <8 x float> %{{.*}})
+  return _mm256_mask_expandloadu_ps(__W,__U,__P); 
+}
+
+__m256 test_mm256_maskz_expandloadu_ps(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm256_maskz_expandloadu_ps
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!cir.float x 8>>, !cir.vector<!cir.int<s, 1> x 8>, !cir.vector<!cir.float x 8>) -> !cir.vector<!cir.float x 8>
+
+  // LLVM-LABEL: @test_mm256_maskz_expandloadu_ps
+  // LLVM: @llvm.masked.expandload.v8f32(ptr %{{.*}}, <8 x i1> %{{.*}}, <8 x float> %{{.*}})
+  return _mm256_maskz_expandloadu_ps(__U,__P); 
+}
+
+__m128i test_mm_mask_expandloadu_epi64(__m128i __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_mask_expandloadu_epi64
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s64i x 2>>, !cir.vector<!cir.int<s, 1> x 2>, !cir.vector<!s64i x 2>) -> !cir.vector<!s64i x 2>
+
+  // LLVM-LABEL: @test_mm_mask_expandloadu_epi64
+  // LLVM: @llvm.masked.expandload.v2i64(ptr %{{.*}}, <2 x i1> %{{.*}}, <2 x i64> %{{.*}})
+  return _mm_mask_expandloadu_epi64(__W,__U,__P); 
+}
+
+__m128i test_mm_maskz_expandloadu_epi64(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_maskz_expandloadu_epi64
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s64i x 2>>, !cir.vector<!cir.int<s, 1> x 2>, !cir.vector<!s64i x 2>) -> !cir.vector<!s64i x 2>
+
+  // LLVM-LABEL: @test_mm_maskz_expandloadu_epi64
+  // LLVM: @llvm.masked.expandload.v2i64(ptr %{{.*}}, <2 x i1> %{{.*}}, <2 x i64> %{{.*}})
+  return _mm_maskz_expandloadu_epi64(__U,__P); 
+}
+
+__m128i test_mm_mask_expandloadu_epi32(__m128i __W, __mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_mask_expandloadu_epi32
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
+
+  // LLVM-LABEL: @test_mm_mask_expandloadu_epi32
+  // LLVM: @llvm.masked.expandload.v4i32(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x i32> %{{.*}})
+  return _mm_mask_expandloadu_epi32(__W,__U,__P); 
+}
+
+__m128i test_mm_maskz_expandloadu_epi32(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm_maskz_expandloadu_epi32
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!cir.int<s, 1> x 4>, !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
+
+  // LLVM-LABEL: @test_mm_maskz_expandloadu_epi32
+  // LLVM: @llvm.masked.expandload.v4i32(ptr %{{.*}}, <4 x i1> %{{.*}}, <4 x i32> %{{.*}})
+  return _mm_maskz_expandloadu_epi32(__U,__P); 
+}
+
+__m256i test_mm256_mask_expandloadu_epi32(__m256i __W, __mmask8 __U,   void const *__P) {
+  // CIR-LABEL: _mm256_mask_expandloadu_epi32
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s32i x 8>>, !cir.vector<!cir.int<s, 1> x 8>, !cir.vector<!s32i x 8>) -> !cir.vector<!s32i x 8>
+
+  // LLVM-LABEL: @test_mm256_mask_expandloadu_epi32
+  // LLVM: @llvm.masked.expandload.v8i32(ptr %{{.*}}, <8 x i1> %{{.*}}, <8 x i32> %{{.*}})
+  return _mm256_mask_expandloadu_epi32(__W,__U,__P); 
+}
+
+__m256i test_mm256_maskz_expandloadu_epi32(__mmask8 __U, void const *__P) {
+  // CIR-LABEL: _mm256_maskz_expandloadu_epi32
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.expandload" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s32i x 8>>, !cir.vector<!cir.int<s, 1> x 8>, !cir.vector<!s32i x 8>) -> !cir.vector<!s32i x 8>
+
+  // LLVM-LABEL: @test_mm256_maskz_expandloadu_epi32
+  // LLVM: @llvm.masked.expandload.v8i32(ptr %{{.*}}, <8 x i1> %{{.*}}, <8 x i32> %{{.*}})
+  return _mm256_maskz_expandloadu_epi32(__U,__P);
+}
