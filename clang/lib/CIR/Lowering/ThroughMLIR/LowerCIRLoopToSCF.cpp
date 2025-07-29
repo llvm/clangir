@@ -528,7 +528,7 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
     for (auto continueOp : continues) {
       bool nested = false;
       // When there is another loop between this WhileOp and the ContinueOp,
-      // we shouldn't change that loop instead.
+      // we should change that loop instead.
       for (mlir::Operation *parent = continueOp->getParentOp();
            parent != whileOp; parent = parent->getParentOp()) {
         if (isa<WhileOp>(parent)) {
@@ -570,6 +570,73 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
     }
   }
 
+  void rewriteBreak(mlir::scf::WhileOp whileOp,
+                    mlir::ConversionPatternRewriter &rewriter) const {
+    // Collect all BreakOp inside this while.
+    llvm::SmallVector<cir::BreakOp> breaks;
+    whileOp->walk([&](mlir::Operation *op) {
+      if (auto breakOp = dyn_cast<BreakOp>(op))
+        breaks.push_back(breakOp);
+    });
+
+    if (breaks.empty())
+      return;
+
+    for (auto breakOp : breaks) {
+      // When there is another loop between this WhileOp and the BreakOp,
+      // we should change that loop instead.
+      if (breakOp->getParentOfType<mlir::scf::WhileOp>() != whileOp)
+        continue;
+
+      // Similar to the case of ContinueOp, when there is an `IfOp`,
+      // we need to take special care.
+      for (mlir::Operation *parent = breakOp->getParentOp(); parent != whileOp;
+           parent = parent->getParentOp()) {
+        if (auto ifOp = dyn_cast<cir::IfOp>(parent))
+          llvm_unreachable("NYI");
+      }
+
+      // Operations after this BreakOp has to be removed.
+      for (mlir::Operation *runner = breakOp->getNextNode(); runner;) {
+        mlir::Operation *next = runner->getNextNode();
+        runner->erase();
+        runner = next;
+      }
+
+      // Blocks after this BreakOp also has to be removed.
+      for (mlir::Block *block = breakOp->getBlock()->getNextNode(); block;) {
+        mlir::Block *next = block->getNextNode();
+        block->erase();
+        block = next;
+      }
+
+      // We know this BreakOp isn't nested in any IfOp.
+      // Therefore, the loop is executed only once.
+      // We pull everything out of the loop.
+
+      auto &beforeOps = whileOp.getBeforeBody()->getOperations();
+      for (mlir::Operation *op = &*beforeOps.begin(); op;) {
+        if (isa<ConditionOp>(op))
+          break;
+        auto *next = op->getNextNode();
+        op->moveBefore(whileOp);
+        op = next;
+      }
+
+      auto &afterOps = whileOp.getAfterBody()->getOperations();
+      for (mlir::Operation *op = &*afterOps.begin(); op;) {
+        if (isa<YieldOp>(op))
+          break;
+        auto *next = op->getNextNode();
+        op->moveBefore(whileOp);
+        op = next;
+      }
+
+      // The loop itself should now be removed.
+      rewriter.eraseOp(whileOp);
+    }
+  }
+
 public:
   using OpConversionPattern<cir::WhileOp>::OpConversionPattern;
 
@@ -579,6 +646,7 @@ public:
     SCFWhileLoop loop(op, adaptor, &rewriter);
     auto whileOp = loop.transferToSCFWhileOp();
     rewriteContinue(whileOp, rewriter);
+    rewriteBreak(whileOp, rewriter);
     rewriter.eraseOp(op);
     return mlir::success();
   }
