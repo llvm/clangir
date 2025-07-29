@@ -199,6 +199,29 @@ void complex_to_bool() {
 
 // CHECK: }
 
+struct CX {
+  double real;
+  double imag;
+};
+
+void lvalue_to_rvalue_bitcast() {
+   struct CX a;
+   double _Complex b = __builtin_bit_cast(double _Complex, a);
+}
+
+// CHECK-LABEL: @lvalue_to_rvalue_bitcast()
+
+// CIR-BEFORE: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+
+// CIR-AFTER: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+
+// LLVM: %[[PTR_ADDR:.*]] = alloca %struct.CX, i64 1, align 8
+// LLVM: %[[COMPLEX_ADDR:.*]] = alloca { double, double }, i64 1, align 8
+// LLVM: %[[PTR_TO_COMPLEX:.*]] = load { double, double }, ptr %[[PTR_ADDR]], align 8
+// LLVM: store { double, double } %[[PTR_TO_COMPLEX]], ptr %[[COMPLEX_ADDR]], align 8
+
+// CHECK: }
+
 void complex_to_complex_cast() {
   cd = cf;
   ci = cs;
