@@ -129,223 +129,244 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
                                           builder, datalayout, valist, ty, loc),
                                       ty));
 
-  auto currentBlock = builder.getInsertionBlock();
+  auto scopeOp = builder.create<cir::ScopeOp>(loc, [&](mlir::OpBuilder
+                                                           &opBuilder,
+                                                       mlir::Type &yieldTy,
+                                                       mlir::Location loc) {
+    cir::CIRBaseBuilderTy builder(opBuilder);
 
-  // AMD64-ABI 3.5.7p5: Step 2. Compute num_gp to hold the number of
-  // general purpose registers needed to pass type and num_fp to hold
-  // the number of floating point registers needed.
+    mlir::Block *contBlock = builder.getInsertionBlock();
 
-  // AMD64-ABI 3.5.7p5: Step 3. Verify whether arguments fit into
-  // registers. In the case: l->gp_offset > 48 - num_gp * 8 or
-  // l->fp_offset > 304 - num_fp * 16 go to step 7.
-  //
-  // NOTE: 304 is a typo, there are (6 * 8 + 8 * 16) = 176 bytes of
-  // register save space).
+    mlir::Block *currentBlock = builder.createBlock(contBlock);
+    builder.setInsertionPointToEnd(currentBlock);
 
-  mlir::Value inRegs;
-  mlir::Value gp_offset_p, fp_offset_p;
-  mlir::Value gp_offset, fp_offset;
+    // AMD64-ABI 3.5.7p5: Step 2. Compute num_gp to hold the number of
+    // general purpose registers needed to pass type and num_fp to hold
+    // the number of floating point registers needed.
 
-  if (neededInt) {
-    gp_offset_p = builder.createGetMemberOp(loc, valist, "gp_offset", 0);
-    gp_offset = builder.createLoad(loc, gp_offset_p);
-    inRegs = builder.getUnsignedInt(loc, 48 - neededInt * 8, 32);
-    inRegs = builder.createCompare(loc, cir::CmpOpKind::le, gp_offset, inRegs);
-  }
+    // AMD64-ABI 3.5.7p5: Step 3. Verify whether arguments fit into
+    // registers. In the case: l->gp_offset > 48 - num_gp * 8 or
+    // l->fp_offset > 304 - num_fp * 16 go to step 7.
+    //
+    // NOTE: 304 is a typo, there are (6 * 8 + 8 * 16) = 176 bytes of
+    // register save space).
 
-  if (neededSSE) {
-    fp_offset_p = builder.createGetMemberOp(loc, valist, "fp_offset", 1);
-    fp_offset = builder.createLoad(loc, fp_offset_p);
-    mlir::Value fitsInFP =
-        builder.getUnsignedInt(loc, 176 - neededSSE * 16, 32);
-    fitsInFP =
-        builder.createCompare(loc, cir::CmpOpKind::le, fp_offset, fitsInFP);
-    inRegs = inRegs ? builder.createAnd(inRegs, fitsInFP) : fitsInFP;
-  }
+    mlir::Value inRegs;
+    mlir::Value gp_offset_p, fp_offset_p;
+    mlir::Value gp_offset, fp_offset;
 
-  mlir::Block *contBlock = currentBlock->splitBlock(op);
-  mlir::Block *inRegBlock = builder.createBlock(contBlock);
-  mlir::Block *inMemBlock = builder.createBlock(contBlock);
-  builder.setInsertionPointToEnd(currentBlock);
-  builder.create<BrCondOp>(loc, inRegs, inRegBlock, inMemBlock);
+    if (neededInt) {
+      gp_offset_p = builder.createGetMemberOp(loc, valist, "gp_offset", 0);
+      gp_offset = builder.createLoad(loc, gp_offset_p);
+      inRegs = builder.getUnsignedInt(loc, 48 - neededInt * 8, 32);
+      inRegs =
+          builder.createCompare(loc, cir::CmpOpKind::le, gp_offset, inRegs);
+    }
 
-  // Emit code to load the value if it was passed in registers.
-  builder.setInsertionPointToStart(inRegBlock);
+    if (neededSSE) {
+      fp_offset_p = builder.createGetMemberOp(loc, valist, "fp_offset", 1);
+      fp_offset = builder.createLoad(loc, fp_offset_p);
+      mlir::Value fitsInFP =
+          builder.getUnsignedInt(loc, 176 - neededSSE * 16, 32);
+      fitsInFP =
+          builder.createCompare(loc, cir::CmpOpKind::le, fp_offset, fitsInFP);
+      inRegs = inRegs ? builder.createAnd(inRegs, fitsInFP) : fitsInFP;
+    }
 
-  // AMD64-ABI 3.5.7p5: Step 4. Fetch type from l->reg_save_area with
-  // an offset of l->gp_offset and/or l->fp_offset. This may require
-  // copying to a temporary location in case the parameter is passed
-  // in different register classes or requires an alignment greater
-  // than 8 for general purpose registers and 16 for XMM registers.
-  //
-  // FIXME: This really results in shameful code when we end up needing to
-  // collect arguments from different places; often what should result in a
-  // simple assembling of a structure from scattered addresses has many more
-  // loads than necessary. Can we clean this up?
-  mlir::Value regSaveArea = builder.createLoad(
-      loc, builder.createGetMemberOp(loc, valist, "reg_save_area", 3));
-  mlir::Value regAddr;
+    mlir::Block *inRegBlock = builder.createBlock(contBlock);
+    mlir::Block *inMemBlock = builder.createBlock(contBlock);
+    builder.setInsertionPointToEnd(currentBlock);
+    builder.create<BrCondOp>(loc, inRegs, inRegBlock, inMemBlock);
 
-  uint64_t tyAlign = datalayout.getABITypeAlign(ty).value();
-  // The alignment of result address.
-  uint64_t alignment = 0;
-  if (neededInt && neededSSE) {
-    // FIXME: Cleanup.
-    assert(ai.isDirect() && "Unexpected ABI info for mixed regs");
-    auto recordTy = mlir::cast<cir::RecordType>(ai.getCoerceToType());
-    cir::PointerType addrTy = builder.getPointerTo(ty);
+    // Emit code to load the value if it was passed in registers.
+    builder.setInsertionPointToStart(inRegBlock);
 
-    mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
-                                           CharUnits::fromQuantity(tyAlign));
-    tmp = builder.createPtrBitcast(tmp, recordTy);
-    assert(recordTy.getNumElements() == 2 &&
-           "Unexpected ABI info for mixed regs");
-    mlir::Type tyLo = recordTy.getMembers()[0];
-    mlir::Type tyHi = recordTy.getMembers()[1];
-    assert((isFPOrVectorOfFPType(tyLo) ^ isFPOrVectorOfFPType(tyHi)) &&
-           "Unexpected ABI info for mixed regs");
-    mlir::Value gpAddr = builder.createPtrStride(loc, regSaveArea, gp_offset);
-    mlir::Value fpAddr = builder.createPtrStride(loc, regSaveArea, fp_offset);
-    mlir::Value regLoAddr = isFPOrVectorOfFPType(tyLo) ? fpAddr : gpAddr;
-    mlir::Value regHiAddr = isFPOrVectorOfFPType(tyHi) ? gpAddr : fpAddr;
+    // AMD64-ABI 3.5.7p5: Step 4. Fetch type from l->reg_save_area with
+    // an offset of l->gp_offset and/or l->fp_offset. This may require
+    // copying to a temporary location in case the parameter is passed
+    // in different register classes or requires an alignment greater
+    // than 8 for general purpose registers and 16 for XMM registers.
+    //
+    // FIXME: This really results in shameful code when we end up needing to
+    // collect arguments from different places; often what should result in a
+    // simple assembling of a structure from scattered addresses has many more
+    // loads than necessary. Can we clean this up?
+    mlir::Value regSaveArea = builder.createLoad(
+        loc, builder.createGetMemberOp(loc, valist, "reg_save_area", 3));
+    mlir::Value regAddr;
 
-    // Copy the first element.
-    // FIXME: Our choice of alignment here and below is probably pessimistic.
-    mlir::Value v = builder.createAlignedLoad(
-        loc, regLoAddr, datalayout.getABITypeAlign(tyLo).value());
-    builder.createStore(loc, v,
-                        builder.createGetMemberOp(loc, tmp, "gp_offset", 0));
-
-    // Copy the second element.
-    v = builder.createAlignedLoad(loc, regHiAddr,
-                                  datalayout.getABITypeAlign(tyHi).value());
-    builder.createStore(loc, v,
-                        builder.createGetMemberOp(loc, tmp, "fp_offset", 1));
-
-    tmp = builder.createPtrBitcast(tmp, ty);
-    regAddr = tmp;
-  } else if (neededInt || neededSSE == 1) {
-    uint64_t tySize = datalayout.getTypeStoreSize(ty).getFixedValue();
-
-    mlir::Type coTy;
-    if (ai.isDirect())
-      coTy = ai.getCoerceToType();
-
-    mlir::Value gpOrFpOffset = neededInt ? gp_offset : fp_offset;
-    alignment = neededInt ? 8 : 16;
-    uint64_t regSize = neededInt ? neededInt * 8 : 16;
-    // There are two cases require special handling:
-    // 1)
-    //    ```
-    //    struct {
-    //      struct {} a[8];
-    //      int b;
-    //    };
-    //    ```
-    //    The lower 8 bytes of the structure are not stored,
-    //    so an 8-byte offset is needed when accessing the structure.
-    // 2)
-    //   ```
-    //   struct {
-    //     long long a;
-    //     struct {} b;
-    //   };
-    //   ```
-    //   The stored size of this structure is smaller than its actual size,
-    //   which may lead to reading past the end of the register save area.
-    if (coTy && (ai.getDirectOffset() == 8 || regSize < tySize)) {
+    uint64_t tyAlign = datalayout.getABITypeAlign(ty).value();
+    // The alignment of result address.
+    uint64_t alignment = 0;
+    if (neededInt && neededSSE) {
+      // FIXME: Cleanup.
+      assert(ai.isDirect() && "Unexpected ABI info for mixed regs");
+      auto recordTy = mlir::cast<cir::RecordType>(ai.getCoerceToType());
       cir::PointerType addrTy = builder.getPointerTo(ty);
+
       mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
                                              CharUnits::fromQuantity(tyAlign));
-      mlir::Value addr =
-          builder.createPtrStride(loc, regSaveArea, gpOrFpOffset);
-      mlir::Value src = builder.createAlignedLoad(
-          loc, builder.createPtrBitcast(addr, coTy), tyAlign);
-      mlir::Value ptrOffset =
-          builder.getUnsignedInt(loc, ai.getDirectOffset(), 32);
-      mlir::Value dst = builder.createPtrStride(loc, tmp, ptrOffset);
-      builder.createStore(loc, src, dst);
-      regAddr = tmp;
-    } else {
-      regAddr = builder.createPtrStride(loc, regSaveArea, gpOrFpOffset);
+      tmp = builder.createPtrBitcast(tmp, recordTy);
+      assert(recordTy.getNumElements() == 2 &&
+             "Unexpected ABI info for mixed regs");
+      mlir::Type tyLo = recordTy.getMembers()[0];
+      mlir::Type tyHi = recordTy.getMembers()[1];
+      assert((isFPOrVectorOfFPType(tyLo) ^ isFPOrVectorOfFPType(tyHi)) &&
+             "Unexpected ABI info for mixed regs");
+      mlir::Value gpAddr = builder.createPtrStride(loc, regSaveArea, gp_offset);
+      mlir::Value fpAddr = builder.createPtrStride(loc, regSaveArea, fp_offset);
+      mlir::Value regLoAddr = isFPOrVectorOfFPType(tyLo) ? fpAddr : gpAddr;
+      mlir::Value regHiAddr = isFPOrVectorOfFPType(tyHi) ? gpAddr : fpAddr;
 
-      // Copy into a temporary if the type is more aligned than the
-      // register save area.
-      if (neededInt && tyAlign > 8) {
+      // Copy the first element.
+      // FIXME: Our choice of alignment here and below is probably pessimistic.
+      mlir::Value v = builder.createAlignedLoad(
+          loc, regLoAddr, datalayout.getABITypeAlign(tyLo).value());
+      builder.createStore(loc, v,
+                          builder.createGetMemberOp(loc, tmp, "gp_offset", 0));
+
+      // Copy the second element.
+      v = builder.createAlignedLoad(loc, regHiAddr,
+                                    datalayout.getABITypeAlign(tyHi).value());
+      builder.createStore(loc, v,
+                          builder.createGetMemberOp(loc, tmp, "fp_offset", 1));
+
+      tmp = builder.createPtrBitcast(tmp, ty);
+      regAddr = tmp;
+    } else if (neededInt || neededSSE == 1) {
+      uint64_t tySize = datalayout.getTypeStoreSize(ty).getFixedValue();
+
+      mlir::Type coTy;
+      if (ai.isDirect())
+        coTy = ai.getCoerceToType();
+
+      mlir::Value gpOrFpOffset = neededInt ? gp_offset : fp_offset;
+      alignment = neededInt ? 8 : 16;
+      uint64_t regSize = neededInt ? neededInt * 8 : 16;
+      // There are two cases require special handling:
+      // 1)
+      //    ```
+      //    struct {
+      //      struct {} a[8];
+      //      int b;
+      //    };
+      //    ```
+      //    The lower 8 bytes of the structure are not stored,
+      //    so an 8-byte offset is needed when accessing the structure.
+      // 2)
+      //   ```
+      //   struct {
+      //     long long a;
+      //     struct {} b;
+      //   };
+      //   ```
+      //   The stored size of this structure is smaller than its actual size,
+      //   which may lead to reading past the end of the register save area.
+      if (coTy && (ai.getDirectOffset() == 8 || regSize < tySize)) {
         cir::PointerType addrTy = builder.getPointerTo(ty);
         mlir::Value tmp = builder.createAlloca(
             loc, addrTy, ty, "tmp", CharUnits::fromQuantity(tyAlign));
-        builder.createMemCpy(loc, tmp, regAddr,
-                             builder.getUnsignedInt(loc, tySize, 32));
+        mlir::Value addr =
+            builder.createPtrStride(loc, regSaveArea, gpOrFpOffset);
+        mlir::Value src = builder.createAlignedLoad(
+            loc, builder.createPtrBitcast(addr, coTy), tyAlign);
+        mlir::Value ptrOffset =
+            builder.getUnsignedInt(loc, ai.getDirectOffset(), 32);
+        mlir::Value dst = builder.createPtrStride(loc, tmp, ptrOffset);
+        builder.createStore(loc, src, dst);
         regAddr = tmp;
+      } else {
+        regAddr = builder.createPtrStride(loc, regSaveArea, gpOrFpOffset);
+
+        // Copy into a temporary if the type is more aligned than the
+        // register save area.
+        if (neededInt && tyAlign > 8) {
+          cir::PointerType addrTy = builder.getPointerTo(ty);
+          mlir::Value tmp = builder.createAlloca(
+              loc, addrTy, ty, "tmp", CharUnits::fromQuantity(tyAlign));
+          builder.createMemCpy(loc, tmp, regAddr,
+                               builder.getUnsignedInt(loc, tySize, 32));
+          regAddr = tmp;
+        }
       }
+
+    } else {
+      assert(neededSSE == 2 && "Invalid number of needed registers!");
+      // SSE registers are spaced 16 bytes apart in the register save
+      // area, we need to collect the two eightbytes together.
+      // The ABI isn't explicit about this, but it seems reasonable
+      // to assume that the slots are 16-byte aligned, since the stack is
+      // naturally 16-byte aligned and the prologue is expected to store
+      // all the SSE registers to the RSA.
+
+      mlir::Value regAddrLo =
+          builder.createPtrStride(loc, regSaveArea, fp_offset);
+      mlir::Value regAddrHi = builder.createPtrStride(
+          loc, regAddrLo, builder.getUnsignedInt(loc, 16, /*numBits=*/32));
+
+      mlir::MLIRContext *Context = abiInfo.getContext().getMLIRContext();
+      cir::RecordType recordTy =
+          ai.canHaveCoerceToType()
+              ? cast<cir::RecordType>(ai.getCoerceToType())
+              : cir::RecordType::get(
+                    Context,
+                    {DoubleType::get(Context), DoubleType::get(Context)},
+                    /*packed=*/false, /*padded=*/false,
+                    cir::RecordType::Struct);
+      cir::PointerType addrTy = builder.getPointerTo(ty);
+      mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
+                                             CharUnits::fromQuantity(tyAlign));
+      tmp = builder.createPtrBitcast(tmp, recordTy);
+      mlir::Value v = builder.createLoad(
+          loc, builder.createPtrBitcast(regAddrLo, recordTy.getMembers()[0]));
+      builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 0));
+      v = builder.createLoad(
+          loc, builder.createPtrBitcast(regAddrHi, recordTy.getMembers()[1]));
+      builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 1));
+
+      tmp = builder.createPtrBitcast(tmp, ty);
+      regAddr = tmp;
     }
 
-  } else {
-    assert(neededSSE == 2 && "Invalid number of needed registers!");
-    // SSE registers are spaced 16 bytes apart in the register save
-    // area, we need to collect the two eightbytes together.
-    // The ABI isn't explicit about this, but it seems reasonable
-    // to assume that the slots are 16-byte aligned, since the stack is
-    // naturally 16-byte aligned and the prologue is expected to store
-    // all the SSE registers to the RSA.
+    // AMD64-ABI 3.5.7p5: Step 5. Set:
+    // l->gp_offset = l->gp_offset + num_gp * 8
+    // l->fp_offset = l->fp_offset + num_fp * 16.
+    if (neededInt) {
+      mlir::Value offset = builder.getUnsignedInt(loc, neededInt * 8, 32);
+      builder.createStore(loc, builder.createAdd(gp_offset, offset),
+                          gp_offset_p);
+    }
 
-    mlir::Value regAddrLo =
-        builder.createPtrStride(loc, regSaveArea, fp_offset);
-    mlir::Value regAddrHi = builder.createPtrStride(
-        loc, regAddrLo, builder.getUnsignedInt(loc, 16, /*numBits=*/32));
+    if (neededSSE) {
+      mlir::Value offset = builder.getUnsignedInt(loc, neededSSE * 8, 32);
+      builder.createStore(loc, builder.createAdd(fp_offset, offset),
+                          fp_offset_p);
+    }
 
-    mlir::MLIRContext *Context = abiInfo.getContext().getMLIRContext();
-    cir::RecordType recordTy =
-        ai.canHaveCoerceToType()
-            ? cast<cir::RecordType>(ai.getCoerceToType())
-            : cir::RecordType::get(
-                  Context, {DoubleType::get(Context), DoubleType::get(Context)},
-                  /*packed=*/false, /*padded=*/false, cir::RecordType::Struct);
-    cir::PointerType addrTy = builder.getPointerTo(ty);
-    mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
-                                           CharUnits::fromQuantity(tyAlign));
-    tmp = builder.createPtrBitcast(tmp, recordTy);
-    mlir::Value v = builder.createLoad(
-        loc, builder.createPtrBitcast(regAddrLo, recordTy.getMembers()[0]));
-    builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 0));
-    v = builder.createLoad(
-        loc, builder.createPtrBitcast(regAddrHi, recordTy.getMembers()[1]));
-    builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 1));
+    builder.create<BrOp>(loc, mlir::ValueRange{regAddr}, contBlock);
 
-    tmp = builder.createPtrBitcast(tmp, ty);
-    regAddr = tmp;
-  }
+    // Emit code to load the value if it was passed in memory.
+    builder.setInsertionPointToStart(inMemBlock);
+    mlir::Value memAddr =
+        buildX86_64VAArgFromMemory(builder, datalayout, valist, ty, loc);
+    builder.create<BrOp>(loc, mlir::ValueRange{memAddr}, contBlock);
 
-  // AMD64-ABI 3.5.7p5: Step 5. Set:
-  // l->gp_offset = l->gp_offset + num_gp * 8
-  // l->fp_offset = l->fp_offset + num_fp * 16.
-  if (neededInt) {
-    mlir::Value offset = builder.getUnsignedInt(loc, neededInt * 8, 32);
-    builder.createStore(loc, builder.createAdd(gp_offset, offset), gp_offset_p);
-  }
+    // Yield the appropriate result.
+    builder.setInsertionPointToStart(contBlock);
+    mlir::Value res_addr = contBlock->addArgument(regAddr.getType(), loc);
 
-  if (neededSSE) {
-    mlir::Value offset = builder.getUnsignedInt(loc, neededSSE * 8, 32);
-    builder.createStore(loc, builder.createAdd(fp_offset, offset), fp_offset_p);
-  }
+    mlir::Value result =
+        alignment
+            ? builder.createAlignedLoad(
+                  loc, builder.createPtrBitcast(res_addr, ty), alignment)
+            : builder.createLoad(loc, builder.createPtrBitcast(res_addr, ty));
 
-  builder.create<BrOp>(loc, mlir::ValueRange{regAddr}, contBlock);
+    builder.create<cir::YieldOp>(loc, result);
 
-  // Emit code to load the value if it was passed in memory.
-  builder.setInsertionPointToStart(inMemBlock);
-  mlir::Value memAddr =
-      buildX86_64VAArgFromMemory(builder, datalayout, valist, ty, loc);
-  builder.create<BrOp>(loc, mlir::ValueRange{memAddr}, contBlock);
+    yieldTy = result.getType();
+  });
 
-  // Return the appropriate result.
-  builder.setInsertionPointToStart(contBlock);
-  mlir::Value res_addr = contBlock->addArgument(regAddr.getType(), loc);
-
-  return alignment
-             ? builder.createAlignedLoad(
-                   loc, builder.createPtrBitcast(res_addr, ty), alignment)
-             : builder.createLoad(loc, builder.createPtrBitcast(res_addr, ty));
+  return scopeOp.getResult(0);
 }
 } // namespace
 
