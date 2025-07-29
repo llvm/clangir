@@ -37,3 +37,39 @@ __m512i test_mm512_movm_epi16(__mmask32 __A) {
   // LLVM:  %{{.*}} = sext <32 x i1> %{{.*}} to <32 x i16>
   return _mm512_movm_epi16(__A); 
 }
+
+__m512i test_mm512_mask_loadu_epi8(__m512i __W, __mmask64 __U, void const *__P) {
+  // CIR-LABEL: _mm512_mask_loadu_epi8
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.load" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<{{!s8i|!u8i}} x 64>>, !u32i, !cir.vector<!cir.int<s, 1> x 64>, !cir.vector<{{!s8i|!u8i}} x 64>) -> !cir.vector<{{!s8i|!u8i}} x 64>
+
+  // LLVM-LABEL: @test_mm512_mask_loadu_epi8
+  // LLVM: @llvm.masked.load.v64i8.p0(ptr %{{.*}}, i32 1, <64 x i1> %{{.*}}, <64 x i8> %{{.*}})
+  return _mm512_mask_loadu_epi8(__W, __U, __P); 
+}
+
+__m512i test_mm512_mask_loadu_epi16(__m512i __W, __mmask32 __U, void const *__P) {
+  // CIR-LABEL: _mm512_mask_loadu_epi16
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.load" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s16i x 32>>, !u32i, !cir.vector<!cir.int<s, 1> x 32>, !cir.vector<!s16i x 32>) -> !cir.vector<!s16i x 32>
+
+  // LLVM-LABEL: @test_mm512_mask_loadu_epi16
+  // LLVM: @llvm.masked.load.v32i16.p0(ptr %{{.*}}, i32 1, <32 x i1> %{{.*}}, <32 x i16> %{{.*}})
+  return _mm512_mask_loadu_epi16(__W, __U, __P); 
+}
+
+__m512i test_mm512_maskz_loadu_epi16(__mmask32 __U, void const *__P) {
+  // CIR-LABEL: _mm512_maskz_loadu_epi16
+  // CIR: %{{.*}} = cir.llvm.intrinsic "masked.load" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<!s16i x 32>>, !u32i, !cir.vector<!cir.int<s, 1> x 32>, !cir.vector<!s16i x 32>) -> !cir.vector<!s16i x 32>
+
+  // LLVM-LABEL: @test_mm512_maskz_loadu_epi16
+  // LLVM: @llvm.masked.load.v32i16.p0(ptr %{{.*}}, i32 1, <32 x i1> %{{.*}}, <32 x i16> %{{.*}})
+  return _mm512_maskz_loadu_epi16(__U, __P); 
+}
+
+__m512i test_mm512_maskz_loadu_epi8(__mmask64 __U, void const *__P) {
+  // CIR-LABEL: _mm512_maskz_loadu_epi8
+  // CIR: cir.llvm.intrinsic "masked.load" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.ptr<!cir.vector<{{!s8i|!u8i}} x 64>>, !u32i, !cir.vector<!cir.int<s, 1> x 64>, !cir.vector<{{!s8i|!u8i}} x 64>) -> !cir.vector<{{!s8i|!u8i}} x 64>
+
+  // LLVM-LABEL: @test_mm512_maskz_loadu_epi8
+  // LLVM: @llvm.masked.load.v64i8.p0(ptr %{{.*}}, i32 1, <64 x i1> %{{.*}}, <64 x i8> %{{.*}})
+  return _mm512_maskz_loadu_epi8(__U, __P); 
+}
