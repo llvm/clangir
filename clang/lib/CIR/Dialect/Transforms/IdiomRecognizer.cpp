@@ -21,6 +21,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
 
@@ -42,24 +43,66 @@ private:
   template <size_t... Indices>
   static TargetOp buildCall(CIRBaseBuilderTy &builder, CallOp call,
                             std::index_sequence<Indices...>) {
-    return builder.create<TargetOp>(call.getLoc(), call.getResult().getType(),
-                                    call.getCalleeAttr(),
-                                    call.getOperand(Indices)...);
+    return builder.create<TargetOp>(
+        call.getLoc(),
+        (call.getResult() ? call.getResult().getType() : mlir::TypeRange{}),
+        call.getCalleeAttr(), call.getOperand(Indices)...);
   }
 
 public:
-  static bool raise(CallOp call, mlir::MLIRContext &context, bool remark) {
+  static FuncOp getCalleeFromSymbol(mlir::ModuleOp theModule,
+                                    llvm::StringRef name) {
+    auto global = mlir::SymbolTable::lookupSymbolIn(theModule, name);
+    assert(global && "expected to find symbol for function");
+    return dyn_cast<FuncOp>(global);
+  }
+
+  static std::optional<StringRef>
+  getRecordName(const clang::CXXRecordDecl *rd) {
+    if (!rd || !rd->getDeclContext()->isStdNamespace())
+      return std::nullopt;
+
+    if (rd->getDeclName().isIdentifier())
+      return rd->getName();
+
+    return std::nullopt;
+  }
+
+  static std::optional<std::string>
+  resolveSpecialMember(mlir::Attribute specialMember) {
+    return TypeSwitch<Attribute, std::optional<std::string>>(specialMember)
+        .Case<CXXCtorAttr, CXXDtorAttr>(
+            [](auto attr) -> std::optional<std::string> {
+              if (!attr.getRecordDecl())
+                return std::nullopt;
+              if (auto recordName = getRecordName(*attr.getRecordDecl()))
+                return recordName->str() + "_" + attr.getMnemonic().str();
+              return std::nullopt;
+            })
+        .Default([](Attribute) { return std::nullopt; });
+  }
+
+  static bool raise(mlir::ModuleOp theModule, CallOp call,
+                    mlir::MLIRContext &context, bool remark) {
     constexpr int numArgs = TargetOp::getNumArgs();
     if (call.getNumOperands() != numArgs)
       return false;
 
-    auto callExprAttr = call.getAstAttr();
     llvm::StringRef stdFuncName = TargetOp::getFunctionName();
-    if (!callExprAttr || !callExprAttr.isStdFunctionCall(stdFuncName))
-      return false;
+    auto calleeFunc = getCalleeFromSymbol(theModule, *call.getCallee());
 
-    if (!checkArguments(call.getArgOperands()))
-      return false;
+    if (auto specialMember = calleeFunc.getCxxSpecialMemberAttr()) {
+      auto resolved = resolveSpecialMember(specialMember);
+      if (!resolved || *resolved != stdFuncName.str())
+        return false;
+    } else {
+      auto callExprAttr = call.getAstAttr();
+      if (!callExprAttr || !callExprAttr.isStdFunctionCall(stdFuncName))
+        return false;
+
+      if (!checkArguments(call.getArgOperands()))
+        return false;
+    }
 
     if (remark)
       mlir::emitRemark(call.getLoc())
@@ -194,12 +237,16 @@ void IdiomRecognizerPass::recognizeCall(CallOp call) {
 
   bool remark = opts.emitRemarkFoundCalls();
 
-  using StdFunctionsRecognizer = std::tuple<StdRecognizer<StdFindOp>>;
+  using StdFunctionsRecognizer =
+      std::tuple<StdRecognizer<StdFindOp>, StdRecognizer<StdVectorCtorOp>,
+                 StdRecognizer<StdVectorDtorOp>>;
 
   // MSVC requires explicitly capturing these variables.
   std::apply(
       [&, call, remark, this](auto... recognizers) {
-        (decltype(recognizers)::raise(call, this->getContext(), remark) || ...);
+        (decltype(recognizers)::raise(theModule, call, this->getContext(),
+                                      remark) ||
+         ...);
       },
       StdFunctionsRecognizer());
 }

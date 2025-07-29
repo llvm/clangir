@@ -1288,7 +1288,8 @@ def CIR_CXXCtorAttr : CIR_Attr<"CXXCtor", "cxx_ctor"> {
     The `copy` kind is used if the constructor is a copy constructor.
   }];
   let parameters = (ins "mlir::Type":$type,
-                        EnumParameter<CIR_CtorKind>:$ctorKind);
+    EnumParameter<CIR_CtorKind>:$ctorKind,
+    OptionalParameter<"std::optional<const clang::CXXRecordDecl *>">:$recordDecl);
 
   let assemblyFormat = [{
     `<` $type `,` $ctorKind `>`
@@ -1296,8 +1297,10 @@ def CIR_CXXCtorAttr : CIR_Attr<"CXXCtor", "cxx_ctor"> {
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
-        CArg<"CtorKind", "cir::CtorKind::Custom">:$ctorKind), [{
-      return $_get(type.getContext(), type, ctorKind);
+        CArg<"CtorKind", "cir::CtorKind::Custom">:$ctorKind,
+        CArg<"std::optional<const clang::CXXRecordDecl *>",
+        "std::nullopt">:$recordDecl), [{
+      return $_get(type.getContext(), type, ctorKind, recordDecl);
     }]>
   ];
 }
@@ -1307,15 +1310,18 @@ def CIR_CXXDtorAttr : CIR_Attr<"CXXDtor", "cxx_dtor"> {
   let description = [{
     Functions with this attribute are CXX destructors
   }];
-  let parameters = (ins "mlir::Type":$type);
+  let parameters = (ins "mlir::Type":$type,
+    OptionalParameter<"std::optional<const clang::CXXRecordDecl *>">:$recordDecl);
 
   let assemblyFormat = [{
     `<` $type `>`
   }];
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
-      return $_get(type.getContext(), type);
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+        CArg<"std::optional<const clang::CXXRecordDecl *>",
+        "std::nullopt">:$recordDecl), [{
+      return $_get(type.getContext(), type, recordDecl);
     }]>
   ];
 }
