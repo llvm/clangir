@@ -4,13 +4,8 @@
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
 struct A {
-  A();
   virtual void f(char);
 };
-
-A::A() {}
-
-void A::f(char) {}
 
 void f1(A *a) {
   a->f('c');
