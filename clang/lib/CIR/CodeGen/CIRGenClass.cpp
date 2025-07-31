@@ -1705,7 +1705,7 @@ void CIRGenFunction::emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD,
 
 mlir::Value CIRGenFunction::getVTablePtr(mlir::Location Loc, Address This,
                                          const CXXRecordDecl *RD) {
-  auto VTablePtr = builder.create<cir::VTableGetVptrOp>(
+  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
       Loc, builder.getPtrToVPtrType(), This.getPointer());
   Address VTablePtrAddr = Address(VTablePtr, This.getAlignment());
 

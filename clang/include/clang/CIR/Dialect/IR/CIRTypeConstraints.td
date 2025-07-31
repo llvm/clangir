@@ -267,8 +267,7 @@ def CIR_AnyDataMemberType : CIR_TypeBase<"::cir::DataMemberType",
 // VPtr type predicates
 //===----------------------------------------------------------------------===//
 
-def CIR_AnyVPtrType : CIR_TypeBase<"::cir::VPtrType",
-    "vptr type">;
+def CIR_AnyVPtrType : CIR_TypeBase<"::cir::VPtrType", "vptr type">;
 
 def CIR_PtrToVPtr : CIR_PtrToType<CIR_AnyVPtrType>;
 

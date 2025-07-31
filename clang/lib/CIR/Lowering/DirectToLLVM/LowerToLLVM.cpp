@@ -3866,22 +3866,13 @@ mlir::LogicalResult CIRToLLVMVTableAddrPointOpLowering::matchAndRewrite(
     mlir::ConversionPatternRewriter &rewriter) const {
   const auto *converter = getTypeConverter();
   auto targetType = converter->convertType(op.getType());
-  mlir::Value symAddr = op.getSymAddr();
   llvm::SmallVector<mlir::LLVM::GEPArg> offsets;
   mlir::Type eltType;
-  if (!symAddr) {
-    symAddr = getValueForVTableSymbol(op, rewriter, getTypeConverter(),
-                                      op.getNameAttr(), eltType);
-    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
-        0, op.getAddressPointAttr().getIndex(),
-        op.getAddressPointAttr().getOffset()};
-  } else {
-    // Get indirect vtable address point retrieval
-    symAddr = adaptor.getSymAddr();
-    eltType = converter->convertType(symAddr.getType());
-    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
-        op.getAddressPointAttr().getOffset()};
-  }
+  mlir::Value symAddr = getValueForVTableSymbol(
+      op, rewriter, getTypeConverter(), op.getNameAttr(), eltType);
+  offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
+      0, op.getAddressPointAttr().getIndex(),
+      op.getAddressPointAttr().getOffset()};
 
   assert(eltType && "Shouldn't ever be missing an eltType here");
   rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
@@ -3890,8 +3881,8 @@ mlir::LogicalResult CIRToLLVMVTableAddrPointOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
-mlir::LogicalResult CIRToLLVMVTableGetVptrOpLowering::matchAndRewrite(
-    cir::VTableGetVptrOp op, OpAdaptor adaptor,
+mlir::LogicalResult CIRToLLVMVTableGetVPtrOpLowering::matchAndRewrite(
+    cir::VTableGetVPtrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   // cir.vtable.get_vptr is equivalent to a bitcast from the source object
   // pointer to the vptr type. Since the LLVM dialect uses opaque pointers
@@ -4565,7 +4556,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMVecSplatOpLowering,
       CIRToLLVMVecTernaryOpLowering,
       CIRToLLVMVTableAddrPointOpLowering,
-      CIRToLLVMVTableGetVptrOpLowering,
+      CIRToLLVMVTableGetVPtrOpLowering,
       CIRToLLVMVTableGetVirtualFnAddrOpLowering,
       CIRToLLVMVTTAddrPointOpLowering
 #define GET_BUILTIN_LOWERING_LIST

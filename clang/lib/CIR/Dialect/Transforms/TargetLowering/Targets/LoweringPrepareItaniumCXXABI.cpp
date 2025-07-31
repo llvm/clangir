@@ -118,7 +118,7 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   auto vptrTy = cir::VPtrType::get(builder.getContext());
   auto vptrPtrTy = builder.getPointerTo(vptrTy);
   auto vptrPtr =
-      builder.create<cir::VTableGetVptrOp>(loc, vptrPtrTy, op.getSrc());
+      builder.create<cir::VTableGetVPtrOp>(loc, vptrPtrTy, op.getSrc());
   auto vptr = builder.createLoad(loc, vptrPtr);
   auto elementPtr =
       builder.createBitcast(vptr, builder.getPointerTo(vtableElemTy));

@@ -935,8 +935,9 @@ cir::GlobalOp CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
 CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     CIRGenFunction &CGF, GlobalDecl GD, Address This, mlir::Type Ty,
     SourceLocation Loc) {
+  auto &builder = CGM.getBuilder();
   auto loc = CGF.getLoc(Loc);
-  auto TyPtr = CGF.getBuilder().getPointerTo(Ty);
+  auto TyPtr = builder.getPointerTo(Ty);
   auto *MethodDecl = cast<CXXMethodDecl>(GD.getDecl());
   auto VTable = CGF.getVTablePtr(loc, This, MethodDecl->getParent());
 
@@ -951,11 +952,10 @@ CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     if (CGM.getItaniumVTableContext().isRelativeLayout()) {
       llvm_unreachable("NYI");
     } else {
-      auto VTableSlotPtr =
-          CGF.getBuilder().create<cir::VTableGetVirtualFnAddrOp>(
-              loc, CGF.getBuilder().getPointerTo(TyPtr), VTable, VTableIndex);
-      VFuncLoad = CGF.getBuilder().createAlignedLoad(loc, TyPtr, VTableSlotPtr,
-                                                     CGF.getPointerAlign());
+      auto VTableSlotPtr = builder.create<cir::VTableGetVirtualFnAddrOp>(
+          loc, builder.getPointerTo(TyPtr), VTable, VTableIndex);
+      VFuncLoad = builder.createAlignedLoad(loc, TyPtr, VTableSlotPtr,
+                                            CGF.getPointerAlign());
     }
 
     // Add !invariant.load md to virtual function load to indicate that
@@ -1013,7 +1013,7 @@ CIRGenItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
 
   return builder.create<cir::VTableAddrPointOp>(
       CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
-      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()), mlir::Value{},
+      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()),
       cir::AddressPointAttr::get(CGM.getBuilder().getContext(),
                                  AddressPoint.VTableIndex,
                                  AddressPoint.AddressPointIndex));

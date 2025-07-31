@@ -18,7 +18,7 @@ void f1(A *a) {
 // CIR:   %[[C_LITERAL:.*]] = cir.const #cir.int<99> : !s8i
 // CIR:   %[[VPTR_ADDR:.*]] = cir.vtable.get_vptr %[[A]] : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
 // CIR:   %[[VPTR:.*]] = cir.load{{.*}} %[[VPTR_ADDR]] : !cir.ptr<!cir.vptr>, !cir.vptr
-// CIR:   %[[FN_PTR_PTR:.*]] = cir.vtable.get_virtual_fn_addr(%[[VPTR]], index = 0) : !cir.vptr, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_A>, !s8i)>>>
+// CIR:   %[[FN_PTR_PTR:.*]] = cir.vtable.get_virtual_fn_addr %[[VPTR]][0] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_A>, !s8i)>>>
 // CIR:   %[[FN_PTR:.*]] = cir.load{{.*}} %[[FN_PTR_PTR:.*]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_A>, !s8i)>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_A>, !s8i)>>
 // CIR:   cir.call %[[FN_PTR]](%[[A]], %[[C_LITERAL]]) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_A>, !s8i)>>, !cir.ptr<!rec_A>, !s8i) -> ()
 
@@ -45,7 +45,7 @@ void f2(B * b) {
 // CIR:   %[[B:.*]] = cir.load{{.*}} %[[B_ADDR]]
 // CIR:   %[[VPTR_ADDR:.*]] = cir.vtable.get_vptr %[[B]] : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
 // CIR:   %[[VPTR:.*]] = cir.load{{.*}} %[[VPTR_ADDR]] : !cir.ptr<!cir.vptr>, !cir.vptr
-// CIR:   %[[FN_PTR_PTR:.*]] = cir.vtable.get_virtual_fn_addr(%[[VPTR]], index = 1) : !cir.vptr, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_B>)>>>
+// CIR:   %[[FN_PTR_PTR:.*]] = cir.vtable.get_virtual_fn_addr %[[VPTR]][1] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_B>)>>>
 // CIR:   %[[FN_PTR:.*]] = cir.load{{.*}} %[[FN_PTR_PTR:.*]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_B>)>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_B>)>>
 // CIR:   cir.call %[[FN_PTR]](%[[B]]) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_B>)>>, !cir.ptr<!rec_B>) -> ()
 

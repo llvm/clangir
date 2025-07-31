@@ -2620,8 +2620,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
   }];
 
   let arguments = (ins
-    OptionalAttr<FlatSymbolRefAttr>:$name,
-    Optional<CIR_AnyType>:$sym_addr,
+    FlatSymbolRefAttr:$name,
     CIR_AddressPointAttr:$address_point
   );
 
@@ -2629,22 +2628,17 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
 
   let assemblyFormat = [{
     `(`
-      ($name^)?
-      ($sym_addr^ `:` type($sym_addr))?
-      `,`
-        `address_point` `=` $address_point
+      $name `,` `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];
-
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
-// VTableGetVptr
+// VTableGetVPtr
 //===----------------------------------------------------------------------===//
 
-def CIR_VTableGetVptrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
+def CIR_VTableGetVPtrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
   let summary = "Get a the address of the vtable pointer for an object";
   let description = [{
     The `vtable.get_vptr` operation retrieves the address of the vptr for a
@@ -2663,13 +2657,13 @@ def CIR_VTableGetVptrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
   }];
 
   let arguments = (ins
-                   Arg<CIR_PointerType, "the vptr address", [MemRead]>:$src);
+    Arg<CIR_PointerType, "the vptr address", [MemRead]>:$src
+  );
 
-  let results = (outs CIR_PtrToVPtr:$vptr_ty);
-
+  let results = (outs CIR_PtrToVPtr:$result);
 
   let assemblyFormat = [{
-      $src `:` qualified(type($src)) `->` qualified(type($vptr_ty)) attr-dict
+      $src `:` qualified(type($src)) `->` qualified(type($result)) attr-dict
   }];
 
 }
@@ -2689,6 +2683,10 @@ def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
     the address of the virtual function pointer, which can then be loaded and
     called.
 
+    The `vptr` operand must be a `!cir.ptr<!cir.vptr>` value, which would
+    have been returned by a previous call to `cir.vatble.get_vptr`. The
+    `index` operand is an index of the virtual function in the vtable.
+
     The return type is a pointer-to-pointer to the function type.
 
     Example:
@@ -2696,7 +2694,7 @@ def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
     %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
     %3 = cir.vtable.get_vptr %2 : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
     %4 = cir.load %3 : !cir.ptr<!cir.vptr>, !cir.vptr
-    %5 = cir.vtable.get_virtual_fn_addr(%4, index = 2) : !cir.vptr
+    %5 = cir.vtable.get_virtual_fn_addr %4[2] : !cir.vptr
                   -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C>) -> !s32i>>>
     %6 = cir.load align(8) %5 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C>)
                                                                  -> !s32i>>>,
@@ -2708,30 +2706,13 @@ def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
 
   let arguments = (ins
     Arg<CIR_VPtrType, "vptr", [MemRead]>:$vptr,
-    IndexAttr:$index_attr);
+    I64Attr:$index);
 
-  let results = (outs CIR_PointerType:$vfptr_ty);
+  let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(`
-      $vptr `,` `index` `=` $index_attr
-    `)`
-    `:` qualified(type($vptr)) `,` qualified(type($vfptr_ty)) attr-dict
-  }];
-
-  let builders = [
-    OpBuilder<(ins "mlir::Type":$type,
-                   "mlir::Value":$value,
-                   "unsigned":$index),
-    [{
-      mlir::APInt fnIdx(64, index);
-      build($_builder, $_state, type, value, fnIdx);
-    }]>
-  ];
-
-  let extraClassDeclaration = [{
-    /// Return the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
+    $vptr `[` $index `]` attr-dict
+    `:` qualified(type($vptr)) `->` qualified(type($result))
   }];
 }
 

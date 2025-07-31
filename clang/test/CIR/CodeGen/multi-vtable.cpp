@@ -76,9 +76,9 @@ int main() {
 
 // CIR: cir.func dso_local @main() -> !s32i extra(#fn_attr) {
 
-// CIR:   %{{[0-9]+}} = cir.vtable.get_virtual_fn_addr(%{{[0-9]+}}, index = 0) : !cir.vptr, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_virtual_fn_addr %{{[0-9]+}}[0] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
 
-// CIR:   %{{[0-9]+}} = cir.vtable.get_virtual_fn_addr(%{{[0-9]+}}, index = 0) : !cir.vptr, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_virtual_fn_addr %{{[0-9]+}}[0] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>
 
 // CIR: }
 

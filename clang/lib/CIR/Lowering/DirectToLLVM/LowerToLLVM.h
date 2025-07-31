@@ -1034,13 +1034,13 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
-class CIRToLLVMVTableGetVptrOpLowering
-    : public mlir::OpConversionPattern<cir::VTableGetVptrOp> {
+class CIRToLLVMVTableGetVPtrOpLowering
+    : public mlir::OpConversionPattern<cir::VTableGetVPtrOp> {
 public:
-  using mlir::OpConversionPattern<cir::VTableGetVptrOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<cir::VTableGetVPtrOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::VTableGetVptrOp op, OpAdaptor,
+  matchAndRewrite(cir::VTableGetVPtrOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 

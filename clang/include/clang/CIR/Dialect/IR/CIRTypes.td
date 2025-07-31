@@ -347,8 +347,9 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 // CIR_VPtrType
 //===----------------------------------------------------------------------===//
 
-def CIR_VPtrType : CIR_Type<"VPtr", "vptr",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+def CIR_VPtrType : CIR_Type<"VPtr", "vptr", [
+  DeclareTypeInterfaceMethods<DataLayoutTypeInterface>
+]> {
 
   let summary = "CIR type that is used for the vptr member of C++ objects";
   let description = [{
