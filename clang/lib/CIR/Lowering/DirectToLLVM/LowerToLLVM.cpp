@@ -1053,17 +1053,16 @@ static mlir::Value promoteIndex(mlir::ConversionPatternRewriter &rewriter,
   // If the index definition is a unary minus (index = sub 0, x), then we need
   // to
   bool rewriteSub = false;
-  auto sub = mlir::dyn_cast<mlir::LLVM::SubOp>(indexOp);
-  if (sub) {
+  auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
+  if (sub)
     if (auto lhsConst =
             sub.getOperand(0).getDefiningOp<mlir::LLVM::ConstantOp>()) {
-      auto lhsConstInt = mlir::dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
+      auto lhsConstInt = dyn_cast<mlir::IntegerAttr>(lhsConst.getValue());
       if (lhsConstInt && lhsConstInt.getValue() == 0) {
         rewriteSub = true;
         index = sub.getOperand(1);
       }
     }
-  }
 
   // Handle the cast
   auto llvmDstType = mlir::IntegerType::get(rewriter.getContext(), layoutWidth);
