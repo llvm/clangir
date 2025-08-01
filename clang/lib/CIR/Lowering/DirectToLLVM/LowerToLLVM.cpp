@@ -3208,6 +3208,12 @@ mlir::LogicalResult CIRToLLVMCmpOpLowering::matchAndRewrite(
                                               /* isSigned=*/false);
     rewriter.replaceOpWithNewOp<mlir::LLVM::ICmpOp>(
         cmpOp, kind, adaptor.getLhs(), adaptor.getRhs());
+  } else if (auto ptrTy = mlir::dyn_cast<cir::VPtrType>(type)) {
+    // !cir.vptr is a special case, but it's just a pointer to LLVM.
+    auto kind = convertCmpKindToICmpPredicate(cmpOp.getKind(),
+                                              /* isSigned=*/false);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ICmpOp>(
+        cmpOp, kind, adaptor.getLhs(), adaptor.getRhs());
   } else if (mlir::isa<cir::FPTypeInterface>(type)) {
     auto kind = convertCmpKindToFCmpPredicate(cmpOp.getKind());
     rewriter.replaceOpWithNewOp<mlir::LLVM::FCmpOp>(

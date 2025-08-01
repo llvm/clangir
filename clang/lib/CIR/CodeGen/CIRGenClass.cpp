@@ -806,6 +806,10 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   //
   // vtable field is derived from `this` pointer, therefore they should be in
   // the same addr space.
+  // TODO(cir): We should be using cir.get_vptr rather than a bitcast to get
+  //            the vptr field, but the call to ApplyNonVirtualAndVirtualOffset
+  //            will also need to be adjusted. That should probably be using
+  //            cir.base_class_addr.
   assert(!cir::MissingFeatures::addressSpace());
   VTableField = builder.createElementBitCast(loc, VTableField,
                                              VTableAddressPoint.getType());

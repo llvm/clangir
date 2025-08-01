@@ -2608,14 +2608,14 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
     the vtable group (as specified by Itanium ABI), and `address_point.offset`
     (address point index) the actual address point within that vtable.
 
-    The return type is always `!cir.ptr<!cir.vptr>`.
+    The return type is always `!cir.vptr`.
 
     Example:
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
     %3 = cir.vtable.address_point(@_ZTV1B,
-              address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.vptr>
+              address_point = <index = 0, offset = 2>) : !cir.vptr
     ```
   }];
 
@@ -2624,7 +2624,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
     CIR_AddressPointAttr:$address_point
   );
 
-  let results = (outs Res<CIR_PtrToVPtr, "", []>:$addr);
+  let results = (outs Res<CIR_VPtrType, "", []>:$addr);
 
   let assemblyFormat = [{
     `(`
