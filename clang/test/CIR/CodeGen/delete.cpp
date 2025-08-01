@@ -38,9 +38,9 @@ namespace test3 {
 // CHECK-LABEL:   cir.func dso_local @_ZN5test37destroyEPNS_1XE
 // CHECK:           %[[ARG_VAR:.*]] = cir.alloca !cir.ptr<!rec_test33A3AX>
 // CHECK:           %[[ARG:.*]] = cir.load{{.*}} %[[ARG_VAR]] : !cir.ptr<!cir.ptr<!rec_test33A3AX>>, !cir.ptr<!rec_test33A3AX>
-// CHECK:           %[[ARG_PTR:.*]] = cir.cast(bitcast, %[[ARG]]
-// CHECK:           %[[VTABLE:.*]] = cir.load{{.*}} %[[ARG_PTR]]
-// CHECK:           %[[DTOR_PTR:.*]] = cir.vtable.address_point( %[[VTABLE]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_test33A3AX>)>>>, address_point = <index = 0, offset = 1>)
+// CHECK:           %[[VPTR_PTR:.*]] = cir.vtable.get_vptr %[[ARG]] : !cir.ptr<!rec_test33A3AX> -> !cir.ptr<!cir.vptr>
+// CHECK:           %[[VPTR:.*]] = cir.load{{.*}} %[[VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+// CHECK:           %[[DTOR_PTR:.*]] = cir.vtable.get_virtual_fn_addr %[[VPTR]][1] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_test33A3AX>)>>>
 // CHECK:           %[[DTOR_FUN:.*]] = cir.load{{.*}} %[[DTOR_PTR]]
 // CHECK:           cir.call %[[DTOR_FUN]](%[[ARG]])
 // CHECK:           cir.return
