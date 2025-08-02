@@ -23,6 +23,46 @@
 
 #include <immintrin.h>
 
+__m256 test_mm256_undefined_ps(void) {
+  // CIR-X64-LABEL: _mm256_undefined_ps
+  // CIR-X64: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 4>
+  // CIR-X64: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 4>), !cir.vector<!cir.float x 8>
+  // CIR-X64: cir.return %{{.*}} : !cir.vector<!cir.float x 8>
+
+  // LLVM-X64-LABEL: test_mm256_undefined_ps
+  // LLVM-X64: store <8 x float> zeroinitializer, ptr %[[A:.*]], align 32
+  // LLVM-X64: %{{.*}} = load <8 x float>, ptr %[[A]], align 32
+  // LLVM-X64: ret <8 x float> %{{.*}}
+
+  return _mm256_undefined_ps();
+}
+
+__m256d test_mm256_undefined_pd(void) {
+  // CIR-X64-LABEL: _mm256_undefined_pd
+  // CIR-X64: %{{.*}} = cir.const #cir.zero : !cir.vector<!cir.double x 4>
+  // CIR-X64: cir.return %{{.*}} : !cir.vector<!cir.double x 4>
+
+  // LLVM-X64-LABEL: test_mm256_undefined_pd
+  // LLVM-X64: store <4 x double> zeroinitializer, ptr %[[A:.*]], align 32
+  // LLVM-X64: %{{.*}} = load <4 x double>, ptr %[[A]], align 32
+  // LLVM-X64: ret <4 x double> %{{.*}}
+
+  return _mm256_undefined_pd();
+}
+
+__m256i test_mm256_undefined_si256(void) {
+  // CIR-X64-LABEL: _mm256_undefined_si256
+  // CIR-X64: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 4>
+  // CIR-X64: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 4>), !cir.vector<!s64i x 4>
+  // CIR-X64: cir.return %{{.*}} : !cir.vector<!s64i x 4>
+  
+  // LLVM-X64-LABEL: test_mm256_undefined_si256
+  // LLVM-X64: store <4 x i64> zeroinitializer, ptr %[[A:.*]], align 32
+  // LLVM-X64: %{{.*}} = load <4 x i64>, ptr %[[A]], align 32
+  // LLVM-X64: ret <4 x i64> %{{.*}}
+  return _mm256_undefined_si256();
+}
+
 int test_mm256_extract_epi8(__m256i A) {
   // CIR-CHECK-LABEL: test_mm256_extract_epi8
   // CIR-CHECK %{{.*}} = cir.vec.extract %{{.*}}[%{{.*}} : {{!u32i|!u64i}}] : !cir.vector<!s8i x 32>

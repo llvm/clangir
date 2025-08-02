@@ -271,7 +271,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     // IR optimizer and backend.
     // TODO: If we had a "freeze" IR instruction to generate a fixed undef
     // value, we should use that here instead of a zero.
-    llvm_unreachable("__builtin_ia32_undefXX NYI");
+    return builder.getNullValue(convertType(E->getType()),
+                                getLoc(E->getExprLoc()));
   case X86::BI__builtin_ia32_vec_ext_v4hi:
   case X86::BI__builtin_ia32_vec_ext_v16qi:
   case X86::BI__builtin_ia32_vec_ext_v8hi:
