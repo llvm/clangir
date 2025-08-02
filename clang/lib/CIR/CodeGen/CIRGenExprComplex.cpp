@@ -696,9 +696,7 @@ LValue ComplexExprEmitter::emitCompoundAssignLValue(
     }
   } else {
     if (!PromotionTypeRHS.isNull()) {
-      OpInfo.RHS = createComplexFromReal(
-          CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
-          CGF.emitPromotedComplexExpr(E->getRHS(), PromotionTypeRHS));
+      OpInfo.RHS = CGF.emitPromotedComplexExpr(E->getRHS(), PromotionTypeRHS);
     } else {
       assert(CGF.getContext().hasSameUnqualifiedType(OpInfo.Ty,
                                                      E->getRHS()->getType()));
