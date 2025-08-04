@@ -995,3 +995,12 @@ mlir::Value CIRGenFunction::emitComplexPrePostIncDec(const UnaryOperator *E,
 mlir::Value CIRGenFunction::emitLoadOfComplex(LValue src, SourceLocation loc) {
   return ComplexExprEmitter(*this).emitLoadOfLValue(src, loc);
 }
+
+LValue CIRGenFunction::emitScalarCompoundAssignWithComplex(
+    const CompoundAssignOperator *E, mlir::Value &Result) {
+  CompoundFunc Op = getComplexOp(E->getOpcode());
+  RValue Val;
+  LValue Ret = ComplexExprEmitter(*this).emitCompoundAssignLValue(E, Op, Val);
+  Result = Val.getScalarVal();
+  return Ret;
+}
