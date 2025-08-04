@@ -968,22 +968,34 @@ static mlir::Attribute getNewInitValue(CIRGenModule &cgm, GlobalOp newGlob,
   if (auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(oldInit)) {
     return createNewGlobalView(cgm, newGlob, oldView, oldTy);
   }
-  if (auto oldArray = mlir::dyn_cast<ConstArrayAttr>(oldInit)) {
-    llvm::SmallVector<mlir::Attribute> newArray;
-    auto eltsAttr = dyn_cast<mlir::ArrayAttr>(oldArray.getElts());
-    for (auto elt : eltsAttr) {
-      if (auto view = dyn_cast<GlobalViewAttr>(elt))
-        newArray.push_back(createNewGlobalView(cgm, newGlob, view, oldTy));
-      else if (auto view = dyn_cast<ConstArrayAttr>(elt))
-        newArray.push_back(getNewInitValue(cgm, newGlob, oldTy, user, elt));
-      else
-        newArray.push_back(elt);
-    }
 
-    auto &builder = cgm.getBuilder();
-    mlir::Attribute ar = mlir::ArrayAttr::get(builder.getContext(), newArray);
-    return builder.getConstArray(ar, cast<cir::ArrayType>(oldArray.getType()));
+  auto getNewInitElements =
+      [&](mlir::ArrayAttr oldElements) -> mlir::ArrayAttr {
+    llvm::SmallVector<mlir::Attribute> newElements;
+    for (auto elt : oldElements) {
+      if (auto view = mlir::dyn_cast<cir::GlobalViewAttr>(elt))
+        newElements.push_back(createNewGlobalView(cgm, newGlob, view, oldTy));
+      else if (mlir::isa<cir::ConstArrayAttr, cir::ConstRecordAttr>(elt))
+        newElements.push_back(getNewInitValue(cgm, newGlob, oldTy, user, elt));
+      else
+        newElements.push_back(elt);
+    }
+    return mlir::ArrayAttr::get(cgm.getBuilder().getContext(), newElements);
+  };
+
+  if (auto oldArray = mlir::dyn_cast<cir::ConstArrayAttr>(oldInit)) {
+    mlir::Attribute newElements =
+        getNewInitElements(mlir::dyn_cast<mlir::ArrayAttr>(oldArray.getElts()));
+    return cgm.getBuilder().getConstArray(
+        newElements, mlir::cast<cir::ArrayType>(oldArray.getType()));
   }
+  if (auto oldRecord = mlir::dyn_cast<cir::ConstRecordAttr>(oldInit)) {
+    mlir::ArrayAttr newMembers = getNewInitElements(oldRecord.getMembers());
+    auto recordTy = mlir::cast<cir::RecordType>(oldRecord.getType());
+    return cgm.getBuilder().getConstRecordOrZeroAttr(
+        newMembers, recordTy.getPacked(), recordTy.getPadded(), recordTy);
+  }
+
   llvm_unreachable("NYI");
 }
 
