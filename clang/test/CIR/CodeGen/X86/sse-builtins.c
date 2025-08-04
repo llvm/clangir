@@ -42,3 +42,26 @@ __m128 test_mm_undefined_ps(void) {
   // LLVM: ret <4 x float> %{{.*}}
   return _mm_undefined_ps();
 }
+
+void test_mm_setcsr(unsigned int A) {
+  // CIR-LABEL: test_mm_setcsr
+  // CIR: cir.store {{.*}}, {{.*}} : !u32i
+  // CIR: cir.llvm.intrinsic "x86.sse.ldmxcsr" {{.*}} : (!cir.ptr<!u32i>) -> !void
+
+  // LLVM-LABEL: test_mm_setcsr 
+  // LLVM: store i32
+  // LLVM: call void @llvm.x86.sse.ldmxcsr(ptr {{.*}})
+  _mm_setcsr(A);
+}
+
+unsigned int test_mm_getcsr(void) {
+  // CIR-LABEL: test_mm_getcsr
+  // CIR: cir.llvm.intrinsic "x86.sse.stmxcsr" %{{.*}} : (!cir.ptr<!u32i>) -> !void
+  // CIR: cir.load {{.*}} : !cir.ptr<!u32i>, !u32i
+
+  // LLVM-LABEL: test_mm_getcsr
+  // LLVM: call void @llvm.x86.sse.stmxcsr(ptr %{{.*}})
+  // LLVM: load i32
+  return _mm_getcsr();
+}
+
