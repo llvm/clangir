@@ -96,6 +96,14 @@ double *const glob_ptr = &glob.b[1];
 
 // TODO: test tentatives with internal linkage.
 
+// Use a tentative definition in an initializer.
+struct A {
+  signed *x;
+} tentativeF[];
+struct A useTentative = {tentativeF};
+// CHECK: cir.global external @tentativeF = #cir.zero
+// CHECK: cir.global external @useTentative = #cir.const_record<{#cir.global_view<@tentativeF> : !cir.ptr<!s32i>}>
+
 // Tentative definition is THE definition. Should be zero-initialized.
 int tentativeA;
 float tentativeC;
