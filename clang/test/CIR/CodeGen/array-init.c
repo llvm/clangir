@@ -9,6 +9,22 @@ typedef struct {
   long b;
 } T;
 
+// Test array initialization with different elements.
+typedef struct {
+     long a0;
+     int a1;
+} Inner;
+typedef struct {
+     int b0;
+     Inner b1[1];
+} Outer;
+Outer outers[2] = {
+    {1, {0, 1} },
+    {1, {0, 0} }
+};
+// CIR:  cir.global{{.*}} @outers = #cir.const_record<{#cir.const_record<{#cir.int<1> : !s32i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>, #cir.const_array<[#cir.const_record<{#cir.int<0> : !s64i, #cir.int<1> : !s32i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>}> : !rec_anon_struct]> : !cir.array<!rec_anon_struct x 1>}> : !rec_anon_struct2, #cir.const_record<{#cir.int<1> : !s32i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>, #cir.zero : !cir.array<!rec_Inner x 1>}> : !rec_anon_struct1}> : !rec_anon_struct3 {alignment = 16 : i64}
+// LLVM: @outers = {{.*}}global { { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] }, { i32, [4 x i8], [1 x %struct.Inner] } } { { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] } { i32 1, [4 x i8] zeroinitializer, [1 x { i64, i32, [4 x i8] }] [{ i64, i32, [4 x i8] } { i64 0, i32 1, [4 x i8] zeroinitializer }] }, { i32, [4 x i8], [1 x %struct.Inner] } { i32 1, [4 x i8] zeroinitializer, [1 x %struct.Inner] zeroinitializer } }, align 16
+
 void buz(int x) {
   T arr[] = { {x, x}, {0, 0} };
 }
