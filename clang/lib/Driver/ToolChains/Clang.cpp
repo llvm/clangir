@@ -5109,6 +5109,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     if (!Args.hasArg(options::OPT_fclangir_idiom_recognizer,
                      options::OPT_fclangir_idiom_recognizer_EQ))
       CmdArgs.push_back("-fclangir-idiom-recognizer");
+    CmdArgs.push_back("-fclangir-lib-opt");
   }
 
   if (Args.hasArg(options::OPT_fclangir_analysis_only)) {
