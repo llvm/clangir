@@ -935,11 +935,11 @@ cir::GlobalOp CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
 CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     CIRGenFunction &CGF, GlobalDecl GD, Address This, mlir::Type Ty,
     SourceLocation Loc) {
+  auto &builder = CGM.getBuilder();
   auto loc = CGF.getLoc(Loc);
-  auto TyPtr = CGF.getBuilder().getPointerTo(Ty);
+  auto TyPtr = builder.getPointerTo(Ty);
   auto *MethodDecl = cast<CXXMethodDecl>(GD.getDecl());
-  auto VTable = CGF.getVTablePtr(
-      loc, This, CGF.getBuilder().getPointerTo(TyPtr), MethodDecl->getParent());
+  auto VTable = CGF.getVTablePtr(loc, This, MethodDecl->getParent());
 
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
   mlir::Value VFunc{};
@@ -952,15 +952,10 @@ CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     if (CGM.getItaniumVTableContext().isRelativeLayout()) {
       llvm_unreachable("NYI");
     } else {
-      VTable = CGF.getBuilder().createBitcast(
-          loc, VTable, CGF.getBuilder().getPointerTo(TyPtr));
-      auto VTableSlotPtr = CGF.getBuilder().create<cir::VTableAddrPointOp>(
-          loc, CGF.getBuilder().getPointerTo(TyPtr),
-          ::mlir::FlatSymbolRefAttr{}, VTable,
-          cir::AddressPointAttr::get(CGF.getBuilder().getContext(), 0,
-                                     VTableIndex));
-      VFuncLoad = CGF.getBuilder().createAlignedLoad(loc, TyPtr, VTableSlotPtr,
-                                                     CGF.getPointerAlign());
+      auto VTableSlotPtr = builder.create<cir::VTableGetVirtualFnAddrOp>(
+          loc, builder.getPointerTo(TyPtr), VTable, VTableIndex);
+      VFuncLoad = builder.createAlignedLoad(loc, TyPtr, VTableSlotPtr,
+                                            CGF.getPointerAlign());
     }
 
     // Add !invariant.load md to virtual function load to indicate that
@@ -1014,11 +1009,11 @@ CIRGenItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
           .getAddressPoint(Base);
 
   auto &builder = CGM.getBuilder();
-  auto vtablePtrTy = builder.getVirtualFnPtrType(/*isVarArg=*/false);
+  auto vtablePtrTy = cir::VPtrType::get(builder.getContext());
 
   return builder.create<cir::VTableAddrPointOp>(
       CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
-      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()), mlir::Value{},
+      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()),
       cir::AddressPointAttr::get(CGM.getBuilder().getContext(),
                                  AddressPoint.VTableIndex,
                                  AddressPoint.AddressPointIndex));
@@ -2411,14 +2406,16 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
 mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
     mlir::Location loc, CIRGenFunction &CGF, Address This,
     const CXXRecordDecl *ClassDecl, const CXXRecordDecl *BaseClassDecl) {
-  auto VTablePtr = CGF.getVTablePtr(loc, This, CGM.UInt8PtrTy, ClassDecl);
+  auto VTablePtr = CGF.getVTablePtr(loc, This, ClassDecl);
+  auto VTableBytePtr =
+      CGF.getBuilder().createBitcast(VTablePtr, CGM.UInt8PtrTy);
   CharUnits VBaseOffsetOffset =
       CGM.getItaniumVTableContext().getVirtualBaseOffsetOffset(ClassDecl,
                                                                BaseClassDecl);
   mlir::Value OffsetVal =
       CGF.getBuilder().getSInt64(VBaseOffsetOffset.getQuantity(), loc);
   auto VBaseOffsetPtr = CGF.getBuilder().create<cir::PtrStrideOp>(
-      loc, VTablePtr.getType(), VTablePtr,
+      loc, CGM.UInt8PtrTy, VTableBytePtr,
       OffsetVal); // vbase.offset.ptr
 
   mlir::Value VBaseOffset;

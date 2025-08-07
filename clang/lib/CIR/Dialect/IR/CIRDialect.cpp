@@ -561,6 +561,12 @@ LogicalResult cir::CastOp::verify() {
       return success();
     }
 
+    // Allow casting cir.vptr to pointer types.
+    // TODO: Add operations to get object offset and type info and remove this.
+    if (mlir::isa<cir::VPtrType>(srcType) &&
+        mlir::dyn_cast<cir::PointerType>(resType))
+      return success();
+
     // Handle the data member pointer types.
     if (mlir::isa<cir::DataMemberType>(srcType) &&
         mlir::isa<cir::DataMemberType>(resType))
@@ -2389,10 +2395,7 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 LogicalResult
 cir::VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
-  // vtable ptr is not coming from a symbol.
-  if (!getName())
-    return success();
-  auto name = *getName();
+  StringRef name = getName();
 
   // Verify that the result type underlying pointer type matches the type of
   // the referenced cir.global or cir.func op.
@@ -2407,27 +2410,6 @@ cir::VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   if (!isa<cir::VTableAttr>(*init))
     return emitOpError("Expected #cir.vtable in initializer for global '")
            << name << "'";
-  return success();
-}
-
-LogicalResult cir::VTableAddrPointOp::verify() {
-  // The operation uses either a symbol or a value to operate, but not both
-  if (getName() && getSymAddr())
-    return emitOpError("should use either a symbol or value, but not both");
-
-  // If not a symbol, stick with the concrete type used for getSymAddr.
-  if (getSymAddr())
-    return success();
-
-  auto resultType = getAddr().getType();
-  auto intTy = cir::IntType::get(getContext(), 32, /*isSigned=*/false);
-  auto fnTy = cir::FuncType::get({}, intTy);
-
-  auto resTy = cir::PointerType::get(cir::PointerType::get(fnTy));
-
-  if (resultType != resTy)
-    return emitOpError("result type must be '")
-           << resTy << "', but provided result type is '" << resultType << "'";
   return success();
 }
 
