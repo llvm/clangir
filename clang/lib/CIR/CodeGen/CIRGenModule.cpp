@@ -2750,7 +2750,8 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     if (fd) {
       if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
         auto cxxDtor = cir::CXXDtorAttr::get(
-            convertType(getASTContext().getRecordType(dtor->getParent())));
+            convertType(getASTContext().getRecordType(dtor->getParent())),
+            dtor->getParent());
         f.setCxxSpecialMemberAttr(cxxDtor);
       }
 
@@ -2763,7 +2764,7 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
 
         auto cxxCtor = cir::CXXCtorAttr::get(
             convertType(getASTContext().getRecordType(ctor->getParent())),
-            ctorKind);
+            ctorKind, ctor->getParent());
         f.setCxxSpecialMemberAttr(cxxCtor);
       }
     }

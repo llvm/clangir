@@ -766,7 +766,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
     if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
       auto cxxDtor = cir::CXXDtorAttr::get(
-          convertType(getContext().getRecordType(dtor->getParent())));
+          convertType(getContext().getRecordType(dtor->getParent())),
+          dtor->getParent());
       fn.setCxxSpecialMemberAttr(cxxDtor);
 
       emitDestructorBody(args);
@@ -778,7 +779,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         ctorKind = cir::CtorKind::Copy;
 
       auto cxxCtor = cir::CXXCtorAttr::get(
-          convertType(getContext().getRecordType(ctor->getParent())), ctorKind);
+          convertType(getContext().getRecordType(ctor->getParent())), ctorKind,
+          ctor->getParent());
       fn.setCxxSpecialMemberAttr(cxxCtor);
 
       emitConstructorBody(args);
