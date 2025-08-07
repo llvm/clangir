@@ -10,6 +10,57 @@
 
 #include <immintrin.h>
 
+__m512 test_mm512_undefined(void) {
+  // CIR-LABEL: _mm512_undefined
+  // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
+  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!cir.float x 16>
+  // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 16>
+
+  // LLVM-LABEL: test_mm512_undefined
+  // LLVM: store <16 x float> zeroinitializer, ptr %[[A:.*]], align 64
+  // LLVM: %{{.*}} = load <16 x float>, ptr %[[A]], align 64
+  // LLVM: ret <16 x float> %{{.*}}
+  return _mm512_undefined();
+}
+
+__m512 test_mm512_undefined_ps(void) {
+  // CIR-LABEL: _mm512_undefined_ps
+  // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
+  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!cir.float x 16>
+  // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 16>
+
+  // LLVM-LABEL: test_mm512_undefined_ps
+  // LLVM: store <16 x float> zeroinitializer, ptr %[[A:.*]], align 64
+  // LLVM: %{{.*}} = load <16 x float>, ptr %[[A]], align 64
+  // LLVM: ret <16 x float> %{{.*}}
+  return _mm512_undefined_ps();
+}
+
+__m512d test_mm512_undefined_pd(void) {
+  // CIR-LABEL: _mm512_undefined_pd
+  // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!cir.double x 8>
+  // CIR: cir.return %{{.*}} : !cir.vector<!cir.double x 8>
+
+  // LLVM-LABEL: test_mm512_undefined_pd
+  // LLVM: store <8 x double> zeroinitializer, ptr %[[A:.*]], align 64
+  // LLVM: %{{.*}} = load <8 x double>, ptr %[[A]], align 64
+  // LLVM: ret <8 x double> %{{.*}}
+  return _mm512_undefined_pd();
+}
+
+__m512i test_mm512_undefined_epi32(void) {
+  // CIR-LABEL: _mm512_undefined_epi32
+  // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
+  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!s64i x 8>
+  // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 8>
+
+  // LLVM-LABEL: test_mm512_undefined_epi32
+  // LLVM: store <8 x i64> zeroinitializer, ptr %[[A:.*]], align 64
+  // LLVM: %{{.*}} = load <8 x i64>, ptr %[[A]], align 64
+  // LLVM: ret <8 x i64> %{{.*}}
+  return _mm512_undefined_epi32();
+}
+
 void test_mm512_mask_storeu_epi64(void *__P, __mmask8 __U, __m512i __A) {
   // CIR-LABEL: _mm512_mask_storeu_epi64
   // CIR: %{{.*}} = cir.llvm.intrinsic "masked.store" %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s64i x 8>, !cir.ptr<!s64i>, !u32i, !cir.vector<!cir.int<s, 1> x 8>) -> !void
