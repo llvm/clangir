@@ -800,7 +800,8 @@ getComplexRangeAttr(LangOptions::ComplexRangeKind range) {
   case LangOptions::CX_Basic:
     return cir::ComplexRangeKind::Basic;
   case LangOptions::CX_None:
-    return cir::ComplexRangeKind::None;
+    // The default value for ComplexRangeKind is Full if no option is selected
+    return cir::ComplexRangeKind::Full;
   }
 }
 
