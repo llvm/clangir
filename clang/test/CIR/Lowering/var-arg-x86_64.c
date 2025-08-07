@@ -47,6 +47,7 @@ double f1(int n, ...) {
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
 // CIR: cir.va.start [[VASTED_VA_LIST]]
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
+// CIR: [[VAARG_RESULT:%.+]] = cir.scope
 // CIR: [[FP_OFFSET_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][1] {name = "fp_offset"}
 // CIR: [[FP_OFFSET:%.+]] = cir.load [[FP_OFFSET_P]]
 // CIR: [[OFFSET_CONSTANT:%.+]] = cir.const #cir.int<160>
@@ -75,7 +76,9 @@ double f1(int n, ...) {
 // CIR: ^[[ContBlock]]([[ARG:.+]]: !cir.ptr
 // CIR: [[CASTED_ARG_P:%.+]] = cir.cast(bitcast, [[ARG]]
 // CIR: [[CASTED_ARG:%.+]] = cir.load align(16) [[CASTED_ARG_P]]
-// CIR: cir.store{{.*}} [[CASTED_ARG]], [[RES]]
+// CIR: cir.yield [[CASTED_ARG]]
+//
+// CIR: cir.store{{.*}} [[VAARG_RESULT]], [[RES]]
 long double f2(int n, ...) {
   va_list valist;
   va_start(valist, n);
@@ -185,3 +188,23 @@ const char *f3(va_list args) {
 
 // ...
 // CIR:           cir.return
+
+void f4(va_list args) {
+  for (; va_arg(args, int); );
+}
+// CIR-LABEL:   cir.func dso_local @f4
+// CIR:           cir.for : cond {
+// CIR:             %[[VALIST:.*]] = cir.load align(8) %[[VALIST_VAR]] : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
+// CIR:             %[[VAARG_RESULT:.*]] = cir.scope {
+//                    ... // The contents are tested elsewhere.
+// CIR:               cir.yield {{.*}} : !s32i
+// CIR:             } : !s32i
+// CIR:             %[[CMP:.*]] = cir.cast(int_to_bool, %[[VAARG_RESULT]] : !s32i), !cir.bool
+// CIR:             cir.condition(%[[CMP]])
+// CIR:           } body {
+// CIR:             cir.yield
+// CIR:           } step {
+// CIR:             cir.yield
+// CIR:           }
+// CIR:           cir.return
+// CIR:         }
