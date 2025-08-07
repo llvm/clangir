@@ -129,7 +129,18 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
                                           builder, datalayout, valist, ty, loc),
                                       ty));
 
-  auto currentBlock = builder.getInsertionBlock();
+  mlir::OpBuilder::InsertPoint scopeIP;
+  auto scopeOp = builder.create<cir::ScopeOp>(
+      loc,
+      [&](mlir::OpBuilder &opBuilder, mlir::Type &yieldTy, mlir::Location loc) {
+        scopeIP = opBuilder.saveInsertionPoint();
+        yieldTy = op.getType();
+      });
+
+  mlir::Block *contBlock = scopeIP.getBlock();
+
+  mlir::Block *currentBlock = builder.createBlock(contBlock);
+  builder.setInsertionPointToEnd(currentBlock);
 
   // AMD64-ABI 3.5.7p5: Step 2. Compute num_gp to hold the number of
   // general purpose registers needed to pass type and num_fp to hold
@@ -163,7 +174,6 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
     inRegs = inRegs ? builder.createAnd(inRegs, fitsInFP) : fitsInFP;
   }
 
-  mlir::Block *contBlock = currentBlock->splitBlock(op);
   mlir::Block *inRegBlock = builder.createBlock(contBlock);
   mlir::Block *inMemBlock = builder.createBlock(contBlock);
   builder.setInsertionPointToEnd(currentBlock);
@@ -338,14 +348,19 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
       buildX86_64VAArgFromMemory(builder, datalayout, valist, ty, loc);
   builder.create<BrOp>(loc, mlir::ValueRange{memAddr}, contBlock);
 
-  // Return the appropriate result.
+  // Yield the appropriate result.
   builder.setInsertionPointToStart(contBlock);
   mlir::Value res_addr = contBlock->addArgument(regAddr.getType(), loc);
 
-  return alignment
-             ? builder.createAlignedLoad(
-                   loc, builder.createPtrBitcast(res_addr, ty), alignment)
-             : builder.createLoad(loc, builder.createPtrBitcast(res_addr, ty));
+  mlir::Value result =
+      alignment
+          ? builder.createAlignedLoad(
+                loc, builder.createPtrBitcast(res_addr, ty), alignment)
+          : builder.createLoad(loc, builder.createPtrBitcast(res_addr, ty));
+
+  builder.create<cir::YieldOp>(loc, result);
+
+  return scopeOp.getResult(0);
 }
 } // namespace
 
