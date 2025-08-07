@@ -114,13 +114,17 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
 
   // Access vtable to get the offset from the given object to its containing
   // complete object.
-  auto vtablePtrTy = builder.getPointerTo(vtableElemTy);
-  auto vtablePtrPtr =
-      builder.createBitcast(op.getSrc(), builder.getPointerTo(vtablePtrTy));
-  auto vtablePtr = builder.createLoad(loc, vtablePtrPtr);
-  auto offsetToTopSlotPtr = builder.create<cir::VTableAddrPointOp>(
-      loc, vtablePtrTy, mlir::FlatSymbolRefAttr{}, vtablePtr,
-      cir::AddressPointAttr::get(builder.getContext(), 0, -2));
+  // TODO: Add a specialized operation to get the object offset?
+  auto vptrTy = cir::VPtrType::get(builder.getContext());
+  auto vptrPtrTy = builder.getPointerTo(vptrTy);
+  auto vptrPtr =
+      builder.create<cir::VTableGetVPtrOp>(loc, vptrPtrTy, op.getSrc());
+  auto vptr = builder.createLoad(loc, vptrPtr);
+  auto elementPtr =
+      builder.createBitcast(vptr, builder.getPointerTo(vtableElemTy));
+  auto minusTwo = builder.getSignedInt(loc, -2, 64);
+  auto offsetToTopSlotPtr = builder.create<cir::PtrStrideOp>(
+      loc, builder.getPointerTo(vtableElemTy), elementPtr, minusTwo);
   auto offsetToTop =
       builder.createAlignedLoad(loc, offsetToTopSlotPtr, vtableElemAlign);
 

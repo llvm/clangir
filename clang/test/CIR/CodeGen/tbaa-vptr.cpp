@@ -9,7 +9,7 @@
 
 // NO-TBAA-NOT: !tbaa
 
-// CIR: #tbaa[[VPTR:.*]] = #cir.tbaa_vptr<type = !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
+// CIR: #tbaa[[VPTR:.*]] = #cir.tbaa_vptr<type = !cir.vptr>
 
 struct Member {
   ~Member();
@@ -26,7 +26,7 @@ struct B : A {
 B::~B() { }
 
 // CIR-LABEL: _ZN1BD2Ev
-// CIR: cir.store{{.*}} %{{.*}}, %{{.*}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>> tbaa(#tbaa[[VPTR]])
+// CIR: cir.store{{.*}} %{{.*}}, %{{.*}} : !cir.vptr, !cir.ptr<!cir.vptr> tbaa(#tbaa[[VPTR]])
 
 // LLVM-LABEL: _ZN1BD2Ev
 // LLVM: store ptr getelementptr inbounds nuw (i8, ptr @_ZTV1B, i64 16), ptr %{{.*}}, align 8, !tbaa ![[TBAA_VPTR:.*]]

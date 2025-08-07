@@ -957,7 +957,6 @@ public:
                          VisitedVirtualBasesSetTy &VBases, VPtrsVector &vptrs);
   /// Return the Value of the vtable pointer member pointed to by This.
   mlir::Value getVTablePtr(mlir::Location Loc, Address This,
-                           mlir::Type VTableTy,
                            const CXXRecordDecl *VTableClass);
 
   /// Returns whether we should perform a type checked load when loading a
