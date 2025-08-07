@@ -1937,6 +1937,8 @@ public:
 
   LValue emitComplexAssignmentLValue(const BinaryOperator *E);
   LValue emitComplexCompoundAssignmentLValue(const CompoundAssignOperator *E);
+  LValue emitScalarCompoundAssignWithComplex(const CompoundAssignOperator *E,
+                                             mlir::Value &Result);
 
   /// Emit the computation of the specified expression of complex type,
   /// returning the result.
