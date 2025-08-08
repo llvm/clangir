@@ -76,3 +76,30 @@ __m256i test_mm256_maskz_expandloadu_epi8(__mmask32 __U, void const* __P) {
    // LLVM: @llvm.masked.expandload.v32i8(ptr %{{.*}}, <32 x i1> %{{.*}}, <32 x i8> %{{.*}})
    return _mm256_maskz_expandloadu_epi8(__U, __P);
 }
+
+void test_mm256_mask_compressstoreu_epi16(void *__P, __mmask16 __U, __m256i __D) {
+  // CIR-LABEL: _mm256_mask_compressstoreu_epi16
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s16i x 16>, !cir.ptr<!cir.vector<!s16i x 16>>, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: @test_mm256_mask_compressstoreu_epi16
+  // LLVM: @llvm.masked.compressstore.v16i16(<16 x i16> %{{.*}}, ptr %{{.*}}, <16 x i1> %{{.*}})
+  _mm256_mask_compressstoreu_epi16(__P, __U, __D);
+}
+
+void test_mm_mask_compressstoreu_epi8(void *__P, __mmask16 __U, __m128i __D) {
+  // CIR-LABEL: _mm_mask_compressstoreu_epi8
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s8i x 16>, !cir.ptr<!cir.vector<!s8i x 16>>, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: @test_mm_mask_compressstoreu_epi8
+  // LLVM: @llvm.masked.compressstore.v16i8(<16 x i8> %{{.*}}, ptr %{{.*}}, <16 x i1> %{{.*}})
+  _mm_mask_compressstoreu_epi8(__P, __U, __D);
+}
+
+void test_mm256_mask_compressstoreu_epi8(void *__P, __mmask32 __U, __m256i __D) {
+  // CIR-LABEL: _mm256_mask_compressstoreu_epi8
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s8i x 32>, !cir.ptr<!cir.vector<!s8i x 32>>, !cir.vector<!cir.int<s, 1> x 32>) -> !void
+
+  // LLVM-LABEL: @test_mm256_mask_compressstoreu_epi8
+  // LLVM: @llvm.masked.compressstore.v32i8(<32 x i8> %{{.*}}, ptr %{{.*}}, <32 x i1> %{{.*}})
+  _mm256_mask_compressstoreu_epi8(__P, __U, __D);
+}
