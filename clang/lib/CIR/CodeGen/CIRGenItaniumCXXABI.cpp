@@ -992,7 +992,8 @@ mlir::Value CIRGenItaniumCXXABI::getVTableAddressPointInStructorWithVTT(
   VTTPtr = CGF.getBuilder().createVTTAddrPoint(Loc, VTTPtr.getType(), VTTPtr,
                                                VirtualPointerIndex);
   // And load the address point from the VTT.
-  return CGF.getBuilder().createAlignedLoad(Loc, CGF.VoidPtrTy, VTTPtr,
+  auto VPtrType = cir::VPtrType::get(CGF.getBuilder().getContext());
+  return CGF.getBuilder().createAlignedLoad(Loc, VPtrType, VTTPtr,
                                             CGF.getPointerAlign());
 }
 
