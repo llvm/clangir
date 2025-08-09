@@ -5935,6 +5935,18 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 }
 
 //===----------------------------------------------------------------------===//
+// LifetimeStartOp & LifetimeEndOp
+//===----------------------------------------------------------------------===//
+
+class CIR_LifetimeBaseOp<string mnemonic> : CIR_Op<mnemonic, []> {
+  let arguments = (ins I64Attr:$size, CIR_PointerType:$ptr);
+  let assemblyFormat = "$size `,` $ptr attr-dict `:` qualified(type($ptr))";
+}
+
+def LifetimeStartOp : CIR_LifetimeBaseOp<"lifetime.start">;
+def LifetimeEndOp : CIR_LifetimeBaseOp<"lifetime.end">;
+
+//===----------------------------------------------------------------------===//
 // Standard library function calls
 //===----------------------------------------------------------------------===//
 

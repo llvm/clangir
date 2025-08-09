@@ -515,7 +515,7 @@ public:
 
   /// True if we need to emit the life-time markers. This is initially set in
   /// the constructor, but could be overwrriten to true if this is a coroutine.
-  bool ShouldEmitLifetimeMarkers;
+  bool shouldEmitLifetimeMarkers;
 
   /// True if there are any operations in the body of the function that are
   /// likely to throw an exception.
@@ -2500,6 +2500,9 @@ public:
   mlir::LogicalResult emitWhileStmt(const clang::WhileStmt &S);
 
   mlir::Value emitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+
+  mlir::Attribute emitLifetimeStart(int64_t size, mlir::Value addr);
+  void emitLifetimeEnd(int64_t size, mlir::Value addr);
 
   /// CIR build helpers
   /// -----------------
