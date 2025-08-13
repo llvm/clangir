@@ -11,7 +11,7 @@ struct nested
 static const char * const test[] = {
   "test",
 };
-const struct nested data[] = 
+const struct nested data[] =
 {
     {
         {
@@ -25,4 +25,4 @@ const struct nested data[] =
     },
 };
 
-// LLVM: @data = constant [2 x {{.*}}]
+// LLVM: @data = constant { { { ptr } }, { { ptr } } }

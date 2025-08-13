@@ -9,6 +9,48 @@ typedef struct {
   long b;
 } T;
 
+// Test array initialization with different elements.
+typedef struct {
+     long a0;
+     int a1;
+} Inner;
+typedef struct {
+     int b0;
+     Inner b1[1];
+} Outer;
+Outer outers[2] = {
+    {1, {0, 1} },
+    {1, {0, 0} }
+};
+// CIR:  cir.global{{.*}} @outers =
+// CIR-SAME: #cir.const_record<{
+// CIR-SAME:   #cir.const_record<{
+// CIR-SAME:     #cir.int<1> : !s32i,
+// CIR-SAME:     #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>,
+// CIR-SAME:     #cir.const_array<[
+// CIR-SAME:       #cir.const_record<{#cir.int<0> : !s64i,
+// CIR-SAME:                          #cir.int<1> : !s32i,
+// CIR-SAME:                          #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>
+// CIR-SAME:       }> : !rec_anon_struct
+// CIR-SAME:     ]> : !cir.array<!rec_anon_struct x 1>
+// CIR-SAME:   }> : !rec_anon_struct2,
+// CIR-SAME:   #cir.const_record<{#cir.int<1> : !s32i,
+// CIR-SAME:                      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>,
+// CIR-SAME:                      #cir.zero : !cir.array<!rec_Inner x 1>
+// CIR-SAME:   }> : !rec_anon_struct1
+// CIR-SAME: }> : !rec_anon_struct3
+// LLVM: @outers = {{.*}}global
+// LLVM-SAME: {
+// LLVM-SAME:   { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] },
+// LLVM-SAME:   { i32, [4 x i8], [1 x %struct.Inner] }
+// LLVM-SAME: }
+// LLVM-SAME: {
+// LLVM-SAME:   { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] }
+// LLVM-SAME:    { i32 1, [4 x i8] zeroinitializer, [1 x { i64, i32, [4 x i8] }] [{ i64, i32, [4 x i8] } { i64 0, i32 1, [4 x i8] zeroinitializer }] },
+// LLVM-SAME:   { i32, [4 x i8], [1 x %struct.Inner] }
+// LLVM-SAME:    { i32 1, [4 x i8] zeroinitializer, [1 x %struct.Inner] zeroinitializer }
+// LLVM-SAME: }
+
 void buz(int x) {
   T arr[] = { {x, x}, {0, 0} };
 }
