@@ -4061,7 +4061,7 @@ mlir::LogicalResult CIRToLLVMSetBitfieldOpLowering::matchAndRewrite(
     assert(storageSize > size && "Invalid bitfield size.");
 
     mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-        op.getLoc(), intType, adaptor.getAddr(), /* alignment */ 0,
+        op.getLoc(), intType, adaptor.getAddr(), op.getAlignment(),
         op.getIsVolatile());
 
     srcVal =
@@ -4078,7 +4078,7 @@ mlir::LogicalResult CIRToLLVMSetBitfieldOpLowering::matchAndRewrite(
   }
 
   rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, adaptor.getAddr(),
-                                       /* alignment */ 0, op.getIsVolatile());
+                                       op.getAlignment(), op.getIsVolatile());
 
   auto resultTy = getTypeConverter()->convertType(op.getType());
 
@@ -4125,7 +4125,8 @@ mlir::LogicalResult CIRToLLVMGetBitfieldOpLowering::matchAndRewrite(
   auto intType = mlir::IntegerType::get(context, storageSize);
 
   mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-      op.getLoc(), intType, adaptor.getAddr(), 0, op.getIsVolatile());
+      op.getLoc(), intType, adaptor.getAddr(), op.getAlignment(),
+      op.getIsVolatile());
   val = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), intType, val);
 
   if (info.getIsSigned()) {
