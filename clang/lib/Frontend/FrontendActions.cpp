@@ -1136,6 +1136,7 @@ void PrintPreambleAction::ExecuteAction() {
   case Language::Unknown:
   case Language::Asm:
   case Language::LLVM_IR:
+  case Language::CIR:
     // We can't do anything with these.
     return;
   }

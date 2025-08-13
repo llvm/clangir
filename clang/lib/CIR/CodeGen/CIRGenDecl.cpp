@@ -772,6 +772,7 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   switch (D.getKind()) {
   case Decl::ImplicitConceptSpecialization:
   case Decl::HLSLBuffer:
+  case Decl::HLSLRootSignature:
   case Decl::TopLevelStmt:
   case Decl::OpenACCDeclare:
   case Decl::OpenACCRoutine:

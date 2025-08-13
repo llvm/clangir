@@ -1373,8 +1373,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(),
                                   cir::FnInfoOpts::None,
                                   llvm::ArrayRef<CanQualType>{},
-                                  noProto->getExtInfo(), {},
-                                  RequiredArgs::All);
+                                  noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 
   return arrangeFreeFunctionType(FTy.castAs<FunctionProtoType>());
