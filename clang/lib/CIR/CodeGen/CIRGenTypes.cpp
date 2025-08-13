@@ -372,6 +372,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 
   case Type::Builtin: {

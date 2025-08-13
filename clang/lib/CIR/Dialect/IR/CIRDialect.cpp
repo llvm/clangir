@@ -2491,10 +2491,9 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
   if (argAttrs.empty())
     return;
 
-  call_interface_impl::addArgAndResultAttrs(builder, result, argAttrs,
-                                            /*resultAttrs=*/std::nullopt,
-                                            getArgAttrsAttrName(result.name),
-                                            getResAttrsAttrName(result.name));
+  call_interface_impl::addArgAndResultAttrs(
+      builder, result, argAttrs, ArrayRef<DictionaryAttr>{},
+      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
 }
 
 ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {

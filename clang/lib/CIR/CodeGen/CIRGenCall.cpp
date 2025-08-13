@@ -1087,8 +1087,8 @@ CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
   // When translating an unprototyped function type, always use a
   // variadic type.
   return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
-                                cir::FnInfoOpts::None, std::nullopt,
-                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+                                cir::FnInfoOpts::None, {}, FTNP->getExtInfo(),
+                                {}, RequiredArgs(0));
 }
 
 const CIRGenFunctionInfo &
@@ -1370,7 +1370,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   // type.
   if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(),
-                                  cir::FnInfoOpts::None, std::nullopt,
+                                  cir::FnInfoOpts::None, {},
                                   noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 

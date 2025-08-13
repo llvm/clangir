@@ -1263,7 +1263,8 @@ public:
     case CIR::array_to_ptrdecay: {
       auto newDstType = llvm::cast<mlir::MemRefType>(convertTy(dstType));
       rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
-          op, newDstType, src, 0, std::nullopt, std::nullopt);
+          op, newDstType, src, 0, ArrayRef<int64_t>{}, ArrayRef<int64_t>{},
+          ArrayRef<mlir::NamedAttribute>{});
       return mlir::success();
     }
     case CIR::int_to_bool: {
@@ -1397,8 +1398,9 @@ class CIRGetElementOpLowering
     rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
         op, dstType, adaptor.getBase(),
         /* offset */ index,
-        /* sizes */ std::nullopt,
-        /* strides */ std::nullopt);
+        /* sizes */ ArrayRef<mlir::OpFoldResult>{},
+        /* strides */ ArrayRef<mlir::OpFoldResult>{},
+        /* attr */ ArrayRef<mlir::NamedAttribute>{});
 
     return mlir::success();
   }
@@ -1476,7 +1478,8 @@ public:
       stride = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
                                                          stride);
     rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
-        op, newDstType, base, stride, std::nullopt, std::nullopt);
+        op, newDstType, base, stride, mlir::ValueRange{}, mlir::ValueRange{},
+        llvm::ArrayRef<mlir::NamedAttribute>{});
     rewriter.eraseOp(baseOp);
     return mlir::success();
   }

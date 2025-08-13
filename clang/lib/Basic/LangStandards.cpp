@@ -21,6 +21,8 @@ StringRef clang::languageToString(Language L) {
     return "Asm";
   case Language::LLVM_IR:
     return "LLVM IR";
+  case Language::CIR:
+    return "ClangIR";
   case Language::C:
     return "C";
   case Language::CXX:
@@ -91,6 +93,7 @@ LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
   switch (Lang) {
   case Language::Unknown:
   case Language::LLVM_IR:
+  case Language::CIR:
   case Language::OpenCL:
     return LangStandard::lang_opencl12;
   case Language::OpenCLCXX:

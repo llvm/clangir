@@ -83,6 +83,7 @@ cir::TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
 
     case Type::ArrayParameter:
     case Type::HLSLAttributedResource:
+    case Type::HLSLInlineSpirv:
       llvm_unreachable("NYI");
 
     case Type::Auto:
@@ -1786,6 +1787,8 @@ void CIRGenFunction::emitVariablyModifiedType(QualType type) {
     case clang::Type::PackIndexing:
     case clang::Type::ArrayParameter:
     case clang::Type::HLSLAttributedResource:
+    case clang::Type::HLSLInlineSpirv:
+    case clang::Type::PredefinedSugar:
       llvm_unreachable("NYI");
 
 #define TYPE(Class, Base)

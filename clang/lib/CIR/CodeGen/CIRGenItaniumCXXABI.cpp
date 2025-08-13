@@ -1578,6 +1578,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   switch (Ty->getTypeClass()) {
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
@@ -1954,6 +1955,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   switch (Ty->getTypeClass()) {
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)

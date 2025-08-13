@@ -2029,7 +2029,7 @@ public:
 
   mlir::LogicalResult
   emitCXXForRangeStmt(const CXXForRangeStmt &S,
-                      llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+                      llvm::ArrayRef<const Attr *> Attrs = {});
 
   RValue emitCXXMemberCallExpr(const clang::CXXMemberCallExpr *E,
                                ReturnValueSlot ReturnValue);
@@ -2387,9 +2387,8 @@ public:
 
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.
-  mlir::LogicalResult
-  emitStmt(const clang::Stmt *S, bool useCurrentScope,
-           llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+  mlir::LogicalResult emitStmt(const clang::Stmt *S, bool useCurrentScope,
+                               llvm::ArrayRef<const Attr *> Attrs = {});
 
   LValue emitStmtExprLValue(const StmtExpr *E);
 
