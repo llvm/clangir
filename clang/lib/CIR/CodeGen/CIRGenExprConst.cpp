@@ -1670,6 +1670,68 @@ ConstantEmitter::tryEmitAbstractForInitializer(const VarDecl &D) {
   return validateAndPopAbstract(C, state);
 }
 
+static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
+                                        bool asCompleteObject) {
+  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
+  mlir::Type ty = (asCompleteObject ? layout.getCIRType()
+                                    : layout.getBaseSubobjectCIRType());
+  auto record = dyn_cast<cir::RecordType>(ty);
+  assert(record && "expected");
+
+  unsigned numElements = record.getNumElements();
+  SmallVector<mlir::Attribute, 4> elements(numElements);
+
+  auto CXXR = dyn_cast<CXXRecordDecl>(rd);
+  // Fill in all the bases.
+  if (CXXR) {
+    for (const auto &I : CXXR->bases()) {
+      if (I.isVirtual()) {
+        // Ignore virtual bases; if we're laying out for a complete
+        // object, we'll lay these out later.
+        continue;
+      }
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Fill in all the fields.
+  for (const auto *Field : rd->fields()) {
+    // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
+    // will fill in later.)
+    if (!Field->isBitField()) {
+      // TODO(cir) check for !isEmptyFieldForLayout(CGM.getContext(), Field))
+      llvm_unreachable("NYI");
+    }
+
+    // For unions, stop after the first named field.
+    if (rd->isUnion()) {
+      if (Field->getIdentifier())
+        break;
+      if (const auto *FieldRD = Field->getType()->getAsRecordDecl())
+        if (FieldRD->findFirstNamedDataMember())
+          break;
+    }
+  }
+
+  // Fill in the virtual bases, if we're working with the complete object.
+  if (CXXR && asCompleteObject) {
+    for ([[maybe_unused]] const auto &I : CXXR->vbases()) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Now go through all other fields and zero them out.
+  for (unsigned i = 0; i != numElements; ++i) {
+    if (!elements[i]) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  mlir::MLIRContext *mlirContext = record.getContext();
+  return cir::ConstRecordAttr::get(record,
+                                   mlir::ArrayAttr::get(mlirContext, elements));
+}
+
 mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   // Make a quick check if variable can be default NULL initialized
   // and avoid going through rest of code which may do, for c++11,
@@ -2073,68 +2135,6 @@ mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
   auto cstOp = CGM.emitNullConstant(T, loc).getDefiningOp<cir::ConstantOp>();
   assert(cstOp && "expected cir.const op");
   return emitForMemory(CGM, cstOp.getValue(), T);
-}
-
-static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
-                                        bool asCompleteObject) {
-  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
-  mlir::Type ty = (asCompleteObject ? layout.getCIRType()
-                                    : layout.getBaseSubobjectCIRType());
-  auto record = dyn_cast<cir::RecordType>(ty);
-  assert(record && "expected");
-
-  unsigned numElements = record.getNumElements();
-  SmallVector<mlir::Attribute, 4> elements(numElements);
-
-  auto CXXR = dyn_cast<CXXRecordDecl>(rd);
-  // Fill in all the bases.
-  if (CXXR) {
-    for (const auto &I : CXXR->bases()) {
-      if (I.isVirtual()) {
-        // Ignore virtual bases; if we're laying out for a complete
-        // object, we'll lay these out later.
-        continue;
-      }
-      llvm_unreachable("NYI");
-    }
-  }
-
-  // Fill in all the fields.
-  for (const auto *Field : rd->fields()) {
-    // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
-    // will fill in later.)
-    if (!Field->isBitField()) {
-      // TODO(cir) check for !isEmptyFieldForLayout(CGM.getContext(), Field))
-      llvm_unreachable("NYI");
-    }
-
-    // For unions, stop after the first named field.
-    if (rd->isUnion()) {
-      if (Field->getIdentifier())
-        break;
-      if (const auto *FieldRD = Field->getType()->getAsRecordDecl())
-        if (FieldRD->findFirstNamedDataMember())
-          break;
-    }
-  }
-
-  // Fill in the virtual bases, if we're working with the complete object.
-  if (CXXR && asCompleteObject) {
-    for ([[maybe_unused]] const auto &I : CXXR->vbases()) {
-      llvm_unreachable("NYI");
-    }
-  }
-
-  // Now go through all other fields and zero them out.
-  for (unsigned i = 0; i != numElements; ++i) {
-    if (!elements[i]) {
-      llvm_unreachable("NYI");
-    }
-  }
-
-  mlir::MLIRContext *mlirContext = record.getContext();
-  return cir::ConstRecordAttr::get(record,
-                                   mlir::ArrayAttr::get(mlirContext, elements));
 }
 
 mlir::TypedAttr
