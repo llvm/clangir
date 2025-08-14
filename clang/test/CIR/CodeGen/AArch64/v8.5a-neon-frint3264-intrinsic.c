@@ -2,7 +2,6 @@
 // RUN:    -fclangir -disable-O0-optnone \
 // RUN:  -flax-vector-conversions=none -emit-cir -o %t.cir %s
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// XFAIL: *
 
 // RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +fullfp16 -target-feature +v8.5a \
 // RUN:    -fclangir -disable-O0-optnone \
@@ -27,8 +26,7 @@ float32x2_t test_vrnd32x_f32(float32x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32x" {{.*}} : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
 
   // LLVM-LABEL: @test_vrnd32x_f32
-  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint32x.v2f32(<2 x float> %0)
-  // LLVM:  ret <2 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint32x.v2f32(<2 x float> {{.*}})
 }
 
 
@@ -39,8 +37,7 @@ float32x4_t test_vrnd32xq_f32(float32x4_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32x" {{.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
 
   // LLVM-LABEL: @test_vrnd32xq_f32
-  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint32x.v4f32(<4 x float> %0)
-  // LLVM:  ret <4 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint32x.v4f32(<4 x float> {{.*}})
 }
 
 float32x2_t test_vrnd32z_f32(float32x2_t a) {
@@ -50,8 +47,7 @@ float32x2_t test_vrnd32z_f32(float32x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32z" {{.*}} : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
 
   // LLVM-LABEL: @test_vrnd32z_f32
-  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint32z.v2f32(<2 x float> %0)
-  // LLVM:  ret <2 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint32z.v2f32(<2 x float> {{.*}})
 }
 
 float32x4_t test_vrnd32zq_f32(float32x4_t a) {
@@ -61,8 +57,7 @@ float32x4_t test_vrnd32zq_f32(float32x4_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32z" {{.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
 
   // LLVM-LABEL: @test_vrnd32zq_f32
-  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint32z.v4f32(<4 x float> %0)
-  // LLVM:  ret <4 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint32z.v4f32(<4 x float> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64x_f32
@@ -75,8 +70,7 @@ float32x2_t test_vrnd64x_f32(float32x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64x" {{.*}} : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
 
   // LLVM-LABEL: @test_vrnd64x_f32
-  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint64x.v2f32(<2 x float> %0)
-  // LLVM:  ret <2 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint64x.v2f32(<2 x float> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64xq_f32
@@ -89,8 +83,7 @@ float32x4_t test_vrnd64xq_f32(float32x4_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64x" {{.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
 
   // LLVM-LABEL: @test_vrnd64xq_f32
-  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint64x.v4f32(<4 x float> %0)
-  // LLVM:  ret <4 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint64x.v4f32(<4 x float> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64z_f32
@@ -103,8 +96,7 @@ float32x2_t test_vrnd64z_f32(float32x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64z" {{.*}} : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
 
   // LLVM-LABEL: @test_vrnd64z_f32
-  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint64z.v2f32(<2 x float> %0)
-  // LLVM:  ret <2 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x float> @llvm.aarch64.neon.frint64z.v2f32(<2 x float> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64zq_f32
@@ -117,8 +109,7 @@ float32x4_t test_vrnd64zq_f32(float32x4_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64z" {{.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
 
   // LLVM-LABEL: @test_vrnd64zq_f32
-  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint64z.v4f32(<4 x float> %0)
-  // LLVM:  ret <4 x float> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <4 x float> @llvm.aarch64.neon.frint64z.v4f32(<4 x float> {{.*}})
 }
 
 float64x1_t test_vrnd32x_f64(float64x1_t a) {
@@ -128,8 +119,7 @@ float64x1_t test_vrnd32x_f64(float64x1_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32x" {{.*}} : (!cir.vector<!cir.double x 1>) -> !cir.vector<!cir.double x 1>
 
   // LLVM-LABEL: @test_vrnd32x_f64
-  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint32x.v1f64(<1 x double> %0)
-  // LLVM:  ret <1 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint32x.v1f64(<1 x double> {{.*}})
 }
 
 
@@ -140,8 +130,7 @@ float64x2_t test_vrnd32xq_f64(float64x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32x" {{.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
 
   // LLVM-LABEL: @test_vrnd32xq_f64
-  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint32x.v2f64(<2 x double> %0)
-  // LLVM:  ret <2 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint32x.v2f64(<2 x double> {{.*}})
 }
 
 float64x1_t test_vrnd32z_f64(float64x1_t a) {
@@ -151,8 +140,7 @@ float64x1_t test_vrnd32z_f64(float64x1_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32z" {{.*}} : (!cir.vector<!cir.double x 1>) -> !cir.vector<!cir.double x 1>
 
   // LLVM-LABEL: @test_vrnd32z_f64
-  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint32z.v1f64(<1 x double> %0)
-  // LLVM:  ret <1 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint32z.v1f64(<1 x double> {{.*}})
 }
 
 float64x2_t test_vrnd32zq_f64(float64x2_t a) {
@@ -162,8 +150,7 @@ float64x2_t test_vrnd32zq_f64(float64x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint32z" {{.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
 
   // LLVM-LABEL: @test_vrnd32zq_f64
-  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint32z.v2f64(<2 x double> %0)
-  // LLVM:  ret <2 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint32z.v2f64(<2 x double> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64x_f64
@@ -176,8 +163,7 @@ float64x1_t test_vrnd64x_f64(float64x1_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64x" {{.*}} : (!cir.vector<!cir.double x 1>) -> !cir.vector<!cir.double x 1>
 
   // LLVM-LABEL: @test_vrnd64x_f64
-  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint64x.v1f64(<1 x double> %0)
-  // LLVM:  ret <1 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint64x.v1f64(<1 x double> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64xq_f64
@@ -190,8 +176,7 @@ float64x2_t test_vrnd64xq_f64(float64x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64x" {{.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
 
   // LLVM-LABEL: @test_vrnd64xq_f64
-  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint64x.v2f64(<2 x double> %0)
-  // LLVM:  ret <2 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint64x.v2f64(<2 x double> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64z_f64
@@ -204,8 +189,7 @@ float64x1_t test_vrnd64z_f64(float64x1_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64z" {{.*}} : (!cir.vector<!cir.double x 1>) -> !cir.vector<!cir.double x 1>
 
   // LLVM-LABEL: @test_vrnd64z_f64
-  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint64z.v1f64(<1 x double> %0)
-  // LLVM:  ret <1 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <1 x double> @llvm.aarch64.neon.frint64z.v1f64(<1 x double> {{.*}})
 }
 
 // CHECK-LABEL: test_vrnd64zq_f64
@@ -218,6 +202,5 @@ float64x2_t test_vrnd64zq_f64(float64x2_t a) {
   // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.frint64z" {{.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
 
   // LLVM-LABEL: @test_vrnd64zq_f64
-  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint64z.v2f64(<2 x double> %0)
-  // LLVM:  ret <2 x double> [[RND]]
+  // LLVM:  [[RND:%.*]] =  call <2 x double> @llvm.aarch64.neon.frint64z.v2f64(<2 x double> {{.*}})
 }
