@@ -1,6 +1,5 @@
 // RUN: cir-opt %s -cir-to-llvm -o - | FileCheck %s -check-prefix=MLIR
 // RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering  | FileCheck %s -check-prefix=LLVM
-// XFAIL: *
 
 !s32i = !cir.int<s, 32>
 module {
@@ -116,7 +115,7 @@ module {
   // LLVM:   %{{.+}} = call i32 @add(i32 0, i32 1) #[[#pure:]]
   // LLVM:   %{{.+}} = call i32 @add(i32 0, i32 1) #[[#const:]]
   // LLVM: }
-  // LLVM: attributes #[[#pure]] = { nounwind willreturn memory(read) }
+  // LLVM: attributes #[[#pure]] = { nounwind willreturn memory(read, errnomem: none) }
   // LLVM: attributes #[[#const]] = { nounwind willreturn memory(none) }
 
 } // end module
