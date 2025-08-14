@@ -292,6 +292,9 @@ public:
     return true;
   }
 
+  /// Create a null member pointer of the given type.
+  virtual mlir::TypedAttr emitNullMemberPointer(clang::QualType T);
+
   /// Gets the offsets of all the virtual base pointers in a given class.
   virtual std::vector<CharUnits> getVBPtrOffsets(const CXXRecordDecl *RD);
 

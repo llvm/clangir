@@ -86,6 +86,10 @@ bool CIRGenCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return true;
 }
 
+mlir::TypedAttr CIRGenCXXABI::emitNullMemberPointer(clang::QualType T) {
+  llvm_unreachable("NYI");
+}
+
 CharUnits CIRGenCXXABI::getArrayCookieSize(const CXXNewExpr *E) {
   if (!requiresArrayCookie(E))
     return CharUnits::Zero();
