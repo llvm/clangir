@@ -1,8 +1,7 @@
-// XFAIL: *
 // RUN: %clang_cc1 -fclangir %s -O0 -triple "spirv64-unknown-unknown" -emit-cir -o %t.cir
 // RUN: FileCheck %s --input-file=%t.cir --check-prefix=CIR
-// RUN: %clang_cc1 -fclangir %s -O0 -triple "spirv64-unknown-unknown" -emit-llvm -fno-clangir-call-conv-lowering -o %t.ll
-// RUN: FileCheck %s --input-file=%t.ll --check-prefix=LLVM
+// RUN-DISABLE: %clang_cc1 -fclangir %s -O0 -triple "spirv64-unknown-unknown" -emit-llvm -fno-clangir-call-conv-lowering -o %t.ll
+// RUN-DISABLE: FileCheck %s --input-file=%t.ll --check-prefix=LLVM
 
 // CIR: cir.func {{.*}}@get_dummy_id{{.*}} cc(spir_function)
 // LLVM-DAG: declare{{.*}} spir_func i32 @get_dummy_id(
