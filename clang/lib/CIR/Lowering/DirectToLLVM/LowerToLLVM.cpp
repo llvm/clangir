@@ -2052,9 +2052,24 @@ mlir::LogicalResult CIRToLLVMVecCmpOpLowering::matchAndRewrite(
   auto elementType = elementTypeIfVector(op.getLhs().getType());
   mlir::Value bitResult;
   if (auto intType = mlir::dyn_cast<cir::IntType>(elementType)) {
+
+    auto isCIRZeroVector = [](mlir::Value value) {
+      if (auto constantOp = value.getDefiningOp<cir::ConstantOp>())
+        if (auto zeroAttr =
+                mlir::dyn_cast<cir::ZeroAttr>(constantOp.getValue()))
+          return true;
+      return false;
+    };
+
+    bool shouldUseSigned = intType.isSigned();
+    // Special treatment for sign-bit extraction patterns (lt comparison with
+    // zero), always use signed comparison to preserve the semantic intent
+    if (op.getKind() == cir::CmpOpKind::lt && isCIRZeroVector(op.getRhs()))
+      shouldUseSigned = true;
+
     bitResult = rewriter.create<mlir::LLVM::ICmpOp>(
         op.getLoc(),
-        convertCmpKindToICmpPredicate(op.getKind(), intType.isSigned()),
+        convertCmpKindToICmpPredicate(op.getKind(), shouldUseSigned),
         adaptor.getLhs(), adaptor.getRhs());
   } else if (mlir::isa<cir::FPTypeInterface>(elementType)) {
     bitResult = rewriter.create<mlir::LLVM::FCmpOp>(
