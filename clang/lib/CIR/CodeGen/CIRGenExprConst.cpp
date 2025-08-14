@@ -1670,6 +1670,44 @@ ConstantEmitter::tryEmitAbstractForInitializer(const VarDecl &D) {
   return validateAndPopAbstract(C, state);
 }
 
+// FIXME(cir): both these helpers belong to ABInfoImpl.cpp in OG, but this
+// file in CIR sits in TargetLowering instead, which won't make sense here since
+// they are all AST queries, should belong in a shared location with OG helpers.
+bool isEmptyRecordForLayout(const ASTContext &Context, QualType T);
+bool isEmptyFieldForLayout(const ASTContext &ctx, const FieldDecl *fd) {
+  if (fd->isZeroLengthBitField())
+    return true;
+
+  if (fd->isUnnamedBitField())
+    return false;
+
+  return isEmptyRecordForLayout(ctx, fd->getType());
+}
+
+bool isEmptyRecordForLayout(const ASTContext &ctx, QualType t) {
+  const RecordType *rt = t->getAs<RecordType>();
+  if (!rt)
+    return false;
+
+  const RecordDecl *rd = rt->getDecl();
+
+  // If this is a C++ record, check the bases first.
+  if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(rd)) {
+    if (CXXRD->isDynamicClass())
+      return false;
+
+    for (const auto &I : CXXRD->bases())
+      if (!isEmptyRecordForLayout(ctx, I.getType()))
+        return false;
+  }
+
+  for (const auto *I : rd->fields())
+    if (!isEmptyFieldForLayout(ctx, I))
+      return false;
+
+  return true;
+}
+
 static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
                                         bool asCompleteObject) {
   const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
@@ -1698,8 +1736,8 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
   for (const auto *Field : rd->fields()) {
     // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
     // will fill in later.)
-    if (!Field->isBitField()) {
-      // TODO(cir) check for !isEmptyFieldForLayout(CGM.getContext(), Field))
+    if (!Field->isBitField() &&
+        !isEmptyFieldForLayout(CGM.getASTContext(), Field)) {
       llvm_unreachable("NYI");
     }
 
