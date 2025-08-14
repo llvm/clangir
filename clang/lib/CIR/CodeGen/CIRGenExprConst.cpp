@@ -2094,12 +2094,16 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
 }
 
 mlir::Value CIRGenModule::emitNullConstant(QualType T, mlir::Location loc) {
+  return builder.getConstant(loc, emitNullConstant(T));
+}
+
+mlir::TypedAttr CIRGenModule::emitNullConstant(QualType T) {
   if (T->getAs<PointerType>()) {
-    return builder.getNullPtr(getTypes().convertTypeForMem(T), loc);
+    return builder.getConstNullPtrAttr(getTypes().convertTypeForMem(T));
   }
 
   if (getTypes().isZeroInitializable(T))
-    return builder.getNullValue(getTypes().convertTypeForMem(T), loc);
+    return builder.getZeroInitAttr(getTypes().convertTypeForMem(T));
 
   if (getASTContext().getAsConstantArrayType(T)) {
     llvm_unreachable("NYI");
