@@ -1,6 +1,9 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t1.cir 2>&1 | FileCheck -check-prefix=BEFORE %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-lowering-prepare %s -o %t2.cir 2>&1 | FileCheck -check-prefix=AFTER %s
-
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir &> %t1.cir
+// RUN: FileCheck --input-file=%t1.cir -check-prefix=BEFORE %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-lowering-prepare %s -o %t.cir &> %t2.cir
+// RUN: FileCheck --input-file=%t2.cir -check-prefix=AFTER %s
+// Note: The run lines above send the final CIR to %t.cir, but that's ignored.
+//       The test checks the CIR before and after the cir-lowering-prepare pass.
 void foo() noexcept;
 
 class xpto {
@@ -53,10 +56,21 @@ void x() {
 // AFTER:   %[[ExitCond:.*]] = cir.cmp(ne, %[[ArrayElt]], %[[ArrayPastEnd]]) : !cir.ptr<!rec_xpto>, !cir.bool
 // AFTER:   cir.condition(%[[ExitCond]])
 // AFTER: }
-
+// AFTER: %[[ConstTwo:.*]] = cir.const #cir.int<2> : !u64i
+// AFTER: %[[ArrayBegin:.*]] = cir.cast(array_to_ptrdecay, %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>>), !cir.ptr<!rec_xpto>
+// AFTER: %[[ArrayPastEnd:.*]] = cir.ptr_stride(%[[ArrayBegin]] : !cir.ptr<!rec_xpto>, %[[ConstTwo]] : !u64i), !cir.ptr<!rec_xpto>
+// AFTER: %[[TmpIdx:.*]] = cir.alloca !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>, ["__array_idx"] {alignment = 1 : i64}
+// AFTER: cir.store %[[ArrayBegin]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
 // AFTER: cir.do {
-// AFTER:   cir.call @_ZN4xptoD1Ev({{.*}}) : (!cir.ptr<!rec_xpto>) -> ()
+// AFTER:   %[[ArrayElt:.*]] = cir.load %[[TmpIdx]] : !cir.ptr<!cir.ptr<!rec_xpto>>, !cir.ptr<!rec_xpto>
+// AFTER:   %[[ConstOne:.*]] = cir.const #cir.int<1> : !u64i
+// AFTER:   cir.call @_ZN4xptoD1Ev(%[[ArrayElt]]) : (!cir.ptr<!rec_xpto>) -> ()
+// AFTER:   %[[NextElt:.*]] = cir.ptr_stride(%[[ArrayElt]] : !cir.ptr<!rec_xpto>, %[[ConstOne]] : !u64i), !cir.ptr<!rec_xpto>
+// AFTER:   cir.store %[[NextElt]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
+// AFTER:   cir.yield
 // AFTER: } while {
+// AFTER:   %[[ArrayElt:.*]] = cir.load %[[TmpIdx]] : !cir.ptr<!cir.ptr<!rec_xpto>>, !cir.ptr<!rec_xpto>
+// AFTER:   %[[ExitCond:.*]] = cir.cmp(ne, %[[ArrayElt]], %[[ArrayPastEnd]]) : !cir.ptr<!rec_xpto>, !cir.bool
+// AFTER:   cir.condition(%[[ExitCond]])
 // AFTER: }
-
 // AFTER: cir.return
