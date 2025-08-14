@@ -734,6 +734,7 @@ public:
   /// expression of the given type.  This is usually, but not always, an LLVM
   /// null constant.
   mlir::Value emitNullConstant(QualType T, mlir::Location loc);
+  mlir::TypedAttr emitNullConstant(QualType T);
 
   /// Return a null constant appropriate for zero-initializing a base class with
   /// the given type. This is usually, but not always, an LLVM null constant.
