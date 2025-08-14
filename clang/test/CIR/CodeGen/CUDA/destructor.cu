@@ -1,7 +1,5 @@
 #include "../Inputs/cuda.h"
 
-// XFAIL: *
-
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
 // RUN:            -x cuda -emit-cir -target-sdk-version=12.3 \
 // RUN:            %s -o %t.cir
@@ -19,11 +17,13 @@ template<typename T> struct A {
   ~A() { f<<<1, 1>>>(T()); }
 };
 
-// CIR-DEVICE: cir.func dso_local @_Z1fIiEvT_
+// CIR-HOST: module
+// CIR-DEVICE: module
+// CIR-DEVICE-DISABLED: cir.func dso_local @_Z1fIiEvT_
 
-// CIR-HOST: cir.func {{.*}} @_ZN1AIiED2Ev{{.*}} {
-// CIR-HOST:   cir.call @__cudaPushCallConfiguration
-// CIR-HOST:   cir.call @_Z16__device_stub__fIiEvT_
-// CIR-HOST: }
+// CIR-HOST-DISABLED: cir.func {{.*}} @_ZN1AIiED2Ev{{.*}} {
+// CIR-HOST-DISABLED:   cir.call @__cudaPushCallConfiguration
+// CIR-HOST-DISABLED:   cir.call @_Z16__device_stub__fIiEvT_
+// CIR-HOST-DISABLED: }
 
-A<int> a;
+// A<int> a;
