@@ -428,8 +428,13 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_UserDefinedConversion:
     llvm_unreachable("NYI");
 
-  case CK_LValueBitCast:
-    llvm_unreachable("NYI");
+  case CK_LValueBitCast: {
+    LValue origLV = CGF.emitLValue(Op);
+    Address addr =
+        origLV.getAddress().withElementType(Builder, CGF.convertType(DestTy));
+    LValue destLV = CGF.makeAddrLValue(addr, DestTy);
+    return emitLoadOfLValue(destLV, Op->getExprLoc());
+  }
 
   case CK_LValueToRValueBitCast: {
     LValue SourceLVal = CGF.emitLValue(Op);
