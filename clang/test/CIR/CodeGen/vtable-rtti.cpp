@@ -46,7 +46,7 @@ public:
 // CHECK:   %2 = cir.base_class_addr %1 : !cir.ptr<![[ClassB]]> nonnull [0] -> !cir.ptr<![[ClassA]]>
 // CHECK:   cir.call @_ZN1AC2Ev(%2) : (!cir.ptr<![[ClassA]]>) -> ()
 // CHECK:   %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.vptr
-// CHECK:   %4 = cir.cast(bitcast, %1 : !cir.ptr<![[ClassB]]>), !cir.ptr<!cir.vptr>
+// CHECK:   %4 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
 // CHECK:   cir.store{{.*}} %3, %4 : !cir.vptr, !cir.ptr<!cir.vptr>
 // CHECK:   cir.return
 // CHECK: }
@@ -74,7 +74,7 @@ public:
 // CHECK:    cir.store{{.*}} %arg0, %0 : !cir.ptr<![[ClassA]]>, !cir.ptr<!cir.ptr<![[ClassA]]>>
 // CHECK:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<![[ClassA]]>>, !cir.ptr<![[ClassA]]>
 // CHECK:    %2 = cir.vtable.address_point(@_ZTV1A, address_point = <index = 0, offset = 2>) : !cir.vptr
-// CHECK:    %3 = cir.cast(bitcast, %1 : !cir.ptr<![[ClassA]]>), !cir.ptr<!cir.vptr>
+// CHECK:    %3 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
 // CHECK:    cir.store{{.*}} %2, %3 : !cir.vptr, !cir.ptr<!cir.vptr>
 // CHECK:    cir.return
 // CHECK:  }

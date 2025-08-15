@@ -795,10 +795,10 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   }
 
   // Apply the offsets.
-  Address VTableField = LoadCXXThisAddress();
+  Address ClassAddr = LoadCXXThisAddress();
   if (!NonVirtualOffset.isZero() || VirtualOffset) {
-    VTableField = ApplyNonVirtualAndVirtualOffset(
-        loc, *this, VTableField, NonVirtualOffset, VirtualOffset,
+    ClassAddr = ApplyNonVirtualAndVirtualOffset(
+        loc, *this, ClassAddr, NonVirtualOffset, VirtualOffset,
         Vptr.VTableClass, Vptr.NearestVBase, BaseValueTy);
   }
 
@@ -806,13 +806,10 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   //
   // vtable field is derived from `this` pointer, therefore they should be in
   // the same addr space.
-  // TODO(cir): We should be using cir.get_vptr rather than a bitcast to get
-  //            the vptr field, but the call to ApplyNonVirtualAndVirtualOffset
-  //            will also need to be adjusted. That should probably be using
-  //            cir.base_class_addr.
   assert(!cir::MissingFeatures::addressSpace());
-  VTableField = builder.createElementBitCast(loc, VTableField,
-                                             VTableAddressPoint.getType());
+  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
+      loc, builder.getPtrToVPtrType(), ClassAddr.getPointer());
+  Address VTableField = Address(VTablePtr, ClassAddr.getAlignment());
   auto storeOp = builder.createStore(loc, VTableAddressPoint, VTableField);
   TBAAAccessInfo TBAAInfo =
       CGM.getTBAAVTablePtrAccessInfo(VTableAddressPoint.getType());

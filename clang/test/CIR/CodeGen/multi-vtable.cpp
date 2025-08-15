@@ -40,7 +40,7 @@ int main() {
 
 // CIR: cir.func linkonce_odr @_ZN6MotherC2Ev(%arg0: !cir.ptr<!rec_Mother>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, address_point = <index = 0, offset = 2>) : !cir.vptr
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Mother>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_Mother> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %2, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR:   cir.return
 // CIR: }
@@ -53,11 +53,11 @@ int main() {
 
 // CIR: cir.func linkonce_odr @_ZN5ChildC2Ev(%arg0: !cir.ptr<!rec_Child>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 0, offset = 2>) : !cir.vptr
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Child>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Child> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 1, offset = 2>) : !cir.vptr
 // CIR:   %7 = cir.base_class_addr %1 : !cir.ptr<!rec_Child> nonnull [8] -> !cir.ptr<!rec_Father>
-// CIR:   %8 = cir.cast(bitcast, %7 : !cir.ptr<!rec_Father>), !cir.ptr<!cir.vptr>
+// CIR:   %8 = cir.vtable.get_vptr %7 : !cir.ptr<!rec_Father> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR:   cir.return
 // CIR: }
