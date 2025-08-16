@@ -2962,29 +2962,16 @@ def CIR_GetMemberOp : CIR_Op<"get_member"> {
   let arguments = (ins
     Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
     StrAttr:$name,
-    IndexAttr:$index_attr);
+    I64Attr:$index);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
 
   let assemblyFormat = [{
-    $addr `[` $index_attr `]` attr-dict
+    $addr `[` $index `]` attr-dict
     `:` qualified(type($addr)) `->` qualified(type($result))
   }];
 
-  let builders = [
-    OpBuilder<(ins "mlir::Type":$type,
-                   "mlir::Value":$value,
-                   "llvm::StringRef":$name,
-                   "unsigned":$index),
-    [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, type, value, name, fieldIdx);
-    }]>
-  ];
-
   let extraClassDeclaration = [{
-    /// Return the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
 
     /// Return the record type pointed by the base pointer.
     cir::PointerType getAddrTy() { return getAddr().getType(); }

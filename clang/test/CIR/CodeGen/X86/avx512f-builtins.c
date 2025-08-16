@@ -337,3 +337,39 @@ __m512i test_mm512_maskz_expandloadu_epi32(__mmask16 __U, void const *__P) {
   // LLVM: @llvm.masked.expandload.v16i32(ptr %{{.*}}, <16 x i1> %{{.*}}, <16 x i32> %{{.*}})
   return _mm512_maskz_expandloadu_epi32(__U, __P); 
 }
+
+void test_mm512_mask_compressstoreu_pd(void *__P, __mmask8 __U, __m512d __A) {
+  // CIR-LABEL: _mm512_mask_compressstoreu_pd
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!cir.double x 8>, !cir.ptr<!cir.vector<!cir.double x 8>>, !cir.vector<!cir.int<s, 1> x 8>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_compressstoreu_pd
+  // LLVM: @llvm.masked.compressstore.v8f64(<8 x double> %{{.*}}, ptr %{{.*}}, <8 x i1> %{{.*}})
+  return _mm512_mask_compressstoreu_pd(__P, __U, __A); 
+}
+
+void test_mm512_mask_compressstoreu_ps(void *__P, __mmask16 __U, __m512 __A) {
+  // CIR-LABEL: _mm512_mask_compressstoreu_ps
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!cir.float x 16>, !cir.ptr<!cir.vector<!cir.float x 16>>, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_compressstoreu_ps
+  // LLVM: @llvm.masked.compressstore.v16f32(<16 x float> %{{.*}}, ptr %{{.*}}, <16 x i1> %{{.*}})
+  return _mm512_mask_compressstoreu_ps(__P, __U, __A); 
+}
+
+void test_mm512_mask_compressstoreu_epi64(void *__P, __mmask8 __U, __m512i __A) {
+  // CIR-LABEL: _mm512_mask_compressstoreu_epi64
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s64i x 8>, !cir.ptr<!cir.vector<!s64i x 8>>, !cir.vector<!cir.int<s, 1> x 8>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_compressstoreu_epi64
+  // LLVM: @llvm.masked.compressstore.v8i64(<8 x i64> %{{.*}}, ptr %{{.*}}, <8 x i1> %{{.*}})
+  return _mm512_mask_compressstoreu_epi64(__P, __U, __A); 
+}
+
+void test_mm512_mask_compressstoreu_epi32(void *__P, __mmask16 __U, __m512i __A) {
+  // CIR-LABEL: _mm512_mask_compressstoreu_epi32
+  // CIR: cir.llvm.intrinsic "masked.compressstore" %{{.*}}, %{{.*}}, %{{.*}} : (!cir.vector<!s32i x 16>, !cir.ptr<!cir.vector<!s32i x 16>>, !cir.vector<!cir.int<s, 1> x 16>) -> !void
+
+  // LLVM-LABEL: test_mm512_mask_compressstoreu_epi32
+  // LLVM: @llvm.masked.compressstore.v16i32(<16 x i32> %{{.*}}, ptr %{{.*}}, <16 x i1> %{{.*}})
+  return _mm512_mask_compressstoreu_epi32(__P, __U, __A); 
+}

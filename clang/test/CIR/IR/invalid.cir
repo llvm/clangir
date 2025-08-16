@@ -1,6 +1,5 @@
 // Test attempts to build bogus CIR
 // RUN: cir-opt %s -verify-diagnostics -split-input-file
-// XFAIL: *
 
 !u32i = !cir.int<u, 32>
 
@@ -1259,7 +1258,7 @@ cir.func @address_space3(%p : !cir.ptr<!u64i, addrspace(target)>) {
 // -----
 
 !u64i = !cir.int<u, 64>
-// expected-error@below {{invalid address space kind specification: foobar}}
+// expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic, target] for address space kind, got: foobar}}
 // expected-error@below {{expected address space keyword}}
 cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) {
   cir.return

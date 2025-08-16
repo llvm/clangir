@@ -1056,7 +1056,8 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
       cir::GlobalOp var = CGM.getOrCreateStaticVarDecl(
           *VD, CGM.getCIRLinkageVarDefinition(VD, /*IsConstant=*/false));
       auto getGlobalOp = builder.createGetGlobal(var);
-      auto actualElemTy = llvm::cast<cir::PointerType>(getGlobalOp.getType()).getPointee();
+      auto actualElemTy =
+          llvm::cast<cir::PointerType>(getGlobalOp.getType()).getPointee();
       addr = Address(getGlobalOp, actualElemTy, getContext().getDeclAlign(VD));
     } else {
       llvm_unreachable("DeclRefExpr for decl not entered in LocalDeclMap?");
@@ -2017,7 +2018,15 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
     assert(0 && "NYI");
   }
   case CK_LValueBitCast: {
-    assert(0 && "NYI");
+    // This must be a reinterpret_cast (or c-style equivalent).
+    const auto *ce = cast<ExplicitCastExpr>(E);
+
+    CGM.emitExplicitCastExprType(ce, this);
+    LValue LV = emitLValue(E->getSubExpr());
+    Address V = LV.getAddress().withElementType(
+        builder, convertTypeForMem(ce->getTypeAsWritten()->getPointeeType()));
+
+    return makeAddrLValue(V, E->getType(), LV.getBaseInfo(), LV.getTBAAInfo());
   }
   case CK_AddressSpaceConversion: {
     LValue LV = emitLValue(E->getSubExpr());
