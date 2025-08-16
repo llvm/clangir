@@ -3010,30 +3010,21 @@ def CIR_ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIRRecordType:$record, I64Attr:$index);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    $record `[` $index_attr `]` attr-dict
+    $record `[` $index `]` attr-dict
     `:` qualified(type($record)) `->` qualified(type($result))
   }];
 
   let builders = [
-    OpBuilder<(ins "mlir::Type":$type, "mlir::Value":$record, "uint64_t":$index), [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, type, record, fieldIdx);
-    }]>,
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index), [{
       auto recordTy = mlir::cast<cir::RecordType>(record.getType());
       mlir::Type memberTy = recordTy.getMembers()[index];
       build($_builder, $_state, memberTy, record, index);
     }]>
   ];
-
-  let extraClassDeclaration = [{
-    /// Get the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
-  }];
 
   let hasVerifier = 1;
 }
@@ -3075,25 +3066,12 @@ def CIR_InsertMemberOp : CIR_Op<"insert_member", [
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr,
+  let arguments = (ins CIRRecordType:$record, I64Attr:$index,
                        CIR_AnyType:$value);
   let results = (outs CIRRecordType:$result);
 
-  let builders = [
-    OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,
-                   "mlir::Value":$value), [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, record, fieldIdx, value);
-    }]>
-  ];
-
-  let extraClassDeclaration = [{
-    /// Get the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
-  }];
-
   let assemblyFormat = [{
-    $record `[` $index_attr `]` `,` $value attr-dict
+    $record `[` $index `]` `,` $value attr-dict
     `:` qualified(type($record)) `,` qualified(type($value))
   }];
 
