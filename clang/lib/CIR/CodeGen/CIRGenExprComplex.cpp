@@ -314,8 +314,24 @@ public:
   }
 
   mlir::Value
-  VisitAbstractConditionalOperator(const AbstractConditionalOperator *CO) {
-    llvm_unreachable("NYI");
+  VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
+    mlir::Value condValue = Visit(E->getCond());
+    mlir::Location loc = CGF.getLoc(E->getSourceRange());
+
+    return Builder
+        .create<cir::TernaryOp>(
+            loc, condValue,
+            /*thenBuilder=*/
+            [&](mlir::OpBuilder &b, mlir::Location loc) {
+              mlir::Value trueValue = Visit(E->getTrueExpr());
+              b.create<cir::YieldOp>(loc, trueValue);
+            },
+            /*elseBuilder=*/
+            [&](mlir::OpBuilder &b, mlir::Location loc) {
+              mlir::Value falseValue = Visit(E->getFalseExpr());
+              b.create<cir::YieldOp>(loc, falseValue);
+            })
+        .getResult();
   }
 
   mlir::Value VisitChooseExpr(ChooseExpr *CE) {
@@ -432,8 +448,13 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_UserDefinedConversion:
     llvm_unreachable("NYI");
 
-  case CK_LValueBitCast:
-    llvm_unreachable("NYI");
+  case CK_LValueBitCast: {
+    LValue origLV = CGF.emitLValue(Op);
+    Address addr =
+        origLV.getAddress().withElementType(Builder, CGF.convertType(DestTy));
+    LValue destLV = CGF.makeAddrLValue(addr, DestTy);
+    return emitLoadOfLValue(destLV, Op->getExprLoc());
+  }
 
   case CK_LValueToRValueBitCast: {
     LValue SourceLVal = CGF.emitLValue(Op);

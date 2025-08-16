@@ -48,8 +48,8 @@ void t_new_constant_size_constructor() {
 // AFTER:    cir.store{{.*}} %[[ELEM_PTR]], %[[CUR_ELEM_ALLOCA]] : !cir.ptr<!rec_E>, !cir.ptr<!cir.ptr<!rec_E>>
 // AFTER:    cir.do {
 // AFTER:      %[[CUR_ELEM_PTR:.*]] = cir.load %[[CUR_ELEM_ALLOCA]] : !cir.ptr<!cir.ptr<!rec_E>>, !cir.ptr<!rec_E>
-// AFTER:      %[[OFFSET:.*]] = cir.const #cir.int<1> : !u64i
 // AFTER:      cir.call @_ZN1EC1Ev(%[[CUR_ELEM_PTR]]) : (!cir.ptr<!rec_E>) -> ()
+// AFTER:      %[[OFFSET:.*]] = cir.const #cir.int<1> : !u64i
 // AFTER:      %[[NEXT_PTR:.*]] = cir.ptr_stride(%[[CUR_ELEM_PTR]] : !cir.ptr<!rec_E>, %[[OFFSET]] : !u64i), !cir.ptr<!rec_E>
 // AFTER:      cir.store{{.*}} %[[NEXT_PTR]], %[[CUR_ELEM_ALLOCA]] : !cir.ptr<!rec_E>, !cir.ptr<!cir.ptr<!rec_E>>
 // AFTER:      cir.yield
