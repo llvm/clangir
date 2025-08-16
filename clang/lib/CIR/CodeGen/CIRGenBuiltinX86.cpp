@@ -134,6 +134,21 @@ static mlir::Value emitX86ExpandLoad(CIRGenFunction &cgf,
       .getResult();
 }
 
+static mlir::Value emitX86CompressStore(CIRGenFunction &cgf,
+                                        ArrayRef<mlir::Value> ops,
+                                        mlir::Location loc) {
+  auto resultTy = cast<cir::VectorType>(ops[1].getType());
+  mlir::Value ptr = ops[0];
+
+  mlir::Value maskVec = getMaskVecValue(cgf, ops[2], resultTy.getSize(), loc);
+
+  return cgf.getBuilder()
+      .create<cir::LLVMIntrinsicCallOp>(
+          loc, cgf.getBuilder().getStringAttr("masked.compressstore"),
+          cgf.getBuilder().getVoidTy(), mlir::ValueRange{ops[1], ptr, maskVec})
+      .getResult();
+}
+
 static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
                                    mlir::Type dstTy, mlir::Location loc) {
   unsigned numberOfElements = cast<cir::VectorType>(dstTy).getSize();
@@ -645,7 +660,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_compressstoreqi128_mask:
   case X86::BI__builtin_ia32_compressstoreqi256_mask:
   case X86::BI__builtin_ia32_compressstoreqi512_mask:
-    llvm_unreachable("compress*_mask NYI");
+    return emitX86CompressStore(*this, Ops, getLoc(E->getExprLoc()));
 
   case X86::BI__builtin_ia32_expanddf128_mask:
   case X86::BI__builtin_ia32_expanddf256_mask:

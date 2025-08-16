@@ -30,3 +30,38 @@ void complex_deref_expr(int _Complex* a) {
 // LLVM: %[[COMPLEX_A:.*]] = load ptr, ptr %[[COMPLEX_A_PTR]], align 8
 // LLVM: %[[TMP:.*]] = load { i32, i32 }, ptr %[[COMPLEX_A]], align 4
 // LLVM: store { i32, i32 } %[[TMP]], ptr %[[COMPLEX_B]], align 4
+
+void complex_abstract_condition(bool cond, int _Complex a, int _Complex b) {
+  int _Complex c = cond ? a : b;
+}
+
+// CIR: %[[COND:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cond", init]
+// CIR: %[[COMPLEX_A:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["a", init]
+// CIR: %[[COMPLEX_B:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["b", init]
+// CIR: %[[RESULT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["c", init]
+// CIR: %[[TMP_COND:.*]] = cir.load{{.*}} %[[COND]] : !cir.ptr<!cir.bool>, !cir.bool
+// CIR: %[[RESULT_VAL:.*]] = cir.ternary(%[[TMP_COND]], true {
+// CIR:   %[[TMP_A:.*]] = cir.load{{.*}} %[[COMPLEX_A]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR:   cir.yield %[[TMP_A]] : !cir.complex<!s32i>
+// CIR: }, false {
+// CIR:   %[[TMP_B:.*]] = cir.load{{.*}} %[[COMPLEX_B]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR:   cir.yield %[[TMP_B]] : !cir.complex<!s32i>
+// CIR: }) : (!cir.bool) -> !cir.complex<!s32i>
+// CIR: cir.store{{.*}} %[[RESULT_VAL]], %[[RESULT]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+
+// LLVM: %[[COND:.*]] = alloca i8, i64 1, align 1
+// LLVM: %[[COMPLEX_A:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: %[[COMPLEX_B:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: %[[RESULT:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: %[[TMP_COND:.*]] = load i8, ptr %[[COND]], align 1
+// LLVM: %[[COND_VAL:.*]] = trunc i8 %[[TMP_COND]] to i1
+// LLVM: br i1 %[[COND_VAL]], label %[[TRUE_BB:.*]], label %[[FALSE_BB:.*]]
+// LLVM: [[TRUE_BB]]:
+// LLVM:  %[[TMP_A:.*]] = load { i32, i32 }, ptr %[[COMPLEX_A]], align 4
+// LLVM:  br label %[[END_BB:.*]]
+// LLVM: [[FALSE_BB]]:
+// LLVM:  %[[TMP_B:.*]] = load { i32, i32 }, ptr %[[COMPLEX_B]], align 4
+// LLVM:  br label %[[END_BB]]
+// LLVM: [[END_BB]]:
+// LLVM: %[[RESULT_VAL:.*]] = phi { i32, i32 } [ %[[TMP_B]], %[[FALSE_BB]] ], [ %[[TMP_A]], %[[TRUE_BB]] ]
+// LLVM: store { i32, i32 } %[[RESULT_VAL]], ptr %[[RESULT]], align 4

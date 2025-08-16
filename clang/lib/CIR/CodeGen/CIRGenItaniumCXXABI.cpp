@@ -123,6 +123,7 @@ public:
 
   bool classifyReturnType(CIRGenFunctionInfo &FI) const override;
   bool isZeroInitializable(const MemberPointerType *MPT) override;
+  mlir::TypedAttr emitNullMemberPointer(clang::QualType T) override;
 
   AddedStructorArgCounts
   buildStructorSignature(GlobalDecl GD,
@@ -2747,6 +2748,21 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
 /// member pointers, for which '0' is a valid offset.
 bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return MPT->isMemberFunctionPointer();
+}
+
+mlir::TypedAttr CIRGenItaniumCXXABI::emitNullMemberPointer(clang::QualType T) {
+  auto *MPT = T->getAs<MemberPointerType>();
+  // Itanium C++ ABI 2.3:
+  //   A NULL pointer is represented as -1.
+  //
+  // Note that CIR uses a DataMemberAttr without member_index to get
+  // #cir.data_member<null>, lowering shall later transform it into -1.
+  if (MPT->isMemberDataPointer())
+    return cir::DataMemberAttr::get(
+        cast<cir::DataMemberType>(CGM.convertType(T)));
+
+  // Create an annon struct with two constant int of CGM.PtrDiffTy size.
+  llvm_unreachable("NYI");
 }
 
 /// The Itanium ABI always places an offset to the complete object

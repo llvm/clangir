@@ -1733,20 +1733,21 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
   }
 
   // Fill in all the fields.
-  for (const auto *Field : rd->fields()) {
+  for (const auto *field : rd->fields()) {
     // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
     // will fill in later.)
-    if (!Field->isBitField() &&
-        !isEmptyFieldForLayout(CGM.getASTContext(), Field)) {
-      llvm_unreachable("NYI");
+    if (!field->isBitField() &&
+        !isEmptyFieldForLayout(CGM.getASTContext(), field)) {
+      unsigned fieldIndex = layout.getCIRFieldNo(field);
+      elements[fieldIndex] = CGM.emitNullConstant(field->getType());
     }
 
     // For unions, stop after the first named field.
     if (rd->isUnion()) {
-      if (Field->getIdentifier())
+      if (field->getIdentifier())
         break;
-      if (const auto *FieldRD = Field->getType()->getAsRecordDecl())
-        if (FieldRD->findFirstNamedDataMember())
+      if (const auto *fieldRD = field->getType()->getAsRecordDecl())
+        if (fieldRD->findFirstNamedDataMember())
           break;
     }
   }
@@ -1780,27 +1781,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
       if (const CXXConstructExpr *E =
               dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
         const CXXConstructorDecl *CD = E->getConstructor();
-        // FIXME: we should probably model this more closely to C++ than
-        // just emitting a global with zero init (mimic what we do for trivial
-        // assignments and whatnots). Since this is for globals shouldn't
-        // be a problem for the near future.
-        if (CD->isTrivial() && CD->isDefaultConstructor()) {
-          const auto *cxxrd =
-              cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
-          // Some cases, such as member pointer members, can't be zero
-          // initialized. These are "zero-initialized" in the language standard
-          // sense, but the target ABI may require that a literal value other
-          // than zero be used in the initializer to make clear that a pointer
-          // with the value zero is not what is intended. The classic codegen
-          // goes through emitNullConstant for those cases but generates a
-          // non-zero constant. We can't quite do that here because we need an
-          // attribute and not a value, but something like that can be
-          // implemented.
-          if (!CGM.getTypes().isZeroInitializable(cxxrd)) {
-            llvm_unreachable("NYI");
-          }
-          return cir::ZeroAttr::get(CGM.convertType(D.getType()));
-        }
+        if (CD->isTrivial() && CD->isDefaultConstructor())
+          return CGM.emitNullConstant(D.getType());
       }
     }
   }
@@ -1820,8 +1802,11 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
 
   // Try to emit the initializer.  Note that this can allow some things that
   // are not allowed by tryEmitPrivateForMemory alone.
-  if (auto value = D.evaluateValue())
+  if (auto value = D.evaluateValue()) {
+    assert(!value->allowConstexprUnknown() &&
+           "Constexpr unknown values are not allowed in CodeGen");
     return tryEmitPrivateForMemory(*value, destType);
+  }
 
   return nullptr;
 }
@@ -2109,14 +2094,14 @@ mlir::TypedAttr CIRGenModule::emitNullConstant(QualType T) {
     llvm_unreachable("NYI");
   }
 
-  if (T->getAs<clang::RecordType>())
-    llvm_unreachable("NYI");
+  if (const RecordType *rt = T->getAs<RecordType>())
+    return ::emitNullConstant(*this, rt->getDecl(), /*complete object*/
+                              true);
 
   assert(T->isMemberDataPointerType() &&
          "Should only see pointers to data members here!");
 
-  llvm_unreachable("NYI");
-  return {};
+  return getCXXABI().emitNullMemberPointer(T);
 }
 
 mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
