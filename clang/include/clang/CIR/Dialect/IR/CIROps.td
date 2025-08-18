@@ -2625,7 +2625,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
     };
     struct Derived : public Base {
       Derived();
-    }
+    };
     ```
 
     ```mlir
@@ -2640,8 +2640,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
       ...
       %2 = cir.vtable.address_point(@_ZTV1Base,
               address_point = <index = 0, offset = 2>) : !cir.vptr
-      // The vptr is at element zero.
-      %3 = cir.cast(bitcast, %1 : !cir.ptr<!rec_Base>), cir.ptr<!cir.vptr>>
+      %3 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
       cir.store align(8) %2, %3 : !cir.vptr, !cir.ptr<!cir.vptr>
     ...
     // VTable for Derived
@@ -2655,7 +2654,7 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
       %3 = cir.vtable.address_point(@_ZTV7Derived,
               address_point = <index = 0, offset = 2>) : !cir.vptr
       // The vptr is still at the start of the object in this case
-      %4 = cir.cast(bitcast, %1 : !cir.ptr<!rec_Derived>), !cir.ptr<!cir.vptr>
+      %4 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Derived> -> !cir.ptr<!cir.vptr>
       // This overwrites the vptr that was stored in the Base constructor call
       cir.store align(8) %3, %4 : !cir.vptr, !cir.ptr<!cir.vptr>
     ```
@@ -2719,7 +2718,7 @@ def CIR_VTableGetVPtrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
     cir.func dso_local @_Z2f3P1S(%s: !cir.ptr<!rec_S>) {
       // Get the vptr -- This points to offset 2 in the vtable.
       %1 = cir.vtable.get_vptr %s : !cir.ptr<!rec_S> -> !cir.ptr<!cir.vptr>
-      %2 = cir.load align(8) %2 : !cir.ptr<!cir.vptr>, !cir.vptr
+      %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
       // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
       %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
               -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
@@ -2809,7 +2808,7 @@ def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
     cir.func dso_local @_Z2f3P4Base(%b: !cir.ptr<!rec_Base>)
       // Get the vptr
       %1 = cir.vtable.get_vptr %b : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
-      %2 = cir.load align(8) %2 : !cir.ptr<!cir.vptr>, !cir.vptr
+      %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
       // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
       %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
               -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
