@@ -15,6 +15,18 @@ void complex_functional_cast() {
 // LLVM: %[[INIT:.*]] = alloca { i32, i32 }, i64 1, align 4
 // LLVM: store { i32, i32 } zeroinitializer, ptr %[[INIT]], align 4
 
+void complex_cxx_scalar_value_init_expr() {
+  using IntComplex = int _Complex;
+  int _Complex a = IntComplex();
+}
+
+// CIR: %[[INIT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["a", init]
+// CIR: %[[COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
+// CIR: cir.store align(4) %[[COMPLEX]], %[[INIT]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+
+// LLVM: %[[INIT:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: store { i32, i32 } zeroinitializer, ptr %[[INIT]], align 4
+
 void complex_abstract_condition(bool cond, int _Complex a, int _Complex b) {
   int _Complex c = cond ? a : b;
 }

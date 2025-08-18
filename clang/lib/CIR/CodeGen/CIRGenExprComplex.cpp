@@ -174,9 +174,13 @@ public:
     Scope.ForceCleanup({&V});
     return V;
   }
+
   mlir::Value VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
-    llvm_unreachable("NYI");
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
+    mlir::Type complexTy = CGF.convertType(E->getType());
+    return Builder.getNullValue(complexTy, loc);
   }
+
   mlir::Value VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
     llvm_unreachable("NYI");
   }
