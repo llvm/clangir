@@ -24,6 +24,8 @@
 #include "CIRCXXABI.h"
 #include "LowerModule.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace cir {
@@ -99,11 +101,10 @@ public:
                                      mlir::Value loweredSrc,
                                      mlir::OpBuilder &builder) const override;
 
-  mlir::Value lowerBaseMethod(cir::BaseMethodOp op, mlir::Value loweredSrc,
+  mlir::Value lowerBaseMethod(cir::BaseMethodOp op,
                               mlir::OpBuilder &builder) const override;
 
   mlir::Value lowerDerivedMethod(cir::DerivedMethodOp op,
-                                 mlir::Value loweredSrc,
                                  mlir::OpBuilder &builder) const override;
 
   mlir::Value lowerDataMemberCmp(cir::CmpOp op, mlir::Value loweredLhs,
@@ -472,16 +473,27 @@ static mlir::Value lowerDataMemberCast(mlir::Operation *op,
                                        isNull, nullValue, adjustedPtr);
 }
 
-static mlir::Value lowerMethodCast(mlir::Operation *op, mlir::Value loweredSrc,
+static mlir::Value lowerMethodCast(mlir::Operation *op, mlir::Value src,
                                    std::int64_t offset, bool isDerivedToBase,
                                    LowerModule &lowerMod,
                                    mlir::OpBuilder &builder) {
   if (offset == 0)
-    return loweredSrc;
+    return src;
+
+  if (auto load = mlir::dyn_cast<cir::LoadOp>(src.getDefiningOp())) {
+    // If the source is a load of method, we can just adjust the base pointer.
+    load->dump();
+    load->getParentOp()->dump();
+    // src = load.getAddr();
+    llvm_unreachable("NYI: ItaniumCXXABI::lowerMethodCast for cir::LoadOp");
+  }
+
+  if (!mlir::isa<cir::RecordType>(src.getType()))
+    llvm_unreachable("Expected a record type for method pointer");
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(lowerMod);
-  auto adjField = builder.create<cir::ExtractMemberOp>(
-      op->getLoc(), ptrdiffCIRTy, loweredSrc, 1);
+  auto adjField =
+      builder.create<cir::ExtractMemberOp>(op->getLoc(), ptrdiffCIRTy, src, 1);
 
   auto offsetValue = builder.create<cir::ConstantOp>(
       op->getLoc(), cir::IntAttr::get(ptrdiffCIRTy, offset));
@@ -489,7 +501,7 @@ static mlir::Value lowerMethodCast(mlir::Operation *op, mlir::Value loweredSrc,
   auto adjustedAdjField = builder.create<cir::BinOp>(
       op->getLoc(), ptrdiffCIRTy, binOpKind, adjField, offsetValue);
 
-  return builder.create<cir::InsertMemberOp>(op->getLoc(), loweredSrc, 1,
+  return builder.create<cir::InsertMemberOp>(op->getLoc(), src, 1,
                                              adjustedAdjField);
 }
 
@@ -509,16 +521,14 @@ ItaniumCXXABI::lowerDerivedDataMember(cir::DerivedDataMemberOp op,
 }
 
 mlir::Value ItaniumCXXABI::lowerBaseMethod(cir::BaseMethodOp op,
-                                           mlir::Value loweredSrc,
                                            mlir::OpBuilder &builder) const {
-  return lowerMethodCast(op, loweredSrc, op.getOffset().getSExtValue(),
+  return lowerMethodCast(op, op.getSrc(), op.getOffset().getSExtValue(),
                          /*isDerivedToBase=*/true, LM, builder);
 }
 
 mlir::Value ItaniumCXXABI::lowerDerivedMethod(cir::DerivedMethodOp op,
-                                              mlir::Value loweredSrc,
                                               mlir::OpBuilder &builder) const {
-  return lowerMethodCast(op, loweredSrc, op.getOffset().getSExtValue(),
+  return lowerMethodCast(op, op.getSrc(), op.getOffset().getSExtValue(),
                          /*isDerivedToBase=*/false, LM, builder);
 }
 

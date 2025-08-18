@@ -770,11 +770,6 @@ def CIR_RecordType : CIR_Type<"Record", "record", [
   let hasCustomAssemblyFormat = 1;
 }
 
-// Note CIRRecordType is used instead of CIR_RecordType
-// because of tablegen conflicts.
-def CIRRecordType : Type<
-  CPred<"::mlir::isa<::cir::RecordType>($_self)">, "CIR record type">;
-
 //===----------------------------------------------------------------------===//
 // Global type constraints
 //===----------------------------------------------------------------------===//
