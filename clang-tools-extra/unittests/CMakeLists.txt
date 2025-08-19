@@ -11,4 +11,5 @@ add_subdirectory(clang-doc)
 add_subdirectory(clang-include-fixer)
 add_subdirectory(clang-move)
 add_subdirectory(clang-query)
-add_subdirectory(clang-tidy)
+# Workaround https://github.com/llvm/clangir/issues/1836
+# add_subdirectory(clang-tidy)

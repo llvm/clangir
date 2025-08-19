@@ -723,8 +723,12 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
       return RValue::get(Results[0]);
     }
-    default:
-      llvm_unreachable("NYI");
+    case cir::TEK_Complex: {
+      mlir::ResultRange results = theCall->getOpResults();
+      assert(!results.empty() &&
+             "Expected at least one result for complex rvalue");
+      return RValue::getComplex(results[0]);
+    }
     }
   }();
 
