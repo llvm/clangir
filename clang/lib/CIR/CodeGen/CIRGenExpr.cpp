@@ -3270,7 +3270,9 @@ CIRGenFunction::tryEmitAsConstant(DeclRefExpr *refExpr) {
 
 CIRGenFunction::ConstantEmission
 CIRGenFunction::tryEmitAsConstant(const MemberExpr *ME) {
-  llvm_unreachable("NYI");
+  if (DeclRefExpr *dre = tryToConvertMemberExprToDeclRefExpr(*this, ME))
+    return tryEmitAsConstant(dre);
+  return ConstantEmission();
 }
 
 mlir::Value CIRGenFunction::emitScalarConstant(
