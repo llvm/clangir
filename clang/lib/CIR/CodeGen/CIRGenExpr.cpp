@@ -261,9 +261,10 @@ Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  unsigned index) {
   auto loc = getLoc(field->getLocation());
   auto fieldPtr = cir::PointerType::get(fieldType);
-  auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
-                                          field->getName(), index);
   auto rec = cast<cir::RecordType>(base.getAddress().getElementType());
+  auto sea = getBuilder().createGetMember(
+      loc, fieldPtr, base.getPointer(), field->getName(),
+      rec.isUnion() ? field->getFieldIndex() : index);
   CharUnits offset = CharUnits::fromQuantity(
       rec.getElementOffset(CGM.getDataLayout().layout, index));
   return Address(sea, base.getAlignment().alignmentAtOffset(offset));
