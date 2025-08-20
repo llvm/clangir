@@ -2076,16 +2076,18 @@ mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
 
   Expr *Op = E->getSubExpr();
   if (Op->getType()->isAnyComplexType()) {
+    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
     if (E->isGLValue()) {
-      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
       mlir::Value Complex = CGF.emitComplexExpr(Op);
       return CGF.builder.createComplexImag(Loc, Complex);
     }
+
     // Otherwise, calculate and project.
-    llvm_unreachable("NYI");
+    return Builder.createComplexImag(Loc, CGF.emitComplexExpr(Op));
   }
 
   return Visit(Op);
