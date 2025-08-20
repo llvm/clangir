@@ -109,7 +109,14 @@ public:
     llvm_unreachable("NYI");
   }
   mlir::Value VisitArraySubscriptExpr(Expr *E) { return emitLoadOfLValue(E); }
-  mlir::Value VisitMemberExpr(MemberExpr *ME) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitMemberExpr(MemberExpr *ME) {
+    if (CIRGenFunction::ConstantEmission constant = CGF.tryEmitAsConstant(ME)) {
+      llvm_unreachable("VisitMemberExpr tryEmitAsConstant");
+    }
+    return emitLoadOfLValue(ME);
+  }
+
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
     llvm_unreachable("NYI");
   }
