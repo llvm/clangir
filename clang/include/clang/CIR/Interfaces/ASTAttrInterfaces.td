@@ -91,6 +91,21 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->isStatic();
         }]
+      >,
+      InterfaceMethod<"", "std::string", "getMangledName", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          std::string out;
+          llvm::raw_string_ostream os(out);
+          std::unique_ptr<clang::MangleContext> mangleCtx(
+            $_attr.getAst()->getASTContext().createMangleContext());
+          if (auto *ctor = mlir::dyn_cast<clang::CXXConstructorDecl>($_attr.getAst()))
+            mangleCtx->mangleCXXName(clang::GlobalDecl(ctor, clang::CXXCtorType::Ctor_Base), os);
+          else if (auto *dtor = mlir::dyn_cast<clang::CXXDestructorDecl>($_attr.getAst()))
+            mangleCtx->mangleCXXName(clang::GlobalDecl(dtor, clang::CXXDtorType::Dtor_Base), os);
+          else
+            mangleCtx->mangleName(clang::GlobalDecl($_attr.getAst()), os);
+          return out;
+        }]
       >
     ];
   }

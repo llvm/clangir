@@ -9,6 +9,7 @@
 #ifndef MLIR_INTERFACES_CIR_AST_ATTR_INTERFACES_H_
 #define MLIR_INTERFACES_CIR_AST_ATTR_INTERFACES_H_
 
+#include "llvm/Support/raw_ostream.h"
 #include "mlir/IR/Attributes.h"
 
 #include "clang/AST/Attr.h"
