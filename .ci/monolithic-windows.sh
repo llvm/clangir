@@ -32,7 +32,7 @@ function at-exit {
 
   # If building fails there will be no results files.
   shopt -s nullglob
-    
+
   python "${MONOREPO_ROOT}"/.ci/generate_test_report_github.py ":window: Windows x64 Test Results" \
     $retcode "${BUILD_DIR}"/test-results.*.xml >> $GITHUB_STEP_SUMMARY
 }
@@ -40,6 +40,7 @@ trap at-exit EXIT
 
 projects="${1}"
 targets="${2}"
+enable_cir="${3}"
 
 echo "::group::cmake"
 pip install -q -r "${MONOREPO_ROOT}"/.ci/all_requirements.txt
@@ -59,6 +60,7 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
       -D LLVM_ENABLE_PROJECTS="${projects}" \
       -G Ninja \
       -D CMAKE_BUILD_TYPE=Release \
+      -D CLANG_ENABLE_CIR=${enable_cir} \
       -D LLVM_ENABLE_ASSERTIONS=ON \
       -D LLVM_BUILD_EXAMPLES=ON \
       -D COMPILER_RT_BUILD_LIBFUZZER=OFF \
