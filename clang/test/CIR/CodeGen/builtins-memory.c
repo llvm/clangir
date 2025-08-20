@@ -3,6 +3,9 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - \
 // RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck  --check-prefix=LLVM --input-file=%t.ll %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm %s -o - \
+// RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
+// RUN: FileCheck  --check-prefix=OGCG --input-file=%t.ll %s
 
 typedef __SIZE_TYPE__ size_t;
 void test_memcpy_chk(void *dest, const void *src, size_t n) {
@@ -232,19 +235,24 @@ void test_memset_inline(void *dst, int val) {
 }
 
 void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
-
   // CIR-LABEL: test_builtin_mempcpy
   // CIR: cir.libc.memcpy {{%.*}} bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void> 
+  // CIR: cir.ptr_stride 
   // CIR: cir.store [[GEP:%.*]], [[P:%.*]]
-  // CIR: [[LD:%.*]] = cir.load [[P:%.*]]
-  // CIR: cir.return [[LD]]
+  // CIR-NEXT: [[LD:%.*]] = cir.load [[P:%.*]]
+  // CIR-NEXT: cir.return [[LD]]
  
 
   // LLVM-LABEL: test_builtin_mempcpy
   // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 {{%.*}}, i1 false)
-  // LLVM: [[GEP:%.*]] = getelementptr 
-  // LLVM: store ptr [[GEP]], ptr [[P:%.*]] 
-  // LLVM: [[LD:%.*]] = load ptr, ptr [[P]]
-  // LLVM: ret ptr [[LD]]
+  // LLVM-NEXT: [[GEP:%.*]] = getelementptr 
+  // LLVM-NEXT: store ptr [[GEP]], ptr [[P:%.*]] 
+  // LLVM-NEXT: [[LD:%.*]] = load ptr, ptr [[P]]
+  // LLVM-NEXT: ret ptr [[LD]]
+
+  // OGCG-LABEL: test_builtin_mempcpy
+  // OGCG: call void @llvm.memcpy.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 {{%.*}}, i1 false)
+  // OGCG-NEXT: [[GEP:%.*]] = getelementptr inbounds
+  // OGCG-NEXT: ret ptr [[GEP]]
   return __builtin_mempcpy(dest, src, n);
 }

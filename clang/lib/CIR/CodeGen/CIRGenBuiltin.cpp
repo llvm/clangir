@@ -1692,6 +1692,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       auto castBuf = builder.createBitcast(Dest.getPointer(), ppTy);
       auto loc = getLoc(E->getSourceRange());
       auto gep = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf, SizeVal);
+      assert(!cir::MissingFeatures::emitCheckedInBoundsGEP());
       return RValue::get(gep);
     }
     return RValue::get(Dest.getPointer());
