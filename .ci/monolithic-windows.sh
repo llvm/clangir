@@ -60,7 +60,7 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
       -D LLVM_ENABLE_PROJECTS="${projects}" \
       -G Ninja \
       -D CMAKE_BUILD_TYPE=Release \
-      -D CLANG_ENABLE_CIR=${enable_cir} \
+      -D CLANG_ENABLE_CIR="${enable_cir}" \
       -D LLVM_ENABLE_ASSERTIONS=ON \
       -D LLVM_BUILD_EXAMPLES=ON \
       -D COMPILER_RT_BUILD_LIBFUZZER=OFF \
