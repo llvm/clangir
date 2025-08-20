@@ -767,23 +767,25 @@ public:
   }
 
   mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
-                                mlir::Value addr, mlir::Type storageType,
+                                Address addr, mlir::Type storageType,
                                 const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    return create<cir::GetBitfieldOp>(loc, resultType, addr, storageType,
-                                      info.Name, info.Size, offset,
-                                      info.IsSigned, isLvalueVolatile);
+    return create<cir::GetBitfieldOp>(loc, resultType, addr.getPointer(),
+                                      storageType, info.Name, info.Size, offset,
+                                      info.IsSigned, isLvalueVolatile,
+                                      addr.getAlignment().getAsAlign().value());
   }
 
   mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
-                                mlir::Value dstAddr, mlir::Type storageType,
+                                Address dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    return create<cir::SetBitfieldOp>(loc, resultType, dstAddr, storageType,
-                                      src, info.Name, info.Size, offset,
-                                      info.IsSigned, isLvalueVolatile);
+    return create<cir::SetBitfieldOp>(
+        loc, resultType, dstAddr.getPointer(), storageType, src, info.Name,
+        info.Size, offset, info.IsSigned, isLvalueVolatile,
+        dstAddr.getAlignment().getAsAlign().value());
   }
 
   /// Create a pointer to a record member.
