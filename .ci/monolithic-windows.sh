@@ -15,10 +15,13 @@
 
 source .ci/utils.sh
 
+mkdir -p artifacts
+
 projects="${1}"
 targets="${2}"
-runtimes="${3}"
-runtimes_targets="${4}"
+runtimes="${3:-}"
+runtime_targets="${4:-}"
+enable_cir="${5:-ON}"
 
 start-group "CMake"
 pip install -q -r "${MONOREPO_ROOT}"/.ci/all_requirements.txt
@@ -36,6 +39,7 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
       -D LLVM_ENABLE_PROJECTS="${projects}" \
       -G Ninja \
       -D CMAKE_BUILD_TYPE=Release \
+      -D CLANG_ENABLE_CIR=${enable_cir} \
       -D LLVM_ENABLE_ASSERTIONS=ON \
       -D LLVM_BUILD_EXAMPLES=ON \
       -D COMPILER_RT_BUILD_LIBFUZZER=OFF \
@@ -52,12 +56,14 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
 start-group "ninja"
 
 # Targets are not escaped as they are passed as separate arguments.
-ninja -C "${BUILD_DIR}" -k 0 ${targets} |& tee ninja.log
-cp ${BUILD_DIR}/.ninja_log ninja.ninja_log
+ninja -C "${BUILD_DIR}" -k 0 ${targets} |& tee "${BUILD_DIR}/ninja.log"
+cp "${BUILD_DIR}/ninja.log" artifacts/ninja.log
+cp "${BUILD_DIR}/.ninja_log" artifacts/ninja.ninja_log
 
 if [[ "${runtime_targets}" != "" ]]; then
   start-group "ninja runtimes"
-  
-  ninja -C "${BUILD_DIR}" -k 0 ${runtimes_targets} |& tee ninja_runtimes.log
-  cp ${BUILD_DIR}/.ninja_log ninja_runtimes.ninja_log
+
+  ninja -C "${BUILD_DIR}" -k 0 ${runtime_targets} |& tee "${BUILD_DIR}/ninja_runtimes.log"
+  cp "${BUILD_DIR}/ninja_runtimes.log" artifacts/ninja_runtimes.log
+  cp "${BUILD_DIR}/.ninja_log" artifacts/ninja_runtimes.ninja_log
 fi

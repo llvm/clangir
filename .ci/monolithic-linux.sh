@@ -65,14 +65,16 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
 start-group "ninja"
 
 # Targets are not escaped as they are passed as separate arguments.
-ninja -C "${BUILD_DIR}" -k 0 ${targets} |& tee ninja.log
-cp ${BUILD_DIR}/.ninja_log ninja.ninja_log
+ninja -C "${BUILD_DIR}" -k 0 ${targets} |& tee "${BUILD_DIR}/ninja.log"
+cp "${BUILD_DIR}/ninja.log" artifacts/ninja.log
+cp "${BUILD_DIR}/.ninja_log" artifacts/ninja.ninja_log
 
 if [[ "${runtime_targets}" != "" ]]; then
   start-group "ninja Runtimes"
 
-  ninja -C "${BUILD_DIR}" ${runtime_targets} |& tee ninja_runtimes.log
-  cp ${BUILD_DIR}/.ninja_log ninja_runtimes.ninja_log
+  ninja -C "${BUILD_DIR}" ${runtime_targets} |& tee "${BUILD_DIR}/ninja_runtimes.log"
+  cp "${BUILD_DIR}/ninja_runtimes.log" artifacts/ninja_runtimes.log
+  cp "${BUILD_DIR}/.ninja_log" artifacts/ninja_runtimes.ninja_log
 fi
 
 # Compiling runtimes with just-built Clang and running their tests
@@ -88,8 +90,9 @@ if [[ "${runtime_targets_needs_reconfig}" != "" ]]; then
   start-group "ninja Runtimes C++26"
 
   ninja -C "${BUILD_DIR}" ${runtime_targets_needs_reconfig} \
-    |& tee ninja_runtimes_needs_reconfig1.log
-  cp ${BUILD_DIR}/.ninja_log ninja_runtimes_needs_reconig.ninja_log
+    |& tee "${BUILD_DIR}/ninja_runtimes_needs_reconfig1.log"
+  cp "${BUILD_DIR}/ninja_runtimes_needs_reconfig1.log" artifacts/ninja_runtimes_needs_reconfig1.log
+  cp "${BUILD_DIR}/.ninja_log" artifacts/ninja_runtimes_needs_reconfig1.ninja_log
 
   start-group "CMake Runtimes Clang Modules"
 
@@ -101,6 +104,7 @@ if [[ "${runtime_targets_needs_reconfig}" != "" ]]; then
   start-group "ninja Runtimes Clang Modules"
 
   ninja -C "${BUILD_DIR}" ${runtime_targets_needs_reconfig} \
-    |& tee ninja_runtimes_needs_reconfig2.log
-  cp ${BUILD_DIR}/.ninja_log ninja_runtimes_needs_reconfig2.ninja_log
+    |& tee "${BUILD_DIR}/ninja_runtimes_needs_reconfig2.log"
+  cp "${BUILD_DIR}/ninja_runtimes_needs_reconfig2.log" artifacts/ninja_runtimes_needs_reconfig2.log
+  cp "${BUILD_DIR}/.ninja_log" artifacts/ninja_runtimes_needs_reconfig2.ninja_log
 fi
