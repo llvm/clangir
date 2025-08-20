@@ -1841,8 +1841,40 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_unwind_init NYI");
   case Builtin::BI__builtin_extend_pointer:
     llvm_unreachable("BI__builtin_extend_pointer NYI");
-  case Builtin::BI__builtin_setjmp:
-    llvm_unreachable("BI__builtin_setjmp NYI");
+  case Builtin::BI__builtin_setjmp: {
+    auto loc = getLoc(E->getExprLoc());
+    // create frameaddress
+    mlir::Value frameaddress =
+        builder
+            .create<cir::LLVMIntrinsicCallOp>(
+                loc, builder.getStringAttr("frameaddress"),
+                builder.getUInt8PtrTy(),
+                mlir::ValueRange{builder.getSInt32(0, loc)})
+            .getResult();
+    Address ptrArg = emitPointerWithAlignment(E->getArg(0));
+
+    auto ppTy = builder.getPointerTo(builder.getUInt8PtrTy());
+    auto b = builder.createBitcast(ptrArg.getPointer(), ppTy);
+
+    builder.create<cir::StoreOp>(loc, frameaddress, b);
+    // // create stacksave
+    mlir::Value stacksave = builder
+                                .create<cir::LLVMIntrinsicCallOp>(
+                                    loc, builder.getStringAttr("stacksave"),
+                                    builder.getUInt8PtrTy())
+                                .getResult();
+    auto gepNext = builder.create<cir::PtrStrideOp>(loc, ppTy, b,
+                                                    builder.getSInt32(1, loc));
+    builder.create<cir::StoreOp>(loc, stacksave, gepNext);
+    // create setjmp
+    mlir::Value setjmpCall =
+        builder
+            .create<cir::LLVMIntrinsicCallOp>(
+                loc, builder.getStringAttr("eh.sjlj.setjmp"),
+                builder.getSInt32Ty(), mlir::ValueRange{b})
+            .getResult();
+    return RValue::get(setjmpCall);
+  }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
   case Builtin::BI__builtin_launder: {
