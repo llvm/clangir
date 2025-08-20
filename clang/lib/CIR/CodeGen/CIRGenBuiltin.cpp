@@ -1687,10 +1687,14 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     builder.createMemCpy(getLoc(E->getSourceRange()), Dest.getPointer(),
                          Src.getPointer(), SizeVal);
     if (BuiltinID == Builtin::BImempcpy ||
-        BuiltinID == Builtin::BI__builtin_mempcpy)
-      llvm_unreachable("mempcpy is NYI");
-    else
-      return RValue::get(Dest.getPointer());
+        BuiltinID == Builtin::BI__builtin_mempcpy) {
+      auto ppTy = builder.getPointerTo(builder.getUInt8PtrTy());
+      auto castBuf = builder.createBitcast(Dest.getPointer(), ppTy);
+      auto loc = getLoc(E->getSourceRange());
+      auto gep = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf, SizeVal);
+      return RValue::get(gep);
+    }
+    return RValue::get(Dest.getPointer());
   }
 
   case Builtin::BI__builtin_memcpy_inline: {

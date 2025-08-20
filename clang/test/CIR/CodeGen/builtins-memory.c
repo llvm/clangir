@@ -230,3 +230,21 @@ void test_memset_inline(void *dst, int val) {
   // LLVM: call void @llvm.memset.inline.p0.i64(ptr {{%.*}}, i8 {{%.*}}, i64 4, i1 false)
   __builtin_memset_inline(dst, val, 4);
 }
+
+void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
+
+  // CIR-LABEL: test_builtin_mempcpy
+  // CIR: cir.libc.memcpy {{%.*}} bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void> 
+  // CIR: cir.store [[GEP:%.*]], [[P:%.*]]
+  // CIR: [[LD:%.*]] = cir.load [[P:%.*]]
+  // CIR: cir.return [[LD]]
+ 
+
+  // LLVM-LABEL: test_builtin_mempcpy
+  // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 {{%.*}}, i1 false)
+  // LLVM: [[GEP:%.*]] = getelementptr 
+  // LLVM: store ptr [[GEP]], ptr [[P:%.*]] 
+  // LLVM: [[LD:%.*]] = load ptr, ptr [[P]]
+  // LLVM: ret ptr [[LD]]
+  return __builtin_mempcpy(dest, src, n);
+}
