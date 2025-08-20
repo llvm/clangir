@@ -23,12 +23,12 @@ void foo(int x) {
 // CHECK:  %[[VAL_2:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
 // CHECK:  cir.store{{.*}} {{.*}}, %[[VAL_1]] : !s32i, !cir.ptr<!s32i>
 // CHECK:  %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = ""} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_anon2E0>
-// CHECK:  %[[VAL_4:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!rec_anon2E0>), !cir.ptr<!u32i>
+// CHECK:  %[[VAL_4:.*]] = cir.get_member %[[VAL_3]][0] {name = "x"} : !cir.ptr<!rec_anon2E0> -> !cir.ptr<!u32i>
 // CHECK:  %[[VAL_5:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!s32i>, !s32i
-// CHECK:  %[[VAL_6:.*]] = cir.set_bitfield(#[[bfi_x]], %[[VAL_4]] : !cir.ptr<!u32i>, %[[VAL_5]] : !s32i) -> !s32i
-// CHECK:  %[[VAL_7:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!rec_anon2E0>), !cir.ptr<!u32i>
+// CHECK:  %[[VAL_6:.*]] = cir.set_bitfield align(4) (#[[bfi_x]], %[[VAL_4]] : !cir.ptr<!u32i>, %[[VAL_5]] : !s32i) -> !s32i
+// CHECK:  %[[VAL_7:.*]] = cir.get_member %[[VAL_3]][0] {name = "y"} : !cir.ptr<!rec_anon2E0> -> !cir.ptr<!u32i>
 // CHECK:  %[[VAL_8:.*]] = cir.const #cir.int<0> : !s32i
-// CHECK:  %[[VAL_9:.*]] = cir.set_bitfield(#[[bfi_y]], %[[VAL_7]] : !cir.ptr<!u32i>, %[[VAL_8]] : !s32i) -> !s32i
+// CHECK:  %[[VAL_9:.*]] = cir.set_bitfield align(4) (#[[bfi_y]], %[[VAL_7]] : !cir.ptr<!u32i>, %[[VAL_8]] : !s32i) -> !s32i
 // CHECK:  cir.return
 
 union { int i; float f; } u = { };

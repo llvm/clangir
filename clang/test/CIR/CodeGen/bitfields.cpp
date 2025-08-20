@@ -36,8 +36,8 @@ typedef struct {
 // CHECK: cir.func dso_local @_Z11store_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 // CHECK:   [[TMP1:%.*]] = cir.const #cir.int<3> : !s32i
-// CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CHECK:   cir.set_bitfield(#bfi_a, [[TMP2]] : !cir.ptr<!u64i>, [[TMP1]] : !s32i)
+// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP0]][0] {name = "a"} : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CHECK:   cir.set_bitfield align(4) (#bfi_a, [[TMP2]] : !cir.ptr<!u64i>, [[TMP1]] : !s32i)
 void store_field() {
   S s;
   s.a = 3;
@@ -46,8 +46,8 @@ void store_field() {
 // CHECK: cir.func dso_local @_Z10load_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init, const]
 // CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
-// CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP1]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!u64i>) -> !s32i
+// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][0] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CHECK:   [[TMP3:%.*]] = cir.get_bitfield align(4) (#bfi_d, [[TMP2]] : !cir.ptr<!u64i>) -> !s32i
 int load_field(S& s) {
   return s.d;
 }

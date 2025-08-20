@@ -259,13 +259,15 @@ Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  const FieldDecl *field,
                                                  mlir::Type fieldType,
                                                  unsigned index) {
-  if (index == 0)
-    return base.getAddress();
   auto loc = getLoc(field->getLocation());
   auto fieldPtr = cir::PointerType::get(fieldType);
-  auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
-                                          field->getName(), index);
-  return Address(sea, CharUnits::One());
+  auto rec = cast<cir::RecordType>(base.getAddress().getElementType());
+  auto sea = getBuilder().createGetMember(
+      loc, fieldPtr, base.getPointer(), field->getName(),
+      rec.isUnion() ? field->getFieldIndex() : index);
+  CharUnits offset = CharUnits::fromQuantity(
+      rec.getElementOffset(CGM.getDataLayout().layout, index));
+  return Address(sea, base.getAlignment().alignmentAtOffset(offset));
 }
 
 static bool useVolatileForBitField(const CIRGenModule &cgm, LValue base,
@@ -753,9 +755,9 @@ RValue CIRGenFunction::emitLoadOfBitfieldLValue(LValue LV, SourceLocation Loc) {
   bool useVolatile = LV.isVolatileQualified() &&
                      info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
 
-  auto field = builder.createGetBitfield(getLoc(Loc), resLTy, ptr.getPointer(),
-                                         ptr.getElementType(), info,
-                                         LV.isVolatile(), useVolatile);
+  auto field =
+      builder.createGetBitfield(getLoc(Loc), resLTy, ptr, ptr.getElementType(),
+                                info, LV.isVolatile(), useVolatile);
   assert(!cir::MissingFeatures::emitScalarRangeCheck() && "NYI");
   return RValue::get(field);
 }
@@ -896,8 +898,8 @@ void CIRGenFunction::emitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   mlir::Value dstAddr = Dst.getAddress().getPointer();
 
   Result = builder.createSetBitfield(
-      dstAddr.getLoc(), resLTy, dstAddr, ptr.getElementType(),
-      Src.getScalarVal(), info, Dst.isVolatileQualified(), useVolatile);
+      dstAddr.getLoc(), resLTy, ptr, ptr.getElementType(), Src.getScalarVal(),
+      info, Dst.isVolatileQualified(), useVolatile);
 }
 
 static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,

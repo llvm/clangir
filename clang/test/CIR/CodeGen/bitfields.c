@@ -68,7 +68,7 @@ typedef struct {
 // CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 // CHECK:   [[TMP1:%.*]] = cir.const #cir.int<3> : !s32i
 // CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP0]][1] {name = "e"} : !cir.ptr<!rec_S> -> !cir.ptr<!u16i>
-// CHECK:   cir.set_bitfield(#bfi_e, [[TMP2]] : !cir.ptr<!u16i>, [[TMP1]] : !s32i)
+// CHECK:   cir.set_bitfield align(4) (#bfi_e, [[TMP2]] : !cir.ptr<!u16i>, [[TMP1]] : !s32i)
 void store_field() {
   S s;
   s.e = 3;
@@ -77,27 +77,27 @@ void store_field() {
 // CHECK: cir.func {{.*@load_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init]
 // CHECK:   [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
-// CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP1]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!u64i>) -> !s32i
+// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][0] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CHECK:   [[TMP3:%.*]] = cir.get_bitfield align(4) (#bfi_d, [[TMP2]] : !cir.ptr<!u64i>) -> !s32i
 int load_field(S* s) {
   return s->d;
 }
 
 // CHECK: cir.func {{.*@unOp}}
-// CHECK:   [[TMP0:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CHECK:   [[TMP1:%.*]] = cir.get_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!u64i>) -> !s32i
+// CHECK:   [[TMP0:%.*]] = cir.get_member {{.*}}[0] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CHECK:   [[TMP1:%.*]] = cir.get_bitfield align(4) (#bfi_d, [[TMP0]] : !cir.ptr<!u64i>) -> !s32i
 // CHECK:   [[TMP2:%.*]] = cir.unary(inc, [[TMP1]]) nsw : !s32i, !s32i
-// CHECK:   cir.set_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!u64i>, [[TMP2]] : !s32i)
+// CHECK:   cir.set_bitfield align(4) (#bfi_d, [[TMP0]] : !cir.ptr<!u64i>, [[TMP2]] : !s32i)
 void unOp(S* s) {
   s->d++;
 }
 
 // CHECK: cir.func {{.*@binOp}}
 // CHECK:   [[TMP0:%.*]] = cir.const #cir.int<42> : !s32i
-// CHECK:   [[TMP1:%.*]] = cir.cast(bitcast, {{.*}} : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CHECK:   [[TMP2:%.*]] = cir.get_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!u64i>) -> !s32i
+// CHECK:   [[TMP1:%.*]] = cir.get_member {{.*}}[0] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CHECK:   [[TMP2:%.*]] = cir.get_bitfield align(4) (#bfi_d, [[TMP1]] : !cir.ptr<!u64i>) -> !s32i
 // CHECK:   [[TMP3:%.*]] = cir.binop(or, [[TMP2]], [[TMP0]]) : !s32i
-// CHECK:   cir.set_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!u64i>, [[TMP3]] : !s32i)
+// CHECK:   cir.set_bitfield align(4) (#bfi_d, [[TMP1]] : !cir.ptr<!u64i>, [[TMP3]] : !s32i)
 void binOp(S* s) {
    s->d |= 42;
 }
