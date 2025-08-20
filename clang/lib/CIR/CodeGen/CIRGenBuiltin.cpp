@@ -573,7 +573,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // intrinsics model those.
   [[maybe_unused]] bool ConstAlways =
       getContext().BuiltinInfo.isConst(BuiltinID);
-
   // There's a special case with the fma builtins where they are always const
   // if the target environment is GNU or the target is OS is Windows and we're
   // targeting the MSVCRT.dll environment.
@@ -1842,36 +1841,37 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_extend_pointer:
     llvm_unreachable("BI__builtin_extend_pointer NYI");
   case Builtin::BI__builtin_setjmp: {
+
+    Address buf = emitPointerWithAlignment(E->getArg(0));
     auto loc = getLoc(E->getExprLoc());
-    // create frameaddress
-    mlir::Value frameaddress =
-        builder
-            .create<cir::LLVMIntrinsicCallOp>(
-                loc, builder.getStringAttr("frameaddress"),
-                builder.getUInt8PtrTy(),
-                mlir::ValueRange{builder.getSInt32(0, loc)})
-            .getResult();
-    Address ptrArg = emitPointerWithAlignment(E->getArg(0));
 
     auto ppTy = builder.getPointerTo(builder.getUInt8PtrTy());
-    auto b = builder.createBitcast(ptrArg.getPointer(), ppTy);
+    auto castBuf = builder.createBitcast(buf.getPointer(), ppTy);
 
-    builder.create<cir::StoreOp>(loc, frameaddress, b);
-    // // create stacksave
-    mlir::Value stacksave = builder
-                                .create<cir::LLVMIntrinsicCallOp>(
-                                    loc, builder.getStringAttr("stacksave"),
-                                    builder.getUInt8PtrTy())
-                                .getResult();
-    auto gepNext = builder.create<cir::PtrStrideOp>(loc, ppTy, b,
-                                                    builder.getSInt32(1, loc));
-    builder.create<cir::StoreOp>(loc, stacksave, gepNext);
-    // create setjmp
+    if (getTarget().getTriple().isSystemZ()) {
+      llvm_unreachable("SYSTEMZ NYI");
+    }
+
+    mlir::Value frameaddress =
+        cir::LLVMIntrinsicCallOp::create(
+            builder, loc, builder.getStringAttr("frameaddress"),
+            builder.getUInt8PtrTy(),
+            mlir::ValueRange{builder.getSInt32(0, loc)})
+            .getResult();
+
+    cir::StoreOp::create(builder, loc, frameaddress, castBuf);
+    mlir::Value stacksave =
+        cir::LLVMIntrinsicCallOp::create(builder, loc,
+                                         builder.getStringAttr("stacksave"),
+                                         builder.getUInt8PtrTy())
+            .getResult();
+    auto stackSaveSlot = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf,
+                                                  builder.getSInt32(2, loc));
+    cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
     mlir::Value setjmpCall =
-        builder
-            .create<cir::LLVMIntrinsicCallOp>(
-                loc, builder.getStringAttr("eh.sjlj.setjmp"),
-                builder.getSInt32Ty(), mlir::ValueRange{b})
+        cir::LLVMIntrinsicCallOp::create(
+            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
+            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
             .getResult();
     return RValue::get(setjmpCall);
   }
