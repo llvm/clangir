@@ -147,7 +147,7 @@ public:
   mlir::Value VisitUnaryPreInc(const UnaryOperator *E) {
     return VisitPrePostIncDec(E, true, true);
   }
-  mlir::Value VisitUnaryDeref(const Expr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitUnaryDeref(const Expr *E) { return emitLoadOfLValue(E); }
 
   mlir::Value VisitUnaryPlus(const UnaryOperator *E,
                              QualType PromotionType = QualType());
