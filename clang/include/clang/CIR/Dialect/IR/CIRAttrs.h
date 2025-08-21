@@ -15,7 +15,6 @@
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
-#include "mlir/IR/OpImplementation.h"
 
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
@@ -46,29 +45,11 @@ class MethodType;
 class PointerType;
 class RecordType;
 class VectorType;
+
+#include "clang/CIR/Dialect/IR/CIRAttrConstraints.h.inc"
+#include "clang/CIR/Dialect/IR/CIRTBAAAttrConstraints.h.inc"
 } // namespace cir
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.h.inc"
-
-template <> struct ::mlir::FieldParser<cir::TBAAAttr, cir::TBAAAttr> {
-  static mlir::FailureOr<cir::TBAAAttr> parse(mlir::AsmParser &parser) {
-    mlir::Attribute attribute;
-    if (parser.parseAttribute(attribute))
-      return mlir::failure();
-    if (auto omnipotentChar =
-            mlir::dyn_cast<cir::TBAAOmnipotentCharAttr>(attribute))
-      return omnipotentChar;
-    if (auto vtablePtr = mlir::dyn_cast<cir::TBAAVTablePointerAttr>(attribute))
-      return vtablePtr;
-    if (auto scalar = mlir::dyn_cast<cir::TBAAScalarAttr>(attribute))
-      return scalar;
-    if (auto tag = mlir::dyn_cast<cir::TBAATagAttr>(attribute))
-      return tag;
-    if (auto structAttr = mlir::dyn_cast<cir::TBAAStructAttr>(attribute))
-      return structAttr;
-    return parser.emitError(parser.getCurrentLocation(), "Expected TBAAAttr");
-  }
-};
-
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_H

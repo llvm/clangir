@@ -84,6 +84,10 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, cir::AddressSpace addrSpace);
 //===----------------------------------------------------------------------===//
 // Tablegen defined attributes
 //===----------------------------------------------------------------------===//
+namespace cir {
+#include "clang/CIR/Dialect/IR/CIRAttrConstraints.cpp.inc"
+#include "clang/CIR/Dialect/IR/CIRTBAAAttrConstraints.cpp.inc"
+} // namespace cir
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
