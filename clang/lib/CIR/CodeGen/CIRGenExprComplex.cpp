@@ -317,7 +317,8 @@ public:
     return emitLoadOfLValue(LV, E->getExprLoc());
   };
   mlir::Value VisitBinComma(const BinaryOperator *E) {
-    llvm_unreachable("NYI");
+    CGF.emitIgnoredExpr(E->getLHS());
+    return Visit(E->getRHS());
   }
 
   mlir::Value
