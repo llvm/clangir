@@ -946,10 +946,11 @@ LogicalResult cir::ComplexRealOp::verify() {
 }
 
 OpFoldResult cir::ComplexRealOp::fold(FoldAdaptor adaptor) {
-  auto input = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
-  if (input)
-    return input.getReal();
-  return nullptr;
+  if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
+    return complexCreateOp.getOperand(0);
+
+  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  return complex ? complex.getReal() : nullptr;
 }
 
 LogicalResult cir::ComplexImagOp::verify() {
@@ -961,10 +962,11 @@ LogicalResult cir::ComplexImagOp::verify() {
 }
 
 OpFoldResult cir::ComplexImagOp::fold(FoldAdaptor adaptor) {
-  auto input = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
-  if (input)
-    return input.getImag();
-  return nullptr;
+  if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
+    return complexCreateOp.getOperand(1);
+
+  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  return complex ? complex.getImag() : nullptr;
 }
 
 //===----------------------------------------------------------------------===//
