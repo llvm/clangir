@@ -2,7 +2,8 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux -O2 -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
-
+// RUN: %clang_cc1 -triple x86_64-unknown-linux -O2 -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
 void test_setjmp(void *env) {
 
   // CIR-LABEL: test_setjmp
@@ -22,13 +23,22 @@ void test_setjmp(void *env) {
 
 
   // LLVM-LABEL: test_setjmp
-  // LLVM-SAME: (ptr {{.*}}[[ENV:%[0-9]+]])
+  // LLVM-SAME: (ptr{{.*}}[[ENV:%.*]])
   // LLVM-NEXT: [[FA:%[0-9]+]] = {{.*}}@llvm.frameaddress.p0(i32 0) 
   // LLVM-NEXT: store ptr [[FA]], ptr [[ENV]]
   // LLVM-NEXT: [[SS:%[0-9]+]] = {{.*}}@llvm.stacksave.p0() 
-  // LLVM-NEXT: [[GEP:%[0-9]+]] = getelementptr{{.*}}i8, ptr [[ENV]], i64 16
+  // LLVM-NEXT: [[GEP:%[0-9]+]] = getelementptr i8, ptr [[ENV]], i64 16
   // LLVM-NEXT: store ptr [[SS]], ptr [[GEP]]
   // LLVM-NEXT: @llvm.eh.sjlj.setjmp(ptr{{.*}}[[ENV]])
+  
+  // OGCG-LABEL: test_setjmp
+  // OGCG-SAME: (ptr{{.*}}[[ENV:%.*]])
+  // OGCG: [[FA:%.*]] = {{.*}}@llvm.frameaddress.p0(i32 0) 
+  // OGCG-NEXT: store ptr [[FA]], ptr [[ENV]]
+  // OGCG-NEXT: [[SS:%.*]] = {{.*}}@llvm.stacksave.p0() 
+  // OGCG-NEXT: [[GEP:%.*]] = getelementptr inbounds nuw i8, ptr [[ENV]], i64 16
+  // OGCG-NEXT: store ptr [[SS]], ptr [[GEP]]
+  // OGCG-NEXT: @llvm.eh.sjlj.setjmp(ptr{{.*}}[[ENV]])
   __builtin_setjmp(env);
 }
 
@@ -43,7 +53,11 @@ void test_setjmp2(void *env) {
   // CIR-NEXT: cir.call @_setjmp([[ENV_LOAD]])
 
   // LLVM-LABEL: test_setjmp2
-  // LLVM-SAME: (ptr {{.*}}[[ENV:%[0-9]+]])
+  // LLVM-SAME: (ptr{{.*}}[[ENV:%.*]])
   // LLVM-NEXT: call i32 @_setjmp(ptr [[ENV]])
+  //
+  // OGCG-LABEL: test_setjmp2
+  // OGCG-SAME: (ptr{{.*}}[[ENV:%.*]])
+  // OGCG: call i32 @_setjmp(ptr noundef [[ENV]])
   _setjmp (env);
 }

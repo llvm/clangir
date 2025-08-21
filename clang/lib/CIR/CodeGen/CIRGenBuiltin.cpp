@@ -1842,7 +1842,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_extend_pointer:
     llvm_unreachable("BI__builtin_extend_pointer NYI");
   case Builtin::BI__builtin_setjmp: {
-
     Address buf = emitPointerWithAlignment(E->getArg(0));
     auto loc = getLoc(E->getExprLoc());
 
@@ -2371,8 +2370,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto fnOp =
         CGM.GetOrCreateCIRFunction(nd->getName(), ty, GD, /*ForVTable=*/false,
                                    /*DontDefer=*/false);
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
-
+    fnOp.setBuiltin(true);
     assert(!::cir::MissingFeatures::undef());
     return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
                     ReturnValue);
