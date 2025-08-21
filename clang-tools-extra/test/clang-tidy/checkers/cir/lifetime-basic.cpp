@@ -9,6 +9,9 @@
 // RUN: --
 // RUN: FileCheck -input-file=%t.yaml -check-prefix=CHECK-YAML %s
 
+// NYI with 'invalid C++ ABI kind' on windows
+// UNSUPPORTED: system-windows
+
 int *p0() {
   int *p = nullptr;
   {
