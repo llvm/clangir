@@ -236,23 +236,25 @@ void test_memset_inline(void *dst, int val) {
 
 void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
   // CIR-LABEL: test_builtin_mempcpy
-  // CIR: cir.libc.memcpy {{%.*}} bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void> 
-  // CIR: cir.ptr_stride 
-  // CIR: cir.store [[GEP:%.*]], [[P:%.*]]
-  // CIR-NEXT: [[LD:%.*]] = cir.load [[P:%.*]]
+  // CIR: [[ALLOCA:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["__retval"]
+  // CIR: cir.libc.memcpy [[NUM:%.*]] bytes from [[S:.*]] to [[DST:.*]] :
+  // CIR: [[CAST2:%.*]] = cir.cast(bitcast, [[DST]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!u8i>>
+  // CIR: [[GEP:%.*]] = cir.ptr_stride([[CAST2]] : !cir.ptr<!cir.ptr<!u8i>>, [[NUM]] : !u64i)
+  // CIR: [[CAST3:%.*]] = cir.cast(bitcast, [[ALLOCA]]
+  // CIR: cir.store [[GEP]], [[CAST3:%.*]]
+  // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]]
   // CIR-NEXT: cir.return [[LD]]
  
-
   // LLVM-LABEL: test_builtin_mempcpy
-  // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 {{%.*}}, i1 false)
-  // LLVM-NEXT: [[GEP:%.*]] = getelementptr 
+  // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr [[DST:%.*]], ptr {{%.*}}, i64 [[NUM:%.*]], i1 false)
+  // LLVM-NEXT: [[GEP:%.*]] = getelementptr ptr, ptr [[DST]], i64 [[NUM]]
   // LLVM-NEXT: store ptr [[GEP]], ptr [[P:%.*]] 
   // LLVM-NEXT: [[LD:%.*]] = load ptr, ptr [[P]]
   // LLVM-NEXT: ret ptr [[LD]]
 
   // OGCG-LABEL: test_builtin_mempcpy
-  // OGCG: call void @llvm.memcpy.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 {{%.*}}, i1 false)
-  // OGCG-NEXT: [[GEP:%.*]] = getelementptr inbounds
+  // OGCG: call void @llvm.memcpy.p0.p0.i64(ptr align 1 [[DST:%.*]], ptr align 1 {{%.*}}, i64 [[NUM:%.*]], i1 false)
+  // OGCG-NEXT: [[GEP:%.*]] = getelementptr inbounds i8, ptr [[DST]], i64 [[NUM]]
   // OGCG-NEXT: ret ptr [[GEP]]
   return __builtin_mempcpy(dest, src, n);
 }
