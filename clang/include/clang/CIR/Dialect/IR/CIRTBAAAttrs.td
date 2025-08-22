@@ -13,8 +13,8 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 #define CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 
+include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
-include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 //===----------------------------------------------------------------------===//
 // TBAAAttr

@@ -25,12 +25,6 @@ include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 // CIR Attrs
 //===----------------------------------------------------------------------===//
 
-class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = [],
-               string baseCppClass = "::mlir::Attribute">
-    : AttrDef<CIR_Dialect, name, traits, baseCppClass> {
-  let mnemonic = attrMnemonic;
-}
-
 class CIR_TypedAttr<string name, string attrMnemonic, list<Trait> traits = []>
     : CIR_Attr<name, attrMnemonic, !listconcat(traits, [TypedAttrInterface])> {
 
