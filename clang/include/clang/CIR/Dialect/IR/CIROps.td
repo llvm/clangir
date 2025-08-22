@@ -4698,6 +4698,19 @@ def CIR_EhTypeIdOp : CIR_Op<"eh.typeid",
   }];
 }
 
+def CIR_EhSjljSetjmp : CIR_Op<"eh.sjlj.setjmp"> {
+  let summary = "CIR setjmp operation";
+  let description = [{
+    "Dedicated setjmp operation for longjmp, a nonlocal jump"
+  }];
+
+  let arguments = (ins CIR_PointerType:$buf);
+  let results = (outs CIR_SInt32:$res);
+  let assemblyFormat = [{
+    $buf `:` type($buf) `->` type(results) attr-dict
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // CopyOp
 //===----------------------------------------------------------------------===//
