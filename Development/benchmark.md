@@ -5,7 +5,7 @@ sort : 1
 
 There are several benchmarks that can already be built using CIR. The tables below show how many tests currently pass in different modes. In all entries but `no-cir` the pipeline is: AST -> CIR -> LLVM -> ...
 
-## x86_64 results
+## x86_64
 - Target: Linux, x86_64
 - Host: AMD EPYC-Milan Processor, 166 cores, 256GB RAM, CentOS 9.0
 - Build mode: Release (no asserts)
