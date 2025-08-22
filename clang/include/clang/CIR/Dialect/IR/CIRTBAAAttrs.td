@@ -28,7 +28,7 @@ class CIR_TBAAAttrCase<string Name, string StorageName>
     : CIR_Attr<Name, StorageName, [], "TBAAAttr">;
 
 def CIR_TBAAAttrConstraint : AttrConstraint<CPred<"::cir::isTBAAAttr($_self)">>{
-    string cppType = "::mlir::Attribute";
+  string cppType = "::mlir::Attribute";
 }
 
 //===----------------------------------------------------------------------===//

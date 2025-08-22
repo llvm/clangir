@@ -1,10 +1,12 @@
-// RUN: cir-opt %s -o %t
-// RUN: cir-opt %t
+// RUN: cir-opt %s -o - | FileCheck %s
 
 !s16i = !cir.int<s, 16>
 !s32i = !cir.int<s, 32>
 #fn_attr = #cir<extra({nothrow = #cir.nothrow, uwtable = #cir.uwtable<async>})>
 !rec_S = !cir.record<struct "S" {!s16i} #cir.record.decl.ast>
+// CHECK: #tbaa_scalar = #cir.tbaa_scalar<id = "short", type = !s16i>
+// CHECK: #tbaa_struct = #cir.tbaa_struct<id = "S", members = {<#tbaa_scalar, 0>}>
+// CHECK: #tbaa_tag = #cir.tbaa_tag<base = #tbaa_struct, access = #tbaa_scalar, offset = 0>
 #tbaa_scalar = #cir.tbaa_scalar<id = "short", type = !s16i>
 #tbaa_struct = #cir.tbaa_struct<id = "S", members = {<#tbaa_scalar, 0>}>
 #tbaa_tag = #cir.tbaa_tag<base = #tbaa_struct, access = #tbaa_scalar, offset = 0>
