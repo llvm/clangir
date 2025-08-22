@@ -1,13 +1,13 @@
 ---
 sort : 1
 ---
-# Benchmarks
+# Benchmark Coverage
 
 There are several benchmarks that can already be built using CIR. The tables below show how many tests currently pass in different modes. In all entries but `no-cir` the pipeline is: AST -> CIR -> LLVM -> ...
 
-## Summary of benchmark results
-Host: Linux, x86_64, AMD EPYC-Milan Processor, 166 cores, 256GB RAM, CentOS 9.0
-Compiler flags used: '-O2', release mode (no asserts)
+## x86_64 results
+- Target: Linux, x86_64, AMD EPYC-Milan Processor, 166 cores, 256GB RAM, CentOS 9.0
+- Compiler flags used: '-O2', release mode (no asserts)
 
 ### spec2017int
 
@@ -32,3 +32,6 @@ Compiler flags used: '-O2', release mode (no asserts)
 | cir-incubator | 1673 (91.27%) |
 | cir-upstream | 1203 (65.63%) |
 | no-cir | 1832 (99.95%) |
+
+## ARM64
+TBD
