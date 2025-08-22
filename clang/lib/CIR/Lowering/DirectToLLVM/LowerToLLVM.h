@@ -1220,6 +1220,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMEhSjljSetjmpOpLowering
+    : public mlir::OpConversionPattern<cir::EhSetjmp> {
+public:
+  using mlir::OpConversionPattern<cir::EhSetjmp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::EhSetjmp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMCatchParamOpLowering
     : public mlir::OpConversionPattern<cir::CatchParamOp> {
 public:
