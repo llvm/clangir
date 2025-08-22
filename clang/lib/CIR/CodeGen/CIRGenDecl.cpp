@@ -334,8 +334,7 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
     auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
     assert(allocaOp && "Address should come straight out of the alloca");
 
-    if (!allocaOp.use_empty())
-      allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    allocaOp.setInit(!allocaOp.use_empty());
     return;
   }
 

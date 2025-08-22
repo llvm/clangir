@@ -655,8 +655,7 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
   if (currVarDecl && SrcAlloca) {
     const VarDecl *VD = currVarDecl;
     assert(VD && "VarDecl expected");
-    if (VD->hasInit())
-      SrcAlloca.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    SrcAlloca.setInit(VD->hasInit());
   }
 
   assert(currSrcLoc && "must pass in source location");
@@ -1329,7 +1328,7 @@ LValue CIRGenFunction::emitUnaryOpLValue(const UnaryOperator *E) {
 
     // Tag 'load' with deref attribute.
     if (auto loadOp = Addr.getDefiningOp<cir::LoadOp>()) {
-      loadOp.setIsDerefAttr(mlir::UnitAttr::get(&getMLIRContext()));
+      loadOp.setIsDeref(true);
     }
 
     LValue LV = LValue::makeAddr(Addr, T, BaseInfo, TBAAInfo);
