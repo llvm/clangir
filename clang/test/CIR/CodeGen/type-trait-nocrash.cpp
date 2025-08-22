@@ -1,7 +1,11 @@
-// RUN: %clang_cc1 -triple arm64-apple-darwin -std=c++20 -O2 \
-// RUN:   -fclangir -emit-cir %s -o - 2>&1 | FileCheck %s --allow-empty
-// CHECK-NOT: NYI
-// CHECK-NOT: error
+// RUN: %clang_cc1 -triple arm64-apple-darwin -std=c++20 -O2 -fclangir -emit-cir %s -o - | FileCheck %s --check-prefix=CIR
+// RUN: %clang_cc1 -triple arm64-apple-darwin -std=c++20 -O2 -fclangir -emit-llvm %s -o - | FileCheck %s --check-prefix=LLVM
+// RUN: %clang_cc1 -triple arm64-apple-darwin -std=c++20 -O2 -emit-llvm %s -o - | FileCheck %s --check-prefix=LLVM
+
+// CIR: cir.const #true
+
+// LLVM-DAG: @A = local_unnamed_addr global %class.A zeroinitializer, align 1
+// LLVM-DAG: type { i8 }
 
 namespace B {
 template <class _0p> class B {
