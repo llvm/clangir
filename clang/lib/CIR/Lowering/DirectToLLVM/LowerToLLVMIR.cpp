@@ -116,6 +116,8 @@ private:
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         } else if (mlir::dyn_cast<cir::ConvergentAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
+        } else if (mlir::dyn_cast<cir::HotAttr>(attr.getValue())) {
+          llvmFunc->addFnAttr(llvm::Attribute::Hot);
         } else if (mlir::dyn_cast<cir::OpenCLKernelAttr>(attr.getValue())) {
           const auto uniformAttrName =
               cir::OpenCLKernelUniformWorkGroupSizeAttr::getMnemonic();
