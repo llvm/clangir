@@ -149,6 +149,26 @@ int _Complex complex_imag_operator_on_rvalue() {
 // LLVM: %[[TMP_RET:.*]] = load { i32, i32 }, ptr %[[RET_ADDR]], align 4
 // LLVM: ret { i32, i32 } %[[TMP_RET]]
 
+struct Container {
+  static int _Complex c;
+};
+
+void complex_member_expr_with_var_deal() {
+  Container con;
+  int r = __real__ con.c;
+}
+
+// CIR: %[[REAL_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init]
+// CIR: %[[ELEM_PTR:.*]] = cir.get_global @_ZN9Container1cE : !cir.ptr<!cir.complex<!s32i>>
+// CIR: %[[ELEM:.*]] = cir.load{{.*}} %[[ELEM_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR: %[[REAL:.*]] = cir.complex.real %[[ELEM]] : !cir.complex<!s32i> -> !s32i
+// CIR: cir.store{{.*}} %[[REAL]], %[[REAL_ADDR]] : !s32i, !cir.ptr<!s32i>
+
+// LLVM: %[[REAL_ADDR:.*]] = alloca i32, i64 1, align 4
+// LLVM: %[[ELEM:.*]] = load { i32, i32 }, ptr @_ZN9Container1cE, align 4
+// LLVM: %[[REAL:.*]] = extractvalue { i32, i32 } %[[ELEM]], 0
+// LLVM: store i32 %[[REAL]], ptr %[[REAL_ADDR]], align 4
+
 void complex_comma_operator(int _Complex a, int _Complex b) {
   int _Complex c = (a, b);
 }
