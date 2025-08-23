@@ -443,10 +443,8 @@ RValue CIRGenFunction::emitRotate(const CallExpr *E, bool IsRotateRight) {
   // result, but the CIR ops uses the same type for all values.
   auto ty = src.getType();
   shiftAmt = builder.createIntCast(shiftAmt, ty);
-  auto r =
-      builder.create<cir::RotateOp>(getLoc(E->getSourceRange()), src, shiftAmt);
-  if (!IsRotateRight)
-    r->setAttr("left", mlir::UnitAttr::get(src.getContext()));
+  auto r = cir::RotateOp::create(builder, getLoc(E->getSourceRange()), src,
+                                 shiftAmt, !IsRotateRight);
   return RValue::get(r);
 }
 
@@ -2382,7 +2380,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto fnOp =
         CGM.GetOrCreateCIRFunction(ND->getName(), ty, gd, /*ForVTable=*/false,
                                    /*DontDefer=*/false);
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    fnOp.setBuiltin(true);
     return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
                     ReturnValue);
   }
