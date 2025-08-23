@@ -297,10 +297,8 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
 
   addr = emitAlloca(namedVar->getName(), ty, loc, alignment);
   auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
-  if (isParam)
-    allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
-  if (ty->isReferenceType() || ty.isConstQualified())
-    allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  allocaOp.setInit(isParam);
+  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
 
   symbolTable.insert(var, addr);
   return mlir::success();
@@ -317,10 +315,8 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
 
   addrVal = addr.getPointer();
   auto allocaOp = addrVal.getDefiningOp<cir::AllocaOp>();
-  if (isParam)
-    allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
-  if (ty->isReferenceType() || ty.isConstQualified())
-    allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  allocaOp.setInit(isParam);
+  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
 
   symbolTable.insert(var, addrVal);
   return mlir::success();
@@ -1355,7 +1351,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
       // We're in a lambda.
       auto fn = dyn_cast<cir::FuncOp>(CurFn);
       assert(fn && "other callables NYI");
-      fn.setLambdaAttr(mlir::UnitAttr::get(&getMLIRContext()));
+      fn.setLambda(true);
 
       // Figure out the captures.
       md->getParent()->getCaptureFields(LambdaCaptureFields,

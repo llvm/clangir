@@ -594,9 +594,8 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
     auto load = builder.createLoad(loc, Ptr);
     // FIXME(cir): add scope information.
     assert(!cir::MissingFeatures::syncScopeID());
-    load->setAttr("mem_order", orderAttr);
-    if (E->isVolatile())
-      load->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
+    load.setMemOrder(Order);
+    load.setIsVolatile(E->isVolatile());
 
     // TODO(cir): this logic should be part of createStore, but doing so
     // currently breaks CodeGen/union.cpp and CodeGen/union.cpp.

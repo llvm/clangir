@@ -870,6 +870,11 @@ public:
                                 cir::FuncType Ty,
                                 const clang::FunctionDecl *FD);
 
+  /// Create a CIR function with builtin attribute set.
+  cir::FuncOp createCIRBuiltinFunction(mlir::Location loc, llvm::StringRef name,
+                                       cir::FuncType Ty,
+                                       const clang::FunctionDecl *FD);
+
   cir::FuncOp createRuntimeFunction(cir::FuncType Ty, llvm::StringRef Name,
                                     mlir::ArrayAttr = {}, bool Local = false,
                                     bool AssumeConvergent = false);
