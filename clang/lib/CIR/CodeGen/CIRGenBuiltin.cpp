@@ -1844,8 +1844,37 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_unwind_init NYI");
   case Builtin::BI__builtin_extend_pointer:
     llvm_unreachable("BI__builtin_extend_pointer NYI");
-  case Builtin::BI__builtin_setjmp:
-    llvm_unreachable("BI__builtin_setjmp NYI");
+  case Builtin::BI__builtin_setjmp: {
+    Address buf = emitPointerWithAlignment(E->getArg(0));
+    auto loc = getLoc(E->getExprLoc());
+
+    auto ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    auto castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+
+    assert(!cir::MissingFeatures::emitCheckedInBoundsGEP());
+    if (getTarget().getTriple().isSystemZ()) {
+      llvm_unreachable("SYSTEMZ NYI");
+    }
+
+    mlir::Value frameaddress =
+        cir::FrameAddrOp::create(builder, loc, builder.getVoidPtrTy(),
+                                 mlir::ValueRange{builder.getUInt32(0, loc)})
+            .getResult();
+
+    cir::StoreOp::create(builder, loc, frameaddress, castBuf);
+    mlir::Value stacksave =
+        cir::StackSaveOp::create(builder, loc, builder.getVoidPtrTy())
+            .getResult();
+    auto stackSaveSlot = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf,
+                                                  builder.getSInt32(2, loc));
+    cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
+    mlir::Value setjmpCall =
+        cir::LLVMIntrinsicCallOp::create(
+            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
+            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
+            .getResult();
+    return RValue::get(setjmpCall);
+  }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
   case Builtin::BI__builtin_launder: {
@@ -2337,9 +2366,18 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI_setjmpex:
     llvm_unreachable("BI_setjmpex NYI");
     break;
-  case Builtin::BI_setjmp:
-    llvm_unreachable("BI_setjmp NYI");
-    break;
+  case Builtin::BI_setjmp: {
+    mlir::Type ty = CGM.getTypes().GetFunctionType(
+        CGM.getTypes().arrangeGlobalDeclaration(GD));
+    const auto *nd = cast<NamedDecl>(GD.getDecl());
+    auto fnOp =
+        CGM.GetOrCreateCIRFunction(nd->getName(), ty, GD, /*ForVTable=*/false,
+                                   /*DontDefer=*/false);
+    fnOp.setBuiltin(true);
+    assert(!::cir::MissingFeatures::undef());
+    return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
+                    ReturnValue);
+  }
 
   // C++ std:: builtins.
   case Builtin::BImove:
