@@ -705,11 +705,11 @@ public:
   mlir::Value VisitTypeTraitExpr(const TypeTraitExpr *E) {
     auto loc = CGF.getLoc(E->getExprLoc());
     if (E->isStoredAsBoolean())
-      return CGF.getBuilder().getBool(E->getBoolValue(), loc);
+      return Builder.getBool(E->getBoolValue(), loc);
 
     assert(E->getAPValue().isInt() && "APValue type not supported");
     auto ty = CGF.convertType(E->getType());
-    return CGF.getBuilder().getConstAPInt(loc, ty, E->getAPValue().getInt());
+    return Builder.getConstAPInt(loc, ty, E->getAPValue().getInt());
   }
   mlir::Value
   VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E) {
