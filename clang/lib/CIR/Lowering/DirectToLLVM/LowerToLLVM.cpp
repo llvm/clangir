@@ -4288,6 +4288,14 @@ mlir::LogicalResult CIRToLLVMEhTypeIdOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMEhSjljSetjmpOpLowering::matchAndRewrite(
+    cir::EhSjljSetjmp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<mlir::LLVM::Eh_SJLJ_Setjmp>(
+      op, typeConverter->convertType(op.getType()), adaptor.getBuf());
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMCatchParamOpLowering::matchAndRewrite(
     cir::CatchParamOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4531,6 +4539,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMDerivedClassAddrOpLowering,
       CIRToLLVMEhInflightOpLowering,
       CIRToLLVMEhTypeIdOpLowering,
+      CIRToLLVMEhSjljSetjmpOpLowering,
       CIRToLLVMExpectOpLowering,
       CIRToLLVMExtractMemberOpLowering,
       CIRToLLVMFrameAddrOpLowering,

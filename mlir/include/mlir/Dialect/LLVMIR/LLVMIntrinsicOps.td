@@ -779,6 +779,12 @@ def LLVM_EhTypeidForOp : LLVM_OneResultIntrOp<"eh.typeid.for", [], [0]> {
     let assemblyFormat = "$type_info attr-dict `:` functional-type(operands, results)";
 }
 
+def LLVM_Eh_SJLJ_Setjmp : LLVM_OneResultIntrOp<"eh.sjlj.setjmp", [], [0]> {
+  let arguments = (ins LLVM_AnyPointer:$buf);
+  let results = (outs I32:$res);
+  let assemblyFormat = "$buf attr-dict `:` functional-type(operands, results)";
+}
+
 //
 // Stack save/restore intrinsics.
 //
