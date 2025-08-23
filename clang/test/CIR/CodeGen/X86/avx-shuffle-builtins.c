@@ -26,15 +26,15 @@ __m256d test_mm256_insertf128_pd_0(__m256d a, __m128d b) {
   return _mm256_insertf128_pd(a, b, 0);
 }
 
-// CIR-LABEL: @test_mm256_insertf128_pd_1(
+// CIR-LABEL: @test_mm256_insertf128_ps_0(
 // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!cir.float x 8>
 // CIR-NEXT: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 8>) [#cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!cir.float x 8>
 // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 8>
 
 // LLVM-LABEL: @test_mm256_insertf128_ps_0(
-// LLVM-NEXT:    %{{.*}} = shufflevector <4 x float> %{{.*}}, <4 x float> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+// LLVM:    %{{.*}} = shufflevector <4 x float> %{{.*}}, <4 x float> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
 // LLVM-NEXT:    %{{.*}} = shufflevector <8 x float> %{{.*}}, <8 x float> %{{.*}}, <8 x i32> <i32 8, i32 9, i32 10, i32 11, i32 4, i32 5, i32 6, i32 7>
-// LLVM-NEXT:    ret <8 x float> %{{.*}}
+// LLVM:    ret <8 x float> %{{.*}}
 //
 __m256 test_mm256_insertf128_ps_0(__m256 a, __m128 b) {
   return _mm256_insertf128_ps(a, b, 0);
@@ -57,18 +57,18 @@ __m256 test_mm256_insertf128_ps_1(__m256 a, __m128 b) {
 // CIR-LABEL: @test_mm256_insertf128_si256_0(
 // CIR: [[TMP0:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 4>), !cir.vector<!s32i x 8>
 // CIR: [[TMP1:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 2>), !cir.vector<!s32i x 4>
-// CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!cir.float x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!cir.float x 8>
-// CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!cir.float x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!cir.float x 8>
+// CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
+// CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!s32i x 8>) [#cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
 // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.vector<!s32i x 8>), !cir.vector<!s64i x 4>
 // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 4>
 
 // LLVM-LABEL: @test_mm256_insertf128_si256_0
-// LLVM-NEXT:    [[TMP0:%.*]] = bitcast <4 x i64> %{{.*}} to <8 x i32>
-// LLVM-NEXT:    [[TMP1:%.*]] = bitcast <2 x i64> %{{.*}} to <4 x i32>
-// LLVM-NEXT:    [[WIDEN:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+// LLVM:    [[TMP0:%.*]] = bitcast <4 x i64> %{{.*}} to <8 x i32>
+// LLVM:    [[TMP1:%.*]] = bitcast <2 x i64> %{{.*}} to <4 x i32>
+// LLVM:    [[WIDEN:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
 // LLVM-NEXT:    [[INSERT:%.*]] = shufflevector <8 x i32> [[TMP0]], <8 x i32> [[WIDEN]], <8 x i32> <i32 8, i32 9, i32 10, i32 11, i32 4, i32 5, i32 6, i32 7>
-// LLVM-NEXT:    [[TMP2:%.*]] = bitcast <8 x i32> [[INSERT]] to <4 x i64>
-// LLVM-NEXT:    ret <4 x i64> %{{.*}}
+// LLVM:    [[TMP2:%.*]] = bitcast <8 x i32> [[INSERT]] to <4 x i64>
+// LLVM:    ret <4 x i64> %{{.*}}
 //
 __m256i test_mm256_insertf128_si256_0(__m256i a, __m128i b) {
   return _mm256_insertf128_si256(a, b, 0);
@@ -77,18 +77,18 @@ __m256i test_mm256_insertf128_si256_0(__m256i a, __m128i b) {
 // CIR-LABEL: @test_mm256_insertf128_si256_1(
 // CIR: [[TMP0:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 4>), !cir.vector<!s32i x 8>
 // CIR: [[TMP1:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 2>), !cir.vector<!s32i x 4>
-// CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!cir.float x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!cir.float x 8>
-// CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!cir.float x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!cir.float x 8>
+// CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
+// CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!s32i x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!s32i x 8>
 // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.vector<!s32i x 8>), !cir.vector<!s64i x 4>
 // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 4>
 
 // LLVM-LABEL: @test_mm256_insertf128_si256_1
-// LLVM-NEXT:    [[TMP0:%.*]] = bitcast <4 x i64> %{{.*}} to <8 x i32>
-// LLVM-NEXT:    [[TMP1:%.*]] = bitcast <2 x i64> %{{.*}} to <4 x i32>
-// LLVM-NEXT:    [[WIDEN:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+// LLVM:    [[TMP0:%.*]] = bitcast <4 x i64> %{{.*}} to <8 x i32>
+// LLVM:    [[TMP1:%.*]] = bitcast <2 x i64> %{{.*}} to <4 x i32>
+// LLVM:    [[WIDEN:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
 // LLVM-NEXT:    [[INSERT:%.*]] = shufflevector <8 x i32> [[TMP0]], <8 x i32> [[WIDEN]], <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 8, i32 9, i32 10, i32 11>
-// LLVM-NEXT:    [[TMP2:%.*]] = bitcast <8 x i32> [[INSERT]] to <4 x i64>
-// LLVM-NEXT:    ret <4 x i64> %{{.*}}
+// LLVM:    [[TMP2:%.*]] = bitcast <8 x i32> [[INSERT]] to <4 x i64>
+// LLVM:    ret <4 x i64> %{{.*}}
 //
 __m256i test_mm256_insertf128_si256_1(__m256i a, __m128i b) {
   return _mm256_insertf128_si256(a, b, 1);
