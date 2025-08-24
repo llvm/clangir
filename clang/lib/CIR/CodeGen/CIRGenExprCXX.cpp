@@ -308,16 +308,18 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
           CGM.getTypes().arrangeCXXStructorDeclaration(GD);
       auto Ty = CGM.getTypes().GetFunctionType(FI);
 
-      CIRGenCallee Callee = CIRGenCallee::forVirtual(CE, GD, This.getAddress(), Ty);
+      CIRGenCallee Callee =
+          CIRGenCallee::forVirtual(CE, GD, This.getAddress(), Ty);
 
       if (dtor->isVirtual()) {
         Address NewThisAddr =
-          CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
-              *this, GD, This.getAddress(), true);
+            CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
+                *this, GD, This.getAddress(), true);
         This.setAddress(NewThisAddr);
       }
 
-      QualType thisTy = IsArrow ? Base->getType()->getPointeeType() : Base->getType();
+      QualType thisTy =
+          IsArrow ? Base->getType()->getPointeeType() : Base->getType();
       emitCXXDestructorCall(GD, Callee, This.getPointer(), thisTy,
                             /*ImplicitParam=*/nullptr,
                             /*ImplicitParamTy=*/QualType(), CE);
