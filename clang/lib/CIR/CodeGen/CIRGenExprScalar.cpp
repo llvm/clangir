@@ -703,12 +703,12 @@ public:
     return {};
   }
   mlir::Value VisitTypeTraitExpr(const TypeTraitExpr *E) {
-    auto loc = CGF.getLoc(E->getExprLoc());
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
     if (E->isStoredAsBoolean())
       return Builder.getBool(E->getBoolValue(), loc);
 
     assert(E->getAPValue().isInt() && "APValue type not supported");
-    auto ty = CGF.convertType(E->getType());
+    mlir::Type ty = CGF.convertType(E->getType());
     return Builder.getConstAPInt(loc, ty, E->getAPValue().getInt());
   }
   mlir::Value
