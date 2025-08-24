@@ -779,6 +779,13 @@ public:
                                 const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+
+    // If using AAPCS and the field is volatile, load with the size of the
+    // declared field
+    storageType =
+        useVolatile ? cir::IntType::get(storageType.getContext(),
+                                        info.VolatileStorageSize, info.IsSigned)
+                    : storageType;
     return cir::GetBitfieldOp::create(*this, loc, resultType, addr.getPointer(),
                                       storageType, info.Name, info.Size, offset,
                                       info.IsSigned, isLvalueVolatile,
@@ -790,6 +797,13 @@ public:
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+
+    // If using AAPCS and the field is volatile, load with the size of the
+    // declared field
+    storageType =
+        useVolatile ? cir::IntType::get(storageType.getContext(),
+                                        info.VolatileStorageSize, info.IsSigned)
+                    : storageType;
     return cir::SetBitfieldOp::create(
         *this, loc, resultType, dstAddr.getPointer(), storageType, src,
         info.Name, info.Size, offset, info.IsSigned, isLvalueVolatile,

@@ -290,8 +290,7 @@ LValue CIRGenFunction::emitLValueForBitField(LValue base,
   auto useVolatile = useVolatileForBitField(CGM, base, info, field);
   unsigned Idx = layout.getCIRFieldNo(field);
 
-  if (useVolatile ||
-      (IsInPreservedAIRegion ||
+  if ((IsInPreservedAIRegion ||
        (getDebugInfo() && rec->hasAttr<BPFPreserveAccessIndexAttr>()))) {
     llvm_unreachable("NYI");
   }
