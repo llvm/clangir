@@ -302,25 +302,25 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (useVirtualCall) {
-      GlobalDecl GD(dtor, Dtor_Complete);
+      GlobalDecl globalDecl(dtor, Dtor_Complete);
 
-      const CIRGenFunctionInfo &FI =
-          CGM.getTypes().arrangeCXXStructorDeclaration(GD);
-      auto Ty = CGM.getTypes().GetFunctionType(FI);
+      const CIRGenFunctionInfo &funcInfo =
+          CGM.getTypes().arrangeCXXStructorDeclaration(globalDecl);
+      cir::FuncType Ty = CGM.getTypes().GetFunctionType(funcInfo);
 
-      CIRGenCallee Callee =
-          CIRGenCallee::forVirtual(CE, GD, This.getAddress(), Ty);
+      CIRGenCallee callee =
+          CIRGenCallee::forVirtual(CE, globalDecl, This.getAddress(), Ty);
 
       if (dtor->isVirtual()) {
-        Address NewThisAddr =
+        Address newThisAddr =
             CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
-                *this, GD, This.getAddress(), true);
-        This.setAddress(NewThisAddr);
+                *this, globalDecl, This.getAddress(), true);
+        This.setAddress(newThisAddr);
       }
 
       QualType thisTy =
           IsArrow ? Base->getType()->getPointeeType() : Base->getType();
-      emitCXXDestructorCall(GD, Callee, This.getPointer(), thisTy,
+      emitCXXDestructorCall(globalDecl, callee, This.getPointer(), thisTy,
                             /*ImplicitParam=*/nullptr,
                             /*ImplicitParamTy=*/QualType(), CE);
     } else {
