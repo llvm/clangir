@@ -302,7 +302,27 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (useVirtualCall) {
-      llvm_unreachable("NYI");
+      GlobalDecl globalDecl(dtor, Dtor_Complete);
+
+      const CIRGenFunctionInfo &funcInfo =
+          CGM.getTypes().arrangeCXXStructorDeclaration(globalDecl);
+      cir::FuncType Ty = CGM.getTypes().GetFunctionType(funcInfo);
+
+      CIRGenCallee callee =
+          CIRGenCallee::forVirtual(CE, globalDecl, This.getAddress(), Ty);
+
+      if (dtor->isVirtual()) {
+        Address newThisAddr =
+            CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
+                *this, globalDecl, This.getAddress(), true);
+        This.setAddress(newThisAddr);
+      }
+
+      QualType thisTy =
+          IsArrow ? Base->getType()->getPointeeType() : Base->getType();
+      emitCXXDestructorCall(globalDecl, callee, This.getPointer(), thisTy,
+                            /*ImplicitParam=*/nullptr,
+                            /*ImplicitParamTy=*/QualType(), CE);
     } else {
       GlobalDecl globalDecl(dtor, Dtor_Complete);
       CIRGenCallee Callee;
