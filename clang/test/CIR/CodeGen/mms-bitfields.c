@@ -15,9 +15,9 @@ struct s1 {
 // OGCG-DAG: %struct.s1 = type { i32, i64 }
 
 struct s2 {
-    int a : 24;
+    int  a : 24;
     char b;
-    int c: 30;
+    int  c : 30;
 } Clip;
 
 // CIR-DAG: !rec_s2 = !cir.record<struct "s2" {!s32i, !s8i, !s32i} #cir.record.decl.ast>

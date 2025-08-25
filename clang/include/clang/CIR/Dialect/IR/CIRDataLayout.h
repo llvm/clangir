@@ -103,8 +103,8 @@ public:
   ///
   /// This is the amount that alloca reserves for this type. For example,
   /// returns 96 or 128 for x86_fp80, depending on alignment.
-  llvm::TypeSize getTypeAllocSizeInBits(mlir::Type Ty) const {
-    return 8 * getTypeAllocSize(Ty);
+  llvm::TypeSize getTypeAllocSizeInBits(mlir::Type ty) const {
+    return 8 * getTypeAllocSize(ty);
   }
 
   llvm::TypeSize getPointerTypeSizeInBits(mlir::Type Ty) const {
