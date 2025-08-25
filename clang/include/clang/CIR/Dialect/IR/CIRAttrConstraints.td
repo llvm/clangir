@@ -45,4 +45,32 @@ def CIR_AnyIntOrFloatAttr : AnyAttrOf<[CIR_AnyIntAttr, CIR_AnyFPAttr],
 def CIR_IntArrayAttr : TypedArrayAttrBase<CIR_AnyIntAttr,
    "integer array attribute">;
 
+//===----------------------------------------------------------------------===//
+// TBAAAttr constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_TBAAConstraint
+  : CIR_AttrConstraint<"::cir::TBAAAttr", "base attribute for TBAA">;
+def CIR_TBAAOmnipotentCharConstraint
+  : CIR_AttrConstraint<"::cir::TBAAOmnipotentCharAttr", "Omnipotent char type">;
+def CIR_TBAAVTablePointerConstraint
+  : CIR_AttrConstraint<"::cir::TBAAVTablePointerAttr", "VTable pointer type">;
+def CIR_TBAAScalarConstraint
+  : CIR_AttrConstraint<"::cir::TBAAScalarAttr", "Scalar type with identifier">;
+def CIR_TBAAStructConstraint
+  : CIR_AttrConstraint<"::cir::TBAAStructAttr", "Struct type">;
+def CIR_TBAATagConstraint
+  : CIR_AttrConstraint<"::cir::TBAATagAttr", "Member of a TBAA struct type">;
+
+def CIR_AnyTBAAAttr : AnyAttrOf<[
+  CIR_TBAAConstraint,
+  CIR_TBAAOmnipotentCharConstraint,
+  CIR_TBAAVTablePointerConstraint,
+  CIR_TBAAScalarConstraint,
+  CIR_TBAAStructConstraint,
+  CIR_TBAATagConstraint
+]> {
+  string cppType = "::mlir::Attribute";
+}
+
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRCONSTRAINTS_TD
