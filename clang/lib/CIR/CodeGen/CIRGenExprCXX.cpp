@@ -306,10 +306,10 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
 
       const CIRGenFunctionInfo &funcInfo =
           CGM.getTypes().arrangeCXXStructorDeclaration(globalDecl);
-      cir::FuncType Ty = CGM.getTypes().GetFunctionType(funcInfo);
+      cir::FuncType funcTy = CGM.getTypes().GetFunctionType(funcInfo);
 
       CIRGenCallee callee =
-          CIRGenCallee::forVirtual(CE, globalDecl, This.getAddress(), Ty);
+          CIRGenCallee::forVirtual(CE, globalDecl, This.getAddress(), funcTy);
 
       if (dtor->isVirtual()) {
         Address newThisAddr =
