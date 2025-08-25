@@ -61,10 +61,4 @@ def CIR_Dialect : Dialect {
   }];
 }
 
-class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = [],
-               string baseCppClass = "::mlir::Attribute">
-    : AttrDef<CIR_Dialect, name, traits, baseCppClass> {
-  let mnemonic = attrMnemonic;
-}
-
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIRDIALECT

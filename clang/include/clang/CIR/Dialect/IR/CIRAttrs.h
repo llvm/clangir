@@ -45,11 +45,9 @@ class MethodType;
 class PointerType;
 class RecordType;
 class VectorType;
-
-#include "clang/CIR/Dialect/IR/CIRAttrConstraints.h.inc"
-#include "clang/CIR/Dialect/IR/CIRTBAAAttrConstraints.h.inc"
 } // namespace cir
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.h.inc"
+
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_H

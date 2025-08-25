@@ -13,7 +13,7 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 #define CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 
-include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
 
 //===----------------------------------------------------------------------===//
@@ -26,10 +26,6 @@ def CIR_TBAAAttr : CIR_Attr<"TBAA", "tbaa", []> {
 
 class CIR_TBAAAttrCase<string Name, string StorageName>
     : CIR_Attr<Name, StorageName, [], "TBAAAttr">;
-
-def CIR_TBAAAttrConstraint : AttrConstraint<CPred<"::cir::isTBAAAttr($_self)">>{
-  string cppType = "::mlir::Attribute";
-}
 
 //===----------------------------------------------------------------------===//
 // TBAAOmnipotentCharAttr
@@ -96,17 +92,17 @@ def CIR_TBAAScalarAttr : CIR_TBAAAttrCase< "TBAAScalar", "tbaa_scalar"> {
 }
 
 def CIR_TBAATagAttr : CIR_TBAAAttrCase<"TBAATag", "tbaa_tag"> {
-  let parameters = (ins CIR_TBAAAttrConstraint
-                    : $base, CIR_TBAAAttrConstraint
+  let parameters = (ins CIR_AnyTBAAAttr
+                    : $base, CIR_AnyTBAAAttr
                     : $access, "int64_t"
                     : $offset);
 
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CIR_TBAAMemberAttr : CIR_TBAAAttrCase<"TBAAMember", "tbaa_member"> {
+def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member"> {
   let summary = "Attribute representing a member of a TBAA structured type.";
-  let parameters = (ins CIR_TBAAAttrConstraint:$type_desc,
+  let parameters = (ins CIR_AnyTBAAAttr:$type_desc,
                         "int64_t":$offset);
   let description = [{
     Define a TBAA struct attribute.
@@ -173,17 +169,6 @@ def CIR_TBAAStructAttr : CIR_TBAAAttrCase<"TBAAStruct", "tbaa_struct"> {
   }];
 
   let assemblyFormat = "`<` struct(params) `>`";
-}
-
-def CIR_AnyTBAAAttr : AnyAttrOf<[
-  CIR_TBAAAttr,
-  CIR_TBAAOmnipotentCharAttr,
-  CIR_TBAAVTablePointerAttr,
-  CIR_TBAAScalarAttr,
-  CIR_TBAAStructAttr,
-  CIR_TBAATagAttr
-]> {
-    let cppFunctionName = "isTBAAAttr";
 }
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
