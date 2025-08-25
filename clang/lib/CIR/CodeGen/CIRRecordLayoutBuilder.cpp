@@ -513,8 +513,44 @@ RecordDecl::field_iterator
 CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
                                        RecordDecl::field_iterator FieldEnd) {
 
-  if (isDiscreteBitFieldABI())
-    llvm_unreachable("NYI");
+  if (isDiscreteBitFieldABI()) {
+    // Run stores the first element of the current run of bitfields. FieldEnd is
+    // used as a special value to note that we don't have a current run. A
+    // bitfield run is a contiguous collection of bitfields that can be stored
+    // in the same storage block. Zero-sized bitfields and bitfields that would
+    // cross an alignment boundary break a run and start a new one.
+    RecordDecl::field_iterator Run = FieldEnd;
+    // Tail is the offset of the first bit off the end of the current run. It's
+    // used to determine if the ASTRecordLayout is treating these two bitfields
+    // as contiguous. StartBitOffset is offset of the beginning of the Run.
+    uint64_t StartBitOffset, Tail = 0;
+    for (; Field != FieldEnd && Field->isBitField(); ++Field) {
+      // Zero-width bitfields end runs.
+      if (Field->isZeroLengthBitField()) {
+        Run = FieldEnd;
+        continue;
+      }
+      uint64_t BitOffset = getFieldBitOffset(*Field);
+      mlir::Type Type = cirGenTypes.convertTypeForMem(Field->getType());
+      // If we don't have a run yet, or don't live within the previous run's
+      // allocated storage then we allocate some storage and start a new run.
+      if (Run == FieldEnd || BitOffset >= Tail) {
+        Run = Field;
+        StartBitOffset = BitOffset;
+        Tail = StartBitOffset + dataLayout.getTypeAllocSizeInBits(Type);
+        // Add the storage member to the record.  This must be added to the
+        // record before the bitfield members so that it gets laid out before
+        // the bitfields it contains get laid out.
+        members.push_back(StorageInfo(bitsToCharUnits(StartBitOffset), Type));
+      }
+      // Bitfields get the offset of their storage but come afterward and remain
+      // there after a stable sort.
+      members.push_back(MemberInfo(bitsToCharUnits(StartBitOffset),
+                                   MemberInfo::InfoKind::Field, nullptr,
+                                   *Field));
+    }
+    return Field;
+  }
 
   CharUnits RegSize =
       bitsToCharUnits(astContext.getTargetInfo().getRegisterWidth());
