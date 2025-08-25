@@ -49,6 +49,7 @@ void test_setjmp2(void *env) {
   // CIR-SAME: [[ENV:%.*]]: !cir.ptr<!void>
   // CIR-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
   // CIR-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
+  // CIR-NEXT: [[DEAD_GET_GLOBAL:%.*]] = cir.get_global @_setjmp
   // CIR-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
   // CIR-NEXT: cir.call @_setjmp([[ENV_LOAD]])
 

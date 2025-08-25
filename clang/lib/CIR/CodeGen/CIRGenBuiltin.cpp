@@ -1843,10 +1843,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_extend_pointer NYI");
   case Builtin::BI__builtin_setjmp: {
     Address buf = emitPointerWithAlignment(E->getArg(0));
-    auto loc = getLoc(E->getExprLoc());
+    mlir::Location loc = getLoc(E->getExprLoc());
 
-    auto ppTy = builder.getPointerTo(builder.getVoidPtrTy());
-    auto castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
 
     assert(!cir::MissingFeatures::emitCheckedInBoundsGEP());
     if (getTarget().getTriple().isSystemZ()) {
@@ -1862,8 +1862,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::Value stacksave =
         cir::StackSaveOp::create(builder, loc, builder.getVoidPtrTy())
             .getResult();
-    auto stackSaveSlot = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf,
-                                                  builder.getSInt32(2, loc));
+    cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
+        builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
     cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
     mlir::Value setjmpCall =
         cir::LLVMIntrinsicCallOp::create(
@@ -2364,16 +2364,15 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI_setjmpex NYI");
     break;
   case Builtin::BI_setjmp: {
-    mlir::Type ty = CGM.getTypes().GetFunctionType(
-        CGM.getTypes().arrangeGlobalDeclaration(GD));
-    const auto *nd = cast<NamedDecl>(GD.getDecl());
-    auto fnOp =
-        CGM.GetOrCreateCIRFunction(nd->getName(), ty, GD, /*ForVTable=*/false,
-                                   /*DontDefer=*/false);
-    fnOp.setBuiltin(true);
-    assert(!::cir::MissingFeatures::undef());
-    return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
-                    ReturnValue);
+    if (getTarget().getTriple().isOSMSVCRT() && E->getNumArgs() == 1 &&
+        E->getArg(0)->getType()->isPointerType()) {
+      if (getTarget().getTriple().getArch() == llvm::Triple::x86)
+        llvm_unreachable("NYI setjmp on x86");
+      else if (getTarget().getTriple().getArch() == llvm::Triple::aarch64)
+        llvm_unreachable("NYI setjmp on aarch64");
+      llvm_unreachable("NYI setjmp on generic MSVCRT");
+    }
+    break;
   }
 
   // C++ std:: builtins.
