@@ -741,3 +741,291 @@ __m256i test_mm256_mask_i32gather_epi32(__m256i __v1_old, __mmask8 __mask, __m25
   // LLVM: @llvm.x86.avx512.mask.gather3siv8.si
   return _mm256_mmask_i32gather_epi32(__v1_old, __mask, __index, __addr, 2); 
 }
+
+void test_mm_i64scatter_pd(double *__addr, __m128i __index,  __m128d __v1) {
+  // CIR-LABEL: test_mm_i64scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv2.df"
+
+  // LLVM-LABEL: @test_mm_i64scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv2.df
+  return _mm_i64scatter_pd(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i64scatter_pd(double *__addr, __mmask8 __mask, __m128i __index, __m128d __v1) {
+  // CIR-LABEL: test_mm_mask_i64scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv2.df"
+
+  // LLVM-LABEL: @test_mm_mask_i64scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv2.df
+  return _mm_mask_i64scatter_pd(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i64scatter_epi64(long long *__addr, __m128i __index,  __m128i __v1) {
+  // CIR-LABEL: test_mm_i64scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv2.di"
+
+  // LLVM-LABEL: @test_mm_i64scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv2.di
+  return _mm_i64scatter_epi64(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i64scatter_epi64(long long *__addr, __mmask8 __mask, __m128i __index, __m128i __v1) {
+  // CIR-LABEL: test_mm_mask_i64scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv2.di"
+
+  // LLVM-LABEL: @test_mm_mask_i64scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv2.di
+  return _mm_mask_i64scatter_epi64(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i64scatter_pd(double *__addr, __m256i __index,  __m256d __v1) {
+  // CIR-LABEL: test_mm256_i64scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.df"
+
+  // LLVM-LABEL: @test_mm256_i64scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.df
+  return _mm256_i64scatter_pd(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i64scatter_pd(double *__addr, __mmask8 __mask, __m256i __index, __m256d __v1) {
+  // CIR-LABEL: test_mm256_mask_i64scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.df"
+
+  // LLVM-LABEL: @test_mm256_mask_i64scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.df
+  return _mm256_mask_i64scatter_pd(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i64scatter_epi64(long long *__addr, __m256i __index,  __m256i __v1) {
+  // CIR-LABEL: test_mm256_i64scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.di"
+
+  // LLVM-LABEL: @test_mm256_i64scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.di
+  return _mm256_i64scatter_epi64(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i64scatter_epi64(long long *__addr, __mmask8 __mask,  __m256i __index, __m256i __v1) {
+  // CIR-LABEL: test_mm256_mask_i64scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.di"
+
+  // LLVM-LABEL: @test_mm256_mask_i64scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.di
+  return _mm256_mask_i64scatter_epi64(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i64scatter_ps(float *__addr, __m128i __index, __m128 __v1) {
+  // CIR-LABEL: test_mm_i64scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.sf"
+
+  // LLVM-LABEL: @test_mm_i64scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.sf
+  return _mm_i64scatter_ps(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i64scatter_ps(float *__addr, __mmask8 __mask, __m128i __index, __m128 __v1) {
+  // CIR-LABEL: test_mm_mask_i64scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.sf"
+
+  // LLVM-LABEL: @test_mm_mask_i64scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.sf
+  return _mm_mask_i64scatter_ps(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i64scatter_epi32(int *__addr, __m128i __index,  __m128i __v1) {
+  // CIR-LABEL: test_mm_i64scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.si"
+
+  // LLVM-LABEL: @test_mm_i64scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.si
+  return _mm_i64scatter_epi32(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i64scatter_epi32(int *__addr, __mmask8 __mask, __m128i __index, __m128i __v1) {
+  // CIR-LABEL: test_mm_mask_i64scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv4.si"
+
+  // LLVM-LABEL: @test_mm_mask_i64scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv4.si
+  return _mm_mask_i64scatter_epi32(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i64scatter_ps(float *__addr, __m256i __index,  __m128 __v1) {
+  // CIR-LABEL: test_mm256_i64scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv8.sf"
+
+  // LLVM-LABEL: @test_mm256_i64scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv8.sf
+  return _mm256_i64scatter_ps(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i64scatter_ps(float *__addr, __mmask8 __mask, __m256i __index, __m128 __v1) {
+  // CIR-LABEL: test_mm256_mask_i64scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv8.sf"
+
+  // LLVM-LABEL: @test_mm256_mask_i64scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv8.sf
+  return _mm256_mask_i64scatter_ps(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i64scatter_epi32(int *__addr, __m256i __index,  __m128i __v1) {
+  // CIR-LABEL: test_mm256_i64scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv8.si"
+
+  // LLVM-LABEL: @test_mm256_i64scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv8.si
+  return _mm256_i64scatter_epi32(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i64scatter_epi32(int *__addr, __mmask8 __mask,  __m256i __index, __m128i __v1) {
+  // CIR-LABEL: test_mm256_mask_i64scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scatterdiv8.si"
+
+  // LLVM-LABEL: @test_mm256_mask_i64scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scatterdiv8.si
+  return _mm256_mask_i64scatter_epi32(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i32scatter_pd(double *__addr, __m128i __index,  __m128d __v1) {
+  // CIR-LABEL: test_mm_i32scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv2.df"
+
+  // LLVM-LABEL: @test_mm_i32scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scattersiv2.df
+  return _mm_i32scatter_pd(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i32scatter_pd(double *__addr, __mmask8 __mask, __m128i __index, __m128d __v1) {
+  // CIR-LABEL: test_mm_mask_i32scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv2.df"
+
+  // LLVM-LABEL: @test_mm_mask_i32scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scattersiv2.df
+  return _mm_mask_i32scatter_pd(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i32scatter_epi64(long long *__addr, __m128i __index,  __m128i __v1) {
+  // CIR-LABEL: test_mm_i32scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv2.di"
+
+  // LLVM-LABEL: @test_mm_i32scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scattersiv2.di
+  return _mm_i32scatter_epi64(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i32scatter_epi64(long long *__addr, __mmask8 __mask, __m128i __index, __m128i __v1) {
+  // CIR-LABEL: test_mm_mask_i32scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv2.di"
+
+  // LLVM-LABEL: @test_mm_mask_i32scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scattersiv2.di
+  return _mm_mask_i32scatter_epi64(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i32scatter_pd(double *__addr, __m128i __index,  __m256d __v1) {
+  // CIR-LABEL: test_mm256_i32scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.df"
+
+  // LLVM-LABEL: @test_mm256_i32scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.df
+  return _mm256_i32scatter_pd(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i32scatter_pd(double *__addr, __mmask8 __mask, __m128i __index, __m256d __v1) {
+  // CIR-LABEL: test_mm256_mask_i32scatter_pd
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.df"
+
+  // LLVM-LABEL: @test_mm256_mask_i32scatter_pd
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.df
+  return _mm256_mask_i32scatter_pd(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i32scatter_epi64(long long *__addr, __m128i __index,  __m256i __v1) {
+  // CIR-LABEL: test_mm256_i32scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.di"
+
+  // LLVM-LABEL: @test_mm256_i32scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.di
+  return _mm256_i32scatter_epi64(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i32scatter_epi64(long long *__addr, __mmask8 __mask,  __m128i __index, __m256i __v1) {
+  // CIR-LABEL: test_mm256_mask_i32scatter_epi64
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.di"
+
+  // LLVM-LABEL: @test_mm256_mask_i32scatter_epi64
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.di
+  return _mm256_mask_i32scatter_epi64(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i32scatter_ps(float *__addr, __m128i __index, __m128 __v1) {
+  // CIR-LABEL: test_mm_i32scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.sf"
+
+  // LLVM-LABEL: @test_mm_i32scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.sf
+  return _mm_i32scatter_ps(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i32scatter_ps(float *__addr, __mmask8 __mask, __m128i __index, __m128 __v1) {
+  // CIR-LABEL: test_mm_mask_i32scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.sf"
+
+  // LLVM-LABEL: @test_mm_mask_i32scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.sf
+  return _mm_mask_i32scatter_ps(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm_i32scatter_epi32(int *__addr, __m128i __index,  __m128i __v1) {
+  // CIR-LABEL: test_mm_i32scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.si"
+
+  // LLVM-LABEL: @test_mm_i32scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.si
+  return _mm_i32scatter_epi32(__addr,__index,__v1,2); 
+}
+
+void test_mm_mask_i32scatter_epi32(int *__addr, __mmask8 __mask, __m128i __index, __m128i __v1) {
+  // CIR-LABEL: test_mm_mask_i32scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv4.si"
+
+  // LLVM-LABEL: @test_mm_mask_i32scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scattersiv4.si
+  return _mm_mask_i32scatter_epi32(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i32scatter_ps(float *__addr, __m256i __index,  __m256 __v1) {
+  // CIR-LABEL: test_mm256_i32scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv8.sf"
+
+  // LLVM-LABEL: @test_mm256_i32scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scattersiv8.sf
+  return _mm256_i32scatter_ps(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i32scatter_ps(float *__addr, __mmask8 __mask, __m256i __index, __m256 __v1) {
+  // CIR-LABEL: test_mm256_mask_i32scatter_ps
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv8.sf"
+
+  // LLVM-LABEL: @test_mm256_mask_i32scatter_ps
+  // LLVM: @llvm.x86.avx512.mask.scattersiv8.sf
+  return _mm256_mask_i32scatter_ps(__addr,__mask,__index,__v1,2); 
+}
+
+void test_mm256_i32scatter_epi32(int *__addr, __m256i __index,  __m256i __v1) {
+  // CIR-LABEL: test_mm256_i32scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv8.si"
+
+  // LLVM-LABEL: @test_mm256_i32scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scattersiv8.si
+  return _mm256_i32scatter_epi32(__addr,__index,__v1,2); 
+}
+
+void test_mm256_mask_i32scatter_epi32(int *__addr, __mmask8 __mask,  __m256i __index, __m256i __v1) {
+  // CIR-LABEL: test_mm256_mask_i32scatter_epi32
+  // CIR: cir.llvm.intrinsic "x86.avx512.mask.scattersiv8.si"
+
+  // LLVM-LABEL: @test_mm256_mask_i32scatter_epi32
+  // LLVM: @llvm.x86.avx512.mask.scattersiv8.si
+  return _mm256_mask_i32scatter_epi32(__addr,__mask,__index,__v1,2); 
+}
