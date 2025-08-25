@@ -107,10 +107,8 @@ if version >= 508 || !exists("did_c_syn_inits")
   HiLink mlirComment Comment
   HiLink mlirString String
   HiLink mlirLabel Label
-  HiLink mlirKeyword Keyword
   HiLink mlirBoolean Boolean
   HiLink mlirFloat Float
-  HiLink mlirConstant Constant
   HiLink mlirSpecialComment SpecialComment
   HiLink mlirIdentifier Identifier
   HiLink mlirBlockIdentifier Label
