@@ -33,49 +33,6 @@ syn match mlirType /\<vector\ze\s*<.*>/
 " vector types inside memref or tensor.
 syn match mlirType /x\s*\zsvector/
 
-" Operations.
-" TODO: this list is not exhaustive.
-syn keyword mlirOps alloc alloca addf addi and call call_indirect cmpf cmpi
-syn keyword mlirOps constant dealloc divf dma_start dma_wait dim exp
-syn keyword mlirOps getTensor index_cast load log memref_cast
-syn keyword mlirOps memref_shape_cast mulf muli negf powf prefetch rsqrt sitofp
-syn keyword mlirOps splat store select sqrt subf subi subview tanh
-syn keyword mlirOps view
-
-" Math ops.
-syn match mlirOps /\<math\.erf\>/
-syn match mlirOps /\<math\.erfc\>/
-
-" Affine ops.
-syn match mlirOps /\<affine\.apply\>/
-syn match mlirOps /\<affine\.dma_start\>/
-syn match mlirOps /\<affine\.dma_wait\>/
-syn match mlirOps /\<affine\.for\>/
-syn match mlirOps /\<affine\.if\>/
-syn match mlirOps /\<affine\.load\>/
-syn match mlirOps /\<affine\.parallel\>/
-syn match mlirOps /\<affine\.prefetch\>/
-syn match mlirOps /\<affine\.store\>/
-syn match mlirOps /\<scf\.execute_region\>/
-syn match mlirOps /\<scf\.for\>/
-syn match mlirOps /\<scf\.if\>/
-syn match mlirOps /\<scf\.yield\>/
-
-
-" TODO: dialect name prefixed ops (llvm or std).
-
-" Keywords.
-syn keyword mlirKeyword
-      \ affine_map
-      \ affine_set
-      \ dense
-      \ else
-      \ func
-      \ module
-      \ return
-      \ step
-      \ to
-
 " Misc syntax.
 
 syn match   mlirNumber /-\?\<\d\+\>/
@@ -104,14 +61,16 @@ syn match   mlirAttrIdentifier /#[a-zA-Z$._-][a-zA-Z0-9$._-]*/
 syn match   mlirAttrIdentifier /#\d\+\>/
 
 " Syntax-highlight lit test commands and bug numbers.
-syn match  mlirSpecialComment /\/\/\s*RUN:.*$/
-syn match  mlirSpecialComment /\/\/\s*CHECK:.*$/
-syn match  mlirSpecialComment "\v\/\/\s*CHECK-(NEXT|NOT|DAG|SAME|LABEL):.*$"
-syn match  mlirSpecialComment /\/\/\s*expected-error.*$/
-syn match  mlirSpecialComment /\/\/\s*expected-remark.*$/
-syn match  mlirSpecialComment /;\s*XFAIL:.*$/
-syn match  mlirSpecialComment /\/\/\s*PR\d*\s*$/
-syn match  mlirSpecialComment /\/\/\s*REQUIRES:.*$/
+" Old highlighting version of MLIR is faulty, any misamount of whitespace before or after on a line
+" will not highlight the special comments anymore.
+syn match mlirSpecialComment /^\s*\/\/\s*RUN:.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|MLIR\|LLVM\|OGCG\):.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|MLIR\|LLVM\|OGCG\)-\(NEXT\|NOT\|DAG\|SAME\|LABEL\):.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*expected-error.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*expected-remark.*$/
+syn match mlirSpecialComment /^\s*;\s*XFAIL:.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*PR\d*\s*$/
+syn match mlirSpecialComment /^\s*\/\/\s*REQUIRES:.*$/
 
 """""""""""" CIR SECTION """"""""""""
 " CIR blanket operations
@@ -127,10 +86,13 @@ syn keyword cirKeyword
       \ do while
       \ if then else
       \ nsw nuw
+      \ constant
       \ equal default anyof
       \ internal external private linkonce_odr
 
+
 syn keyword cirType bytes
+
 
 if version >= 508 || !exists("did_c_syn_inits")
   if version < 508
@@ -141,7 +103,6 @@ if version >= 508 || !exists("did_c_syn_inits")
   endif
 
   HiLink mlirType Type
-  HiLink mlirOps Statement
   HiLink mlirNumber Number
   HiLink mlirComment Comment
   HiLink mlirString String
