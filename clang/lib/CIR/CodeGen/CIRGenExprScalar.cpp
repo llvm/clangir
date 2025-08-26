@@ -18,6 +18,7 @@
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/StmtVisitor.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -702,7 +703,13 @@ public:
     return {};
   }
   mlir::Value VisitTypeTraitExpr(const TypeTraitExpr *E) {
-    llvm_unreachable("NYI");
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
+    if (E->isStoredAsBoolean())
+      return Builder.getBool(E->getBoolValue(), loc);
+
+    assert(E->getAPValue().isInt() && "APValue type not supported");
+    mlir::Type ty = CGF.convertType(E->getType());
+    return Builder.getConstAPInt(loc, ty, E->getAPValue().getInt());
   }
   mlir::Value
   VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E) {
