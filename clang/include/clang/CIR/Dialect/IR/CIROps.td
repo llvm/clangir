@@ -1095,9 +1095,8 @@ def CIR_ResumeOp : CIR_Op<"resume", [
                        Optional<CIR_UInt32>:$type_id,
                        UnitAttr:$rethrow);
   let assemblyFormat = [{
-    ($rethrow^)?
-    ($exception_ptr^)?
-    (`,` $type_id^)?
+    (`rethrow` $rethrow^)?
+    ($exception_ptr^ (`,` $type_id^)?)?
     attr-dict
   }];
 }
