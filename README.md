@@ -10,7 +10,7 @@ to the llvm-project (LLVM's official main repository).
 
 GitHub incubator repo: [llvm/clangir](https://github.com/llvm/clangir).
 
-Check out the [current status](https://llvm.github.io/clangir/Development/benchmark.html)
+Check out the [current status](https://llvm.github.io/clangir/Development/status.html)
 for updates and [ClangIR in practice](https://llvm.github.io/clangir/Development/pipeline.html) for a tool overview. Also see
 [motivation and history](https://llvm.github.io/clangir/Development/motivation.html)
 for extra context about the project.

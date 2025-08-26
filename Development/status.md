@@ -3,14 +3,13 @@ sort : 3
 ---
 # Current Status
 
-ClangIR can already be used with most common C sources and parts of C++.
-C++ support is currently missing parts of cleanup and exception support,
-which limits the amount of C++ code we can build and run - there's [on-going
-work and improvement](https://github.com/llvm/clangir/issues) in the area though.
+ClangIR already supports most common C source code and some parts of C++. However, C++ support is still missing certain cleanup and exception handling features, which restricts the range of C++ code that can be built and executed. There is ongoing [work and improvements](https://github.com/llvm/clangir/issues) addressing these limitations.
+
+Check out the current supported set of [benchmarks](https://llvm.github.io/clangir/Development/benchmark.html).
 
 ## Upstreaming
 
-See [dedicated page](https://llvm.github.io/clangir/Development/upstreaming-progress.html).
+See [Upstreaming Progress](https://llvm.github.io/clangir/Development/upstreaming-progress.html).
 
 ## Code generation
 
