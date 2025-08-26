@@ -311,13 +311,10 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
       CIRGenCallee callee =
           CIRGenCallee::forVirtual(CE, globalDecl, This.getAddress(), funcTy);
 
-      if (dtor->isVirtual()) {
-        Address newThisAddr =
-            CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
-                *this, globalDecl, This.getAddress(), true);
-        This.setAddress(newThisAddr);
-      } else { /* no adjustment needed for the address of 'this'  */
-      }
+      Address newThisAddr =
+          CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
+              *this, globalDecl, This.getAddress(), true);
+      This.setAddress(newThisAddr);
 
       QualType thisTy =
           IsArrow ? Base->getType()->getPointeeType() : Base->getType();
