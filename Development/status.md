@@ -15,7 +15,7 @@ See [dedicated page](https://llvm.github.io/clangir/Development/upstreaming-prog
 ## Code generation
 
 ### CIRGen
-On language support:
+Language support:
 - C/C++: C mostly covered, C++ has missing parts.
 - Itanium ABI.
 - Support for CUDA and OpenCL (both pass polibench).
@@ -26,9 +26,7 @@ Targets:
 - Linux/macOS AArch64 (Android)
 - SPIRV LLVM
 
-To check those in details, see tests in
-[CIR/CodeGen](https://github.com/llvm/clangir/tree/main/clang/test/CIR/CodeGen)
-- they reflect supported features and targets.
+To check those in details, see tests in [CIR/CodeGen](https://github.com/llvm/clangir/tree/main/clang/test/CIR/CodeGen), they reflect supported features and targets.
 
 ### ABI Calling Convention lowering
 
