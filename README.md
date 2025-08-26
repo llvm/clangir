@@ -30,9 +30,9 @@ behind ClangIR.
 # Where to go from here?
 
 Check out the docs for [contributing to the
-project](https://llvm.github.io/clangir/GettingStarted/contrib.html) and get a
-tour in the [CIR Dialect](https://llvm.github.io/clangir/Dialect/), or
-list of [CIR passes](https://llvm.github.io/clangir/Dialect/passes.html) in Clang.
+project](https://llvm.github.io/clangir/GettingStarted/contrib.html) and dive
+into the [CIR Dialect](https://llvm.github.io/clangir/Dialect/),
+list of [CIR passes](https://llvm.github.io/clangir/Dialect/passes.html) in Clang or the ClangIR [pipeline](https://llvm.github.io/clangir/Development/pipeline.html).
 
 ### Inspiration
 
