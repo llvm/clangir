@@ -18,6 +18,11 @@
 // RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx2 -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefixes=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx2 -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx2 -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+
 // This test mimics clang/test/CodeGen/X86/avx2-builtins.c, which eventually
 // CIR shall be able to support fully.
 
@@ -33,6 +38,10 @@ __m256i test_mm256_blend_epi16(__m256i a, __m256i b) {
   // LLVM-LABEL: test_mm256_blend_epi16
   // LLVM-NOT: @llvm.x86.avx2.pblendw
   // LLVM: shufflevector <16 x i16> %{{.*}}, <16 x i16> %{{.*}}, <16 x i32> <i32 0, i32 17, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 25, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+
+  // OGCG-LABEL: test_mm256_blend_epi16
+  // OGCG-NOT: @llvm.x86.avx2.pblendw
+  // OGCG: shufflevector <16 x i16> %{{.*}}, <16 x i16> %{{.*}}, <16 x i32> <i32 0, i32 17, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 25, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
   return _mm256_blend_epi16(a, b, 2);
 }
 
@@ -43,6 +52,10 @@ __m128i test_mm_blend_epi32(__m128i a, __m128i b) {
   // LLVM-LABEL: test_mm_blend_epi32
   // LLVM-NOT: @llvm.x86.avx2.pblendd.128
   // LLVM: shufflevector <4 x i32> %{{.*}}, <4 x i32> %{{.*}}, <4 x i32> <i32 4, i32 1, i32 6, i32 3>
+
+  // OGCG-LABEL: test_mm_blend_epi32
+  // OGCG-NOT: @llvm.x86.avx2.pblendd.128
+  // OGCG: shufflevector <4 x i32> %{{.*}}, <4 x i32> %{{.*}}, <4 x i32> <i32 4, i32 1, i32 6, i32 3>
   return _mm_blend_epi32(a, b, 0x05);
 }
 
@@ -53,5 +66,9 @@ __m256i test_mm256_blend_epi32(__m256i a, __m256i b) {
   // LLVM-LABEL: test_mm256_blend_epi32
   // LLVM-NOT: @llvm.x86.avx2.pblendd.256
   // LLVM: shufflevector <8 x i32> %{{.*}}, <8 x i32> %{{.*}}, <8 x i32> <i32 8, i32 1, i32 10, i32 3, i32 12, i32 13, i32 6, i32 7>
+
+  // OGCG-LABEL: test_mm256_blend_epi32
+  // OGCG-NOT: @llvm.x86.avx2.pblendd.256
+  // OGCG: shufflevector <8 x i32> %{{.*}}, <8 x i32> %{{.*}}, <8 x i32> <i32 8, i32 1, i32 10, i32 3, i32 12, i32 13, i32 6, i32 7>
   return _mm256_blend_epi32(a, b, 0x35);
 }

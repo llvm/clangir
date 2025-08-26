@@ -8,6 +8,11 @@
 // RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +sse4.1 -fno-signed-char -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefix=LLVM-CHECK --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse4.1 -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse4.1 -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse4.1 -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse4.1 -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+
 // This test mimics clang/test/CodeGen/X86/sse41-builtins.c, which eventually
 // CIR shall be able to support fully.
 
@@ -89,6 +94,9 @@ __m128i test_mm_blend_epi16(__m128i V1, __m128i V2) {
 
   // LLVM-LABEL: test_mm_blend_epi16
   // LLVM: shufflevector <8 x i16> %{{.*}}, <8 x i16> %{{.*}}, <8 x i32> <i32 0, i32 9, i32 2, i32 11, i32 4, i32 13, i32 6, i32 7>
+
+  // OGCG-LABEL: test_mm_blend_epi16
+  // OGCG: shufflevector <8 x i16> %{{.*}}, <8 x i16> %{{.*}}, <8 x i32> <i32 0, i32 9, i32 2, i32 11, i32 4, i32 13, i32 6, i32 7>
   return _mm_blend_epi16(V1, V2, 42);
 }
 
@@ -98,6 +106,9 @@ __m128d test_mm_blend_pd(__m128d V1, __m128d V2) {
 
   // LLVM-LABEL: test_mm_blend_pd
   // LLVM: shufflevector <2 x double> %{{.*}}, <2 x double> %{{.*}}, <2 x i32> <i32 0, i32 3>
+
+  // OGCG-LABEL: test_mm_blend_pd
+  // OGCG: shufflevector <2 x double> %{{.*}}, <2 x double> %{{.*}}, <2 x i32> <i32 0, i32 3>
   return _mm_blend_pd(V1, V2, 2);
 }
 
@@ -107,5 +118,8 @@ __m128 test_mm_blend_ps(__m128 V1, __m128 V2) {
 
   // LLVM-LABEL: test_mm_blend_ps
   // LLVM: shufflevector <4 x float> %{{.*}}, <4 x float> %{{.*}}, <4 x i32> <i32 0, i32 5, i32 6, i32 3>
+
+  // OGCG-LABEL: test_mm_blend_ps
+  // OGCG: shufflevector <4 x float> %{{.*}}, <4 x float> %{{.*}}, <4 x i32> <i32 0, i32 5, i32 6, i32 3>
   return _mm_blend_ps(V1, V2, 6);
 }
