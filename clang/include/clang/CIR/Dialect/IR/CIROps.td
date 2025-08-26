@@ -4706,12 +4706,10 @@ def CIR_EhTypeIdOp : CIR_Op<"eh.typeid",
 def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
   let summary = "CIR setjmp operation";
   let description = [{
-    Saves various information about the calling
-    environment (typically, the stack pointer, the instruction
-    pointer, possibly the values of other registers and the signal
-    mask) in the buffer env for later use by longjmp().  In this case,
-    setjmp() returns 0. When retuned from a longjmp(), setjmp returns the
-    value passed into longjmp().
+    Saves call-site information (e.g., stack pointer, instruction
+    pointer, signal mask, and other registers) in memory at `env` for use by longjmp().  In this case,
+    setjmp() returns 0. When returned from a longjmp(), setjmp returns the
+    value passed into longjmp()
 
     Examples:
     ```mlir
@@ -4723,10 +4721,10 @@ def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
     ```
   }];
 
-  let arguments = (ins CIR_PointerType:$buf, UnitAttr:$builtin);
+  let arguments = (ins CIR_PointerType:$env, UnitAttr:$builtin);
   let results = (outs CIR_SInt32:$res);
   let assemblyFormat = [{
-      $buf `:` type($buf)
+      $env `:` type($env)
       (`,` `builtin` $builtin^)?
       `->` type(results) attr-dict
     }];
