@@ -4,8 +4,8 @@ ClangIR is a high-level representation in Clang that reflects aspects of the C/C
 languages and their extensions. It is implemented using MLIR and occupies a position
 between Clang's AST and LLVM IR.
 
-The project is [incubated](https://github.com/llvm/clangir) under LLVM's GitHub
-umbrella and is being [upstreamed](https://github.com/llvm/llvm-project/labels/ClangIR)
+The project is incubated under LLVM's GitHub
+[umbrella](https://github.com/llvm) and is being [upstreamed](https://github.com/llvm/llvm-project/labels/ClangIR)
 to the llvm-project (LLVM's official main repository).
 
 GitHub incubator repo: [llvm/clangir](https://github.com/llvm/clangir).
