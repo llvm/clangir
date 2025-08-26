@@ -2016,7 +2016,25 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_ToUnion:
     assert(0 && "NYI");
   case CK_BaseToDerived: {
-    assert(0 && "NYI");
+    const auto *DerivedClassTy = E->getType()->castAs<RecordType>();
+    auto *DerivedClassDecl = cast<CXXRecordDecl>(DerivedClassTy->getDecl());
+
+    LValue LV = emitLValue(E->getSubExpr());
+
+    // Perform the base-to-derived conversion
+    Address Derived = getAddressOfDerivedClass(
+        LV.getAddress(), DerivedClassDecl, E->path_begin(), E->path_end(),
+        /*NullCheckValue=*/false);
+    // C++11 [expr.static.cast]p2: Behavior is undefined if a downcast is
+    // performed and the object is not of the derived type.
+    if (sanitizePerformTypeCheck())
+      llvm_unreachable("TCK_DowncastReference NYI");
+
+    if (SanOpts.has(SanitizerKind::CFIDerivedCast))
+      llvm_unreachable("CFITypeCheckKind NYI");
+
+    return makeAddrLValue(Derived, E->getType(), LV.getBaseInfo(),
+                          CGM.getTBAAInfoForSubobject(LV, E->getType()));
   }
   case CK_LValueBitCast: {
     // This must be a reinterpret_cast (or c-style equivalent).
