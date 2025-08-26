@@ -8,6 +8,10 @@ C++ support is currently missing parts of cleanup and exception support,
 which limits the amount of C++ code we can build and run - there's [on-going
 work and improvement](https://github.com/llvm/clangir/issues) in the area though.
 
+## Upstreaming
+
+Up and running, see list of [existing issues and PRs](https://github.com/llvm/llvm-project/labels/ClangIR).
+
 ## Code generation
 
 ### CIRGen
@@ -45,13 +49,13 @@ references in coroutines `coawait` expressions.
 The tables below show the number and percentage of passing tests, for each benchmark category and in different mode of configurations of ClangIR.
 The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 
-## x86_64
+### x86_64
 - Target: Linux, x86_64
 - Host: AMD EPYC-Milan Processor, 166 cores, 256GB RAM, CentOS 9.0
 - Build mode: Release (no asserts)
 - Compiler flags used: '-O2'
 
-### spec2017int
+#### spec2017int
 
 | Configuration | 2025-08 |
 |---------------|----------|
@@ -59,7 +63,7 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-upstream | 1 (10.00%) |
 | no-cir | 10 (100.00%) |
 
-### multisource
+#### multisource
 
 | Configuration | 2025-08 |
 |---------------|----------|
@@ -67,7 +71,7 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-upstream | 49 (24.38%) |
 | no-cir | 201 (100.00%) |
 
-### singlesource
+#### singlesource
 
 | Configuration | 2025-08 |
 |---------------|----------|
@@ -75,5 +79,5 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-upstream | 1203 (65.63%) |
 | no-cir | 1832 (99.95%) |
 
-## ARM64
+### ARM64
 TBD

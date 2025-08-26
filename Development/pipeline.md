@@ -10,7 +10,7 @@ CIR pass (use `-fclangir-disable-passes` to stop right after the AST translation
 
 The diagram below (last update: Jan 2024) illustrates how the compiler pipeline operates:
 
-![](/Images/2024-Jan-Pipeline.png)
+![](/../Images/2024-Jan-Pipeline.png)
 
 Some terms often used in CIR or as part of the CIR pipeline:
 
