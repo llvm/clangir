@@ -14,7 +14,9 @@ syn case match
 
 " Types.
 "
-syn keyword mlirType index f16 f32 f64 bf16
+syn keyword mlirType index
+syn match mlirType /\<f\d\+\>/
+syn match mlirType /\<bf\d\+\>/
 " Signless integer types.
 syn match mlirType /\<i\d\+\>/
 " Unsigned integer types.
@@ -64,8 +66,8 @@ syn match   mlirAttrIdentifier /#\d\+\>/
 " Old highlighting version of MLIR is faulty, any misamount of whitespace before or after on a line
 " will not highlight the special comments anymore.
 syn match mlirSpecialComment /^\s*\/\/\s*RUN:.*$/
-syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|MLIR\|LLVM\|OGCG\):.*$/
-syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|MLIR\|LLVM\|OGCG\)-\(NEXT\|NOT\|DAG\|SAME\|LABEL\):.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|CIR\|MLIR\|LLVM\|OGCG\):.*$/
+syn match mlirSpecialComment /^\s*\/\/\s*\(CHECK\|CIR\|MLIR\|LLVM\|OGCG\)-\(NEXT\|NOT\|DAG\|SAME\|LABEL\):.*$/
 syn match mlirSpecialComment /^\s*\/\/\s*expected-error.*$/
 syn match mlirSpecialComment /^\s*\/\/\s*expected-remark.*$/
 syn match mlirSpecialComment /^\s*;\s*XFAIL:.*$/
@@ -77,6 +79,7 @@ syn match mlirSpecialComment /^\s*\/\/\s*REQUIRES:.*$/
 syn match cirOps /\vcir(\.\w+)+/
 
 syn keyword cirKeyword
+      \ module attributes
       \ from to cond body step
       \ align alignment init
       \ cond exception
@@ -88,7 +91,8 @@ syn keyword cirKeyword
       \ nsw nuw
       \ constant
       \ equal default anyof
-      \ internal external private linkonce_odr
+      \ internal external available_externally private linkonce linkonce_odr 
+      \ weak weak_odr extern_weak common cir_private
 
 
 syn keyword cirType bytes
