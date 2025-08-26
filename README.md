@@ -17,7 +17,11 @@ behind ClangIR.
 
 # Talks and posts
 
-- Oct 2023: *Evolution of ClangIR: A Year of Progress, Challenges, and Future Plans*. US LLVM Developers Meeting. [video](https://www.youtube.com/watch?v=XNOPO3ogdfQ), [pdf](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
+- Jun 2025: Asia LLVM. ClangIR’s Footprint: A quick compile-time impact report. [pdf](Files/asiallvm-brunolopes-25-cir-compile-time.pdf)
+- Nov 2024: Supercomputing. Introducing ClangIR, High-Level IR for the C/C++ Family of Languages. [pdf](Files/sc24-clangir.pdf)
+- Sep 2024: [GSoC 2024: Compile GPU kernels using ClangIR](https://blog.llvm.org/posts/2024-08-29-gsoc-opencl-c-support-for-clangir/)
+- Sep 2024: [GSoC 2024: ABI Lowering in ClangIR](https://blog.llvm.org/posts/2024-09-07-abi-lowering-in-clangir/)
+- Oct 2023: US LLVM Developers Meeting. *Evolution of ClangIR: A Year of Progress, Challenges, and Future Plans*. [video](https://www.youtube.com/watch?v=XNOPO3ogdfQ), [pdf](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
 - June 2022: [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
 
 # Where to go from here?
