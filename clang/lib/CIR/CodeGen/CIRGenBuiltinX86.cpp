@@ -985,8 +985,20 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_blendps256:
   case X86::BI__builtin_ia32_pblendw256:
   case X86::BI__builtin_ia32_pblendd128:
-  case X86::BI__builtin_ia32_pblendd256:
-    llvm_unreachable("pblendd128 NYI");
+  case X86::BI__builtin_ia32_pblendd256: {
+    unsigned numElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
+    unsigned imm =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+
+    int64_t indices[16];
+    // If there are more than 8 elements, the immediate is used twice so make
+    // sure we handle that.
+    for (unsigned i = 0; i != numElts; ++i)
+      indices[i] = ((imm >> (i % 8)) & 0x1) ? numElts + i : i;
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], Ops[1],
+                                    ArrayRef(indices, numElts));
+  }
   case X86::BI__builtin_ia32_pshuflw:
   case X86::BI__builtin_ia32_pshuflw256:
   case X86::BI__builtin_ia32_pshuflw512:
