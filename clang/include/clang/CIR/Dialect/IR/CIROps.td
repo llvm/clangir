@@ -4706,12 +4706,21 @@ def CIR_EhTypeIdOp : CIR_Op<"eh.typeid",
 def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
   let summary = "CIR setjmp operation";
   let description = [{
-    "Saves various information about the calling
-       environment (typically, the stack pointer, the instruction
-       pointer, possibly the values of other registers and the signal
-       mask) in the buffer env for later use by longjmp().  In this case,
-       setjmp() returns 0. When retuned from a longjmp(), setjmp returns the 
-       value passed into longjmp()."
+    Saves various information about the calling
+    environment (typically, the stack pointer, the instruction
+    pointer, possibly the values of other registers and the signal
+    mask) in the buffer env for later use by longjmp().  In this case,
+    setjmp() returns 0. When retuned from a longjmp(), setjmp returns the
+    value passed into longjmp().
+
+    Examples:
+    ```mlir
+      // Specify setjmp is builtin
+      %0 = cir.eh.setjmp %arg0 : !p32, builtin -> !s32i
+
+      // Specify setjmp is not builtin
+      %0 = cir.eh.setjmp %arg0 : !p32 -> !s32i
+    ```
   }];
 
   let arguments = (ins CIR_PointerType:$buf, UnitAttr:$builtin);
