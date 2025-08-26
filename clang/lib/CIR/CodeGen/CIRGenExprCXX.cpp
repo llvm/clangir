@@ -316,6 +316,7 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
             CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
                 *this, globalDecl, This.getAddress(), true);
         This.setAddress(newThisAddr);
+      } else { /* no adjustment needed for the address of 'this'  */
       }
 
       QualType thisTy =
