@@ -25,6 +25,7 @@
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -1003,8 +1004,38 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vpermilpd256:
   case X86::BI__builtin_ia32_vpermilps256:
   case X86::BI__builtin_ia32_vpermilpd512:
-  case X86::BI__builtin_ia32_vpermilps512:
-    llvm_unreachable("pshufd NYI");
+  case X86::BI__builtin_ia32_vpermilps512: {
+    uint32_t imm = getIntValueFromConstOp(Ops[1]);
+    auto vecTy = cast<cir::VectorType>(Ops[0].getType());
+    unsigned numElts = vecTy.getSize();
+    auto eltTy = vecTy.getElementType();
+
+    assert(isSized(eltTy) && "Element type must be a sized type");
+
+    unsigned eltBitWidth =
+        llvm::TypeSwitch<mlir::Type, unsigned>(eltTy)
+            .Case<cir::IntType>([](auto intTy) { return intTy.getWidth(); })
+            .Case<cir::SingleType>([](auto) { return 32; })
+            .Case<cir::DoubleType>([](auto) { return 64; })
+            .Default([](auto) {
+              llvm_unreachable("NYI: Unsupported type");
+              return 0;
+            });
+
+    unsigned vecBitWidth = numElts * eltBitWidth;
+    unsigned numLanes = vecBitWidth / 128;
+    unsigned numLaneElts = numElts / numLanes;
+
+    imm = (imm & 0xff) * 0x01010101;
+    llvm::SmallVector<int64_t, 16> indices;
+    for (unsigned l = 0; l != numElts; l += numLaneElts) {
+      for (unsigned i = 0; i != numLaneElts; ++i) {
+        indices.push_back((imm % numLaneElts) + l);
+        imm /= numLaneElts;
+      }
+    }
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], indices);
+  }
   case X86::BI__builtin_ia32_shufpd:
   case X86::BI__builtin_ia32_shufpd256:
   case X86::BI__builtin_ia32_shufpd512:
