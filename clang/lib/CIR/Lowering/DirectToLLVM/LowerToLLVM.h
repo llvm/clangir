@@ -1220,7 +1220,7 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
-class CIRToLLVMEhSjljSetjmpOpLowering
+class CIRToLLVMEhSetjmpOpLowering
     : public mlir::OpConversionPattern<cir::EhSetjmp> {
 public:
   using mlir::OpConversionPattern<cir::EhSetjmp>::OpConversionPattern;
