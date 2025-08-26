@@ -386,6 +386,14 @@ def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
+def CIR_PtrStrideAttr : I32BitEnumAttr<"PtrStrideAttr", "Stride attribute for pointer arithmetic", [
+  I32BitEnumAttrCaseNone<"None">,
+  I32BitEnumAttrCase<"InBounds", 0x1, "inbounds">,
+  I32BitEnumAttrCase<"NoUnsignedWrap", 0x2, "nuw">,
+  I32BitEnumAttrCase<"NoSignedWrap", 0x4, "nsw">
+]> {
+  let cppNamespace = "::cir";
+}
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
   Pure, AllTypesMatch<["base", "result"]>
@@ -403,13 +411,14 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 
   let arguments = (ins
     CIR_PointerType:$base,
-    CIR_AnyFundamentalIntType:$stride
+    CIR_AnyFundamentalIntType:$stride,
+    DefaultValuedAttr<CIR_PtrStrideAttr, "::cir::PtrStrideAttr::None">:$stride_attr
   );
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride)) `)`
+    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride))(`,` $stride_attr^)?`)`
     `,` qualified(type($result)) attr-dict
   }];
 
