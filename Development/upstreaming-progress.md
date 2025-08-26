@@ -1,9 +1,13 @@
 ---
-sort : 4
+sort : 5
 ---
 # Upstreaming Progress
 
-The current upstreaming process involves migrating ClangIR from its incubator repository into the main LLVM project, ensuring it meets LLVM's coding standards and quality expectations. This page tracks the progress of upstreaming
+The current upstreaming process involves migrating ClangIR from its incubator repository into the main LLVM project, ensuring it meets LLVM's coding standards and quality expectations. For extra context, see [motivation and history](https://llvm.github.io/clangir/Development/motivation.html) behind ClangIR.
+
+Checkout the list of [existing issues and PRs](https://github.com/llvm/llvm-project/labels/ClangIR) related to upstream work. The [benchmark](https://llvm.github.io/clangir/Development/benchmark.html#benchmark-coverage) page tracks progress in terms of passing tests compared to incubator.
+
+More detailed tracking in terms of operations, types, attributes and passes below:
 
 ### Operations
 > **TODO**: This section is under development.
