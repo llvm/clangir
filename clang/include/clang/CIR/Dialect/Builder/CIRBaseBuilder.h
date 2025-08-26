@@ -664,8 +664,10 @@ public:
   }
 
   cir::PtrStrideOp createPtrStride(mlir::Location loc, mlir::Value base,
-                                   mlir::Value stride, PtrStrideAttr attr = PtrStrideAttr::None)  {
-    return cir::PtrStrideOp::create(*this, loc, base.getType(), base, stride, attr);
+                                   mlir::Value stride,
+                                   PtrStrideAttr attr = PtrStrideAttr::None) {
+    return cir::PtrStrideOp::create(*this, loc, base.getType(), base, stride,
+                                    attr);
   }
 
   cir::CallOp createCallOp(mlir::Location loc,
