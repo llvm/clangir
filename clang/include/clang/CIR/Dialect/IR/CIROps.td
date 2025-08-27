@@ -4707,17 +4707,20 @@ def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
   let summary = "CIR setjmp operation";
   let description = [{
     Saves call-site information (e.g., stack pointer, instruction
-    pointer, signal mask, and other registers) in memory at `env` for use by longjmp().  In this case,
-    setjmp() returns 0. When returned from a longjmp(), setjmp returns the
-    value passed into longjmp()
+    pointer, signal mask, and other registers) in memory at `env` for use by longjmp(). In this case,
+    setjmp() returns 0. Following a successful longjmp(), execution proceeds
+    from cir.eh.setjmp with the operation yielding a non-zero value.
+
+    The presence of the `builtin` attribute refers to the setjmp() function; the lack of the attribute refers
+    to the _setjmp() function.
 
     Examples:
     ```mlir
-      // Specify setjmp is builtin
-      %0 = cir.eh.setjmp %arg0 : !p32, builtin -> !s32i
+      // Specify setjmp is builtin.
+      %0 = cir.eh.setjmp %arg0 : <!cir.ptr<!void>>, builtin -> !s32i
 
-      // Specify setjmp is not builtin
-      %0 = cir.eh.setjmp %arg0 : !p32 -> !s32i
+      // Specify setjmp is not builtin.
+      %0 = cir.eh.setjmp %arg0 : <!cir.ptr<!void>> -> !s32i
     ```
   }];
 

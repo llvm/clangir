@@ -1927,12 +1927,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
         builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
     cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
-    mlir::Value setjmpCall =
-        cir::LLVMIntrinsicCallOp::create(
-            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
-            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
-            .getResult();
-    return RValue::get(setjmpCall);
+    cir::EhSetjmp op =
+        cir::EhSetjmp::create(builder, loc, castBuf, /*builtin = */ true);
+    return RValue::get(op);
   }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
