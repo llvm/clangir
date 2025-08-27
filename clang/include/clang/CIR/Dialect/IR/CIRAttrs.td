@@ -1201,6 +1201,10 @@ def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }
 
+def CIR_HotAttr : CIR_UnitAttr<"Hot", "hot"> {
+  let storageType = [{ HotAttr }];
+}
+
 //===----------------------------------------------------------------------===//
 // UWTableAttr
 //===----------------------------------------------------------------------===//
