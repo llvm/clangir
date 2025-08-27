@@ -18,6 +18,7 @@ for extra context about the project.
 # Talks and posts
 
 - Jun 2025: Asia LLVM. *ClangIR’s Footprint: A quick compile-time impact report*. [video](https://www.youtube.com/watch?v=Dh_RObp5SUE), [pdf](Files/asiallvm-brunolopes-25-cir-compile-time.pdf)
+- Mar 2025: Cambridge Computer Science [Group Projects](https://group-projects.cst.cam.ac.uk/#__tabbed_1_2). Award on technical achievement. *[CUDA Support for ClangIR](https://wiki.cam.ac.uk/cl-design-projects/CUDA_Support_for_ClangIR)*. [video](https://www.youtube.com/watch?v=CO1w_L3yIbQ)
 - Nov 2024: Supercomputing Workshop. *[Introducing ClangIR, High-Level IR for the C/C++ Family of Languages](https://sc24.supercomputing.org/proceedings/workshops/workshop_pages/misc312.html)*. [pdf](Files/sc24-clangir.pdf)
 - Sep 2024: [GSoC 2024: Compile GPU kernels using ClangIR](https://blog.llvm.org/posts/2024-08-29-gsoc-opencl-c-support-for-clangir/)
 - Sep 2024: [GSoC 2024: ABI Lowering in ClangIR](https://blog.llvm.org/posts/2024-09-07-abi-lowering-in-clangir/)
