@@ -1023,9 +1023,9 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
       isUnsigned = strideTy.isUnsigned();
     index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
   }
-
   rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
-      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
+      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index,
+      static_cast<mlir::LLVM::GEPNoWrapFlags>(adaptor.getNoWrapFlags()));
   return mlir::success();
 }
 

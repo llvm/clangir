@@ -2835,10 +2835,16 @@ mlir::Value CIRGenFunction::emitCheckedInBoundsGEP(
   assert(IdxList.size() == 1 && "multi-index ptr arithmetic NYI");
   mlir::Value GEPVal =
       builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr, IdxList[0]);
-
   // If the pointer overflow sanitizer isn't enabled, do nothing.
-  if (!SanOpts.has(SanitizerKind::PointerOverflow))
-    return GEPVal;
+  if (!SanOpts.has(SanitizerKind::PointerOverflow)) {
+    cir::GEPNoWrapFlags nwFlags = cir::GEPNoWrapFlags::inbounds;
+    if (!SignedIndices && !IsSubtraction)
+      nwFlags = nwFlags | cir::GEPNoWrapFlags::nuw;
+    return builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr,
+                                            IdxList[0], nwFlags);
+  }
+
+  return GEPVal;
 
   // TODO(cir): the unreachable code below hides a substantial amount of code
   // from the original codegen related with pointer overflow sanitizer.

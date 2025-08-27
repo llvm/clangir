@@ -392,16 +392,15 @@ def GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
 def GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
 def GEPInbounds : BitEnumCaseGroup<"inbounds", [GEPInboundsFlag, GEPNusw]>;
 
-def GEPNoWrapFlags : I32BitEnum<
-    "GEPNoWrapFlags",
-    "::cir::GEPNoWrapFlags",
-    [GEPNone, GEPInboundsFlag, GEPNusw, GEPNuw, GEPInbounds]> {
+def GEPNoWrapFlags
+    : I32BitEnum<"GEPNoWrapFlags", "::cir::GEPNoWrapFlags",
+                 [GEPNone, GEPInboundsFlag, GEPNusw, GEPNuw, GEPInbounds]> {
   let cppNamespace = "::cir";
   let printBitEnumPrimaryGroups = 1;
 }
 
 def GEPNoWrapFlagsProp : EnumProp<GEPNoWrapFlags> {
-  let defaultValue = interfaceType # "::none";
+  let defaultValue = interfaceType#"::none";
 }
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
