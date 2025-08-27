@@ -238,32 +238,30 @@ cir.global linkonce_odr @_ZTV1B = ...
 
 ### AddressSpaceAttr
 
-_Address space attribute for pointer types_
+_Address space kind_
 
 Syntax:
 
 ```
-#cir.addrspace<
-  int32_t   # value
+#cir.address_space<
+  ::cir::AddressSpace   # value
 >
 ```
 
-The address space attribute is used in pointer types. It essentially
-provides a unified model on top of `clang::LangAS`, rather than LLVM address
-spaces.
+The `address_space` attribute is used to represent address spaces for
+pointer types in CIR. It provides a unified model on top of `clang::LangAS`
+and simplifies the representation of address spaces.
 
-The representation is further simplified: `LangAS::Default` is encoded as
-a null attribute; many address spaces from different offloading languages
-are unified as `offload_*`; etc.
-
-The meaning of `value` parameter is defined as an extensible enum `Kind`,
-which encodes target AS as offset to the last language AS.
+The `value` parameter is an extensible enum, which encodes target address
+space as an offset to the last language address space. For that reason, the
+attribute is implemented as custom AddressSpaceAttr, which provides custom
+printer and parser for the `value` parameter.
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| value | `int32_t` |  |
+| value | `::cir::AddressSpace` | an enum of type AddressSpace |
 
 ### AnnotationAttr
 
@@ -349,357 +347,6 @@ The BoolAttr represents a 'true' or 'false' value.
 | type | `cir::BoolType` |  |
 | value | `bool` |  |
 
-### InlineAttr
-
-_Inline attribute_
-
-Syntax:
-
-```
-#cir.inline<
-  ::cir::InlineKind   # value
->
-```
-
-Inline attributes represents user directives.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `::cir::InlineKind` | an enum of type InlineKind |
-
-### OptInfoAttr
-
-_A module-level attribute that holds the optimization information_
-
-Syntax:
-
-```
-#cir.opt_info<
-  unsigned,   # level
-  unsigned   # size
->
-```
-
-The `#cir.opt_info` attribute holds the optimization related information.
-Currently this attribute is a module-level attribute that gets attached to
-the module operation during CIRGen.
-
-The `level` parameter gives the optimization level. It must be an integer
-between 0 and 3, inclusive. It corresponds to the `OptimizationLevel` field
-within the `clang::CodeGenOptions` structure.
-
-The `size` parameter gives the code size optimization level. It must be an
-integer between 0 and 2, inclusive. It corresponds to the `OptimizeSize`
-field within the `clang::CodeGenOptions` structure.
-
-The `level` and `size` parameters correspond to the optimization level
-command line options passed to clang driver. The table below lists the
-current correspondance relationship:
-
-| Flag             | `level` | `size` |
-|------------------|---------|--------|
-| `-O0` or nothing | 0       | 0      |
-| `-O1`            | 1       | 0      |
-| `-O2`            | 2       | 0      |
-| `-O3`            | 3       | 0      |
-| `-Os`            | 2       | 1      |
-| `-Oz`            | 2       | 2      |
-
-Examples:
-
-```mlir
-#cir.opt_info<level = 2, size = 0>  // -O2
-```
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| level | `unsigned` |  |
-| size | `unsigned` |  |
-
-### SourceLanguageAttr
-
-_Module source language_
-
-Syntax:
-
-```
-#cir.lang<
-  ::cir::SourceLanguage   # value
->
-```
-
-Represents the source language used to generate the module.
-
-Example:
-```
-// Module compiled from C.
-module attributes {cir.lang = cir.lang<c>} {}
-// Module compiled from C++.
-module attributes {cir.lang = cir.lang<cxx>} {}
-```
-
-Module source language attribute name is `cir.lang` is defined by
-`getSourceLanguageAttrName` method in CIRDialect class.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `::cir::SourceLanguage` | an enum of type SourceLanguage |
-
-### TBAAAttr
-
-_CIR dialect TBAA base attribute_
-
-Syntax: `#cir.tbaa`
-
-
-### TBAAMemberAttr
-
-_Attribute representing a member of a TBAA structured type._
-
-Syntax:
-
-```
-#cir.tbaa_member<
-  TBAAAttr,   # type_desc
-  int64_t   # offset
->
-```
-
-Define a TBAA struct attribute.
-
-Example:
-```mlir
-!rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
-#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
-#tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
-#tbaa_struct = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa_scalar1, 0>, <#tbaa_scalar, 4>}>
-```
-
-See the following link for more details:
-https://llvm.org/docs/LangRef.html#tbaa-metadata
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| type_desc | `TBAAAttr` |  |
-| offset | `int64_t` |  |
-
-### TBAAOmnipotentCharAttr
-
-_Describes a special scalar type, the omnipotent char type._
-
-Syntax: `#cir.tbaa_omnipotent_char`
-
-
-### TBAAScalarAttr
-
-_Describes a scalar type in TBAA with an identifier._
-
-Syntax:
-
-```
-#cir.tbaa_scalar<
-  ::llvm::StringRef,   # id
-  ::mlir::Type,   # type
-  cir::TBAAScalarAttr   # parent
->
-```
-
-Define a TBAA scalar attribute.
-The optional `parent` attribute is used to describe the parent type of the 
-scalar type. If the `parent` is null or omitted, the parent type is the 
-`omnipotent char` type.
-
-Example:
-```mlir
-// CIR_TBAAScalarAttr
-#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
-#tbaa_scalar1 = #cir.tbaa_scalar<id = "long long", type = !s64i>
-
-#tbaa_scalar2 = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!s32i>>
-#tbaa_scalar3 = #cir.tbaa_scalar<id = "p1 int", type = !cir.ptr<!s32i>, 
-                                 parent = #tbaa_scalar2>
-```
-
-See the following link for more details:
-https://llvm.org/docs/LangRef.html#tbaa-metadata
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| id | `::llvm::StringRef` |  |
-| type | `::mlir::Type` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| parent | `cir::TBAAScalarAttr` |  |
-
-### TBAAStructAttr
-
-_Describes a struct type in TBAA_
-
-Syntax:
-
-```
-#cir.tbaa_struct<
-  ::llvm::StringRef,   # id
-  ::llvm::ArrayRef<TBAAMemberAttr>   # members
->
-```
-
-Define a TBAA struct attribute.
-
-Example:
-```mlir
-!rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
-#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
-#tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
-// CIR_TBAAStructAttr
-#tbaa_struct = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa_scalar1, 0>, <#tbaa_scalar, 4>}>
-```
-
-See the following link for more details:
-https://llvm.org/docs/LangRef.html#tbaa-metadata
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| id | `::llvm::StringRef` |  |
-| members | `::llvm::ArrayRef<TBAAMemberAttr>` | Array of TBAAMemberAttr attributes. |
-
-### TBAATagAttr
-
-Syntax:
-
-```
-#cir.tbaa_tag<
-  ::cir::TBAAAttr,   # base
-  ::cir::TBAAAttr,   # access
-  int64_t   # offset
->
-```
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| base | `::cir::TBAAAttr` | CIR dialect TBAA base attribute |
-| access | `::cir::TBAAAttr` | CIR dialect TBAA base attribute |
-| offset | `int64_t` |  |
-
-### TBAAVTablePointerAttr
-
-_Describes a special scalar type, the vtable pointer type._
-
-Syntax:
-
-```
-#cir.tbaa_vptr<
-  ::mlir::Type   # type
->
-```
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| type | `::mlir::Type` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-
-### TypeSizeInfoAttr
-
-_The size of types in bits_
-
-Syntax:
-
-```
-#cir.type_size_info<
-  unsigned,   # char_size
-  unsigned,   # int_size
-  unsigned   # size_t_size
->
-```
-
-The `cir.type_size` attribute is attached to a module, recording lengths
-of various types if their names don't include it.
-
-It is worth noticing that size_t and pointers are considered to have the
-same length in Clang IR.
-
-Float and double types are represented by cir::SingleType and cir::
-DoubleType respectively, whose constructos don't need the type size as an
-argument. So their lengths are not stored here.
-
-Examples:
-
-```mlir
-// sizeof(int) == 4, sizeof(size_t) == 8
-module attributes {
-  cir.type_size = #cir.type_size<
-    char = 8,
-    int = 32,
-    size_t = 64
-  >
-} {}
-```
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| char_size | `unsigned` |  |
-| int_size | `unsigned` |  |
-| size_t_size | `unsigned` |  |
-
-### UWTableAttr
-
-_Unwind table kind attribute_
-
-Syntax:
-
-```
-#cir.uwtable<
-  ::cir::UWTableKind   # value
->
-```
-
-The kind of unwind tables to generate for a function. `none` means no unwind
-tables are generated; `sync` means synchronous unwind tables (that are only
-valid at call boundaries), and `async` means asynchronous unwind tables
-(that are valid at all instructions). When applied to a module, this
-controls the unwind table generation for any synthesized functions.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `::cir::UWTableKind` | an enum of type UWTableKind |
-
-### VisibilityAttr
-
-_Visibility attribute_
-
-Syntax:
-
-```
-#cir.visibility<
-  ::cir::VisibilityKind   # value
->
-```
-
-Visibility attributes.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| value | `::cir::VisibilityKind` | an enum of type VisibilityKind |
-
 ### CUDABinaryHandleAttr
 
 _Fat binary handle for device code._
@@ -779,7 +426,7 @@ Syntax:
 This attribute is attached to global variable definitions and records the
 mangled name of the global variable used on the device.
 
-In CUDA, __device__, __constant__ and __shared__ variables, as well as 
+In CUDA, __device__, __constant__ and __shared__ variables, as well as
 surface and texture variables, will generate a shadow symbol on host.
 We must preserve the correspodence in order to generate registration
 functions.
@@ -789,6 +436,51 @@ functions.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | device_side_name | `std::string` |  |
+
+### CXXCtorAttr
+
+_Marks a function as a CXX constructor_
+
+Syntax:
+
+```
+#cir.cxx_ctor<
+  mlir::Type,   # type
+  ::cir::CtorKind   # ctorKind
+>
+```
+
+Functions with this attribute are CXX constructors.
+The `custom` kind is used if the constructor is a custom constructor.
+The `default` kind is used if the constructor is a default constructor.
+The `copy` kind is used if the constructor is a copy constructor.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::Type` |  |
+| ctorKind | `::cir::CtorKind` | an enum of type CtorKind |
+
+### CXXDtorAttr
+
+_Marks a function as a CXX destructor_
+
+Syntax:
+
+```
+#cir.cxx_dtor<
+  mlir::Type   # type
+>
+```
+
+Functions with this attribute are CXX destructors
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::Type` |  |
 
 ### CmpThreeWayInfoAttr
 
@@ -1112,7 +804,8 @@ Syntax:
 >
 ```
 
-A function with this attribute executes before main()
+Marks the function as a global constructor in the module's constructor list.
+It will be executed before main() is called.
 
 #### Parameters:
 
@@ -1134,7 +827,8 @@ Syntax:
 >
 ```
 
-A function with this attribute excutes before module unloading
+Marks a function as a global destructor in the module dtors list.
+The function will be executed before the module unloading.
 
 #### Parameters:
 
@@ -1219,9 +913,43 @@ The same for LLVM IR after CIR:
 | symbol | `mlir::FlatSymbolRefAttr` |  |
 | indices | `mlir::ArrayAttr` |  |
 
+### HotAttr
+
+Syntax: `#cir.hot`
+
+
+### InlineAttr
+
+_Inline attribute_
+
+Syntax:
+
+```
+#cir.inline<
+  ::cir::InlineKind   # value
+>
+```
+
+Inline attributes represents user directives.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::InlineKind` | an enum of type InlineKind |
+
 ### IntAttr
 
 _An Attribute containing a integer value_
+
+Syntax:
+
+```
+#cir.int<
+  cir::IntTypeInterface,   # type
+  ::llvm::APInt   # value
+>
+```
 
 An integer attribute is a literal attribute that represents an integral
 value of the specified integer type.
@@ -1230,8 +958,8 @@ value of the specified integer type.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `::mlir::Type` |  |
-| value | `llvm::APInt` |  |
+| type | `cir::IntTypeInterface` |  |
+| value | `::llvm::APInt` |  |
 
 ### MethodAttr
 
@@ -1407,35 +1135,56 @@ the work-group size specified in the `clEnqueueNDRangeKernel` function,
 thereby ensuring that the work groups are uniform.
 
 
-### OpenCLVersionAttr
+### OptInfoAttr
 
-_OpenCL version_
+_A module-level attribute that holds the optimization information_
 
 Syntax:
 
 ```
-#cir.cl.version<
-  int32_t,   # major_version
-  int32_t   # minor_version
+#cir.opt_info<
+  unsigned,   # level
+  unsigned   # size
 >
 ```
 
-Represents the version of OpenCL.
+The `#cir.opt_info` attribute holds the optimization related information.
+Currently this attribute is a module-level attribute that gets attached to
+the module operation during CIRGen.
 
-Example:
-```
-// Module compiled from OpenCL 1.2.
-module attributes {cir.cl.version = cir.cl.version<1, 2>} {}
-// Module compiled from OpenCL 3.0.
-module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
+The `level` parameter gives the optimization level. It must be an integer
+between 0 and 3, inclusive. It corresponds to the `OptimizationLevel` field
+within the `clang::CodeGenOptions` structure.
+
+The `size` parameter gives the code size optimization level. It must be an
+integer between 0 and 2, inclusive. It corresponds to the `OptimizeSize`
+field within the `clang::CodeGenOptions` structure.
+
+The `level` and `size` parameters correspond to the optimization level
+command line options passed to clang driver. The table below lists the
+current correspondance relationship:
+
+| Flag             | `level` | `size` |
+|------------------|---------|--------|
+| `-O0` or nothing | 0       | 0      |
+| `-O1`            | 1       | 0      |
+| `-O2`            | 2       | 0      |
+| `-O3`            | 3       | 0      |
+| `-Os`            | 2       | 1      |
+| `-Oz`            | 2       | 2      |
+
+Examples:
+
+```mlir
+#cir.opt_info<level = 2, size = 0>  // -O2
 ```
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| major_version | `int32_t` |  |
-| minor_version | `int32_t` |  |
+| level | `unsigned` |  |
+| size | `unsigned` |  |
 
 ### OptNoneAttr
 
@@ -1462,6 +1211,197 @@ notion of poison.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
+
+### SourceLanguageAttr
+
+_Module source language_
+
+Syntax:
+
+```
+#cir.lang<
+  ::cir::SourceLanguage   # value
+>
+```
+
+Represents the source language used to generate the module.
+
+Example:
+```
+// Module compiled from C.
+module attributes {cir.lang = cir.lang<c>} {}
+// Module compiled from C++.
+module attributes {cir.lang = cir.lang<cxx>} {}
+```
+
+Module source language attribute name is `cir.lang` is defined by
+`getSourceLanguageAttrName` method in CIRDialect class.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::SourceLanguage` | an enum of type SourceLanguage |
+
+### TBAAAttr
+
+_CIR dialect TBAA base attribute_
+
+Syntax: `#cir.tbaa`
+
+
+### TBAAMemberAttr
+
+_Attribute representing a member of a TBAA structured type._
+
+Syntax:
+
+```
+#cir.tbaa_member<
+  ::mlir::Attribute,   # type_desc
+  int64_t   # offset
+>
+```
+
+Define a TBAA struct attribute.
+
+Example:
+```mlir
+!rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
+#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
+#tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
+#tbaa_struct = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa_scalar1, 0>, <#tbaa_scalar, 4>}>
+```
+
+See the following link for more details:
+https://llvm.org/docs/LangRef.html#tbaa-metadata
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type_desc | `::mlir::Attribute` | base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type |
+| offset | `int64_t` |  |
+
+### TBAAOmnipotentCharAttr
+
+_Describes a special scalar type, the omnipotent char type._
+
+Syntax: `#cir.tbaa_omnipotent_char`
+
+
+### TBAAScalarAttr
+
+_Describes a scalar type in TBAA with an identifier._
+
+Syntax:
+
+```
+#cir.tbaa_scalar<
+  ::llvm::StringRef,   # id
+  ::mlir::Type,   # type
+  cir::TBAAScalarAttr   # parent
+>
+```
+
+Define a TBAA scalar attribute.
+The optional `parent` attribute is used to describe the parent type of the
+scalar type. If the `parent` is null or omitted, the parent type is the
+`omnipotent char` type.
+
+Example:
+```mlir
+// CIR_TBAAScalarAttr
+#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
+#tbaa_scalar1 = #cir.tbaa_scalar<id = "long long", type = !s64i>
+
+#tbaa_scalar2 = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!s32i>>
+#tbaa_scalar3 = #cir.tbaa_scalar<id = "p1 int", type = !cir.ptr<!s32i>,
+                                 parent = #tbaa_scalar2>
+```
+
+See the following link for more details:
+https://llvm.org/docs/LangRef.html#tbaa-metadata
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| id | `::llvm::StringRef` |  |
+| type | `::mlir::Type` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| parent | `cir::TBAAScalarAttr` |  |
+
+### TBAAStructAttr
+
+_Describes a struct type in TBAA_
+
+Syntax:
+
+```
+#cir.tbaa_struct<
+  ::llvm::StringRef,   # id
+  ::llvm::ArrayRef<TBAAMemberAttr>   # members
+>
+```
+
+Define a TBAA struct attribute.
+
+Example:
+```mlir
+!rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
+#tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
+#tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
+// CIR_TBAAStructAttr
+#tbaa_struct = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa_scalar1, 0>, <#tbaa_scalar, 4>}>
+```
+
+See the following link for more details:
+https://llvm.org/docs/LangRef.html#tbaa-metadata
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| id | `::llvm::StringRef` |  |
+| members | `::llvm::ArrayRef<TBAAMemberAttr>` | Array of TBAAMemberAttr attributes. |
+
+### TBAATagAttr
+
+Syntax:
+
+```
+#cir.tbaa_tag<
+  ::mlir::Attribute,   # base
+  ::mlir::Attribute,   # access
+  int64_t   # offset
+>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| base | `::mlir::Attribute` | base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type |
+| access | `::mlir::Attribute` | base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type |
+| offset | `int64_t` |  |
+
+### TBAAVTablePointerAttr
+
+_Describes a special scalar type, the vtable pointer type._
+
+Syntax:
+
+```
+#cir.tbaa_vptr<
+  ::mlir::Type   # type
+>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 ### TypeInfoAttr
 
@@ -1502,6 +1442,75 @@ cir.global external @type_info_B = #cir.typeinfo<<
 | type | `::mlir::Type` |  |
 | data | `mlir::ArrayAttr` |  |
 
+### TypeSizeInfoAttr
+
+_The size of types in bits_
+
+Syntax:
+
+```
+#cir.type_size_info<
+  unsigned,   # char_size
+  unsigned,   # int_size
+  unsigned   # size_t_size
+>
+```
+
+The `cir.type_size` attribute is attached to a module, recording lengths
+of various types if their names don't include it.
+
+It is worth noticing that size_t and pointers are considered to have the
+same length in Clang IR.
+
+Float and double types are represented by cir::SingleType and cir::
+DoubleType respectively, whose constructos don't need the type size as an
+argument. So their lengths are not stored here.
+
+Examples:
+
+```mlir
+// sizeof(int) == 4, sizeof(size_t) == 8
+module attributes {
+  cir.type_size = #cir.type_size<
+    char = 8,
+    int = 32,
+    size_t = 64
+  >
+} {}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| char_size | `unsigned` |  |
+| int_size | `unsigned` |  |
+| size_t_size | `unsigned` |  |
+
+### UWTableAttr
+
+_Unwind table kind attribute_
+
+Syntax:
+
+```
+#cir.uwtable<
+  ::cir::UWTableKind   # value
+>
+```
+
+The kind of unwind tables to generate for a function. `none` means no unwind
+tables are generated; `sync` means synchronous unwind tables (that are only
+valid at call boundaries), and `async` means asynchronous unwind tables
+(that are valid at all instructions). When applied to a module, this
+controls the unwind table generation for any synthesized functions.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::UWTableKind` | an enum of type UWTableKind |
+
 ### UndefAttr
 
 _Represent an undef constant_
@@ -1522,6 +1531,76 @@ of undef.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
+
+### VisibilityAttr
+
+_Visibility attribute_
+
+Syntax:
+
+```
+#cir.visibility<
+  ::cir::VisibilityKind   # value
+>
+```
+
+Visibility attributes.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `::cir::VisibilityKind` | an enum of type VisibilityKind |
+
+### ZeroAttr
+
+_Attribute to represent zero initialization_
+
+Syntax:
+
+```
+#cir.zero<
+  ::mlir::Type   # type
+>
+```
+
+The ZeroAttr is used to indicate zero initialization on structs.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+
+### OpenCLVersionAttr
+
+_OpenCL version_
+
+Syntax:
+
+```
+#cir.cl.version<
+  int32_t,   # major_version
+  int32_t   # minor_version
+>
+```
+
+Represents the version of OpenCL.
+
+Example:
+```
+// Module compiled from OpenCL 1.2.
+module attributes {cir.cl.version = cir.cl.version<1, 2>} {}
+// Module compiled from OpenCL 3.0.
+module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| major_version | `int32_t` |  |
+| minor_version | `int32_t` |  |
 
 ### VTableAttr
 
@@ -1556,23 +1635,3 @@ cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | vtable_data | `mlir::ArrayAttr` |  |
-
-### ZeroAttr
-
-_Attribute to represent zero initialization_
-
-Syntax:
-
-```
-#cir.zero<
-  ::mlir::Type   # type
->
-```
-
-The ZeroAttr is used to indicate zero initialization on structs.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| type | `::mlir::Type` |  |

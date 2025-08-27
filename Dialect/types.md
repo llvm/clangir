@@ -260,18 +260,40 @@ Syntax:
 ```
 !cir.ptr<
   mlir::Type,   # pointee
-  mlir::Attribute   # addrSpace
+  ::cir::AddressSpace   # addrSpace
 >
 ```
 
-`CIR.ptr` is a type returned by any op generating a pointer in C++.
+The `!cir.ptr` type is a typed pointer type. It is used to represent
+pointers to objects in C/C++. The type of the pointed-to object is given by
+the `pointee` parameter. The `addrSpace` parameter is an optional address
+space attribute that specifies the address space of the pointer. If not
+specified, the pointer is assumed to be in the default address space.
+
+The `!cir.ptr` type can point to any type, including fundamental types,
+records, arrays, vectors, functions, and other pointers. It can also point
+to incomplete types, such as incomplete records.
+
+Note: Data-member pointers and method pointers are represented by
+`!cir.data_member` and `!cir.method` types, respectively not by
+`!cir.ptr` type.
+
+Examples:
+
+```mlir
+!cir.ptr<!cir.int<u, 8>>
+!cir.ptr<!cir.float>
+!cir.ptr<!cir.record<struct "MyStruct">>
+!cir.ptr<!cir.record<struct "MyStruct">, addrspace(offload_private)>
+!cir.ptr<!cir.int<u, 8>, addrspace(target<1>)>
+```
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | pointee | `mlir::Type` |  |
-| addrSpace | `mlir::Attribute` |  |
+| addrSpace | `::cir::AddressSpace` | an enum of type AddressSpace |
 
 ### RecordType
 
@@ -332,6 +354,31 @@ Syntax: `!cir.float`
 
 Floating-point type that represents the `float` type in C/C++. Its
 underlying floating-point format is the IEEE-754 binary32 format.
+
+
+### VPtrType
+
+_CIR type that is used for the vptr member of C++ objects_
+
+Syntax: `!cir.vptr`
+
+`cir.vptr` is a special type used as the type for the vptr member of a C++
+object. This avoids using arbitrary pointer types to declare vptr values
+and allows stronger type-based checking for operations that use or provide
+access to the vptr.
+
+This type will be the element type of the 'vptr' member of structures that
+require a vtable pointer. A pointer to this type is returned by the
+`cir.vtable.address_point` and `cir.vtable.get_vptr` operations, and this
+pointer may be passed to the `cir.vtable.get_virtual_fn_addr` operation to
+get the address of a virtual function pointer.
+
+The pointer may also be cast to other pointer types in order to perform
+pointer arithmetic based on information encoded in the AST layout to get
+the offset from a pointer to a dynamic object to the base object pointer,
+the base object offset value from the vtable, or the type information
+entry for an object.
+TODO: We should have special operations to do that too.
 
 
 ### VectorType

@@ -495,14 +495,14 @@ Interfaces: `InferTypeOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `ptr` | CIR pointer type |
-| `expected` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `desired` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `expected` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `desired` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `old` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `old` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 | `cmp` | CIR bool type |
 
 
@@ -638,13 +638,13 @@ Interfaces: `InferTypeOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `ptr` | CIR pointer type |
-| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.await` (::cir::AwaitOp)
@@ -918,14 +918,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.binop.overflow` (::cir::BinOpOverflowOp)
@@ -990,22 +990,22 @@ Effects: `MemoryEffects::Effect{}`
 | `overflow` | CIR bool type |
 
 
-### `cir.bit.clrsb` (::cir::BitClrsbOp)
+### `cir.clrsb` (::cir::BitClrsbOp)
 
 _Get the number of leading redundant sign bits in the input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.clrsb` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+operation ::= `cir.clrsb` $input `:` type($result) attr-dict
 ```
 
 Compute the number of leading redundant sign bits in the input integer.
 
 The input integer must be a signed integer. The most significant bit of the
-input integer is the sign bit. The `cir.bit.clrsb` operation returns the
-number of redundant sign bits in the input, that is, the number of bits
-following the most significant bit that are identical to it.
+input integer is the sign bit. The `cir.clrsb` operation returns the number
+of redundant sign bits in the input, that is, the number of bits following
+the most significant bit that are identical to it.
 
 The bit width of the input integer must be either 32 or 64.
 
@@ -1018,12 +1018,12 @@ Examples:
 %0 = cir.const #cir.int<3735928559> : !s32i
 // %1 will be 1 because there is 1 bit following the most significant bit
 // that is identical to it.
-%1 = cir.bit.clrsb(%0 : !s32i) : !s32i
+%1 = cir.clrsb(%0 : !s32i) : !s32i
 
 // %2 = 1, 0b0000_0000_0000_0000_0000_0000_0000_0001
 %2 = cir.const #cir.int<1> : !s32i
 // %3 will be 30
-%3 = cir.bit.clrsb(%2 : !s32i) : !s32i
+%3 = cir.clrsb(%2 : !s32i) : !s32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1045,20 +1045,20 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | signed integer type of widths 32/64 |
 
 
-### `cir.bit.clz` (::cir::BitClzOp)
+### `cir.clz` (::cir::BitClzOp)
 
 _Get the number of leading 0-bits in the input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.clz` `(` $input `:` type($input) `)` (`zero_poison` $is_zero_poison^)?
+operation ::= `cir.clz` $input (`zero_poison` $is_zero_poison^)?
               `:` type($result) attr-dict
 ```
 
 Compute the number of leading 0-bits in the input.
 
-The input integer must be an unsigned integer. The `cir.bit.clz` operation
+The input integer must be an unsigned integer. The `cir.clz` operation
 returns the number of consecutive 0-bits at the most significant bit
 position in the input.
 
@@ -1073,7 +1073,7 @@ Example:
 // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
 %0 = cir.const #cir.int<8> : !u32i
 // %1 will be 28
-%1 = cir.bit.clz(%0 : !u32i) zero_poison : !u32i
+%1 = cir.clz(%0 : !u32i) zero_poison : !u32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1102,20 +1102,20 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | unsigned integer type of widths 16/32/64 |
 
 
-### `cir.bit.ctz` (::cir::BitCtzOp)
+### `cir.ctz` (::cir::BitCtzOp)
 
 _Get the number of trailing 0-bits in the input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.ctz` `(` $input `:` type($input) `)` (`zero_poison` $is_zero_poison^)?
+operation ::= `cir.ctz` $input (`zero_poison` $is_zero_poison^)?
               `:` type($result) attr-dict
 ```
 
 Compute the number of trailing 0-bits in the input.
 
-The input integer must be an unsigned integer. The `cir.bit.ctz` operation
+The input integer must be an unsigned integer. The `cir.ctz` operation
 returns the number of consecutive 0-bits at the least significant bit
 position in the input.
 
@@ -1131,7 +1131,7 @@ Example:
 // %0 = 0b1000
 %0 = cir.const #cir.int<8> : !u32i
 // %1 will be 3
-%1 = cir.bit.ctz(%0 : !u32i) : !u32i
+%1 = cir.ctz(%0 : !u32i) : !u32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1160,22 +1160,21 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | unsigned integer type of widths 16/32/64 |
 
 
-### `cir.bit.ffs` (::cir::BitFfsOp)
+### `cir.ffs` (::cir::BitFfsOp)
 
 _Get the position of the least significant 1-bit of input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.ffs` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+operation ::= `cir.ffs` $input `:` type($result) attr-dict
 ```
 
 Compute the position of the least significant 1-bit of the input.
 
-The input integer must be a signed integer. The `cir.bit.ffs` operation
-returns one plus the index of the least significant 1-bit of the input
-signed integer. As a special case, if the input integer is 0, `cir.bit.ffs`
-returns 0.
+The input integer must be a signed integer. The `cir.ffs` operation returns
+one plus the index of the least significant 1-bit of the input signed
+integer. As a special case, if the input integer is 0, `cir.ffs` returns 0.
 
 Example:
 
@@ -1185,7 +1184,7 @@ Example:
 // %0 = 0x0010_1000
 %0 = cir.const #cir.int<40> : !s32i
 // #1 will be 4 since the 4th least significant bit is 1.
-%1 = cir.bit.ffs(%0 : !s32i) : !s32i
+%1 = cir.ffs(%0 : !s32i) : !s32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1207,14 +1206,14 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | signed integer type of widths 32/64 |
 
 
-### `cir.bit.parity` (::cir::BitParityOp)
+### `cir.parity` (::cir::BitParityOp)
 
 _Get the parity of input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.parity` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+operation ::= `cir.parity` $input `:` type($result) attr-dict
 ```
 
 Compute the parity of the input. The parity of an integer is the number of
@@ -1231,7 +1230,7 @@ Example:
 // %0 = 0x0110_1000
 %0 = cir.const #cir.int<104> : !u32i
 // %1 will be 1 since there are 3 1-bits in %0
-%1 = cir.bit.parity(%0 : !u32i) : !u32i
+%1 = cir.parity(%0 : !u32i) : !u32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1253,14 +1252,14 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | unsigned integer type of widths 32/64 |
 
 
-### `cir.bit.popcount` (::cir::BitPopcountOp)
+### `cir.popcount` (::cir::BitPopcountOp)
 
 _Get the number of 1-bits in input_
 
 Syntax:
 
 ```
-operation ::= `cir.bit.popcount` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+operation ::= `cir.popcount` $input `:` type($result) attr-dict
 ```
 
 Compute the number of 1-bits in the input.
@@ -1275,7 +1274,7 @@ Example:
 // %0 = 0x0110_1000
 %0 = cir.const #cir.int<104> : !u32i
 // %1 will be 3 since there are 3 1-bits in %0
-%1 = cir.bit.popcount(%0 : !u32i) : !u32i
+%1 = cir.popcount(%0 : !u32i) : !u32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1378,8 +1377,8 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `cond` | CIR bool type |
-| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Successors:
 
@@ -1424,7 +1423,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Successors:
 
@@ -1450,18 +1449,18 @@ within a breakable operation (loops and `switch`).
 Traits: `Terminator`
 
 
-### `cir.bswap` (::cir::ByteswapOp)
+### `cir.byte_swap` (::cir::ByteswapOp)
 
 _Reverse the bytes that constitute the operand integer_
 
 Syntax:
 
 ```
-operation ::= `cir.bswap` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+operation ::= `cir.byte_swap` $input `:` type($result) attr-dict
 ```
 
-The `cir.bswap` operation takes an integer as operand, and returns it with
-the order of bytes that constitute the operand reversed.
+The `cir.byte_swap` operation takes an integer as operand, and returns it
+with the order of bytes that constitute the operand reversed.
 
 The operand integer must be an unsigned integer. Its widths must be either
 16, 32, or 64.
@@ -1475,7 +1474,7 @@ Example:
 %0 = cir.const #cir.int<305419896> : !u32i
 
 // %1 should be 0x78563412
-%1 = cir.bswap(%0 : !u32i) : !u32i
+%1 = cir.byte_swap(%0 : !u32i) : !u32i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
@@ -1495,89 +1494,6 @@ Effects: `MemoryEffects::Effect{}`
 | Result | Description |
 | :----: | ----------- |
 | `result` | Integer type with arbitrary precision up to a fixed limit |
-
-
-### `cir.asm` (::cir::InlineAsmOp)
-
-The `cir.asm` operation represents C/C++ asm inline.
-
-CIR constraints strings follow barelly the same rules that are established
-for the C level assembler constraints with several differences caused by
-clang::AsmStmt processing.
-
-Thus, numbers that appears in the constraint string may also refer to:
-- the output variable index referenced by the input operands.
-- the index of early-clobber operand
-
-Operand attributes is a storage, where each element corresponds to the operand with
-the same index. The first index relates to the operation result (if any).
-Note, the operands themselves are stored as VariadicOfVariadic in the next order:
-output, input and then in/out operands.
-
-Note, when several output operands are present, the result type may be represented as
-an anon record type.
-
-Example:
-```C++
-__asm__("foo" : : : );
-__asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
-__asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
-```
-
-```mlir
-!rec_22anon2E022 = !cir.record<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
-!rec_22anon2E122 = !cir.record<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
-...
-%0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
-%1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init]
-...
-%2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-%3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-
-cir.asm(x86_att,
-  out = [],
-  in = [],
-  in_out = [],
-  {"foo" "~{dirflag},~{fpsr},~{flags}"}) side_effects
-
-cir.asm(x86_att,
-  out = [],
-  in = [],
-  in_out = [%2 : !s32i],
-  {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E022
-
-cir.asm(x86_att,
-  out = [],
-  in = [%3 : !s32i],
-  in_out = [%2 : !s32i],
-  {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E122
-```
-
-Traits: `RecursiveMemoryEffects`
-
-#### Attributes:
-
-<table>
-<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>asm_string</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>constraints</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>side_effects</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>asm_flavor</code></td><td>::cir::AsmFlavorAttr</td><td>ATT or Intel</td></tr>
-<tr><td><code>operand_attrs</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
-<tr><td><code>operands_segments</code></td><td>::mlir::DenseI32ArrayAttr</td><td>i32 dense array attribute</td></tr>
-</table>
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-| `asm_operands` | variadic of any type |
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
 
 
 ### `cir.call` (::cir::CallOp)
@@ -1635,13 +1551,13 @@ Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.case` (::cir::CaseOp)
@@ -1754,13 +1670,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.catch_param` (::cir::CatchParamOp)
@@ -1802,7 +1718,7 @@ Example:
 
 | Result | Description |
 | :----: | ----------- |
-| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.ceil` (::cir::CeilOp)
@@ -1891,8 +1807,8 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -1958,8 +1874,8 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -2313,7 +2229,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.continue` (::cir::ContinueOp)
@@ -2367,7 +2283,7 @@ Interfaces: `PromotableMemOpInterface`
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>tbaa</code></td><td>::cir::TBAAAttr</td><td>CIR dialect TBAA base attribute</td></tr>
+<tr><td><code>tbaa</code></td><td>::mlir::Attribute</td><td>base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type</td></tr>
 </table>
 
 #### Operands:
@@ -2898,7 +2814,7 @@ _Extract the value of a member of a record value_
 Syntax:
 
 ```
-operation ::= `cir.extract_member` $record `[` $index_attr `]` attr-dict
+operation ::= `cir.extract_member` $record `[` $index `]` attr-dict
               `:` qualified(type($record)) `->` qualified(type($result))
 ```
 
@@ -2934,7 +2850,7 @@ Effects: `MemoryEffects::Effect{}`
 
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>index_attr</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr>
+<tr><td><code>index</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 </table>
 
 #### Operands:
@@ -2947,7 +2863,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.fabs` (::cir::FAbsOp)
@@ -3278,113 +3194,6 @@ cir.try synthetic cleanup {
 | `ptr` | pointer to void type |
 
 
-### `cir.func` (::cir::FuncOp)
-
-_Declare or define a function_
-
-Similar to `mlir::FuncOp` built-in:
-> Operations within the function cannot implicitly capture values defined
-> outside of the function, i.e. Functions are `IsolatedFromAbove`. All
-> external references must use function arguments or attributes that establish
-> a symbolic connection (e.g. symbols referenced by name via a string
-> attribute like SymbolRefAttr). An external function declaration (used when
-> referring to a function declared in some other module) has no body. While
-> the MLIR textual form provides a nice inline syntax for function arguments,
-> they are internally represented as “block arguments” to the first block in
-> the region.
->
-> Only dialect attribute names may be specified in the attribute dictionaries
-> for function arguments, results, or the function itself.
-
-The function linkage information is specified by `linkage`, as defined by
-`GlobalLinkageKind` attribute.
-
-The `calling_conv` attribute specifies the calling convention of the function.
-The default calling convention is `CallingConv::C`.
-
-A compiler builtin function must be marked as `builtin` for further
-processing when lowering from CIR.
-
-The `coroutine` keyword is used to mark coroutine function, which requires
-at least one `cir.await` instruction to be used in its body.
-
-The `lambda` translates to a C++ `operator()` that implements a lambda, this
-allow callsites to make certain assumptions about the real function nature
-when writing analysis. The verifier should, but do act on this keyword yet.
-
-The `no_proto` keyword is used to identify functions that were declared
-without a prototype and, consequently, may contain calls with invalid
-arguments and undefined behavior.
-
-The `extra_attrs`, which is an aggregate of function-specific attributes is
-required and mandatory to describle additional attributes that are not listed
-above. Though mandatory, the prining of the attribute can be omitted if it is
-empty.
-
-The `global_ctor` indicates whether a function should execute before `main()`
-function, as specified by `__attribute__((constructor))`. A execution priority
-can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
-both `global_dtor` and `global_dtor(<prio>)` are available.
-
-Example:
-
-```mlir
-// External function definitions.
-cir.func @abort()
-
-// A function with internal linkage.
-cir.func internal @count(%x: i64) -> (i64)
-  return %x : i64
-}
-
-// Linkage information
-cir.func linkonce_odr @some_method(...)
-
-// Calling convention information
-cir.func @another_func(...) cc(spir_kernel) extra(#fn_attr)
-
-// Builtin function
-cir.func builtin @__builtin_coro_end(!cir.ptr<i8>, !cir.bool) -> !cir.bool
-
-// Coroutine
-cir.func coroutine @_Z10silly_taskv() -> !CoroTask {
-  ...
-  cir.await(...)
-  ...
-}
-```
-
-Traits: `AutomaticAllocationScope`, `IsolatedFromAbove`
-
-Interfaces: `CIRGlobalValueInterface`, `CallableOpInterface`, `FunctionOpInterface`, `Symbol`
-
-#### Attributes:
-
-<table>
-<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>sym_name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>global_visibility</code></td><td>::cir::VisibilityAttr</td><td>Visibility attribute</td></tr>
-<tr><td><code>function_type</code></td><td>::mlir::TypeAttr</td><td>type attribute of CIR function type</td></tr>
-<tr><td><code>builtin</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>coroutine</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>lambda</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>no_proto</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>dso_local</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>linkage kind</td></tr>
-<tr><td><code>calling_conv</code></td><td>::cir::CallingConvAttr</td><td>calling convention</td></tr>
-<tr><td><code>extra_attrs</code></td><td>::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
-<tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>comdat</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
-<tr><td><code>arg_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
-<tr><td><code>res_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
-<tr><td><code>aliasee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
-<tr><td><code>global_ctor</code></td><td>::cir::GlobalCtorAttr</td><td>Marks a function as a global constructor</td></tr>
-<tr><td><code>global_dtor</code></td><td>::cir::GlobalDtorAttr</td><td>Marks a function as a global destructor</td></tr>
-<tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
-<tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
-</table>
-
-
 ### `cir.get_bitfield` (::cir::GetBitfieldOp)
 
 _Get a bitfield_
@@ -3392,7 +3201,8 @@ _Get a bitfield_
 Syntax:
 
 ```
-operation ::= `cir.get_bitfield` `(`$bitfield_info `,` $addr attr-dict `:`
+operation ::= `cir.get_bitfield` (`align` `(` $alignment^ `)`)?
+              `(`$bitfield_info `,` $addr attr-dict `:`
               qualified(type($addr)) `)` `->` type($result)
 ```
 
@@ -3431,7 +3241,7 @@ int load_bitfield(S& s) {
 
 %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
 %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
-%4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
+%4 = cir.get_bitfield align(4) (#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
 ```
 
 #### Attributes:
@@ -3439,6 +3249,7 @@ int load_bitfield(S& s) {
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>bitfield_info</code></td><td>::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
@@ -3453,6 +3264,50 @@ int load_bitfield(S& s) {
 | Result | Description |
 | :----: | ----------- |
 | `result` | Integer type with arbitrary precision up to a fixed limit |
+
+
+### `cir.get_element` (::cir::GetElementOp)
+
+_Get the address of an array element_
+
+Syntax:
+
+```
+operation ::= `cir.get_element` $base `[` $index `]` `:` `(` qualified(type($base)) `,` qualified(type($index)) `)`
+              `->` qualified(type($result)) attr-dict
+```
+
+The `cir.get_element` operation gets the address of a particular element
+from the `base` array.
+
+It expects a pointer to the `base` array and the `index` of the element.
+
+Example:
+```mlir
+// Suppose we have a array.
+!s32i = !cir.int<s, 32>
+!arr_ty = !cir.array<!s32i x 4>
+
+// Get the address of the element at index 1.
+%elem_1 = cir.get_element %0[1] : (!cir.ptr<!array_ty>, !s32i) -> !cir.ptr<!s32i>
+
+// Get the address of the element at index %i.
+%i = ...
+%elem_i = cir.get_element %0[%i] : (!cir.ptr<!array_ty>, !s32i) -> !cir.ptr<!s32i>
+```
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `base` | pointer to array type |
+| `index` | fundamental integer type |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type |
 
 
 ### `cir.get_global` (::cir::GetGlobalOp)
@@ -3513,7 +3368,7 @@ _Get the address of a member of a record_
 Syntax:
 
 ```
-operation ::= `cir.get_member` $addr `[` $index_attr `]` attr-dict
+operation ::= `cir.get_member` $addr `[` $index `]` attr-dict
               `:` qualified(type($addr)) `->` qualified(type($result))
 ```
 
@@ -3539,7 +3394,7 @@ Example:
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>index_attr</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr>
+<tr><td><code>index</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 </table>
 
 #### Operands:
@@ -3690,7 +3545,7 @@ operation ::= `cir.global` ($sym_visibility^)?
               (`comdat` $comdat^)?
               ($tls_model^)?
               (`dso_local` $dso_local^)?
-              (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
+              ( `addrspace` `(` $addr_space^ `)` )?
               $sym_name
               custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
               ($annotations^)?
@@ -3735,7 +3590,7 @@ Interfaces: `CIRGlobalValueInterface`, `RegionBranchOpInterface`, `Symbol`
 <tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 <tr><td><code>sym_type</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
 <tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>linkage kind</td></tr>
-<tr><td><code>addr_space</code></td><td>::cir::AddressSpaceAttr</td><td>Address space attribute for pointer types</td></tr>
+<tr><td><code>addr_space</code></td><td>::cir::AddressSpaceAttr</td><td>address space kind</td></tr>
 <tr><td><code>tls_model</code></td><td>::cir::TLS_ModelAttr</td><td>TLS model</td></tr>
 <tr><td><code>initial_value</code></td><td>::mlir::Attribute</td><td>any attribute</td></tr>
 <tr><td><code>comdat</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
@@ -3856,6 +3711,89 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 | `condition` | CIR bool type |
 
 
+### `cir.asm` (::cir::InlineAsmOp)
+
+The `cir.asm` operation represents C/C++ asm inline.
+
+CIR constraints strings follow barelly the same rules that are established
+for the C level assembler constraints with several differences caused by
+clang::AsmStmt processing.
+
+Thus, numbers that appears in the constraint string may also refer to:
+- the output variable index referenced by the input operands.
+- the index of early-clobber operand
+
+Operand attributes is a storage, where each element corresponds to the operand with
+the same index. The first index relates to the operation result (if any).
+Note, the operands themselves are stored as VariadicOfVariadic in the next order:
+output, input and then in/out operands.
+
+Note, when several output operands are present, the result type may be represented as
+an anon record type.
+
+Example:
+```C++
+__asm__("foo" : : : );
+__asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
+__asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
+```
+
+```mlir
+!rec_22anon2E022 = !cir.record<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
+!rec_22anon2E122 = !cir.record<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
+...
+%0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
+%1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init]
+...
+%2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+%3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+
+cir.asm(x86_att,
+  out = [],
+  in = [],
+  in_out = [],
+  {"foo" "~{dirflag},~{fpsr},~{flags}"}) side_effects
+
+cir.asm(x86_att,
+  out = [],
+  in = [],
+  in_out = [%2 : !s32i],
+  {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E022
+
+cir.asm(x86_att,
+  out = [],
+  in = [%3 : !s32i],
+  in_out = [%2 : !s32i],
+  {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E122
+```
+
+Traits: `RecursiveMemoryEffects`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>asm_string</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>constraints</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>side_effects</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>asm_flavor</code></td><td>::cir::AsmFlavorAttr</td><td>ATT or Intel</td></tr>
+<tr><td><code>operand_attrs</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
+<tr><td><code>operands_segments</code></td><td>::mlir::DenseI32ArrayAttr</td><td>i32 dense array attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `asm_operands` | variadic of any type |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+
+
 ### `cir.insert_member` (::cir::InsertMemberOp)
 
 _Overwrite the value of a member of a record value_
@@ -3863,7 +3801,7 @@ _Overwrite the value of a member of a record value_
 Syntax:
 
 ```
-operation ::= `cir.insert_member` $record `[` $index_attr `]` `,` $value attr-dict
+operation ::= `cir.insert_member` $record `[` $index `]` `,` $value attr-dict
               `:` qualified(type($record)) `,` qualified(type($value))
 ```
 
@@ -3904,7 +3842,7 @@ Effects: `MemoryEffects::Effect{}`
 
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>index_attr</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr>
+<tr><td><code>index</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 </table>
 
 #### Operands:
@@ -3912,7 +3850,7 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `record` | CIR record type |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -4011,7 +3949,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -4093,13 +4031,13 @@ operation ::= `cir.std.begin` `(` $container `:` type($container) `,` $original_
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.std.end` (::cir::IterEndOp)
@@ -4123,13 +4061,13 @@ operation ::= `cir.std.end` `(` $container `:` type($container) `,` $original_fn
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.llvm.intrinsic` (::cir::LLVMIntrinsicCallOp)
@@ -4157,13 +4095,13 @@ It only records intrinsic `intrinsic_name`.
 
 | Operand | Description |
 | :-----: | ----------- |
-| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.llrint` (::cir::LLrintOp)
@@ -4335,7 +4273,7 @@ Interfaces: `InferTypeOpInterface`, `PromotableMemOpInterface`
 <tr><td><code>is_nontemporal</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>mem_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
-<tr><td><code>tbaa</code></td><td>::mlir::Attribute</td><td>CIR dialect TBAA base attribute or Describes a special scalar type, the omnipotent char type. or Describes a special scalar type, the vtable pointer type. or Describes a scalar type in TBAA with an identifier. or Describes a struct type in TBAA or </td></tr>
+<tr><td><code>tbaa</code></td><td>::mlir::Attribute</td><td>base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type</td></tr>
 </table>
 
 #### Operands:
@@ -4348,7 +4286,7 @@ Interfaces: `InferTypeOpInterface`, `PromotableMemOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.log10` (::cir::Log10Op)
@@ -4974,9 +4912,8 @@ _Resumes execution after not catching exceptions_
 Syntax:
 
 ```
-operation ::= `cir.resume` ($rethrow^)?
-              ($exception_ptr^)?
-              (`,` $type_id^)?
+operation ::= `cir.resume` (`rethrow` $rethrow^)?
+              ($exception_ptr^ (`,` $type_id^)?)?
               attr-dict
 ```
 
@@ -5078,7 +5015,7 @@ Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp, C
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.rint` (::cir::RintOp)
@@ -5265,7 +5202,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.select` (::cir::SelectOp)
@@ -5309,14 +5246,14 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `condition` | CIR bool type |
-| `true_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `false_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `true_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `false_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.set_bitfield` (::cir::SetBitfieldOp)
@@ -5326,7 +5263,8 @@ _Set a bitfield_
 Syntax:
 
 ```
-operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
+operation ::= `cir.set_bitfield` (`align` `(` $alignment^ `)`)?
+              `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
               $src`:`type($src) `)`  attr-dict `->` type($result)
 ```
 
@@ -5367,7 +5305,7 @@ void store_bitfield(S& s) {
 %1 = cir.const #cir.int<3> : !s32i
 %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
 %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
-%4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
+%4 = cir.set_bitfield align(4) (#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
 ```
 
 #### Attributes:
@@ -5375,6 +5313,7 @@ void store_bitfield(S& s) {
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>bitfield_info</code></td><td>::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
@@ -5383,7 +5322,7 @@ void store_bitfield(S& s) {
 | Operand | Description |
 | :-----: | ----------- |
 | `addr` | CIR pointer type |
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -5613,15 +5552,15 @@ Interfaces: `InferTypeOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.store` (::cir::StoreOp)
@@ -5670,18 +5609,20 @@ Interfaces: `PromotableMemOpInterface`
 <tr><td><code>is_nontemporal</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>mem_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
-<tr><td><code>tbaa</code></td><td>::mlir::Attribute</td><td>CIR dialect TBAA base attribute or Describes a special scalar type, the omnipotent char type. or Describes a special scalar type, the vtable pointer type. or Describes a scalar type in TBAA with an identifier. or Describes a struct type in TBAA or </td></tr>
+<tr><td><code>tbaa</code></td><td>::mlir::Attribute</td><td>base attribute for TBAA or Omnipotent char type or VTable pointer type or Scalar type with identifier or Struct type or Member of a TBAA struct type</td></tr>
 </table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 | `addr` | CIR pointer type |
 
 
 ### `cir.switch.flat` (::cir::SwitchFlatOp)
+
+_A flattened version of cir.switch_
 
 Syntax:
 
@@ -5952,7 +5893,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.throw` (::cir::ThrowOp)
@@ -6089,15 +6030,15 @@ Interfaces: `BranchOpInterface`, `CIRCallOpInterface`, `CallOpInterface`, `Symbo
 
 | Operand | Description |
 | :-----: | ----------- |
-| `contOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `landingPadOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
-| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `contOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `landingPadOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Successors:
 
@@ -6190,13 +6131,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.unreachable` (::cir::UnreachableOp)
@@ -6237,7 +6178,7 @@ operation ::= `cir.va.arg` $arg_list attr-dict `:` functional-type(operands, $re
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 
 ### `cir.va.copy` (::cir::VACopyOp)
@@ -6358,7 +6299,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
 
 #### Results:
 
@@ -6375,10 +6316,7 @@ Syntax:
 
 ```
 operation ::= `cir.vtable.address_point` `(`
-              ($name^)?
-              ($sym_addr^ `:` type($sym_addr))?
-              `,`
-              `address_point` `=` $address_point
+              $name `,` `address_point` `=` $address_point
               `)`
               `:` qualified(type($addr)) attr-dict
 ```
@@ -6387,22 +6325,65 @@ The `vtable.address_point` operation retrieves the "effective" address
 (address point) of a C++ virtual table. An object internal `__vptr`
 gets initializated on top of the value returned by this operation.
 
-`address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
-(as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
-point within that vtable.
+`address_point.index` (vtable index) provides the appropriate vtable within
+the vtable group (as specified by Itanium ABI), and `address_point.offset`
+(address point index) the actual address point within that vtable.
 
-The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
+The `name` argument to this operation must be the name of a C++ vtable
+object. The return value is the address of the virtual function pointer
+array within the vtable (the vptr). This value will be written to the
+vptr member of a dynamic class by the constructor of the class. Derived
+classes have their own vtable, which is used to obtain the vptr stored
+in instances of the derived class.
 
-Example:
+The return type is always `!cir.vptr`.
+
+Examples:
+
+```C++
+struct Base {
+  Base();
+  virtual void f();
+};
+struct Derived : public Base {
+  Derived();
+};
+```
+
 ```mlir
-cir.global linkonce_odr @_ZTV1B = ...
+!rec_Base = !cir.record<struct "Base" {!cir.vptr}
+!rec_Derived = !cir.record<struct "Derived" {!rec_Base}
 ...
-%3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<() -> i32>>
+// VTable for Base
+cir.global linkonce_odr @_ZTV1Base = ...
+...
+// Constructor for Base
+cir.func dso_local @_ZN4BaseC2Ev ...
+  ...
+  %2 = cir.vtable.address_point(@_ZTV1Base,
+          address_point = <index = 0, offset = 2>) : !cir.vptr
+  %3 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+  cir.store align(8) %2, %3 : !cir.vptr, !cir.ptr<!cir.vptr>
+...
+// VTable for Derived
+cir.global linkonce_odr @_ZTV7Derived = ...
+...
+// Constructor for Derived
+cir.func dso_local @_ZN7DerivedC2Ev ...
+  // Get the address of Base within this Derived instance
+  %2 = cir.base_class_addr %1 : !cir.ptr<!rec_Derived> nonnull [0]
+  cir.call @_ZN4BaseC2Ev(%2)
+  %3 = cir.vtable.address_point(@_ZTV7Derived,
+          address_point = <index = 0, offset = 2>) : !cir.vptr
+  // The vptr is still at the start of the object in this case
+  %4 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Derived> -> !cir.ptr<!cir.vptr>
+  // This overwrites the vptr that was stored in the Base constructor call
+  cir.store align(8) %3, %4 : !cir.vptr, !cir.ptr<!cir.vptr>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`, `SymbolUserOpInterface`
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`, `SymbolUserOpInterface`
 
 Effects: `MemoryEffects::Effect{}`
 
@@ -6414,17 +6395,228 @@ Effects: `MemoryEffects::Effect{}`
 <tr><td><code>address_point</code></td><td>::cir::AddressPointAttr</td><td>Address point attribute</td></tr>
 </table>
 
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `addr` | CIR type that is used for the vptr member of C++ objects |
+
+
+### `cir.vtable.get_vptr` (::cir::VTableGetVPtrOp)
+
+_Get a the address of the vtable pointer for an object_
+
+Syntax:
+
+```
+operation ::= `cir.vtable.get_vptr` $src `:` qualified(type($src)) `->` qualified(type($result)) attr-dict
+```
+
+The `vtable.get_vptr` operation retrieves the address of the vptr for a
+C++ object. This operation requires that the object pointer points to
+the start of a complete object. (TODO: Describe how we get that).
+The vptr will always be at offset zero in the object, but this operation
+is more explicit about what is being retrieved than a direct bitcast.
+
+The return type is always `!cir.ptr<!cir.vptr>`.
+
+Example:
+```C++
+struct S {
+  virtual void f1();
+  virtual void f2();
+};
+void f3(S *s) {
+  s->f2();
+}
+```
+
+```mlir
+// VTable for S
+cir.global external @_ZTV1S = #cir.vtable<{
+  #cir.const_array<[
+    // Offset to the base object
+    #cir.ptr<null> : !cir.ptr<!u8i>,
+    // Type info for S
+    #cir.global_view<@_ZTI1S> : !cir.ptr<!u8i>,
+    // Pointer to S::f1
+    #cir.global_view<@_ZN1S2f1Ev> : !cir.ptr<!u8i>,
+    // Pointer to S::f2
+    #cir.global_view<@_ZN1S2f2Ev> : !cir.ptr<!u8i>
+  ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+// f3()
+cir.func dso_local @_Z2f3P1S(%s: !cir.ptr<!rec_S>) {
+  // Get the vptr -- This points to offset 2 in the vtable.
+  %1 = cir.vtable.get_vptr %s : !cir.ptr<!rec_S> -> !cir.ptr<!cir.vptr>
+  %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
+  // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
+  %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
+          -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
+  %4 = cir.load align(8) %3
+          : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>,
+            !cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>
+  cir.call %4(%b)
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `src` | CIR pointer type |
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `addr` | CIR pointer type |
+| `result` | pointer to vptr type |
+
+
+### `cir.vtable.get_virtual_fn_addr` (::cir::VTableGetVirtualFnAddrOp)
+
+_Get a the address of a virtual function pointer_
+
+Syntax:
+
+```
+operation ::= `cir.vtable.get_virtual_fn_addr` $vptr `[` $index `]` attr-dict
+              `:` qualified(type($vptr)) `->` qualified(type($result))
+```
+
+The `vtable.get_virtual_fn_addr` operation retrieves the address of a
+virtual function pointer from an object's vtable (__vptr).
+This is an abstraction to perform the basic pointer arithmetic to get
+the address of the virtual function pointer, which can then be loaded and
+called.
+
+The `vptr` operand must be a `!cir.ptr<!cir.vptr>` value, which would
+have been returned by a previous call to `cir.vatble.get_vptr`. The
+`index` operand is an index of the virtual function in the vtable.
+
+The return type is a pointer-to-pointer to the function type.
+
+Example 1:
+Suppose we have two classes, Base and Derived, where Derived overrides
+virtual functions that were defined in Base. When a pointer to a Base
+object is used to call one of these function, we may not know at compile
+time whether it points to an instance of Base or an instance of Derived.
+The compiler does not need to know. It will load the vptr from the object
+and use that to get the address of the correct function to call. The
+vptr will have been initialized in the object's constructor to point to
+the correct vtable for the object being instantiated.
+```C++
+// In this example, when f3 is called, we don't know at compile-time
+// whether
+struct Base {
+  virtual void f1();
+  virtual void f2();
+};
+struct Derived : public Base {
+  void f1() override;
+  void f2() override;
+};
+void f3(Base *b) {
+  b->f2();
+}
+```
+
+```mlir
+// VTable for Base
+cir.global external @_ZTV4Base = #cir.vtable<{
+  #cir.const_array<[
+    #cir.ptr<null> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZN4Base2f1Ev> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZN4Base2f2Ev> : !cir.ptr<!u8i>
+  ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+// VTable for Derived
+cir.global external @_ZTV7Derived = #cir.vtable<{
+  #cir.const_array<[
+    #cir.ptr<null> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZTI7Derived> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZN7Derived2f1Ev> : !cir.ptr<!u8i>,
+    #cir.global_view<@_ZN7Derived2f2Ev> : !cir.ptr<!u8i>
+  ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+// f3()
+cir.func dso_local @_Z2f3P4Base(%b: !cir.ptr<!rec_Base>)
+  // Get the vptr
+  %1 = cir.vtable.get_vptr %b : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+  %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
+  // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
+  %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
+          -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
+  %4 = cir.load align(8) %3
+          : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>,
+            !cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>
+  cir.call %4(%b)
+```
+
+Example 2:
+Consider the case of multiple inheritance, where Base1 and Base2 both
+provide virtual functions and a third class, Derived, inherits from both
+bases. When a pointer to a Derived is used to call a virtual function in
+Base2, we must retrieve a pointer to the Base2 portion of the Derived object
+and use that pointer to get the vptr for Base2 as a base class.
+```C++
+struct Base1 {
+  virtual void f1();
+};
+struct Base2 {
+  virtual void f2();
+};
+struct Derived : public Base1, Base2 { };
+void f3(Derived *d) {
+  d->f2();
+}
+```
+
+```mlir
+!rec_Base1 = !cir.record<struct "Base1" {!cir.vptr}
+!rec_Base2 = !cir.record<struct "Base2" {!cir.vptr}
+!rec_Derived = !cir.record<struct "Derived" {!rec_Base1, !rec_Base2}
+cir.func dso_local @_Z2f3P7Derived(%d: !cir.ptr<!rec_Derived>)
+  %2 = cir.base_class_addr %d : !cir.ptr<!rec_Derived> nonnull [8]
+          -> !cir.ptr<!rec_Base2>
+  %3 = cir.vtable.get_vptr %2 : !cir.ptr<!rec_Base2> -> !cir.ptr<!cir.vptr>
+  %4 = cir.load align(8) %3 : !cir.ptr<!cir.vptr>, !cir.vptr
+  %5 = cir.vtable.get_virtual_fn_addr %4[0] : !cir.vptr
+          -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>>
+  %6 = cir.load align(8) %5
+          : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>>,
+            !cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>
+  cir.call %6(%2) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>,
+                     !cir.ptr<!rec_Base2>) -> ()
+ ```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>index</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `vptr` | CIR type that is used for the vptr member of C++ objects |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type |
 
 
 ### `cir.vec.cmp` (::cir::VecCmpOp)
@@ -6839,5 +7031,113 @@ Interfaces: `RegionBranchTerminatorOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type |
+| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR record type or CIR exception info or single float type or double float type or f16 type or bf16 type or f80 type or f128 type or long double type or CIR complex type or CIR type that is used for the vptr member of C++ objects |
+
+
+### `cir.func` (::cir::FuncOp)
+
+_Declare or define a function_
+
+Similar to `mlir::FuncOp` built-in:
+> Operations within the function cannot implicitly capture values defined
+> outside of the function, i.e. Functions are `IsolatedFromAbove`. All
+> external references must use function arguments or attributes that establish
+> a symbolic connection (e.g. symbols referenced by name via a string
+> attribute like SymbolRefAttr). An external function declaration (used when
+> referring to a function declared in some other module) has no body. While
+> the MLIR textual form provides a nice inline syntax for function arguments,
+> they are internally represented as “block arguments” to the first block in
+> the region.
+>
+> Only dialect attribute names may be specified in the attribute dictionaries
+> for function arguments, results, or the function itself.
+
+The function linkage information is specified by `linkage`, as defined by
+`GlobalLinkageKind` attribute.
+
+The `calling_conv` attribute specifies the calling convention of the function.
+The default calling convention is `CallingConv::C`.
+
+A compiler builtin function must be marked as `builtin` for further
+processing when lowering from CIR.
+
+The `coroutine` keyword is used to mark coroutine function, which requires
+at least one `cir.await` instruction to be used in its body.
+
+The `lambda` translates to a C++ `operator()` that implements a lambda, this
+allow callsites to make certain assumptions about the real function nature
+when writing analysis. The verifier should, but do act on this keyword yet.
+
+The `no_proto` keyword is used to identify functions that were declared
+without a prototype and, consequently, may contain calls with invalid
+arguments and undefined behavior.
+
+The `extra_attrs`, which is an aggregate of function-specific attributes is
+required and mandatory to describle additional attributes that are not listed
+above. Though mandatory, the prining of the attribute can be omitted if it is
+empty.
+
+The `global_ctor` indicates whether a function should execute before `main()`
+function, as specified by `__attribute__((constructor))`. A execution priority
+can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
+both `global_dtor` and `global_dtor(<prio>)` are available.
+
+Example:
+
+```mlir
+// External function definitions.
+cir.func @abort()
+
+// A function with internal linkage.
+cir.func internal @count(%x: i64) -> (i64)
+  return %x : i64
+}
+
+// Linkage information
+cir.func linkonce_odr @some_method(...)
+
+// Calling convention information
+cir.func @another_func(...) cc(spir_kernel) extra(#fn_attr)
+
+// Builtin function
+cir.func builtin @__builtin_coro_end(!cir.ptr<i8>, !cir.bool) -> !cir.bool
+
+// Coroutine
+cir.func coroutine @_Z10silly_taskv() -> !CoroTask {
+  ...
+  cir.await(...)
+  ...
+}
+```
+
+Traits: `AutomaticAllocationScope`, `IsolatedFromAbove`
+
+Interfaces: `CIRGlobalValueInterface`, `CallableOpInterface`, `FunctionOpInterface`, `Symbol`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>sym_name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>global_visibility</code></td><td>::cir::VisibilityAttr</td><td>Visibility attribute</td></tr>
+<tr><td><code>function_type</code></td><td>::mlir::TypeAttr</td><td>type attribute of CIR function type</td></tr>
+<tr><td><code>builtin</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>coroutine</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>lambda</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>no_proto</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>dso_local</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>linkage</code></td><td>::cir::GlobalLinkageKindAttr</td><td>linkage kind</td></tr>
+<tr><td><code>calling_conv</code></td><td>::cir::CallingConvAttr</td><td>calling convention</td></tr>
+<tr><td><code>extra_attrs</code></td><td>::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
+<tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>comdat</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>arg_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
+<tr><td><code>res_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
+<tr><td><code>aliasee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>global_ctor_priority</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute whose minimum value is 101 whose maximum value is 65535</td></tr>
+<tr><td><code>global_dtor_priority</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute whose minimum value is 101 whose maximum value is 65535</td></tr>
+<tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
+<tr><td><code>cxx_special_member</code></td><td>::mlir::Attribute</td><td>Marks a function as a CXX constructor or Marks a function as a CXX destructor</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
+</table>
 
