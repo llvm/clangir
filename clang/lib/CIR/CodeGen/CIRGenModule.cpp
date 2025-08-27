@@ -2992,8 +2992,10 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     if (decl->hasAttr<ColdAttr>()) {
       llvm_unreachable("NYI");
     }
-    if (decl->hasAttr<HotAttr>())
-      llvm_unreachable("NYI");
+    if (decl->hasAttr<HotAttr>()) {
+      auto attr = cir::HotAttr::get(&getMLIRContext());
+      attrs.set(attr.getMnemonic(), attr);
+    }
     if (decl->hasAttr<MinSizeAttr>())
       assert(!MissingFeatures::minSize());
   }

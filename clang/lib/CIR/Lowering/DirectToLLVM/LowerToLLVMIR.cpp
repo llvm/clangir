@@ -73,10 +73,10 @@ private:
             mlir::dyn_cast<cir::OpenCLVersionAttr>(attribute.getValue())) {
       auto *int32Ty = llvm::IntegerType::get(llvmContext, 32);
       llvm::Metadata *oclVerElts[] = {
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMajorVersion())),
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMinorVersion()))};
+          llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+              int32Ty, openclVersionAttr.getMajorVersion())),
+          llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+              int32Ty, openclVersionAttr.getMinorVersion()))};
       llvm::NamedMDNode *oclVerMD =
           llvmModule->getOrInsertNamedMetadata("opencl.ocl.version");
       oclVerMD->addOperand(llvm::MDNode::get(llvmContext, oclVerElts));
@@ -116,6 +116,8 @@ private:
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         } else if (mlir::dyn_cast<cir::ConvergentAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
+        } else if (mlir::isa<cir::HotAttr>(attr.getValue())) {
+          llvmFunc->addFnAttr(llvm::Attribute::Hot);
         } else if (mlir::dyn_cast<cir::OpenCLKernelAttr>(attr.getValue())) {
           const auto uniformAttrName =
               cir::OpenCLKernelUniformWorkGroupSizeAttr::getMnemonic();
@@ -229,7 +231,7 @@ private:
     };
 
     bool shouldEmitArgName = !!clArgMetadata.getName();
-    
+
     auto addressSpaceValues =
         clArgMetadata.getAddrSpace().getAsValueRange<mlir::IntegerAttr>();
 
