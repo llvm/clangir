@@ -2,6 +2,8 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fclangir -emit-llvm %s -o %t-cir.ll
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -Wno-unused-value -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
 
 void complex_functional_cast() {
   using IntComplex = int _Complex;
@@ -184,3 +186,27 @@ void complex_comma_operator(int _Complex a, int _Complex b) {
 // LLVM: %[[RESULT:.*]] = alloca { i32, i32 }, i64 1, align 4
 // LLVM: %[[TMP_B:.*]] = load { i32, i32 }, ptr %[[COMPLEX_B]], align 4
 // LLVM: store { i32, i32 } %[[TMP_B]], ptr %[[RESULT]], align 4
+
+void complex_cxx_default_init_expr() {
+  struct FPComplexWrapper {
+    float _Complex c{};
+  };
+
+  FPComplexWrapper w{};
+}
+
+// CIR: %[[W_ADDR:.*]] = cir.alloca !rec_FPComplexWrapper, !cir.ptr<!rec_FPComplexWrapper>, ["w", init]
+// CIR: %[[C_ADDR:.*]] = cir.get_member %[[W_ADDR]][0] {name = "c"} : !cir.ptr<!rec_FPComplexWrapper> -> !cir.ptr<!cir.complex<!cir.float>>
+// CIR: %[[CONST_COMPLEX:.*]] = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.float, #cir.fp<0.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CIR: cir.store{{.*}} %[[CONST_COMPLEX]], %[[C_ADDR]] : !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>
+
+// LLVM: %[[W_ADDR:.*]] = alloca %struct.FPComplexWrapper, i64 1, align 4
+// LLVM: %[[C_ADDR:.*]] = getelementptr %struct.FPComplexWrapper, ptr %[[W_ADDR]], i32 0, i32 0
+// LLVM: store { float, float } zeroinitializer, ptr %[[C_ADDR]], align 4
+
+// OGCG: %[[W_ADDR:.*]] = alloca %struct.Wrapper, align 4
+// OGCG: %[[C_ADDR:.*]] = getelementptr inbounds nuw %struct.FPComplexWrapper, ptr %[[W_ADDR]], i32 0, i32 0
+// OGCG: %[[C_REAL_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[C_ADDR]], i32 0, i32 0
+// OGCG: %[[C_IMAG_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[C_ADDR]], i32 0, i32 1
+// OGCG: store float 0.000000e+00, ptr %[[C_REAL_PTR]], align 4
+// OGCG: store float 0.000000e+00, ptr %[[C_IMAG_PTR]], align 4
