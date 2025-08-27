@@ -790,7 +790,7 @@ void AggExprEmitter::emitInitializationToLValue(Expr *E, LValue LV) {
 
   switch (CGF.getEvaluationKind(type)) {
   case cir::TEK_Complex:
-    llvm_unreachable("NYI");
+    CGF.emitComplexExprIntoLValue(E, LV, /*isInit*/ true);
     return;
   case cir::TEK_Aggregate:
     CGF.emitAggExpr(
