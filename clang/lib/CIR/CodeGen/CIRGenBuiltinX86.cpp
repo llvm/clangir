@@ -973,8 +973,39 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_insertf64x2_256:
   case X86::BI__builtin_ia32_inserti64x2_256:
   case X86::BI__builtin_ia32_insertf64x2_512:
-  case X86::BI__builtin_ia32_inserti64x2_512:
-    llvm_unreachable("insertf128 NYI");
+  case X86::BI__builtin_ia32_inserti64x2_512: {
+    unsigned dstNumElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
+    unsigned srcNumElts = cast<cir::VectorType>(Ops[1].getType()).getSize();
+    unsigned subVectors = dstNumElts / srcNumElts;
+    unsigned index =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+    assert(llvm::isPowerOf2_32(subVectors) && "Expected power of 2 subvectors");
+    index &= subVectors - 1; // Remove any extra bits.
+    index *= srcNumElts;
+
+    int64_t indices[16];
+    for (unsigned i = 0; i != dstNumElts; ++i)
+      indices[i] = (i >= srcNumElts) ? srcNumElts + (i % srcNumElts) : i;
+
+    cir::ConstantOp poisonVec =
+        builder.getConstant(getLoc(E->getExprLoc()),
+                            builder.getAttr<cir::PoisonAttr>(Ops[1].getType()));
+
+    mlir::Value op1 =
+        builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[1], poisonVec,
+                                 ArrayRef(indices, dstNumElts));
+
+    for (unsigned i = 0; i != dstNumElts; ++i) {
+      if (i >= index && i < (index + srcNumElts))
+        indices[i] = (i - index) + dstNumElts;
+      else
+        indices[i] = i;
+    }
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], op1,
+                                    ArrayRef(indices, dstNumElts));
+  }
+
   case X86::BI__builtin_ia32_pmovqd512_mask:
   case X86::BI__builtin_ia32_pmovwb512_mask:
     llvm_unreachable("pmovqd512_mask NYI");

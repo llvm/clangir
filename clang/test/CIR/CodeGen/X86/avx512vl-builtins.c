@@ -1029,3 +1029,21 @@ void test_mm256_mask_i32scatter_epi32(int *__addr, __mmask8 __mask,  __m256i __i
   // LLVM: @llvm.x86.avx512.mask.scattersiv8.si
   return _mm256_mask_i32scatter_epi32(__addr,__mask,__index,__v1,2); 
 }
+
+__m256 test_mm256_insertf32x4(__m256 __A, __m128 __B) {
+  // CIR-LABEL: test_mm256_insertf32x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!cir.float x 8>
+
+  // LLVM-LABEL: @test_mm256_insertf32x4
+  // LLVM: shufflevector <8 x float> %{{.*}}, <8 x float> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 8, i32 9, i32 10, i32 11>
+  return _mm256_insertf32x4(__A, __B, 1); 
+}
+
+__m256i test_mm256_inserti32x4(__m256i __A, __m128i __B) {
+  // CIR-LABEL: test_mm256_inserti32x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!s32i x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!s32i x 8> 
+
+  // LLVM-LABEL: @test_mm256_inserti32x4
+  // LLVM: shufflevector <8 x i32> %{{.*}}, <8 x i32> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 8, i32 9, i32 10, i32 11>
+  return _mm256_inserti32x4(__A, __B, 1); 
+}
