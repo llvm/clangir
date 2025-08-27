@@ -9,6 +9,8 @@
 // RUN: FileCheck --input-file=%t.ogcglayout %s --check-prefix=OGCG-LAYOUT
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=OGCG
 
+// REQUIRES: aarch64-registered-target || arm-registered-target
+
 typedef struct  {
     unsigned int a : 9;
     volatile unsigned int b : 1;
