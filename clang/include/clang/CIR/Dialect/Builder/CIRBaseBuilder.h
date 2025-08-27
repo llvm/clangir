@@ -665,9 +665,9 @@ public:
 
   cir::PtrStrideOp createPtrStride(mlir::Location loc, mlir::Value base,
                                    mlir::Value stride,
-                                   PtrStrideAttr attr = PtrStrideAttr::None) {
+                                   std::optional<GEPNoWrapFlags> flags = std::nullopt) {
     return cir::PtrStrideOp::create(*this, loc, base.getType(), base, stride,
-                                    attr);
+                                    flags.value_or(GEPNoWrapFlags::none));
   }
 
   cir::CallOp createCallOp(mlir::Location loc,

@@ -386,13 +386,22 @@ def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
-def CIR_PtrStrideAttr
-    : I32BitEnumAttr<"PtrStrideAttr", "Stride attribute for pointer arithmetic",
-                     [I32BitEnumAttrCaseNone<"None">,
-                      I32BitEnumAttrCase<"InBounds", 0x1, "inbounds">,
-                      I32BitEnumAttrCase<"NoUnsignedWrap", 0x2, "nuw">,
-                      I32BitEnumAttrCase<"NoSignedWrap", 0x4, "nsw">]> {
+def GEPNone : I32BitEnumCaseNone<"none">;
+def GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
+def GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
+def GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
+def GEPInbounds : BitEnumCaseGroup<"inbounds", [GEPInboundsFlag, GEPNusw]>;
+
+def GEPNoWrapFlags : I32BitEnum<
+    "GEPNoWrapFlags",
+    "::cir::GEPNoWrapFlags",
+    [GEPNone, GEPInboundsFlag, GEPNusw, GEPNuw, GEPInbounds]> {
   let cppNamespace = "::cir";
+  let printBitEnumPrimaryGroups = 1;
+}
+
+def GEPNoWrapFlagsProp : EnumProp<GEPNoWrapFlags> {
+  let defaultValue = interfaceType # "::none";
 }
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
@@ -406,17 +415,18 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
     ```mlir
     %3 = cir.const 0 : i32
     %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
+
+    %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
     ```
   }];
 
   let arguments = (ins CIR_PointerType:$base, CIR_AnyFundamentalIntType:$stride,
-      DefaultValuedAttr<CIR_PtrStrideAttr,
-                        "::cir::PtrStrideAttr::None">:$stride_attr);
+      GEPNoWrapFlagsProp:$noWrapFlags);
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride))(`,` $stride_attr^)?`)`
+    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride))(`,` $noWrapFlags^)?`)`
     `,` qualified(type($result)) attr-dict
   }];
 
