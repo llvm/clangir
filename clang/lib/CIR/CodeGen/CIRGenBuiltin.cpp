@@ -2431,7 +2431,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         llvm_unreachable("NYI setjmp on aarch64");
       llvm_unreachable("NYI setjmp on generic MSVCRT");
     }
-    break;
+    Address buf = emitPointerWithAlignment(E->getArg(0));
+    mlir::Location loc = getLoc(E->getExprLoc());
+    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+    cir::EhSetjmp op =
+        cir::EhSetjmp::create(builder, loc, castBuf, /*builtin = */ false);
+    return RValue::get(op);
   }
 
   // C++ std:: builtins.

@@ -36,19 +36,19 @@ void test_setjmp(void *env) {
 extern int _setjmp(void *env);
 void test_setjmp2(void *env) {
   // BEFORE-LOWERING-PREPARE-LABEL: test_setjmp2
-  // BEFORE-LOWERING-PREPARE-SAME: [[ENV:%.*]]: !cir.ptr<!void>
-  // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
+  // BEFORE-LOWERING-PREPARE-SAME: [[ENV:%.*]]:
+  // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA]] = cir.alloca
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
-  // BEFORE-LOWERING-PREPARE-NEXT: [[DEAD_GET_GLOBAL:%.*]] = cir.get_global @_setjmp
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // BEFORE-LOWERING-PREPARE-NEXT: cir.call @_setjmp([[ENV_LOAD]])
+  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // BEFORE-LOWERING-PREPARE-NEXT: cir.eh.setjmp [[CAST]] : <!cir.ptr<!void>> -> !s32i
 
   // AFTER-LOWERING-PREPARE-LABEL: test_setjmp2
-  // AFTER-LOWERING-PREPARE-SAME: [[ENV:%.*]]: !cir.ptr<!void>
-  // AFTER-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
+  // AFTER-LOWERING-PREPARE-SAME: [[ENV:%.*]]:
+  // AFTER-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA]] = cir.alloca
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
-  // AFTER-LOWERING-PREPARE-NEXT: [[DEAD_GET_GLOBAL:%.*]] = cir.get_global @_setjmp
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // AFTER-LOWERING-PREPARE-NEXT: cir.call @_setjmp([[ENV_LOAD]])
+  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // AFTER-LOWERING-PREPARE-NEXT: cir.eh.setjmp [[CAST]] : <!cir.ptr<!void>> -> !s32i
   _setjmp (env);
 }
