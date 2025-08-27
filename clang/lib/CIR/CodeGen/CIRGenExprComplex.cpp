@@ -112,7 +112,8 @@ public:
 
   mlir::Value VisitMemberExpr(MemberExpr *ME) {
     if (CIRGenFunction::ConstantEmission constant = CGF.tryEmitAsConstant(ME)) {
-      llvm_unreachable("VisitMemberExpr tryEmitAsConstant");
+      CGF.emitIgnoredExpr(ME->getBase());
+      return emitConstant(constant, ME);
     }
     return emitLoadOfLValue(ME);
   }
