@@ -12,15 +12,15 @@ Ops:
   - name: "cir.alloca (::cir::AllocaOp)"
     completed: true
   - name: "cir.array.ctor (::cir::ArrayCtor)"
-    completed: false
+    completed: true
   - name: "cir.array.dtor (::cir::ArrayDtor)"
-    completed: false
+    completed: true
   - name: "cir.assume.aligned (::cir::AssumeAlignedOp)"
-    completed: false
+    completed: true
   - name: "cir.assume (::cir::AssumeOp)"
-    completed: false
+    completed: true
   - name: "cir.assume.separate_storage (::cir::AssumeSepStorageOp)"
-    completed: false
+    completed: true
   - name: "cir.atomic.cmp_xchg (::cir::AtomicCmpXchg)"
     completed: false
   - name: "cir.atomic.fence (::cir::AtomicFence)"
@@ -32,7 +32,7 @@ Ops:
   - name: "cir.await (::cir::AwaitOp)"
     completed: false
   - name: "cir.base_class_addr (::cir::BaseClassAddrOp)"
-    completed: false
+    completed: true
   - name: "cir.base_data_member (::cir::BaseDataMemberOp)"
     completed: false
   - name: "cir.base_method (::cir::BaseMethodOp)"
@@ -42,19 +42,19 @@ Ops:
   - name: "cir.binop.overflow (::cir::BinOpOverflowOp)"
     completed: false
   - name: "cir.bit.clrsb (::cir::BitClrsbOp)"
-    completed: false
+    completed: true
   - name: "cir.bit.clz (::cir::BitClzOp)"
-    completed: false
+    completed: true
   - name: "cir.bit.ctz (::cir::BitCtzOp)"
-    completed: false
+    completed: true
   - name: "cir.bit.ffs (::cir::BitFfsOp)"
-    completed: false
+    completed: true
   - name: "cir.bit.parity (::cir::BitParityOp)"
-    completed: false
+    completed: true
   - name: "cir.bit.popcount (::cir::BitPopcountOp)"
-    completed: false
+    completed: true
   - name: "cir.bit_reverse (::cir::BitReverseOp)"
-    completed: false
+    completed: true
   - name: "cir.brcond (::cir::BrCondOp)"
     completed: true
   - name: "cir.br (::cir::BrOp)"
@@ -62,13 +62,13 @@ Ops:
   - name: "cir.break (::cir::BreakOp)"
     completed: true
   - name: "cir.bswap (::cir::ByteswapOp)"
-    completed: false
+    completed: true
   - name: "cir.asm (::cir::InlineAsmOp)"
-    completed: false
+    completed: true
   - name: "cir.call (::cir::CallOp)"
     completed: true
   - name: "cir.case (::cir::CaseOp)"
-    completed: false
+    completed: true
   - name: "cir.cast (::cir::CastOp)"
     completed: true
   - name: "cir.catch_param (::cir::CatchParamOp)"
@@ -78,21 +78,21 @@ Ops:
   - name: "cir.clear_cache (::cir::ClearCacheOp)"
     completed: false
   - name: "cir.cmp (::cir::CmpOp)"
-    completed: false
+    completed: true
   - name: "cir.cmp3way (::cir::CmpThreeWayOp)"
     completed: false
   - name: "cir.complex.binop (::cir::ComplexBinOp)"
     completed: false
   - name: "cir.complex.create (::cir::ComplexCreateOp)"
-    completed: false
+    completed: true
   - name: "cir.complex.imag (::cir::ComplexImagOp)"
-    completed: false
+    completed: true
   - name: "cir.complex.imag_ptr (::cir::ComplexImagPtrOp)"
-    completed: false
+    completed: true
   - name: "cir.complex.real (::cir::ComplexRealOp)"
-    completed: false
+    completed: true
   - name: "cir.complex.real_ptr (::cir::ComplexRealPtrOp)"
-    completed: false
+    completed: true
   - name: "cir.condition (::cir::ConditionOp)"
     completed: true
   - name: "cir.const (::cir::ConstantOp)"
@@ -126,11 +126,11 @@ Ops:
   - name: "cir.exp (::cir::ExpOp)"
     completed: false
   - name: "cir.expect (::cir::ExpectOp)"
-    completed: false
+    completed: true
   - name: "cir.extract_member (::cir::ExtractMemberOp)"
     completed: false
   - name: "cir.fabs (::cir::FAbsOp)"
-    completed: false
+    completed: true
   - name: "cir.fmaxnum (::cir::FMaxNumOp)"
     completed: false
   - name: "cir.fmaximum (::cir::FMaximumOp)"
@@ -146,13 +146,13 @@ Ops:
   - name: "cir.for (::cir::ForOp)"
     completed: true
   - name: "cir.frame_address (::cir::FrameAddrOp)"
-    completed: false
+    completed: true
   - name: "cir.free.exception (::cir::FreeExceptionOp)"
     completed: false
   - name: "cir.func (::cir::FuncOp)"
     completed: true
   - name: "cir.get_bitfield (::cir::GetBitfieldOp)"
-    completed: false
+    completed: true
   - name: "cir.get_global (::cir::GetGlobalOp)"
     completed: true
   - name: "cir.get_member (::cir::GetMemberOp)"
@@ -164,7 +164,7 @@ Ops:
   - name: "cir.global (::cir::GlobalOp)"
     completed: true
   - name: "cir.goto (::cir::GotoOp)"
-    completed: false
+    completed: true
   - name: "cir.if (::cir::IfOp)"
     completed: true
   - name: "cir.insert_member (::cir::InsertMemberOp)"
@@ -186,7 +186,7 @@ Ops:
   - name: "cir.llround (::cir::LLroundOp)"
     completed: false
   - name: "cir.label (::cir::LabelOp)"
-    completed: false
+    completed: true
   - name: "cir.linker_options (::cir::LinkerOptionsOp)"
     completed: false
   - name: "cir.log10 (::cir::Log10Op)"
@@ -234,7 +234,7 @@ Ops:
   - name: "cir.rint (::cir::RintOp)"
     completed: false
   - name: "cir.rotate (::cir::RotateOp)"
-    completed: false
+    completed: true
   - name: "cir.roundeven (::cir::RoundEvenOp)"
     completed: false
   - name: "cir.round (::cir::RoundOp)"
@@ -244,7 +244,7 @@ Ops:
   - name: "cir.select (::cir::SelectOp)"
     completed: true
   - name: "cir.set_bitfield (::cir::SetBitfieldOp)"
-    completed: false
+    completed: true
   - name: "cir.shift (::cir::ShiftOp)"
     completed: true
   - name: "cir.signbit (::cir::SignBitOp)"
@@ -262,7 +262,7 @@ Ops:
   - name: "cir.store (::cir::StoreOp)"
     completed: true
   - name: "cir.switch.flat (::cir::SwitchFlatOp)"
-    completed: false
+    completed: true
   - name: "cir.switch (::cir::SwitchOp)"
     completed: true
   - name: "cir.tan (::cir::TanOp)"
@@ -284,17 +284,17 @@ Ops:
   - name: "cir.unreachable (::cir::UnreachableOp)"
     completed: true
   - name: "cir.va.arg (::cir::VAArgOp)"
-    completed: false
+    completed: true
   - name: "cir.va.copy (::cir::VACopyOp)"
     completed: false
   - name: "cir.va.end (::cir::VAEndOp)"
-    completed: false
+    completed: true
   - name: "cir.va.start (::cir::VAStartOp)"
-    completed: false
+    completed: true
   - name: "cir.vtt.address_point (::cir::VTTAddrPointOp)"
     completed: false
   - name: "cir.vtable.address_point (::cir::VTableAddrPointOp)"
-    completed: false
+    completed: true
   - name: "cir.vec.cmp (::cir::VecCmpOp)"
     completed: true
   - name: "cir.vec.create (::cir::VecCreateOp)"
@@ -304,56 +304,56 @@ Ops:
   - name: "cir.vec.insert (::cir::VecInsertOp)"
     completed: true
   - name: "cir.vec.shuffle.dynamic (::cir::VecShuffleDynamicOp)"
-    completed: false
+    completed: true
   - name: "cir.vec.shuffle (::cir::VecShuffleOp)"
-    completed: false
+    completed: true
   - name: "cir.vec.splat (::cir::VecSplatOp)"
-    completed: false
+    completed: true
   - name: "cir.vec.ternary (::cir::VecTernaryOp)"
-    completed: false
+    completed: true
   - name: "cir.while (::cir::WhileOp)"
     completed: true
   - name: "cir.yield (::cir::YieldOp)"
     completed: true
 Tys:
   - name: "ArrayType"
-    completed: false
+    completed: true
   - name: "BF16Type"
-    completed: false
+    completed: true
   - name: "BoolType"
     completed: true
   - name: "ComplexType"
-    completed: false
+    completed: true
   - name: "DataMemberType"
     completed: false
   - name: "DoubleType"
-    completed: false
+    completed: true
   - name: "ExceptionInfoType"
     completed: false
   - name: "FP16Type"
-    completed: false
+    completed: true
   - name: "FP80Type"
-    completed: false
+    completed: true
   - name: "FP128Type"
-    completed: false
+    completed: true
   - name: "FuncType"
-    completed: false
+    completed: true
   - name: "IntType"
-    completed: false
+    completed: true
   - name: "LongDoubleType"
-    completed: false
+    completed: true
   - name: "MethodType"
     completed: false
   - name: "PointerType"
-    completed: false
+    completed: true
   - name: "RecordType"
-    completed: false
+    completed: true
   - name: "SingleType"
-    completed: false
+    completed: true
   - name: "VectorType"
-    completed: false
+    completed: true
   - name: "VoidType"
-    completed: false
+    completed: true
 Attr:
   - name: "ASTCXXConstructorDeclAttr"
     completed: false
@@ -380,17 +380,17 @@ Attr:
   - name: "ASTVarDeclAttr"
     completed: false
   - name: "AddressPointAttr"
-    completed: false
+    completed: true
   - name: "AddressSpaceAttr"
     completed: false
   - name: "AnnotationAttr"
     completed: false
   - name: "BitfieldInfoAttr"
-    completed: false
+    completed: true
   - name: "BoolAttr"
-    completed: false
+    completed: true
   - name: "OptInfoAttr"
-    completed: false
+    completed: true
   - name: "TBAAAttr"
     completed: false
   - name: "TBAAMemberAttr"
@@ -418,15 +418,15 @@ Attr:
   - name: "CmpThreeWayInfoAttr"
     completed: false
   - name: "ComplexAttr"
-    completed: false
+    completed: true
   - name: "ConstArrayAttr"
-    completed: false
+    completed: true
   - name: "ConstPtrAttr"
-    completed: false
+    completed: true
   - name: "ConstRecordAttr"
-    completed: false
+    completed: true
   - name: "ConstVectorAttr"
-    completed: false
+    completed: true
   - name: "ConvergentAttr"
     completed: false
   - name: "DataMemberAttr"
@@ -436,7 +436,7 @@ Attr:
   - name: "ExtraFuncAttributesAttr"
     completed: false
   - name: "FPAttr"
-    completed: false
+    completed: true
   - name: "GlobalAnnotationValuesAttr"
     completed: false
   - name: "GlobalCtorAttr"
@@ -444,11 +444,11 @@ Attr:
   - name: "GlobalDtorAttr"
     completed: false
   - name: "GlobalViewAttr"
-    completed: false
+    completed: true
   - name: "InlineAttr"
     completed: false
   - name: "IntAttr"
-    completed: false
+    completed: true
   - name: "LangAttr"
     completed: false
   - name: "MethodAttr"
@@ -468,7 +468,7 @@ Attr:
   - name: "OptNoneAttr"
     completed: false
   - name: "PoisonAttr"
-    completed: false
+    completed: true
   - name: "SignedOverflowBehaviorAttr"
     completed: false
   - name: "TypeInfoAttr"
@@ -476,10 +476,10 @@ Attr:
   - name: "UWTableAttr"
     completed: false
   - name: "UndefAttr"
-    completed: false
+    completed: true
   - name: "VTableAttr"
     completed: false
   - name: "VisibilityAttr"
-    completed: false
+    completed: true
   - name: "ZeroAttr"
-    completed: false
+    completed: true
