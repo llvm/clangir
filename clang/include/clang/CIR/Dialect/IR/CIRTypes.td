@@ -200,30 +200,6 @@ def CIR_ComplexType : CIR_Type<"Complex", "complex", [
 // PointerType
 //===----------------------------------------------------------------------===//
 
-def CIR_AddressSpace : CIR_I32EnumAttr<
-  "AddressSpace", "address space kind", [
-  I32EnumAttrCase<"Default", 0, "default">,
-  I32EnumAttrCase<"OffloadPrivate", 1, "offload_private">,
-  I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,
-  I32EnumAttrCase<"OffloadGlobal", 3, "offload_global">,
-  I32EnumAttrCase<"OffloadConstant", 4, "offload_constant">,
-  I32EnumAttrCase<"OffloadGeneric", 5, "offload_generic">,
-  I32EnumAttrCase<"Target", 6, "target">
-]> {
-  let description = [{
-    The `address_space` attribute is used to represent address spaces for
-    pointer types in CIR. It provides a unified model on top of `clang::LangAS`
-    and simplifies the representation of address spaces.
-
-    The `value` parameter is an extensible enum, which encodes target address
-    space as an offset to the last language address space. For that reason, the
-    attribute is implemented as custom AddressSpaceAttr, which provides custom
-    printer and parser for the `value` parameter.
-  }];
-
-  let genSpecializedAttr = 0;
-}
-
 def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
     DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
     DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
