@@ -29,6 +29,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
 #include "mlir/IR/MLIRContext.h"
@@ -1842,6 +1843,13 @@ public:
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
                                     cir::IntType ResType, mlir::Value EmittedE,
                                     bool IsDynamic);
+
+  /// Get size of type in bits using SizedTypeInterface
+  unsigned getTypeSizeInBits(mlir::Type Ty) const {
+    assert(cir::isSized(Ty) && "Typed must implement SizedTypeInterface");
+    return CGM.getDataLayout().getTypeSizeInBits(Ty).getFixedValue();
+  }
+
   template <uint32_t N>
   [[maybe_unused]] RValue
   emitBuiltinWithOneOverloadedType(const CallExpr *E, llvm::StringRef Name) {
