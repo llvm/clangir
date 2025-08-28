@@ -1656,9 +1656,11 @@ void CIRGenModule::emitGlobalDefinition(GlobalDecl gd, mlir::Operation *op) {
     if (const auto *method = dyn_cast<CXXMethodDecl>(d)) {
       // Make sure to emit the definition(s) before we emit the thunks. This is
       // necessary for the generation of certain thunks.
-      if (isa<CXXConstructorDecl>(method) || isa<CXXDestructorDecl>(method))
+      if (isa<CXXConstructorDecl>(method) || isa<CXXDestructorDecl>(method)) {
+        if (fd->getAttr<AnnotateAttr>())
+          deferredAnnotations[getMangledName(gd)] = cast<ValueDecl>(d);
         ABI->emitCXXStructor(gd);
-      else if (fd->isMultiVersion())
+      } else if (fd->isMultiVersion())
         llvm_unreachable("NYI");
       else
         emitGlobalFunctionDefinition(gd, op);
