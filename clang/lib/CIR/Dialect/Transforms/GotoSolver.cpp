@@ -3,6 +3,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -24,14 +25,19 @@ static void process(cir::FuncOp func) {
   mlir::OpBuilder rewriter(func.getContext());
   llvm::StringMap<Block *> labels;
   llvm::SmallVector<cir::GotoOp, 4> gotos;
+  llvm::SmallSet<StringRef, 4> blockAddrLabel;
 
   func.getBody().walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
       // Will construct a string copy inplace. Safely erase the label
-      labels.try_emplace(lab.getLabel(), lab->getBlock());
-      lab.erase();
+      StringRef labName = lab.getLabel();
+      labels.try_emplace(labName, lab->getBlock());
+      if (!blockAddrLabel.contains(labName))
+        lab.erase();
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.push_back(goTo);
+    } else if (auto blockAddr = dyn_cast<cir::BlockAddressOp>(op)) {
+      blockAddrLabel.insert(blockAddr.getLabel());
     }
   });
 

@@ -1843,6 +1843,20 @@ Block *cir::BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
+// BlockAddressOp
+//===----------------------------------------------------------------------===//
+
+void cir::BlockAddressOp::findLabel(cir::LabelOp &label) {
+  getOperation()->getParentOp()->walk(([&](mlir::Operation *op) {
+    if (auto labelOp = dyn_cast<cir::LabelOp>(op))
+      if (labelOp.getLabel() == getLabel()) {
+        label = labelOp;
+        return;
+      }
+  }));
+}
+
+//===----------------------------------------------------------------------===//
 // CaseOp
 //===----------------------------------------------------------------------===//
 
