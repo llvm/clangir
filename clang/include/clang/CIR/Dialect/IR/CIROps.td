@@ -1053,6 +1053,10 @@ def CIR_BreakOp : CIR_Op<"break", [Terminator]> {
   }];
   let assemblyFormat = "attr-dict";
   let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    /// Find the parent operation corresponding to this break.
+    mlir::Operation *getBreakTarget();
+    }];
 }
 
 //===----------------------------------------------------------------------===//
