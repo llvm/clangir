@@ -78,7 +78,7 @@ int f() {
 // LLVM:   %[[VTT:.*]] = load ptr, ptr %[[VTT_ADDR]], align 8
 // LLVM:   %[[V:.*]] = load ptr, ptr %[[VTT]], align 8
 // LLVM:   store ptr %[[V]], ptr %[[THIS]], align 8
-// LLVM:   getelementptr inbounds i8, ptr %[[VTT]], i32 1
+// LLVM:   getelementptr inbounds ptr, ptr %[[VTT]], i32 1
 // LLVM:   ret void
 // LLVM: }
 
