@@ -324,6 +324,15 @@ void cir::AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 // BreakOp
 //===----------------------------------------------------------------------===//
 
+mlir::Operation *cir::BreakOp::getBreakTarget() {
+  // Find the innermost loop or switch parent operation.
+  mlir::Operation *parentOp = getOperation()->getParentOp();
+  while (::mlir::isa_and_present<cir::LoopOpInterface, cir::SwitchOp>(parentOp))
+    parentOp = parentOp->getParentOp();
+
+  return parentOp;
+}
+
 LogicalResult cir::BreakOp::verify() {
   if (!getOperation()->getParentOfType<LoopOpInterface>() &&
       !getOperation()->getParentOfType<SwitchOp>())
