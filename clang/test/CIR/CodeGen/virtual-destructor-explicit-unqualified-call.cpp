@@ -29,11 +29,11 @@ A A::B(A) {
   // LLVM-SAME:      ptr %[[THIS_ARG:[0-9]+]],
   // LLVM-NEXT:          %[[THIS_VAR:.*]] = alloca ptr, i64 1, align 8
   // LLVM:               store ptr %[[THIS_ARG]], ptr %[[THIS_VAR]], align 8
-  // LLVM:               %[[THIS_V2:.*]] = load ptr, ptr %[[THIS_VAR]], align 8
-  // LLVM-NEXT:          %[[VTABLE_PTR:.*]] = load ptr, ptr %[[THIS_V2]], align 8
-  // LLVM-NEXT:          %[[DTOR_PTR:.*]] = getelementptr inbounds ptr, ptr %[[VTABLE_PTR]], i32 0
-  // LLVM-NEXT:          %[[DTOR:.*]] = load ptr, ptr %[[DTOR_PTR]], align 8
-  // LLVM-NEXT:          call void %[[DTOR]](ptr %[[THIS_V2]])
+  // LLVM:               %[[THIS:.*]] = load ptr, ptr %[[THIS_VAR]], align 8
+  // LLVM-NEXT:          %[[VTABLE_PTR:.*]] = load ptr, ptr %[[THIS]], align 8
+  // LLVM-NEXT:          %[[VIRT_DTOR_ADDR:.*]] = getelementptr inbounds ptr, ptr %[[VTABLE_PTR]], i32 0
+  // LLVM-NEXT:          %[[DTOR:.*]] = load ptr, ptr %[[VIRT_DTOR_ADDR]], align 8
+  // LLVM-NEXT:          call void %[[DTOR]](ptr %[[THIS]])
   // LLVM-NEXT:          call void @llvm.trap()
   // LLVM-NEXT:          unreachable
   // LLVM-NEXT:        }
@@ -44,11 +44,11 @@ A A::B(A) {
   // OGCG:               %[[VAL_0:.*]] = alloca ptr, align 8
   // OGCG-NEXT:          %[[THIS_VAR:.*]] = alloca ptr, align 8
   // OGCG:               store ptr %[[THIS_ARG]], ptr %[[THIS_VAR]], align 8
-  // OGCG:               %[[THIS_V2:.*]] = load ptr, ptr %[[THIS_VAR]], align 8
-  // OGCG-NEXT:          %[[VTABLE:.*]] = load ptr, ptr %[[THIS_V2]], align 8
-  // OGCG-NEXT:          %[[DTOR_PTR:.*]] = getelementptr inbounds ptr, ptr %[[VTABLE]], i64 0
-  // OGCG-NEXT:          %[[DTOR:.*]] = load ptr, ptr %[[DTOR_PTR]], align 8
-  // OGCG-NEXT:          call void %[[DTOR]](ptr noundef nonnull align 8 dereferenceable(8) %[[THIS_V2]]) #2
+  // OGCG:               %[[THIS:.*]] = load ptr, ptr %[[THIS_VAR]], align 8
+  // OGCG-NEXT:          %[[VTABLE:.*]] = load ptr, ptr %[[THIS]], align 8
+  // OGCG-NEXT:          %[[VIRT_DTOR_ADDR:.*]] = getelementptr inbounds ptr, ptr %[[VTABLE]], i64 0
+  // OGCG-NEXT:          %[[DTOR:.*]] = load ptr, ptr %[[VIRT_DTOR_ADDR]], align 8
+  // OGCG-NEXT:          call void %[[DTOR]](ptr noundef nonnull align 8 dereferenceable(8) %[[THIS]]) #2
   // OGCG-NEXT:          call void @llvm.trap()
   // OGCG-NEXT:          unreachable
   // OGCG-NEXT:        }
