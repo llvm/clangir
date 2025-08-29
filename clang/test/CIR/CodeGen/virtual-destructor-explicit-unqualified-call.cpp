@@ -15,6 +15,7 @@ A A::B(A) {
   // CIR-LABEL:   cir.func dso_local @_ZN1A1BES_(
   // CIR-SAME:      %[[THIS_ARG:.*]]: !cir.ptr<!rec_A>
   // CIR-NEXT:           %[[THIS_VAR:.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
+  // CIR:                cir.store %[[THIS_ARG]], %[[THIS_VAR]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
   // CIR:                %[[THIS:.*]] = cir.load %[[THIS_VAR]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
   // CIR-NEXT:           %[[VPTR_PTR:.*]] = cir.vtable.get_vptr %[[THIS]] : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
   // CIR-NEXT:           %[[VPTR:.*]] = cir.load align(8) %[[VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
