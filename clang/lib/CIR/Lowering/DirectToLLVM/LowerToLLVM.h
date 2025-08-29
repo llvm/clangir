@@ -1329,6 +1329,16 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override;
 };
 
+class CIRToLLVMBlockAddressOpLowering
+    : public mlir::OpConversionPattern<cir::BlockAddressOp> {
+public:
+  using mlir::OpConversionPattern<cir::BlockAddressOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::BlockAddressOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod);

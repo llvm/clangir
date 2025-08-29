@@ -6119,6 +6119,28 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 }
 
 //===----------------------------------------------------------------------===//
+// BlockAddressOp
+//===----------------------------------------------------------------------===//
+
+def CIR_BlockAddressOp : CIR_Op<"blockaddress"> {
+  let summary = " TODO";
+  let description = [{
+    TODO
+  }];
+
+  let arguments = (ins StrAttr:$label, StrAttr:$func);
+  let results = (outs CIR_PointerType:$addr);
+  let assemblyFormat = [{
+    `(` $label `,` $func `)` `->` qualified(type($addr)) attr-dict
+  }];
+  let extraClassDeclaration = [{
+    /// Search for the matching `cir.label` operation.
+    void findLabel(cir::LabelOp &label);
+  }];
+
+}
+
+//===----------------------------------------------------------------------===//
 // Standard library function calls
 //===----------------------------------------------------------------------===//
 
