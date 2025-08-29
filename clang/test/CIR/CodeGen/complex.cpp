@@ -2,6 +2,8 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fclangir -emit-llvm %s -o %t-cir.ll
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -Wno-unused-value -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
 
 void complex_functional_cast() {
   using IntComplex = int _Complex;
@@ -184,3 +186,22 @@ void complex_comma_operator(int _Complex a, int _Complex b) {
 // LLVM: %[[RESULT:.*]] = alloca { i32, i32 }, i64 1, align 4
 // LLVM: %[[TMP_B:.*]] = load { i32, i32 }, ptr %[[COMPLEX_B]], align 4
 // LLVM: store { i32, i32 } %[[TMP_B]], ptr %[[RESULT]], align 4
+
+
+void complex_opaque_value_expr() {
+  float _Complex a;
+  float b = 1.0f ?: __real__ a;
+}
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>, ["a"]
+// CIR: %[[B_ADDR:.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["b", init]
+// CIR: %[[CONST_1:.*]] = cir.const #cir.fp<1.000000e+00> : !cir.float
+// CIR: cir.store align(4) %[[CONST_1]], %[[B_ADDR]] : !cir.float, !cir.ptr<!cir.float>
+
+// LLVM: %[[A_ADDR:.*]] = alloca { float, float }, i64 1, align 4
+// LLVM: %[[B_ADDR:.*]] = alloca float, i64 1, align 4
+// LLVM: store float 1.000000e+00, ptr %[[B_ADDR]], align 4
+
+// OGCG: %[[A_ADDR:.*]] = alloca { float, float }, align 4
+// OGCG: %[[B_ADDR:.*]] = alloca float, align 4
+// OGCG: store float 1.000000e+00, ptr %[[B_ADDR]], align 4
