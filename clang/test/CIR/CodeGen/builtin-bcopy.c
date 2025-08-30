@@ -59,6 +59,8 @@ void another_conditional_bcopy(char *dst, char *src, int sz, int len) {
   // LLVM: call void @llvm.memmove
   // LLVM-NOT: phi
 
-  return (sz >= len ? __builtin_bcopy(src, dst, len)
-                    : __builtin_bcopy(src, dst, len * 2));
+  if (sz >= len)
+    __builtin_bcopy(src, dst, len);
+  else
+    __builtin_bcopy(src, dst, len * 2);
 }
