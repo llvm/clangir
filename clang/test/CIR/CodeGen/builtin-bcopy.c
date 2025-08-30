@@ -47,3 +47,18 @@ void test_conditional_bcopy(void) {
   return (_sz ? ((_sz >= len) ? __builtin_bcopy(src, dst, len) : foo())
               : __builtin_bcopy(src, dst, len));
 }
+
+void another_conditional_bcopy(char *dst, char *src, int sz, int len) {
+  // CIR-LABEL: cir.func dso_local @another_conditional_bcopy
+  // CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} : !cir.ptr<!void>,
+  // !u64i CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} :
+  // !cir.ptr<!void>, !u64i
+
+  // LLVM-LABEL: define{{.*}} void @another_conditional_bcopy
+  // LLVM: call void @llvm.memmove
+  // LLVM: call void @llvm.memmove
+  // LLVM-NOT: phi
+
+  return (sz >= len ? __builtin_bcopy(src, dst, len)
+                    : __builtin_bcopy(src, dst, len * 2));
+}
