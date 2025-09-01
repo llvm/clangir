@@ -1846,6 +1846,8 @@ Block *cir::BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
 // BlockAddressOp
 //===----------------------------------------------------------------------===//
 
+int32_t cir::BlockAddressOp::tagIndex = 0;
+
 void cir::BlockAddressOp::findLabel(cir::LabelOp &label) {
   getOperation()->getParentOp()->walk(([&](mlir::Operation *op) {
     if (auto labelOp = dyn_cast<cir::LabelOp>(op))
