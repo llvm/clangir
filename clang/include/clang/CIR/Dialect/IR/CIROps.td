@@ -6123,17 +6123,29 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 //===----------------------------------------------------------------------===//
 
 def CIR_BlockAddressOp : CIR_Op<"blockaddress"> {
-  let summary = " TODO";
+  let summary = "Get the address of a cir.label within a function";
   let description = [{
-    TODO
+    The `cir.blockaddress` operation takes a label and a function name and
+    produces a pointer value that represents the address of that cir.label within
+    the specified function.
+
+    This operation models GCC's "labels as values" extension (`&&label`), which
+    allows taking the address of a local label and using it as a computed
+    jump target (e.g., with `goto *addr;`).
+
+    Example:
+    ```mlir
+    %addr = cir.blockaddress("label", "foo") -> !cir.ptr<!cir.void>
+    ```
   }];
 
   let arguments = (ins StrAttr:$label, StrAttr:$func);
-  let results = (outs CIR_PointerType:$addr);
+  let results = (outs CIR_VoidPtrType:$addr);
   let assemblyFormat = [{
     `(` $label `,` $func `)` `->` qualified(type($addr)) attr-dict
   }];
   let extraClassDeclaration = [{
+    static int32_t tagIndex;
     /// Search for the matching `cir.label` operation.
     void findLabel(cir::LabelOp &label);
   }];

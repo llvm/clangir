@@ -4504,7 +4504,8 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
 
   op.findLabel(labelOp);
 
-  auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, 0);
+  auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, BlockAddressOp::tagIndex);
+  ++BlockAddressOp::tagIndex;
   rewriter.setInsertionPoint(labelOp);
   mlir::LLVM::BlockTagOp::create(rewriter, labelOp->getLoc(), tagAttr);
   rewriter.eraseOp(labelOp);
@@ -4513,9 +4514,9 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   auto blkAddr =
       mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(), fnSym, tagAttr);
   rewriter.setInsertionPoint(op);
-  mlir::LLVM::BlockAddressOp::create(
+  auto newOp = mlir::LLVM::BlockAddressOp::create(
       rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
-  rewriter.eraseOp(op);
+  rewriter.replaceOp(op, newOp);
   return mlir::success();
 }
 
