@@ -19,7 +19,7 @@ jobs:
     if: github.repository == 'llvm/clangir'
     steps:
       - name: Fetch LLVM sources
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
@@ -42,7 +42,7 @@ jobs:
       # We need to pull the script from the main branch, so that we ensure
       # we get the latest version of this script.
       - name: Fetch code formatting utils
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5.0.0
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.base_ref }}
