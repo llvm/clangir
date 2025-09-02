@@ -29,17 +29,25 @@ static void process(cir::FuncOp func) {
 
   func.getBody().walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
-      // Will construct a string copy inplace. Safely erase the label
-      StringRef labName = lab.getLabel();
-      labels.try_emplace(labName, lab->getBlock());
-      if (!blockAddrLabel.contains(labName))
-        lab.erase();
+      labels.try_emplace(lab.getLabel(), lab->getBlock());
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.push_back(goTo);
     } else if (auto blockAddr = dyn_cast<cir::BlockAddressOp>(op)) {
       blockAddrLabel.insert(blockAddr.getLabel());
     }
   });
+
+  // Second pass: erase only unused labels
+  for (auto &lab : labels) {
+    StringRef labelName = lab.getKey();
+    Block *block = lab.getValue();
+    if (!blockAddrLabel.contains(labelName)) {
+      // erase the LabelOp inside the block if safe
+      if (auto lab = dyn_cast<cir::LabelOp>(&block->front())) {
+        lab.erase();
+      }
+    }
+  }
 
   for (auto goTo : gotos) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
