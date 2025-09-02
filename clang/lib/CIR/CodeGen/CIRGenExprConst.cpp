@@ -1106,48 +1106,6 @@ public:
     }
 
     auto desiredType = CGM.convertType(T);
-    // FIXME(cir): A hack to handle the emission of arrays of unions directly.
-    // See clang/test/CIR/CodeGen/union-array.c and
-    // clang/test/CIR/Lowering/nested-union-array.c for example. The root
-    // cause of these problems is CIR handles union differently than LLVM IR.
-    // So we can't fix the problem fundamentally by mocking LLVM's handling for
-    // unions. In LLVM, the union is basically a struct with the largest member
-    // of the union and consumers cast the union arbitrarily according to their
-    // needs. But in CIR, we tried to express union semantics properly. This is
-    // a fundamental difference.
-    //
-    // Concretely, for the problem here, if we're constructing the initializer
-    // for the array of unions, we can't even assume the type of the elements in
-    // the initializer are the same! It is odd that we can have an array with
-    // different element types. Here we just pretend it is fine by checking if
-    // we're constructing an array for an array of unions. If we didn't do so,
-    // we may meet problems during lowering to LLVM. To solve the problem, we
-    // may need to introduce 2 type systems for CIR: one for the CIR itself and
-    // one for lowering. e.g., we can compare the type of CIR during CIRGen,
-    // analysis and transformations without worrying the concerns here. And
-    // lower to LLVM IR (or anyother dialects) with the proper type.
-    //
-    // (Although the idea to make CIR's type system self contained and generate
-    // LLVM's
-    //  types in later passes look fine, it has engineering level concern that
-    //  it will make the skeleton of CIRGen to be diverged from the traditional
-    //  CodeGen.)
-    //
-    // Besides union, there are other differences between CIR and LLVM's type
-    // system. e.g., LLVM's pointer types are opaque while CIR has concrete
-    // pointer types.
-    bool isDesiredArrayOfUnionDirectly = [&]() {
-      auto desiredArrayType = dyn_cast<cir::ArrayType>(desiredType);
-      if (!desiredArrayType)
-        return false;
-
-      auto elementRecordType =
-          dyn_cast<cir::RecordType>(desiredArrayType.getElementType());
-      if (!elementRecordType)
-        return false;
-
-      return elementRecordType.isUnion();
-    }();
 
     // Emit initializer elements as MLIR attributes and check for common type.
     mlir::Type CommonElementType;
@@ -1156,10 +1114,10 @@ public:
       auto C = Emitter.tryEmitPrivateForMemory(Init, EltTy);
       if (!C)
         return {};
+
       if (i == 0)
         CommonElementType = C.getType();
-      else if (isDesiredArrayOfUnionDirectly &&
-               C.getType() != CommonElementType)
+      else if (C.getType() != CommonElementType)
         CommonElementType = nullptr;
       Elts.push_back(std::move(C));
     }
@@ -1712,6 +1670,107 @@ ConstantEmitter::tryEmitAbstractForInitializer(const VarDecl &D) {
   return validateAndPopAbstract(C, state);
 }
 
+// FIXME(cir): both these helpers belong to ABInfoImpl.cpp in OG, but this
+// file in CIR sits in TargetLowering instead, which won't make sense here since
+// they are all AST queries, should belong in a shared location with OG helpers.
+bool isEmptyRecordForLayout(const ASTContext &Context, QualType T);
+bool isEmptyFieldForLayout(const ASTContext &ctx, const FieldDecl *fd) {
+  if (fd->isZeroLengthBitField())
+    return true;
+
+  if (fd->isUnnamedBitField())
+    return false;
+
+  return isEmptyRecordForLayout(ctx, fd->getType());
+}
+
+bool isEmptyRecordForLayout(const ASTContext &ctx, QualType t) {
+  const RecordType *rt = t->getAs<RecordType>();
+  if (!rt)
+    return false;
+
+  const RecordDecl *rd = rt->getDecl();
+
+  // If this is a C++ record, check the bases first.
+  if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(rd)) {
+    if (CXXRD->isDynamicClass())
+      return false;
+
+    for (const auto &I : CXXRD->bases())
+      if (!isEmptyRecordForLayout(ctx, I.getType()))
+        return false;
+  }
+
+  for (const auto *I : rd->fields())
+    if (!isEmptyFieldForLayout(ctx, I))
+      return false;
+
+  return true;
+}
+
+static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
+                                        bool asCompleteObject) {
+  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
+  mlir::Type ty = (asCompleteObject ? layout.getCIRType()
+                                    : layout.getBaseSubobjectCIRType());
+  auto record = dyn_cast<cir::RecordType>(ty);
+  assert(record && "expected");
+
+  unsigned numElements = record.getNumElements();
+  SmallVector<mlir::Attribute, 4> elements(numElements);
+
+  auto CXXR = dyn_cast<CXXRecordDecl>(rd);
+  // Fill in all the bases.
+  if (CXXR) {
+    for (const auto &I : CXXR->bases()) {
+      if (I.isVirtual()) {
+        // Ignore virtual bases; if we're laying out for a complete
+        // object, we'll lay these out later.
+        continue;
+      }
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Fill in all the fields.
+  for (const auto *field : rd->fields()) {
+    // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
+    // will fill in later.)
+    if (!field->isBitField() &&
+        !isEmptyFieldForLayout(CGM.getASTContext(), field)) {
+      unsigned fieldIndex = layout.getCIRFieldNo(field);
+      elements[fieldIndex] = CGM.emitNullConstant(field->getType());
+    }
+
+    // For unions, stop after the first named field.
+    if (rd->isUnion()) {
+      if (field->getIdentifier())
+        break;
+      if (const auto *fieldRD = field->getType()->getAsRecordDecl())
+        if (fieldRD->findFirstNamedDataMember())
+          break;
+    }
+  }
+
+  // Fill in the virtual bases, if we're working with the complete object.
+  if (CXXR && asCompleteObject) {
+    for ([[maybe_unused]] const auto &I : CXXR->vbases()) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Now go through all other fields and zero them out.
+  for (unsigned i = 0; i != numElements; ++i) {
+    if (!elements[i]) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  mlir::MLIRContext *mlirContext = record.getContext();
+  return cir::ConstRecordAttr::get(record,
+                                   mlir::ArrayAttr::get(mlirContext, elements));
+}
+
 mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   // Make a quick check if variable can be default NULL initialized
   // and avoid going through rest of code which may do, for c++11,
@@ -1722,27 +1781,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
       if (const CXXConstructExpr *E =
               dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
         const CXXConstructorDecl *CD = E->getConstructor();
-        // FIXME: we should probably model this more closely to C++ than
-        // just emitting a global with zero init (mimic what we do for trivial
-        // assignments and whatnots). Since this is for globals shouldn't
-        // be a problem for the near future.
-        if (CD->isTrivial() && CD->isDefaultConstructor()) {
-          const auto *cxxrd =
-              cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
-          // Some cases, such as member pointer members, can't be zero
-          // initialized. These are "zero-initialized" in the language standard
-          // sense, but the target ABI may require that a literal value other
-          // than zero be used in the initializer to make clear that a pointer
-          // with the value zero is not what is intended. The classic codegen
-          // goes through emitNullConstant for those cases but generates a
-          // non-zero constant. We can't quite do that here because we need an
-          // attribute and not a value, but something like that can be
-          // implemented.
-          if (!CGM.getTypes().isZeroInitializable(cxxrd)) {
-            llvm_unreachable("NYI");
-          }
-          return cir::ZeroAttr::get(CGM.convertType(D.getType()));
-        }
+        if (CD->isTrivial() && CD->isDefaultConstructor())
+          return CGM.emitNullConstant(D.getType());
       }
     }
   }
@@ -1762,8 +1802,11 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
 
   // Try to emit the initializer.  Note that this can allow some things that
   // are not allowed by tryEmitPrivateForMemory alone.
-  if (auto value = D.evaluateValue())
+  if (auto value = D.evaluateValue()) {
+    assert(!value->allowConstexprUnknown() &&
+           "Constexpr unknown values are not allowed in CodeGen");
     return tryEmitPrivateForMemory(*value, destType);
+  }
 
   return nullptr;
 }
@@ -1866,7 +1909,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E,
   assert(!destType->isVoidType() && "can't emit a void constant");
 
   if (auto C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), destType)) {
-    if (auto TypedC = mlir::dyn_cast_if_present<mlir::TypedAttr>(C))
+    if (auto TypedC = llvm::dyn_cast_or_null<mlir::TypedAttr>(C))
       return TypedC;
     llvm_unreachable("this should always be typed");
   }
@@ -1883,7 +1926,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E,
 
   if (Success && !Result.hasSideEffects()) {
     auto C = tryEmitPrivate(Result.Val, destType);
-    if (auto TypedC = mlir::dyn_cast_if_present<mlir::TypedAttr>(C))
+    if (auto TypedC = llvm::dyn_cast_or_null<mlir::TypedAttr>(C))
       return TypedC;
     llvm_unreachable("this should always be typed");
   }
@@ -1948,8 +1991,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       if (!C)
         return {};
 
-      assert(mlir::isa<mlir::TypedAttr>(C) &&
-             "This should always be a TypedAttr.");
+      assert(mlir::isa<mlir::TypedAttr>(C) && "This should always be a TypedAttr.");
       auto CTyped = mlir::cast<mlir::TypedAttr>(C);
 
       if (I == 0)
@@ -2037,25 +2079,29 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
 }
 
 mlir::Value CIRGenModule::emitNullConstant(QualType T, mlir::Location loc) {
+  return builder.getConstant(loc, emitNullConstant(T));
+}
+
+mlir::TypedAttr CIRGenModule::emitNullConstant(QualType T) {
   if (T->getAs<PointerType>()) {
-    return builder.getNullPtr(getTypes().convertTypeForMem(T), loc);
+    return builder.getConstNullPtrAttr(getTypes().convertTypeForMem(T));
   }
 
   if (getTypes().isZeroInitializable(T))
-    return builder.getNullValue(getTypes().convertTypeForMem(T), loc);
+    return builder.getZeroInitAttr(getTypes().convertTypeForMem(T));
 
   if (getASTContext().getAsConstantArrayType(T)) {
     llvm_unreachable("NYI");
   }
 
-  if (T->getAs<clang::RecordType>())
-    llvm_unreachable("NYI");
+  if (const RecordType *rt = T->getAs<RecordType>())
+    return ::emitNullConstant(*this, rt->getDecl(), /*complete object*/
+                              true);
 
   assert(T->isMemberDataPointerType() &&
          "Should only see pointers to data members here!");
 
-  llvm_unreachable("NYI");
-  return {};
+  return getCXXABI().emitNullMemberPointer(T);
 }
 
 mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
@@ -2113,72 +2159,9 @@ mlir::Attribute ConstantEmitter::emitAbstract(SourceLocation loc,
 mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
                                                    CIRGenModule &CGM,
                                                    QualType T) {
-  auto cstOp =
-      dyn_cast<cir::ConstantOp>(CGM.emitNullConstant(T, loc).getDefiningOp());
+  auto cstOp = CGM.emitNullConstant(T, loc).getDefiningOp<cir::ConstantOp>();
   assert(cstOp && "expected cir.const op");
   return emitForMemory(CGM, cstOp.getValue(), T);
-}
-
-static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
-                                        bool asCompleteObject) {
-  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
-  mlir::Type ty = (asCompleteObject ? layout.getCIRType()
-                                    : layout.getBaseSubobjectCIRType());
-  auto record = dyn_cast<cir::RecordType>(ty);
-  assert(record && "expected");
-
-  unsigned numElements = record.getNumElements();
-  SmallVector<mlir::Attribute, 4> elements(numElements);
-
-  auto CXXR = dyn_cast<CXXRecordDecl>(rd);
-  // Fill in all the bases.
-  if (CXXR) {
-    for (const auto &I : CXXR->bases()) {
-      if (I.isVirtual()) {
-        // Ignore virtual bases; if we're laying out for a complete
-        // object, we'll lay these out later.
-        continue;
-      }
-      llvm_unreachable("NYI");
-    }
-  }
-
-  // Fill in all the fields.
-  for (const auto *Field : rd->fields()) {
-    // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
-    // will fill in later.)
-    if (!Field->isBitField()) {
-      // TODO(cir) check for !isEmptyFieldForLayout(CGM.getContext(), Field))
-      llvm_unreachable("NYI");
-    }
-
-    // For unions, stop after the first named field.
-    if (rd->isUnion()) {
-      if (Field->getIdentifier())
-        break;
-      if (const auto *FieldRD = Field->getType()->getAsRecordDecl())
-        if (FieldRD->findFirstNamedDataMember())
-          break;
-    }
-  }
-
-  // Fill in the virtual bases, if we're working with the complete object.
-  if (CXXR && asCompleteObject) {
-    for ([[maybe_unused]] const auto &I : CXXR->vbases()) {
-      llvm_unreachable("NYI");
-    }
-  }
-
-  // Now go through all other fields and zero them out.
-  for (unsigned i = 0; i != numElements; ++i) {
-    if (!elements[i]) {
-      llvm_unreachable("NYI");
-    }
-  }
-
-  mlir::MLIRContext *mlirContext = record.getContext();
-  return cir::ConstRecordAttr::get(record,
-                                   mlir::ArrayAttr::get(mlirContext, elements));
 }
 
 mlir::TypedAttr

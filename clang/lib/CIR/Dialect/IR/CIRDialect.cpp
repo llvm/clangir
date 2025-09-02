@@ -437,9 +437,9 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   if (mlir::isa<cir::IntAttr>(attrType))
     return success();
 
-  assert(isa<TypedAttr>(attrType) && "What else could we be looking at here?");
+  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
   return op->emitOpError("global with type ")
-         << cast<TypedAttr>(attrType).getType() << " not supported";
+         << mlir::cast<TypedAttr>(attrType).getType() << " not supported";
 }
 
 LogicalResult cir::ConstantOp::verify() {
@@ -560,6 +560,12 @@ LogicalResult cir::CastOp::verify() {
       }
       return success();
     }
+
+    // Allow casting cir.vptr to pointer types.
+    // TODO: Add operations to get object offset and type info and remove this.
+    if (mlir::isa<cir::VPtrType>(srcType) &&
+        mlir::dyn_cast<cir::PointerType>(resType))
+      return success();
 
     // Handle the data member pointer types.
     if (mlir::isa<cir::DataMemberType>(srcType) &&
@@ -778,7 +784,7 @@ Value tryFoldCastChain(cir::CastOp op) {
     if (!isIntOrBoolCast(op))
       break;
     head = op;
-    op = dyn_cast_or_null<cir::CastOp>(head.getSrc().getDefiningOp());
+    op = head.getSrc().getDefiningOp<cir::CastOp>();
   }
 
   if (head == tail)
@@ -841,7 +847,7 @@ static bool isBoolNot(cir::UnaryOp op) {
 // and the argument of the first one (%0) will be used instead.
 OpFoldResult cir::UnaryOp::fold(FoldAdaptor adaptor) {
   if (isBoolNot(*this))
-    if (auto previous = dyn_cast_or_null<UnaryOp>(getInput().getDefiningOp()))
+    if (auto previous = getInput().getDefiningOp<UnaryOp>())
       if (isBoolNot(previous))
         return previous.getInput();
 
@@ -940,10 +946,11 @@ LogicalResult cir::ComplexRealOp::verify() {
 }
 
 OpFoldResult cir::ComplexRealOp::fold(FoldAdaptor adaptor) {
-  auto input = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
-  if (input)
-    return input.getReal();
-  return nullptr;
+  if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
+    return complexCreateOp.getOperand(0);
+
+  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  return complex ? complex.getReal() : nullptr;
 }
 
 LogicalResult cir::ComplexImagOp::verify() {
@@ -955,10 +962,11 @@ LogicalResult cir::ComplexImagOp::verify() {
 }
 
 OpFoldResult cir::ComplexImagOp::fold(FoldAdaptor adaptor) {
-  auto input = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
-  if (input)
-    return input.getImag();
-  return nullptr;
+  if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
+    return complexCreateOp.getOperand(1);
+
+  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  return complex ? complex.getImag() : nullptr;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1025,7 +1033,7 @@ void cir::StoreOp::setAtomic(cir::MemOrder order) {
 
 OpFoldResult cir::VecCreateOp::fold(FoldAdaptor adaptor) {
   if (llvm::any_of(getElements(), [](mlir::Value value) {
-        return !mlir::isa<cir::ConstantOp>(value.getDefiningOp());
+        return !value.getDefiningOp<cir::ConstantOp>();
       }))
     return {};
 
@@ -1701,23 +1709,24 @@ ParseResult parseCatchRegions(
   };
 
   auto parseCatchEntry = [&]() -> ParseResult {
-    mlir::Type exceptionType;
     mlir::Attribute exceptionTypeInfo;
 
-    // FIXME: support most recent syntax, currently broken.
-    ::llvm::StringRef attrStr;
-    if (!parser.parseOptionalKeyword(&attrStr, {"all"})) {
-      if (parser.parseKeyword("type").failed())
+    if (parser.parseOptionalAttribute(exceptionTypeInfo).has_value()) {
+      catchList.push_back(exceptionTypeInfo);
+    } else {
+      ::llvm::StringRef attrStr;
+      if (parser.parseOptionalKeyword(&attrStr, {"all"}).succeeded()) {
+        // "all" keyword found, exceptionTypeInfo remains null
+      } else if (parser.parseOptionalKeyword("type").succeeded()) {
+        if (parser.parseAttribute(exceptionTypeInfo).failed())
+          return parser.emitError(parser.getCurrentLocation(),
+                                  "expected valid RTTI info attribute");
+      } else {
         return parser.emitError(parser.getCurrentLocation(),
-                                "expected 'type' keyword here");
-      if (parser.parseType(exceptionType).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid exception type");
-      if (parser.parseAttribute(exceptionTypeInfo).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid RTTI info attribute");
+                                "expected attribute, 'all', or 'type' keyword");
+      }
+      catchList.push_back(exceptionTypeInfo);
     }
-    catchList.push_back(exceptionTypeInfo);
     return parseAndCheckRegion();
   };
 
@@ -1897,7 +1906,6 @@ void printSwitchOp(OpAsmPrinter &p, cir::SwitchOp op, mlir::Region &bodyRegion,
   p << " : ";
   p.printStrippedAttrOrType(condType);
   p << ")";
-
   p << ' ';
   p.printRegion(bodyRegion, /*printEntryBlockArgs=*/false,
                 /*printBlockTerminators=*/true);
@@ -2257,6 +2265,7 @@ LogicalResult cir::GlobalOp::verify() {
   case GlobalLinkageKind::CommonLinkage:
   case GlobalLinkageKind::WeakAnyLinkage:
   case GlobalLinkageKind::WeakODRLinkage:
+  case GlobalLinkageKind::AvailableExternallyLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
@@ -2265,9 +2274,6 @@ LogicalResult cir::GlobalOp::verify() {
                          << stringifyGlobalLinkageKind(getLinkage())
                          << "' linkage";
     break;
-  default:
-    return emitError() << stringifyGlobalLinkageKind(getLinkage())
-                       << ": verifier not implemented\n";
   }
 
   // TODO: verify visibility for declarations?
@@ -2370,7 +2376,7 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   else
     llvm_unreachable("shall not get here");
 
-  auto resultType = dyn_cast<PointerType>(getAddr().getType());
+  auto resultType = llvm::dyn_cast<PointerType>(getAddr().getType());
   if (!resultType || symTy != resultType.getPointee())
     return emitOpError("result type pointee type '")
            << resultType.getPointee() << "' does not match type " << symTy
@@ -2392,10 +2398,7 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 LogicalResult
 cir::VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
-  // vtable ptr is not coming from a symbol.
-  if (!getName())
-    return success();
-  auto name = *getName();
+  StringRef name = getName();
 
   // Verify that the result type underlying pointer type matches the type of
   // the referenced cir.global or cir.func op.
@@ -2410,27 +2413,6 @@ cir::VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   if (!isa<cir::VTableAttr>(*init))
     return emitOpError("Expected #cir.vtable in initializer for global '")
            << name << "'";
-  return success();
-}
-
-LogicalResult cir::VTableAddrPointOp::verify() {
-  // The operation uses either a symbol or a value to operate, but not both
-  if (getName() && getSymAddr())
-    return emitOpError("should use either a symbol or value, but not both");
-
-  // If not a symbol, stick with the concrete type used for getSymAddr.
-  if (getSymAddr())
-    return success();
-
-  auto resultType = getAddr().getType();
-  auto intTy = cir::IntType::get(getContext(), 32, /*isSigned=*/false);
-  auto fnTy = cir::FuncType::get({}, intTy);
-
-  auto resTy = cir::PointerType::get(cir::PointerType::get(fnTy));
-
-  if (resultType != resTy)
-    return emitOpError("result type must be '")
-           << resTy << "', but provided result type is '" << resultType << "'";
   return success();
 }
 
@@ -2512,10 +2494,9 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
   if (argAttrs.empty())
     return;
 
-  call_interface_impl::addArgAndResultAttrs(builder, result, argAttrs,
-                                            /*resultAttrs=*/std::nullopt,
-                                            getArgAttrsAttrName(result.name),
-                                            getResAttrsAttrName(result.name));
+  call_interface_impl::addArgAndResultAttrs(
+      builder, result, argAttrs, ArrayRef<DictionaryAttr>{},
+      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
 }
 
 ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
@@ -2529,6 +2510,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
+  auto cxxSpecialMemberAttr = getCxxSpecialMemberAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2607,6 +2589,20 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     // parseOptionalAttribute takes a type, but unclear how to use this.
     if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
       state.addAttribute(annotationsNameAttr, annotations);
+  }
+
+  // Parse CXXSpecialMember attribute
+  if (parser.parseOptionalKeyword("special_member").succeeded()) {
+    cir::CXXCtorAttr ctorAttr;
+    cir::CXXDtorAttr dtorAttr;
+    if (parser.parseLess().failed())
+      return failure();
+    if (parser.parseOptionalAttribute(ctorAttr).has_value())
+      state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
+    if (parser.parseOptionalAttribute(dtorAttr).has_value())
+      state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
+    if (parser.parseGreater().failed())
+      return failure();
   }
 
   // If additional attributes are present, parse them.
@@ -2789,6 +2785,13 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttribute(annotations);
   }
 
+  if (auto specialMemberAttr = getCxxSpecialMember()) {
+    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr>(*specialMemberAttr)));
+    p << " special_member<";
+    p.printAttribute(*specialMemberAttr);
+    p << '>';
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2799,7 +2802,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName()});
+       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
@@ -3516,7 +3519,7 @@ LogicalResult cir::ConstArrayAttr::verify(
   }
 
   // ArrayAttrrs have per-element type, not the type of the array...
-  if (mlir::dyn_cast<ArrayAttr>(*resultVal)) {
+  if (llvm::dyn_cast<ArrayAttr>(*resultVal)) {
     // Array has implicit type: infer from const array type.
     if (parser.parseOptionalColon().failed()) {
       resultTy = type;
@@ -3534,7 +3537,7 @@ LogicalResult cir::ConstArrayAttr::verify(
     assert(mlir::isa<TypedAttr>(*resultVal) && "IDK");
     auto ta = mlir::cast<TypedAttr>(*resultVal);
     resultTy = ta.getType();
-    if (mlir::isa<mlir::NoneType>(*resultTy)) {
+    if (mlir::isa<mlir::NoneType>(resultTy.value())) {
       parser.emitError(parser.getCurrentLocation(),
                        "expected type declaration for string literal");
       return {};
@@ -3546,7 +3549,7 @@ LogicalResult cir::ConstArrayAttr::verify(
     if (parser.parseOptionalKeyword("trailing_zeros").succeeded()) {
       auto typeSize = mlir::cast<cir::ArrayType>(resultTy.value()).getSize();
       auto elts = resultVal.value();
-      if (auto str = mlir::dyn_cast<mlir::StringAttr>(elts))
+      if (auto str = llvm::dyn_cast<mlir::StringAttr>(elts))
         zeros = typeSize - str.size();
       else
         zeros = typeSize - mlir::cast<mlir::ArrayAttr>(elts).size();
@@ -3595,7 +3598,7 @@ LogicalResult cir::ConstVectorAttr::verify(
           // An earlier element didn't match
           return;
         }
-        auto typedElement = mlir::dyn_cast<TypedAttr>(element);
+        auto typedElement = llvm::dyn_cast<TypedAttr>(element);
         if (!typedElement ||
             typedElement.getType() != vecType.getElementType()) {
           elementTypeCheck =
@@ -3665,7 +3668,6 @@ LogicalResult cir::TypeInfoAttr::verify(
       continue;
     return emitError() << "expected GlobalViewAttr or IntAttr attribute";
   }
-
   return success();
 }
 
@@ -3689,11 +3691,10 @@ LogicalResult cir::VTableAttr::verify(
       return failure();
 
     LogicalResult eltTypeCheck = success();
-    if (auto arrayElts = mlir::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
+    if (auto arrayElts = llvm::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
       arrayElts.walkImmediateSubElements(
           [&](Attribute attr) {
-            if (mlir::isa<GlobalViewAttr>(attr) ||
-                mlir::isa<ConstPtrAttr>(attr))
+            if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<ConstPtrAttr>(attr))
               return;
 
             eltTypeCheck = emitError() << "expected GlobalViewAttr attribute";
@@ -3730,7 +3731,7 @@ LogicalResult cir::CopyOp::verify() {
 
 LogicalResult cir::GetMemberOp::verify() {
 
-  const auto recordTy = dyn_cast<RecordType>(getAddrTy().getPointee());
+  const auto recordTy = llvm::dyn_cast<RecordType>(getAddrTy().getPointee());
   if (!recordTy)
     return emitError() << "expected pointer to a record type";
 
@@ -3780,7 +3781,7 @@ LogicalResult cir::InsertMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::GetRuntimeMemberOp::verify() {
-  auto recordTy = cast<RecordType>(getAddr().getType().getPointee());
+  auto recordTy = mlir::cast<RecordType>(getAddr().getType().getPointee());
   auto memberPtrTy = getMember().getType();
 
   if (recordTy != memberPtrTy.getClsTy())
@@ -3900,6 +3901,30 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
 
   if (auto v = getRes())
     p << " -> " << v.getType();
+}
+
+void cir::InlineAsmOp::build(OpBuilder &odsBuilder, OperationState &odsState,
+                             ArrayRef<ValueRange> asm_operands,
+                             StringRef asm_string, StringRef constraints,
+                             bool side_effects, cir::AsmFlavor asm_flavor,
+                             ArrayRef<Attribute> operand_attrs) {
+  // Set up the operands_segments for VariadicOfVariadic
+  SmallVector<int32_t> segments;
+  for (auto operandRange : asm_operands) {
+    segments.push_back(operandRange.size());
+    odsState.addOperands(operandRange);
+  }
+  
+  odsState.addAttribute("operands_segments", 
+                        DenseI32ArrayAttr::get(odsBuilder.getContext(), segments));
+  odsState.addAttribute("asm_string", odsBuilder.getStringAttr(asm_string));
+  odsState.addAttribute("constraints", odsBuilder.getStringAttr(constraints));
+  odsState.addAttribute("asm_flavor", AsmFlavorAttr::get(odsBuilder.getContext(), asm_flavor));
+  
+  if (side_effects)
+    odsState.addAttribute("side_effects", odsBuilder.getUnitAttr());
+  
+  odsState.addAttribute("operand_attrs", odsBuilder.getArrayAttr(operand_attrs));
 }
 
 ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,

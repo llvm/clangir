@@ -459,6 +459,21 @@ def CIR_ConstantOp : CIR_Op<"const",[
        return ptrAttr.isNullValue();
       return false;
      }
+
+     template <typename T>
+     T getValueAttr() { return mlir::dyn_cast<T>(getValue()); }
+
+     llvm::APInt getIntValue() {
+       if (const auto intAttr = getValueAttr<cir::IntAttr>())
+         return intAttr.getValue();
+       llvm_unreachable("Expected an IntAttr in ConstantOp");
+     }
+
+     bool getBoolValue() {
+       if (const auto boolAttr = getValueAttr<cir::BoolAttr>())
+         return boolAttr.getValue();
+       llvm_unreachable("Expected a BoolAttr in ConstantOp");
+     }
   }];
 
   let hasFolder = 1;
@@ -752,7 +767,8 @@ def CIR_ReturnOp : CIR_Op<"return", [
 
   // Allow building a ReturnOp with no return operand.
   let builders = [
-    OpBuilder<(ins), [{ build($_builder, $_state, std::nullopt); }]>
+    OpBuilder<(ins),
+    [{ build($_builder, $_state, {}); }]>
   ];
 
   // Provide extra utility definitions on the c++ operation class definition.
@@ -1079,9 +1095,8 @@ def CIR_ResumeOp : CIR_Op<"resume", [
                        Optional<CIR_UInt32>:$type_id,
                        UnitAttr:$rethrow);
   let assemblyFormat = [{
-    ($rethrow^)?
-    ($exception_ptr^)?
-    (`,` $type_id^)?
+    (`rethrow` $rethrow^)?
+    ($exception_ptr^ (`,` $type_id^)?)?
     attr-dict
   }];
 }
@@ -1553,7 +1568,6 @@ def CIR_ComplexRangeKind : CIR_I32EnumAttr<
     I32EnumAttrCase<"Improved", 1, "improved">,
     I32EnumAttrCase<"Promoted", 2, "promoted">,
     I32EnumAttrCase<"Basic", 3, "basic">,
-    I32EnumAttrCase<"None", 4, "none">
 ]>;
 
 def CIR_ComplexBinOp : CIR_Op<"complex.binop",[
@@ -2580,7 +2594,7 @@ def CIR_GetGlobalOp : CIR_Op<"get_global", [
 // VTableAddrPointOp
 //===----------------------------------------------------------------------===//
 
-def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
+def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point", [
   Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>
 ]> {
   let summary = "Get the vtable (global variable) address point";
@@ -2589,39 +2603,269 @@ def CIR_VTableAddrPointOp : CIR_Op<"vtable.address_point",[
     (address point) of a C++ virtual table. An object internal `__vptr`
     gets initializated on top of the value returned by this operation.
 
-    `address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
-    (as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
-    point within that vtable.
+    `address_point.index` (vtable index) provides the appropriate vtable within
+    the vtable group (as specified by Itanium ABI), and `address_point.offset`
+    (address point index) the actual address point within that vtable.
 
-    The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
+    The `name` argument to this operation must be the name of a C++ vtable
+    object. The return value is the address of the virtual function pointer
+    array within the vtable (the vptr). This value will be written to the
+    vptr member of a dynamic class by the constructor of the class. Derived
+    classes have their own vtable, which is used to obtain the vptr stored
+    in instances of the derived class.
 
-    Example:
+    The return type is always `!cir.vptr`.
+
+    Examples:
+
+    ```C++
+    struct Base {
+      Base();
+      virtual void f();
+    };
+    struct Derived : public Base {
+      Derived();
+    };
+    ```
+
     ```mlir
-    cir.global linkonce_odr @_ZTV1B = ...
+    !rec_Base = !cir.record<struct "Base" {!cir.vptr}
+    !rec_Derived = !cir.record<struct "Derived" {!rec_Base}
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<() -> i32>>
+    // VTable for Base
+    cir.global linkonce_odr @_ZTV1Base = ...
+    ...
+    // Constructor for Base
+    cir.func dso_local @_ZN4BaseC2Ev ...
+      ...
+      %2 = cir.vtable.address_point(@_ZTV1Base,
+              address_point = <index = 0, offset = 2>) : !cir.vptr
+      %3 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+      cir.store align(8) %2, %3 : !cir.vptr, !cir.ptr<!cir.vptr>
+    ...
+    // VTable for Derived
+    cir.global linkonce_odr @_ZTV7Derived = ...
+    ...
+    // Constructor for Derived
+    cir.func dso_local @_ZN7DerivedC2Ev ...
+      // Get the address of Base within this Derived instance
+      %2 = cir.base_class_addr %1 : !cir.ptr<!rec_Derived> nonnull [0]
+      cir.call @_ZN4BaseC2Ev(%2)
+      %3 = cir.vtable.address_point(@_ZTV7Derived,
+              address_point = <index = 0, offset = 2>) : !cir.vptr
+      // The vptr is still at the start of the object in this case
+      %4 = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Derived> -> !cir.ptr<!cir.vptr>
+      // This overwrites the vptr that was stored in the Base constructor call
+      cir.store align(8) %3, %4 : !cir.vptr, !cir.ptr<!cir.vptr>
     ```
   }];
 
   let arguments = (ins
-    OptionalAttr<FlatSymbolRefAttr>:$name,
-    Optional<CIR_AnyType>:$sym_addr,
+    FlatSymbolRefAttr:$name,
     CIR_AddressPointAttr:$address_point
   );
 
-  let results = (outs Res<CIR_PointerType, "", []>:$addr);
+  let results = (outs Res<CIR_VPtrType, "", []>:$addr);
 
   let assemblyFormat = [{
     `(`
-      ($name^)?
-      ($sym_addr^ `:` type($sym_addr))?
-      `,`
-        `address_point` `=` $address_point
+      $name `,` `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];
+}
 
-  let hasVerifier = 1;
+//===----------------------------------------------------------------------===//
+// VTableGetVPtr
+//===----------------------------------------------------------------------===//
+
+def CIR_VTableGetVPtrOp : CIR_Op<"vtable.get_vptr", [Pure]> {
+  let summary = "Get a the address of the vtable pointer for an object";
+  let description = [{
+    The `vtable.get_vptr` operation retrieves the address of the vptr for a
+    C++ object. This operation requires that the object pointer points to
+    the start of a complete object. (TODO: Describe how we get that).
+    The vptr will always be at offset zero in the object, but this operation
+    is more explicit about what is being retrieved than a direct bitcast.
+
+    The return type is always `!cir.ptr<!cir.vptr>`.
+
+    Example:
+    ```C++
+    struct S {
+      virtual void f1();
+      virtual void f2();
+    };
+    void f3(S *s) {
+      s->f2();
+    }
+    ```
+
+    ```mlir
+    // VTable for S
+    cir.global external @_ZTV1S = #cir.vtable<{
+      #cir.const_array<[
+        // Offset to the base object
+        #cir.ptr<null> : !cir.ptr<!u8i>,
+        // Type info for S
+        #cir.global_view<@_ZTI1S> : !cir.ptr<!u8i>,
+        // Pointer to S::f1
+        #cir.global_view<@_ZN1S2f1Ev> : !cir.ptr<!u8i>,
+        // Pointer to S::f2
+        #cir.global_view<@_ZN1S2f2Ev> : !cir.ptr<!u8i>
+      ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+    // f3()
+    cir.func dso_local @_Z2f3P1S(%s: !cir.ptr<!rec_S>) {
+      // Get the vptr -- This points to offset 2 in the vtable.
+      %1 = cir.vtable.get_vptr %s : !cir.ptr<!rec_S> -> !cir.ptr<!cir.vptr>
+      %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
+      // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
+      %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
+              -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
+      %4 = cir.load align(8) %3
+              : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>,
+                !cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>
+      cir.call %4(%b)
+    ```
+  }];
+
+  let arguments = (ins
+    Arg<CIR_PointerType, "the vptr address", [MemRead]>:$src
+  );
+
+  let results = (outs CIR_PtrToVPtr:$result);
+
+  let assemblyFormat = [{
+      $src `:` qualified(type($src)) `->` qualified(type($result)) attr-dict
+  }];
+
+}
+
+//===----------------------------------------------------------------------===//
+// VTableGetVirtualFnAddrOp
+//===----------------------------------------------------------------------===//
+
+def CIR_VTableGetVirtualFnAddrOp : CIR_Op<"vtable.get_virtual_fn_addr", [
+  Pure
+]> {
+  let summary = "Get a the address of a virtual function pointer";
+  let description = [{
+    The `vtable.get_virtual_fn_addr` operation retrieves the address of a
+    virtual function pointer from an object's vtable (__vptr).
+    This is an abstraction to perform the basic pointer arithmetic to get
+    the address of the virtual function pointer, which can then be loaded and
+    called.
+
+    The `vptr` operand must be a `!cir.ptr<!cir.vptr>` value, which would
+    have been returned by a previous call to `cir.vatble.get_vptr`. The
+    `index` operand is an index of the virtual function in the vtable.
+
+    The return type is a pointer-to-pointer to the function type.
+
+    Example 1:
+    Suppose we have two classes, Base and Derived, where Derived overrides
+    virtual functions that were defined in Base. When a pointer to a Base
+    object is used to call one of these function, we may not know at compile
+    time whether it points to an instance of Base or an instance of Derived.
+    The compiler does not need to know. It will load the vptr from the object
+    and use that to get the address of the correct function to call. The
+    vptr will have been initialized in the object's constructor to point to
+    the correct vtable for the object being instantiated.
+    ```C++
+    // In this example, when f3 is called, we don't know at compile-time
+    // whether
+    struct Base {
+      virtual void f1();
+      virtual void f2();
+    };
+    struct Derived : public Base {
+      void f1() override;
+      void f2() override;
+    };
+    void f3(Base *b) {
+      b->f2();
+    }
+    ```
+
+    ```mlir
+    // VTable for Base
+    cir.global external @_ZTV4Base = #cir.vtable<{
+      #cir.const_array<[
+        #cir.ptr<null> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZN4Base2f1Ev> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZN4Base2f2Ev> : !cir.ptr<!u8i>
+      ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+    // VTable for Derived
+    cir.global external @_ZTV7Derived = #cir.vtable<{
+      #cir.const_array<[
+        #cir.ptr<null> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZTI7Derived> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZN7Derived2f1Ev> : !cir.ptr<!u8i>,
+        #cir.global_view<@_ZN7Derived2f2Ev> : !cir.ptr<!u8i>
+      ]> : !cir.array<!cir.ptr<!u8i> x 4>}> ...
+    // f3()
+    cir.func dso_local @_Z2f3P4Base(%b: !cir.ptr<!rec_Base>)
+      // Get the vptr
+      %1 = cir.vtable.get_vptr %b : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+      %2 = cir.load align(8) %1 : !cir.ptr<!cir.vptr>, !cir.vptr
+      // Get the address of b->f2() -- may be Base::f2() or Derived::f2()
+      %3 = cir.vtable.get_virtual_fn_addr %2[1] : !cir.vptr
+              -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>
+      %4 = cir.load align(8) %3
+              : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>>,
+                !cir.ptr<!cir.func<(!cir.ptr<!rec_Base>)>>
+      cir.call %4(%b)
+    ```
+
+    Example 2:
+    Consider the case of multiple inheritance, where Base1 and Base2 both
+    provide virtual functions and a third class, Derived, inherits from both
+    bases. When a pointer to a Derived is used to call a virtual function in
+    Base2, we must retrieve a pointer to the Base2 portion of the Derived object
+    and use that pointer to get the vptr for Base2 as a base class.
+    ```C++
+    struct Base1 {
+      virtual void f1();
+    };
+    struct Base2 {
+      virtual void f2();
+    };
+    struct Derived : public Base1, Base2 { };
+    void f3(Derived *d) {
+      d->f2();
+    }
+    ```
+
+    ```mlir
+    !rec_Base1 = !cir.record<struct "Base1" {!cir.vptr}
+    !rec_Base2 = !cir.record<struct "Base2" {!cir.vptr}
+    !rec_Derived = !cir.record<struct "Derived" {!rec_Base1, !rec_Base2}
+    cir.func dso_local @_Z2f3P7Derived(%d: !cir.ptr<!rec_Derived>)
+      %2 = cir.base_class_addr %d : !cir.ptr<!rec_Derived> nonnull [8]
+              -> !cir.ptr<!rec_Base2>
+      %3 = cir.vtable.get_vptr %2 : !cir.ptr<!rec_Base2> -> !cir.ptr<!cir.vptr>
+      %4 = cir.load align(8) %3 : !cir.ptr<!cir.vptr>, !cir.vptr
+      %5 = cir.vtable.get_virtual_fn_addr %4[0] : !cir.vptr
+              -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>>
+      %6 = cir.load align(8) %5
+              : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>>,
+                !cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>
+      cir.call %6(%2) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_Base2>)>>,
+                         !cir.ptr<!rec_Base2>) -> ()
+     ```
+  }];
+
+  let arguments = (ins
+    Arg<CIR_VPtrType, "vptr", [MemRead]>:$vptr,
+    I64Attr:$index);
+
+  let results = (outs CIR_PointerType:$result);
+
+  let assemblyFormat = [{
+    $vptr `[` $index `]` attr-dict
+    `:` qualified(type($vptr)) `->` qualified(type($result))
+  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2728,7 +2972,7 @@ def CIR_SetBitfieldOp : CIR_Op<"set_bitfield"> {
     %1 = cir.const #cir.int<3> : !s32i
     %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
-    %4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
+    %4 = cir.set_bitfield align(4) (#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
     ```
    }];
 
@@ -2736,12 +2980,15 @@ def CIR_SetBitfieldOp : CIR_Op<"set_bitfield"> {
     Arg<CIR_PointerType, "the address to store the value", [MemWrite]>:$addr,
     CIR_AnyType:$src,
     CIR_BitfieldInfoAttr:$bitfield_info,
+    DefaultValuedOptionalAttr<I64Attr, "0">:$alignment,
     UnitAttr:$is_volatile
   );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
+  let assemblyFormat = [{
+    (`align` `(` $alignment^ `)`)?
+    `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
     $src`:`type($src) `)`  attr-dict `->` type($result) }];
 
   let builders = [
@@ -2753,14 +3000,15 @@ def CIR_SetBitfieldOp : CIR_Op<"set_bitfield"> {
                    "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed,
-                   "bool":$is_volatile
+                   "bool":$is_volatile,
+                   CArg<"unsigned", "0">:$alignment
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, addr, src, info, is_volatile);
+      build($_builder, $_state, type, addr, src, info, alignment, is_volatile);
     }]>
   ];
 }
@@ -2807,20 +3055,23 @@ def CIR_GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
     %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
-    %4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
+    %4 = cir.get_bitfield align(4) (#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
     ```
     }];
 
   let arguments = (ins
     Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
     CIR_BitfieldInfoAttr:$bitfield_info,
+    DefaultValuedOptionalAttr<I64Attr, "0">:$alignment,
     UnitAttr:$is_volatile
   );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ `(`$bitfield_info `,` $addr attr-dict `:`
-   qualified(type($addr)) `)` `->` type($result) }];
+  let assemblyFormat = [{
+    (`align` `(` $alignment^ `)`)?
+    `(`$bitfield_info `,` $addr attr-dict `:`
+    qualified(type($addr)) `)` `->` type($result) }];
 
   let builders = [
     OpBuilder<(ins "mlir::Type":$type,
@@ -2830,14 +3081,15 @@ def CIR_GetBitfieldOp : CIR_Op<"get_bitfield"> {
                    "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed,
-                   "bool":$is_volatile
+                   "bool":$is_volatile,
+                   CArg<"unsigned", "0">:$alignment
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, addr, info, is_volatile);
+      build($_builder, $_state, type, addr, info, alignment, is_volatile);
     }]>
   ];
 }
@@ -2870,29 +3122,16 @@ def CIR_GetMemberOp : CIR_Op<"get_member"> {
   let arguments = (ins
     Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
     StrAttr:$name,
-    IndexAttr:$index_attr);
+    I64Attr:$index);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
 
   let assemblyFormat = [{
-    $addr `[` $index_attr `]` attr-dict
+    $addr `[` $index `]` attr-dict
     `:` qualified(type($addr)) `->` qualified(type($result))
   }];
 
-  let builders = [
-    OpBuilder<(ins "mlir::Type":$type,
-                   "mlir::Value":$value,
-                   "llvm::StringRef":$name,
-                   "unsigned":$index),
-    [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, type, value, name, fieldIdx);
-    }]>
-  ];
-
   let extraClassDeclaration = [{
-    /// Return the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
 
     /// Return the record type pointed by the base pointer.
     cir::PointerType getAddrTy() { return getAddr().getType(); }
@@ -2931,30 +3170,21 @@ def CIR_ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIRRecordType:$record, I64Attr:$index);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    $record `[` $index_attr `]` attr-dict
+    $record `[` $index `]` attr-dict
     `:` qualified(type($record)) `->` qualified(type($result))
   }];
 
   let builders = [
-    OpBuilder<(ins "mlir::Type":$type, "mlir::Value":$record, "uint64_t":$index), [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, type, record, fieldIdx);
-    }]>,
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index), [{
       auto recordTy = mlir::cast<cir::RecordType>(record.getType());
       mlir::Type memberTy = recordTy.getMembers()[index];
       build($_builder, $_state, memberTy, record, index);
     }]>
   ];
-
-  let extraClassDeclaration = [{
-    /// Get the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
-  }];
 
   let hasVerifier = 1;
 }
@@ -2996,25 +3226,12 @@ def CIR_InsertMemberOp : CIR_Op<"insert_member", [
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr,
+  let arguments = (ins CIRRecordType:$record, I64Attr:$index,
                        CIR_AnyType:$value);
   let results = (outs CIRRecordType:$result);
 
-  let builders = [
-    OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,
-                   "mlir::Value":$value), [{
-      mlir::APInt fieldIdx(64, index);
-      build($_builder, $_state, record, fieldIdx, value);
-    }]>
-  ];
-
-  let extraClassDeclaration = [{
-    /// Get the index of the record member being accessed.
-    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
-  }];
-
   let assemblyFormat = [{
-    $record `[` $index_attr `]` `,` $value attr-dict
+    $record `[` $index `]` `,` $value attr-dict
     `:` qualified(type($record)) `,` qualified(type($value))
   }];
 
@@ -3776,6 +3993,7 @@ def FuncOp : CIR_Op<"func", [
     CIR_OptionalPriorityAttr:$global_ctor_priority,
     CIR_OptionalPriorityAttr:$global_dtor_priority,
     OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
     OptionalAttr<AnyASTFunctionDeclAttr>:$ast
   );
 
@@ -4104,7 +4322,7 @@ def CIR_CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
         SideEffectAttr::get($_builder.getContext(), sideEffect));
       if (exception)
         $_state.addAttribute("exception", exception);
-      if (resType && !isa<VoidType>(resType))
+      if (resType && !llvm::isa<VoidType>(resType))
         $_state.addTypes(resType);
       // Create region placeholder for potential cleanups.
       $_state.addRegion();
@@ -4490,7 +4708,7 @@ def CIR_CopyOp : CIR_Op<"copy",[
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
                        UnitAttr:$is_volatile,
-                       OptionalAttr<CIR_TBAAAttr>:$tbaa);
+                       OptionalAttr<CIR_AnyTBAAAttr>:$tbaa);
   let summary = "Copies contents from a CIR pointer to another";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.copy` will copy the memory

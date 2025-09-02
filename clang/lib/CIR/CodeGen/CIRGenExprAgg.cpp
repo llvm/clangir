@@ -206,13 +206,28 @@ public:
   // Operators.
   void VisitCastExpr(CastExpr *E);
   void VisitCallExpr(const CallExpr *E);
-
   void VisitStmtExpr(const StmtExpr *E) {
     assert(!cir::MissingFeatures::stmtExprEvaluation() && "NYI");
     CGF.emitCompoundStmt(*E->getSubStmt(), /*getLast=*/true, Dest);
   }
 
-  void VisitBinaryOperator(const BinaryOperator *E) { llvm_unreachable("NYI"); }
+  void VisitBinaryOperator(const BinaryOperator *E) {
+    switch (E->getOpcode()) {
+    case BO_Assign:
+      return VisitBinAssign(E);
+    case BO_Comma:
+      return VisitBinComma(E);
+    case BO_LT:
+    case BO_GT:
+    case BO_LE:
+    case BO_GE:
+    case BO_EQ:
+    case BO_NE:
+      return VisitBinCmp(E);
+    default:
+      llvm_unreachable("NYI");
+    }
+  }
   void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *E) {
     llvm_unreachable("NYI");
   }
@@ -1642,17 +1657,18 @@ void CIRGenFunction::emitAggregateCopy(LValue Dest, LValue Src, QualType Ty,
 
   if (getLangOpts().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
-      CXXRecordDecl *Record = cast<CXXRecordDecl>(RT->getDecl());
-      assert((Record->hasTrivialCopyConstructor() ||
-              Record->hasTrivialCopyAssignment() ||
-              Record->hasTrivialMoveConstructor() ||
-              Record->hasTrivialMoveAssignment() ||
-              Record->hasAttr<TrivialABIAttr>() || Record->isUnion()) &&
-             "Trying to aggregate-copy a type without a trivial copy/move "
-             "constructor or assignment operator");
-      // Ignore empty classes in C++.
-      if (Record->isEmpty())
-        return;
+      if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+        assert((Record->hasTrivialCopyConstructor() ||
+                Record->hasTrivialCopyAssignment() ||
+                Record->hasTrivialMoveConstructor() ||
+                Record->hasTrivialMoveAssignment() ||
+                Record->hasAttr<TrivialABIAttr>() || Record->isUnion()) &&
+               "Trying to aggregate-copy a type without a trivial copy/move "
+               "constructor or assignment operator");
+        // Ignore empty classes in C++.
+        if (Record->isEmpty())
+          return;
+      }
     }
   }
 

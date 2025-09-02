@@ -274,7 +274,7 @@ void CIRGenModule::constructAttributeList(
       // TODO(cir): add alloc size attr.
     }
 
-    if (TargetDecl->hasAttr<OpenCLKernelAttr>()) {
+    if (TargetDecl->hasAttr<DeviceKernelAttr>() && DeviceKernelAttr::isOpenCLSpelling(TargetDecl->getAttr<DeviceKernelAttr>())) {
       auto cirKernelAttr = cir::OpenCLKernelAttr::get(&getMLIRContext());
       funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
 
@@ -723,8 +723,12 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
       return RValue::get(Results[0]);
     }
-    default:
-      llvm_unreachable("NYI");
+    case cir::TEK_Complex: {
+      mlir::ResultRange results = theCall->getOpResults();
+      assert(!results.empty() &&
+             "Expected at least one result for complex rvalue");
+      return RValue::getComplex(results[0]);
+    }
     }
   }();
 
@@ -978,7 +982,7 @@ static void appendParameterTypes(
   for (unsigned I = 0, E = FPT->getNumParams(); I != E; ++I) {
     prefix.push_back(FPT->getParamType(I));
     if (ExtInfos[I].hasPassObjectSize())
-      prefix.push_back(CGT.getContext().getSizeType());
+      prefix.push_back(CGT.getContext().getCanonicalType(CGT.getContext().getSizeType()));
   }
 
   addExtParameterInfosForCall(paramInfos, FPT.getTypePtr(), PrefixSize,
@@ -1087,8 +1091,8 @@ CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
   // When translating an unprototyped function type, always use a
   // variadic type.
   return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
-                                cir::FnInfoOpts::None, std::nullopt,
-                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+                                cir::FnInfoOpts::None, {}, FTNP->getExtInfo(),
+                                {}, RequiredArgs(0));
 }
 
 const CIRGenFunctionInfo &
@@ -1370,7 +1374,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   // type.
   if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(),
-                                  cir::FnInfoOpts::None, std::nullopt,
+                                  cir::FnInfoOpts::None, {},
                                   noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 

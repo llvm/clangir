@@ -169,12 +169,11 @@ cir::CallOp CIRGenFunction::emitCoroIDBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
+    fnOp = CGM.createCIRBuiltinFunction(
         loc, CGM.builtinCoroId,
         cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy}, int32Ty),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -191,11 +190,10 @@ cir::CallOp CIRGenFunction::emitCoroAllocBuiltinCall(mlir::Location loc) {
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(loc, CGM.builtinCoroAlloc,
-                                 cir::FuncType::get({int32Ty}, boolTy),
-                                 /*FD=*/nullptr);
+    fnOp = CGM.createCIRBuiltinFunction(loc, CGM.builtinCoroAlloc,
+                                        cir::FuncType::get({int32Ty}, boolTy),
+                                        /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -211,12 +209,11 @@ CIRGenFunction::emitCoroBeginBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
+    fnOp = CGM.createCIRBuiltinFunction(
         loc, CGM.builtinCoroBegin,
         cir::FuncType::get({int32Ty, VoidPtrTy}, VoidPtrTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -232,12 +229,11 @@ cir::CallOp CIRGenFunction::emitCoroEndBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp =
-        CGM.createCIRFunction(loc, CGM.builtinCoroEnd,
-                              cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
-                              /*FD=*/nullptr);
+    fnOp = CGM.createCIRBuiltinFunction(
+        loc, CGM.builtinCoroEnd,
+        cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
+        /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -252,7 +248,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
 
   auto Fn = dyn_cast<cir::FuncOp>(CurFn);
   assert(Fn && "other callables NYI");
-  Fn.setCoroutineAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  Fn.setCoroutine(true);
   auto coroId = emitCoroIDBuiltinCall(openCurlyLoc, nullPtrCst);
   createCoroData(*this, CurCoro, coroId);
 

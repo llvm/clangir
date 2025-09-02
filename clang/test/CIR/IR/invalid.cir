@@ -25,7 +25,7 @@ cir.func @b0() {
 !u32i = !cir.int<u, 32>
 cir.func @if0() {
   %0 = cir.const #true
-  // expected-error@+1 {{'cir.if' op  region control flow edge from Region #0 to parent results: source has 1 operands, but target successor needs 0}}
+  // expected-error@+1 {{'cir.if' op region control flow edge from Region #0 to parent results: source has 1 operands, but target successor needs 0}}
   cir.if %0 {
     %6 = cir.const #cir.int<3> : !u32i
     cir.yield %6 : !u32i
@@ -1258,7 +1258,7 @@ cir.func @address_space3(%p : !cir.ptr<!u64i, addrspace(target)>) {
 // -----
 
 !u64i = !cir.int<u, 64>
-// expected-error@below {{invalid address space kind specification: foobar}}
+// expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic, target] for address space kind, got: foobar}}
 // expected-error@below {{expected address space keyword}}
 cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) {
   cir.return
@@ -1629,4 +1629,32 @@ cir.func @invalidConditionTerminator (%arg0 : !cir.bool) -> !cir.void {
     cir.yield
   }
   cir.return
+}
+
+// -----
+
+!s16i = !cir.int<s, 16>
+!s32i = !cir.int<s, 32>
+#fn_attr = #cir<extra({nothrow = #cir.nothrow, uwtable = #cir.uwtable<async>})>
+!rec_S = !cir.record<struct "S" {!s16i} #cir.record.decl.ast>
+#tbaa_scalar = #cir.tbaa_scalar<id = "short", type = !s16i>
+// expected-error @below {{invalid kind of attribute specified}}
+// expected-error @below {{failed to parse CIR_TBAAStructAttr parameter 'members'}}
+#tbaa_struct = #cir.tbaa_struct<id = "S", members = {#cir.uwtable<async>}>
+#tbaa_tag = #cir.tbaa_tag<base = #tbaa_struct, access = #tbaa_scalar, offset = 0>
+cir.global external dso_local @glob = #cir.zero : !rec_S {alignment = 2 : i64}
+cir.func dso_local @main() -> !s32i extra(#fn_attr) {
+  %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
+  %1 = cir.const #cir.int<0> : !s32i
+  %2 = cir.cast(integral, %1 : !s32i), !s16i
+  %3 = cir.get_global @glob : !cir.ptr<!rec_S>
+  %4 = cir.get_member %3[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
+  cir.store align(2) %2, %4 : !s16i, !cir.ptr<!s16i> tbaa(#tbaa_tag)
+  %5 = cir.get_global @glob : !cir.ptr<!rec_S>
+  %6 = cir.get_member %5[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
+  %7 = cir.load align(2) %6 : !cir.ptr<!s16i>, !s16i tbaa(#tbaa_tag)
+  %8 = cir.cast(integral, %7 : !s16i), !s32i
+  cir.store %8, %0 : !s32i, !cir.ptr<!s32i>
+  %9 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+  cir.return %9 : !s32i
 }

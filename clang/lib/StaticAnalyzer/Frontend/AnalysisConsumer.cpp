@@ -36,14 +36,10 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/ScopeExit.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
-#include "llvm/Support/Program.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
-#include <queue>
 #include <utility>
 
 using namespace clang;
@@ -225,16 +221,6 @@ public:
       llvm::errs() << ": " << Loc.getFilename() << ' '
                    << AnalysisDeclContext::getFunctionName(D);
     }
-  }
-
-  void Initialize(ASTContext &Context) override {
-    Ctx = &Context;
-    checkerMgr = std::make_unique<CheckerManager>(*Ctx, Opts, PP, Plugins,
-                                                  CheckerRegistrationFns);
-
-    Mgr = std::make_unique<AnalysisManager>(
-        *Ctx, PP, std::move(PathConsumers), CreateStoreMgr, CreateConstraintMgr,
-        checkerMgr.get(), Opts, std::move(Injector));
   }
 
   /// Store the top level decls in the set to be processed later on.
@@ -618,6 +604,14 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
   DiagnosticsEngine &Diags = PP.getDiagnostics();
   if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
+
+  Ctx = &C;
+  checkerMgr = std::make_unique<CheckerManager>(*Ctx, Opts, PP, Plugins,
+                                                CheckerRegistrationFns);
+
+  Mgr = std::make_unique<AnalysisManager>(
+      *Ctx, PP, std::move(PathConsumers), CreateStoreMgr, CreateConstraintMgr,
+      checkerMgr.get(), Opts, std::move(Injector));
 
   // Explicitly destroy the PathDiagnosticConsumer.  This will flush its output.
   // FIXME: This should be replaced with something that doesn't rely on

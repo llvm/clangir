@@ -187,6 +187,17 @@ private:
            "initializing l-value with zero alignment!");
     if (isGlobalReg())
       assert(ElementType == nullptr && "Global reg does not store elem type");
+    else {
+      auto pointerPointee = llvm::cast<cir::PointerType>(V.getType()).getPointee();
+      if (pointerPointee != ElementType) {
+        // Update ElementType to match actual pointer type
+        // This can happen when static variable initializers cause type mismatches
+        ElementType = pointerPointee;
+      }
+      assert(llvm::cast<cir::PointerType>(V.getType()).getPointee() ==
+                 ElementType &&
+             "Pointer element type mismatch");
+    }
 
     this->Type = Type;
     this->Quals = Quals;

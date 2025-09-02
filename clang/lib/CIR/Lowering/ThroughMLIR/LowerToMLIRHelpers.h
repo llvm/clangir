@@ -24,8 +24,8 @@ mlir::Value createIntCast(mlir::ConversionPatternRewriter &rewriter,
   assert(mlir::isa<mlir::IntegerType>(srcTy));
   assert(mlir::isa<mlir::IntegerType>(dstTy));
 
-  auto srcWidth = mlir::cast<mlir::IntegerType>(srcTy).getWidth();
-  auto dstWidth = mlir::cast<mlir::IntegerType>(dstTy).getWidth();
+  auto srcWidth = llvm::cast<mlir::IntegerType>(srcTy).getWidth();
+  auto dstWidth = llvm::cast<mlir::IntegerType>(dstTy).getWidth();
   auto loc = src.getLoc();
 
   if (dstWidth > srcWidth && isSigned)

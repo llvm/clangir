@@ -331,11 +331,10 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
     // out of it while trying to build the expression, mark it as such.
     auto addr = lv.getAddress().getPointer();
     assert(addr && "Should have an address");
-    auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(addr.getDefiningOp());
+    auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
     assert(allocaOp && "Address should come straight out of the alloca");
 
-    if (!allocaOp.use_empty())
-      allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    allocaOp.setInit(!allocaOp.use_empty());
     return;
   }
 
@@ -617,7 +616,7 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   // TODO(cir): we should have a way to represent global ops as values without
   // having to emit a get global op. Sometimes these emissions are not used.
   auto addr = getBuilder().createGetGlobal(globalOp);
-  auto getAddrOp = mlir::cast<cir::GetGlobalOp>(addr.getDefiningOp());
+  auto getAddrOp = addr.getDefiningOp<cir::GetGlobalOp>();
 
   CharUnits alignment = getContext().getDeclAlign(&D);
 
@@ -678,8 +677,13 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   //
   // FIXME: It is really dangerous to store this in the map; if anyone
   // RAUW's the GV uses of this constant will be invalid.
+  //
+  // Since in CIR the address materialization is done over cir.get_global
+  // and that's already updated, but for unions the type might be different,
+  // we need to cast to the expected type.
   auto castedAddr = builder.createBitcast(getAddrOp.getAddr(), expectedType);
-  LocalDeclMap.find(&D)->second = Address(castedAddr, elemTy, alignment);
+  auto actualElemTy = llvm::cast<cir::PointerType>(castedAddr.getType()).getPointee();
+  LocalDeclMap.find(&D)->second = Address(castedAddr, actualElemTy, alignment);
   CGM.setStaticLocalDeclAddress(&D, var);
 
   assert(!cir::MissingFeatures::reportGlobalToASan());
@@ -767,6 +771,7 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   switch (D.getKind()) {
   case Decl::ImplicitConceptSpecialization:
   case Decl::HLSLBuffer:
+  case Decl::HLSLRootSignature:
   case Decl::TopLevelStmt:
   case Decl::OpenACCDeclare:
   case Decl::OpenACCRoutine:
@@ -1149,13 +1154,16 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   bool checkZeroLength = true;
 
   // But if the array length is constant, we can suppress that.
-  auto constantCount = dyn_cast<cir::ConstantOp>(length.getDefiningOp());
-  if (constantCount) {
-    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
-    // ...and if it's constant zero, we can just skip the entire thing.
-    if (constIntAttr && constIntAttr.getUInt() == 0)
-      return;
-    checkZeroLength = false;
+  if (auto constantCount = length.getDefiningOp<cir::ConstantOp>()) {
+    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
+      // ...and if it's constant zero, we can just skip the entire thing.
+      if (constIntAttr.getUInt() == 0)
+        return;
+      checkZeroLength = false;
+    }
+
+    if (constantCount.use_empty())
+      constantCount.erase();
   } else {
     llvm_unreachable("NYI");
   }
@@ -1164,8 +1172,6 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   mlir::Value end; // Use this for future non-constant counts.
   emitArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
                    useEHCleanupForArray);
-  if (constantCount.use_empty())
-    constantCount.erase();
 }
 
 CIRGenFunction::Destroyer *

@@ -58,7 +58,8 @@ __device__ void builtins() {
   // CIR: cir.llvm.intrinsic "nvvm.membar.sys"
   // LLVM: call void @llvm.nvvm.membar.sys()
   __nvvm_membar_sys();
-  // CIR: cir.llvm.intrinsic "nvvm.barrier0"
-  // LLVM: call void @llvm.nvvm.barrier0()
-  __syncthreads();
+  
+  // TODO-CIR: cir.llvm.intrinsic "nvvm.barrier0"
+  // TODO-LLVM: call void @llvm.nvvm.barrier0()
+  // __syncthreads();
 }

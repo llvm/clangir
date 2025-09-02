@@ -382,14 +382,11 @@ static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
   auto &builder = cgf.getBuilder();
   mlir::Value orderingVal = cgf.emitScalarExpr(expr->getArg(0));
 
-  auto constOrdering =
-      mlir::dyn_cast<cir::ConstantOp>(orderingVal.getDefiningOp());
+  auto constOrdering = orderingVal.getDefiningOp<cir::ConstantOp>();
   if (!constOrdering)
     llvm_unreachable("NYI: variable ordering not supported");
 
-  auto constOrderingAttr =
-      mlir::dyn_cast<cir::IntAttr>(constOrdering.getValue());
-  if (constOrderingAttr) {
+  if (auto constOrderingAttr = constOrdering.getValueAttr<cir::IntAttr>()) {
     cir::MemOrder ordering =
         static_cast<cir::MemOrder>(constOrderingAttr.getUInt());
 
@@ -446,10 +443,8 @@ RValue CIRGenFunction::emitRotate(const CallExpr *E, bool IsRotateRight) {
   // result, but the CIR ops uses the same type for all values.
   auto ty = src.getType();
   shiftAmt = builder.createIntCast(shiftAmt, ty);
-  auto r =
-      builder.create<cir::RotateOp>(getLoc(E->getSourceRange()), src, shiftAmt);
-  if (!IsRotateRight)
-    r->setAttr("left", mlir::UnitAttr::get(src.getContext()));
+  auto r = cir::RotateOp::create(builder, getLoc(E->getSourceRange()), src,
+                                 shiftAmt, !IsRotateRight);
   return RValue::get(r);
 }
 
@@ -477,15 +472,63 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
   switch (descriptor.Kind) {
   case IITDescriptor::Void:
     return VoidType::get(context);
-  case IITDescriptor::Integer:
-    return IntType::get(context, descriptor.Integer_Width, /*signed=*/true);
+  case IITDescriptor::VarArg:
+    llvm_unreachable("NYI: IITDescriptor::VarArg");
+  case IITDescriptor::MMX:
+    llvm_unreachable("NYI: IITDescriptor::MMX");
+  case IITDescriptor::Token:
+    llvm_unreachable("NYI: IITDescriptor::Token");
+  case IITDescriptor::Metadata:
+    llvm_unreachable("NYI: IITDescriptor::Metadata");
+  case IITDescriptor::Half:
+    llvm_unreachable("NYI: IITDescriptor::Half");
+  case IITDescriptor::BFloat:
+    llvm_unreachable("NYI: IITDescriptor::BFloat");
   case IITDescriptor::Float:
     return SingleType::get(context);
   case IITDescriptor::Double:
     return DoubleType::get(context);
-  default:
-    llvm_unreachable("NYI");
+  case IITDescriptor::Quad:
+    llvm_unreachable("NYI: IITDescriptor::Quad");
+  case IITDescriptor::Integer:
+    return IntType::get(context, descriptor.Integer_Width, /*isSigned=*/true);
+  case IITDescriptor::Vector: {
+    mlir::Type elementType = decodeFixedType(infos, context);
+    unsigned numElements = descriptor.Vector_Width.getFixedValue();
+    return cir::VectorType::get(context, elementType, numElements);
   }
+  case IITDescriptor::Pointer:
+    llvm_unreachable("NYI: IITDescriptor::Pointer");
+  case IITDescriptor::Struct:
+    llvm_unreachable("NYI: IITDescriptor::Struct");
+  case IITDescriptor::Argument:
+    llvm_unreachable("NYI: IITDescriptor::Argument");
+  case IITDescriptor::ExtendArgument:
+    llvm_unreachable("NYI: IITDescriptor::ExtendArgument");
+  case IITDescriptor::TruncArgument:
+    llvm_unreachable("NYI: IITDescriptor::TruncArgument");
+  case IITDescriptor::OneNthEltsVecArgument:
+    llvm_unreachable("NYI: IITDescriptor::OneNthEltsVecArgument");
+  case IITDescriptor::SameVecWidthArgument:
+    llvm_unreachable("NYI: IITDescriptor::SameVecWidthArgument");
+  case IITDescriptor::VecOfAnyPtrsToElt:
+    llvm_unreachable("NYI: IITDescriptor::VecOfAnyPtrsToElt");
+  case IITDescriptor::VecElementArgument:
+    llvm_unreachable("NYI: IITDescriptor::VecElementArgument");
+  case IITDescriptor::Subdivide2Argument:
+    llvm_unreachable("NYI: IITDescriptor::Subdivide2Argument");
+  case IITDescriptor::Subdivide4Argument:
+    llvm_unreachable("NYI: IITDescriptor::Subdivide4Argument");
+  case IITDescriptor::VecOfBitcastsToInt:
+    llvm_unreachable("NYI: IITDescriptor::VecOfBitcastsToInt");
+  case IITDescriptor::AMX:
+    llvm_unreachable("NYI: IITDescriptor::AMX");
+  case IITDescriptor::PPCQuad:
+    llvm_unreachable("NYI: IITDescriptor::PPCQuad");
+  case IITDescriptor::AArch64Svcount:
+    llvm_unreachable("NYI: IITDescriptor::AArch64Svcount");
+  }
+  llvm_unreachable("Unhandled IITDescriptor, must return from switch");
 }
 
 // llvm::Intrinsics accepts only LLVMContext. We need to reimplement it here.
@@ -1690,10 +1733,15 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     builder.createMemCpy(getLoc(E->getSourceRange()), Dest.getPointer(),
                          Src.getPointer(), SizeVal);
     if (BuiltinID == Builtin::BImempcpy ||
-        BuiltinID == Builtin::BI__builtin_mempcpy)
-      llvm_unreachable("mempcpy is NYI");
-    else
-      return RValue::get(Dest.getPointer());
+        BuiltinID == Builtin::BI__builtin_mempcpy) {
+      auto ppTy = builder.getPointerTo(builder.getUInt8PtrTy());
+      auto castBuf = builder.createBitcast(Dest.getPointer(), ppTy);
+      auto loc = getLoc(E->getSourceRange());
+      auto gep = cir::PtrStrideOp::create(builder, loc, ppTy, castBuf, SizeVal);
+      assert(!cir::MissingFeatures::emitCheckedInBoundsGEP());
+      return RValue::get(gep);
+    }
+    return RValue::get(Dest.getPointer());
   }
 
   case Builtin::BI__builtin_memcpy_inline: {
@@ -1844,8 +1892,37 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_unwind_init NYI");
   case Builtin::BI__builtin_extend_pointer:
     llvm_unreachable("BI__builtin_extend_pointer NYI");
-  case Builtin::BI__builtin_setjmp:
-    llvm_unreachable("BI__builtin_setjmp NYI");
+  case Builtin::BI__builtin_setjmp: {
+    Address buf = emitPointerWithAlignment(E->getArg(0));
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+
+    assert(!cir::MissingFeatures::emitCheckedInBoundsGEP());
+    if (getTarget().getTriple().isSystemZ()) {
+      llvm_unreachable("SYSTEMZ NYI");
+    }
+
+    mlir::Value frameaddress =
+        cir::FrameAddrOp::create(builder, loc, builder.getVoidPtrTy(),
+                                 mlir::ValueRange{builder.getUInt32(0, loc)})
+            .getResult();
+
+    cir::StoreOp::create(builder, loc, frameaddress, castBuf);
+    mlir::Value stacksave =
+        cir::StackSaveOp::create(builder, loc, builder.getVoidPtrTy())
+            .getResult();
+    cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
+        builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
+    cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
+    mlir::Value setjmpCall =
+        cir::LLVMIntrinsicCallOp::create(
+            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
+            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
+            .getResult();
+    return RValue::get(setjmpCall);
+  }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
   case Builtin::BI__builtin_launder: {
@@ -2337,9 +2414,17 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI_setjmpex:
     llvm_unreachable("BI_setjmpex NYI");
     break;
-  case Builtin::BI_setjmp:
-    llvm_unreachable("BI_setjmp NYI");
+  case Builtin::BI_setjmp: {
+    if (getTarget().getTriple().isOSMSVCRT() && E->getNumArgs() == 1 &&
+        E->getArg(0)->getType()->isPointerType()) {
+      if (getTarget().getTriple().getArch() == llvm::Triple::x86)
+        llvm_unreachable("NYI setjmp on x86");
+      else if (getTarget().getTriple().getArch() == llvm::Triple::aarch64)
+        llvm_unreachable("NYI setjmp on aarch64");
+      llvm_unreachable("NYI setjmp on generic MSVCRT");
+    }
     break;
+  }
 
   // C++ std:: builtins.
   case Builtin::BImove:
@@ -2380,7 +2465,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto fnOp =
         CGM.GetOrCreateCIRFunction(ND->getName(), ty, gd, /*ForVTable=*/false,
                                    /*DontDefer=*/false);
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    fnOp.setBuiltin(true);
     return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
                     ReturnValue);
   }

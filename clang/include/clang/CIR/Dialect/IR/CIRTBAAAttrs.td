@@ -13,6 +13,7 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 #define CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD
 
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
 
 //===----------------------------------------------------------------------===//
@@ -91,8 +92,8 @@ def CIR_TBAAScalarAttr : CIR_TBAAAttrCase< "TBAAScalar", "tbaa_scalar"> {
 }
 
 def CIR_TBAATagAttr : CIR_TBAAAttrCase<"TBAATag", "tbaa_tag"> {
-  let parameters = (ins CIR_TBAAAttr
-                    : $base, CIR_TBAAAttr
+  let parameters = (ins CIR_AnyTBAAAttr
+                    : $base, CIR_AnyTBAAAttr
                     : $access, "int64_t"
                     : $offset);
 
@@ -101,7 +102,7 @@ def CIR_TBAATagAttr : CIR_TBAAAttrCase<"TBAATag", "tbaa_tag"> {
 
 def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member"> {
   let summary = "Attribute representing a member of a TBAA structured type.";
-  let parameters = (ins "TBAAAttr":$type_desc,
+  let parameters = (ins CIR_AnyTBAAAttr:$type_desc,
                         "int64_t":$offset);
   let description = [{
     Define a TBAA struct attribute.
@@ -169,14 +170,5 @@ def CIR_TBAAStructAttr : CIR_TBAAAttrCase<"TBAAStruct", "tbaa_struct"> {
 
   let assemblyFormat = "`<` struct(params) `>`";
 }
-
-def CIR_AnyTBAAAttr : AnyAttrOf<[
-  CIR_TBAAAttr,
-  CIR_TBAAOmnipotentCharAttr,
-  CIR_TBAAVTablePointerAttr,
-  CIR_TBAAScalarAttr,
-  CIR_TBAAStructAttr,
-  CIR_TBAATagAttr
-]>;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTBAAATTRS_TD

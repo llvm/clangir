@@ -1333,8 +1333,8 @@ void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
 
 static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
                                        mlir::Operation *op, mlir::Type eltTy,
-                                       mlir::Value arrayAddr,
-                                       uint64_t arrayLen) {
+                                       mlir::Value arrayAddr, uint64_t arrayLen,
+                                       bool isCtor) {
   // Generate loop to call into ctor/dtor for every element.
   auto loc = op->getLoc();
 
@@ -1342,18 +1342,21 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
   // with CIRGen stuff.
   auto ptrDiffTy =
       cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
-  auto numArrayElementsConst = builder.create<cir::ConstantOp>(
-      loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, arrayLen));
+  uint64_t endOffset = isCtor ? arrayLen : arrayLen - 1;
+  mlir::Value endOffsetVal = builder.create<cir::ConstantOp>(
+      loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, endOffset));
 
   auto begin = builder.create<cir::CastOp>(
       loc, eltTy, cir::CastKind::array_to_ptrdecay, arrayAddr);
-  mlir::Value end = builder.create<cir::PtrStrideOp>(loc, eltTy, begin,
-                                                     numArrayElementsConst);
+  mlir::Value end =
+      builder.create<cir::PtrStrideOp>(loc, eltTy, begin, endOffsetVal);
+  mlir::Value start = isCtor ? begin : end;
+  mlir::Value stop = isCtor ? end : begin;
 
   auto tmpAddr = builder.createAlloca(
       loc, /*addr type*/ builder.getPointerTo(eltTy),
       /*var type*/ eltTy, "__array_idx", clang::CharUnits::One());
-  builder.createStore(loc, begin, tmpAddr);
+  builder.createStore(loc, start, tmpAddr);
 
   auto loop = builder.createDoWhile(
       loc,
@@ -1362,7 +1365,7 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
         auto currentElement = b.create<cir::LoadOp>(loc, eltTy, tmpAddr);
         mlir::Type boolTy = cir::BoolType::get(b.getContext());
         auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
-                                              currentElement, end);
+                                              currentElement, stop);
         builder.createCondition(cmp);
       },
       /*bodyBuilder=*/
@@ -1373,15 +1376,20 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
         op->walk([&](CallOp c) { ctorCall = c; });
         assert(ctorCall && "expected ctor call");
 
-        auto one = builder.create<cir::ConstantOp>(
-            loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, 1));
+        cir::ConstantOp stride;
+        if (isCtor)
+          stride = builder.create<cir::ConstantOp>(
+              loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, 1));
+        else
+          stride = builder.create<cir::ConstantOp>(
+              loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, -1));
 
-        ctorCall->moveAfter(one);
+        ctorCall->moveBefore(stride);
         ctorCall->setOperand(0, currentElement);
 
         // Advance pointer and store them to temporary variable
-        auto nextElement =
-            builder.create<cir::PtrStrideOp>(loc, eltTy, currentElement, one);
+        auto nextElement = builder.create<cir::PtrStrideOp>(
+            loc, eltTy, currentElement, stride);
         builder.createStore(loc, nextElement, tmpAddr);
         builder.createYield(loc);
       });
@@ -1397,7 +1405,7 @@ void LoweringPreparePass::lowerArrayDtor(ArrayDtor op) {
   auto eltTy = op->getRegion(0).getArgument(0).getType();
   auto arrayLen =
       mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee()).getSize();
-  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen);
+  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen, false);
 }
 
 static std::string getGlobalVarNameForConstString(cir::StoreOp op,
@@ -1412,7 +1420,7 @@ static std::string getGlobalVarNameForConstString(cir::StoreOp op,
     Out << "module.";
   }
 
-  auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(op.getAddr().getDefiningOp());
+  auto allocaOp = op.getAddr().getDefiningOp<cir::AllocaOp>();
   if (allocaOp && !allocaOp.getName().empty())
     Out << allocaOp.getName();
   else
@@ -1423,8 +1431,7 @@ static std::string getGlobalVarNameForConstString(cir::StoreOp op,
 void LoweringPreparePass::lowerToMemCpy(StoreOp op) {
   // Now that basic filter is done, do more checks before proceding with the
   // transformation.
-  auto cstOp =
-      dyn_cast_if_present<cir::ConstantOp>(op.getValue().getDefiningOp());
+  auto cstOp = op.getValue().getDefiningOp<cir::ConstantOp>();
   if (!cstOp)
     return;
 
@@ -1461,7 +1468,7 @@ void LoweringPreparePass::lowerArrayCtor(ArrayCtor op) {
   auto eltTy = op->getRegion(0).getArgument(0).getType();
   auto arrayLen =
       mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee()).getSize();
-  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen);
+  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen, true);
 }
 
 void LoweringPreparePass::lowerStdFindOp(StdFindOp op) {
