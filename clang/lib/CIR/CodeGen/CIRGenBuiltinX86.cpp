@@ -1053,18 +1053,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     unsigned numElts = vecTy.getSize();
     auto eltTy = vecTy.getElementType();
 
-    assert(isSized(eltTy) && "Element type must be a sized type");
-
-    unsigned eltBitWidth =
-        llvm::TypeSwitch<mlir::Type, unsigned>(eltTy)
-            .Case<cir::IntType>([](auto intTy) { return intTy.getWidth(); })
-            .Case<cir::SingleType>([](auto) { return 32; })
-            .Case<cir::DoubleType>([](auto) { return 64; })
-            .Default([](auto) {
-              llvm_unreachable("NYI: Unsupported type");
-              return 0;
-            });
-
+    unsigned eltBitWidth = getTypeSizeInBits(eltTy).getFixedValue();
     unsigned vecBitWidth = numElts * eltBitWidth;
     unsigned numLanes = vecBitWidth / 128;
     unsigned numLaneElts = numElts / numLanes;
