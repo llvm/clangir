@@ -4724,12 +4724,11 @@ def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
     ```
   }];
 
-  let arguments = (ins CIR_PointerType:$env, UnitAttr:$builtin);
+  let arguments = (ins CIR_PointerType:$env, UnitAttr:$is_builtin);
   let results = (outs CIR_SInt32:$res);
   let assemblyFormat = [{
-      $env `:` type($env)
-      (`,` `builtin` $builtin^)?
-      `->` type(results) attr-dict
+      (`builtin` $is_builtin^)?
+      $env `:` functional-type($env, results) attr-dict
     }];
 }
 

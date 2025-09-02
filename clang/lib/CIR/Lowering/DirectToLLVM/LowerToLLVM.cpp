@@ -4291,12 +4291,14 @@ mlir::LogicalResult CIRToLLVMEhSetjmpOpLowering::matchAndRewrite(
     cir::EhSetjmp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::Type returnType = typeConverter->convertType(op.getType());
-  if (op.getBuiltin()) {
+  if (op.getIsBuiltin()) {
     mlir::LLVM::CallIntrinsicOp newOp =
         createCallLLVMIntrinsicOp(rewriter, op.getLoc(), "llvm.eh.sjlj.setjmp",
                                   returnType, adaptor.getEnv());
     rewriter.replaceOp(op, newOp);
-  } else {
+    return mlir::success();
+  }
+
     StringRef fnName = "_setjmp";
     auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
     auto fnType = mlir::LLVM::LLVMFunctionType::get(returnType, llvmPtrTy,
@@ -4304,8 +4306,7 @@ mlir::LogicalResult CIRToLLVMEhSetjmpOpLowering::matchAndRewrite(
     getOrCreateLLVMFuncOp(rewriter, op, fnName, fnType);
     rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, returnType, fnName,
                                                     adaptor.getEnv());
-  }
-  return mlir::success();
+    return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMCatchParamOpLowering::matchAndRewrite(
