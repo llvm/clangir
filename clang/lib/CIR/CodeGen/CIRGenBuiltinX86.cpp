@@ -158,6 +158,44 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
   return cgf.getBuilder().createCast(loc, cir::CastKind::integral, mask, dstTy);
 }
 
+static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
+                                           const CallExpr *E,
+                                           ArrayRef<mlir::Value> Ops) {
+
+  auto &builder = cgf.getBuilder();
+  auto loc = cgf.getLoc(E->getExprLoc());
+
+  unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
+  auto resultType = cast<cir::VectorType>(Ops[0].getType());
+
+  unsigned numElts = resultType.getSize() * 8;
+  if (shiftVal >= 16)
+    return builder.getZero(loc, resultType);
+
+  llvm::SmallVector<int64_t, 64> indices;
+
+  for (unsigned l = 0; l != numElts; l += 16) {
+    for (unsigned i = 0; i != 16; ++i) {
+      unsigned idx = numElts + i - shiftVal;
+      if (idx < numElts)
+        idx -= numElts - 16;
+      indices.push_back(idx + l);
+    }
+  }
+
+  // Cast to byte vector for shuffle operation
+  auto byteVecTy = cir::VectorType::get(builder.getSInt8Ty(), numElts);
+  mlir::Value byteCast = builder.createBitcast(Ops[0], byteVecTy);
+  mlir::Value zero = builder.getZero(loc, byteVecTy);
+
+  // Perform the shuffle (left shift by inserting zeros)
+  mlir::Value shuffleResult =
+      builder.createVecShuffle(loc, zero, byteCast, indices);
+
+  // Cast back to original type
+  return builder.createBitcast(shuffleResult, resultType);
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -1119,7 +1157,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_pslldqi128_byteshift:
   case X86::BI__builtin_ia32_pslldqi256_byteshift:
   case X86::BI__builtin_ia32_pslldqi512_byteshift:
-    llvm_unreachable("pslldqi NYI");
+    return emitX86PSLLDQIByteShift(*this, E, Ops);
   case X86::BI__builtin_ia32_psrldqi128_byteshift:
   case X86::BI__builtin_ia32_psrldqi256_byteshift:
   case X86::BI__builtin_ia32_psrldqi512_byteshift:
