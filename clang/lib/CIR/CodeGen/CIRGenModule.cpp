@@ -2760,11 +2760,28 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
           ctorKind = cir::CtorKind::Default;
         if (ctor->isCopyConstructor())
           ctorKind = cir::CtorKind::Copy;
+        if (ctor->isMoveConstructor())
+          ctorKind = cir::CtorKind::Move;
 
         auto cxxCtor = cir::CXXCtorAttr::get(
             convertType(getASTContext().getRecordType(ctor->getParent())),
             ctorKind);
         f.setCxxSpecialMemberAttr(cxxCtor);
+      }
+
+      auto method = dyn_cast<CXXMethodDecl>(fd);
+      if (method && (method->isCopyAssignmentOperator() ||
+                     method->isMoveAssignmentOperator())) {
+        cir::AssignKind assignKind;
+        if (method->isCopyAssignmentOperator())
+          assignKind = cir::AssignKind::Copy;
+        if (method->isMoveAssignmentOperator())
+          assignKind = cir::AssignKind::Move;
+
+        auto cxxAssign = cir::CXXAssignAttr::get(
+            convertType(getASTContext().getRecordType(method->getParent())),
+            assignKind);
+        f.setCxxSpecialMemberAttr(cxxAssign);
       }
     }
 
