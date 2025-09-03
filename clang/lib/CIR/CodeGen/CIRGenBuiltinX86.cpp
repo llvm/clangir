@@ -158,6 +158,48 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
   return cgf.getBuilder().createCast(loc, cir::CastKind::integral, mask, dstTy);
 }
 
+static mlir::Value emitX86PSRLDQIByteShift(CIRGenFunction &cgf,
+                                           const CallExpr *E,
+                                           ArrayRef<mlir::Value> Ops) {
+  auto &builder = cgf.getBuilder();
+  auto resultType = cast<cir::VectorType>(Ops[0].getType());
+  auto loc = cgf.getLoc(E->getExprLoc());
+  unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
+
+  // If psrldq is shifting the vector more than 15 bytes, emit zero.
+  if (shiftVal >= 16)
+    return builder.getZero(loc, resultType); 
+
+  auto numElts = resultType.getSize() * 8;
+  assert(numElts % 16 == 0 && "Expected a multiple of 16");
+
+  llvm::SmallVector<int64_t, 64> indices;
+
+  // This correlates to the OG CodeGen
+  // As stated in the OG, 256/512-bit psrldq operates on 128-bit lanes.
+  // So we have to make sure we handle it. 
+  for (unsigned l = 0; l < numElts; l += 16) {
+    for (unsigned i = 0; i < 16; ++i) {
+      unsigned idx = i + shiftVal;
+      if (idx >= 16)
+        idx += numElts - 16;
+      indices.push_back(idx + l);
+    }
+  }
+
+  auto byteVecTy = cir::VectorType::get(builder.getSInt8Ty(), numElts);
+  mlir::Value byteCast = builder.createBitcast(Ops[0], byteVecTy);
+  mlir::Value zero = builder.getZero(loc, byteVecTy);
+
+  // Perform the shuffle (right shift by inserting zeros from the left)
+  mlir::Value shuffleResult =
+      builder.createVecShuffle(loc, byteCast, zero, indices);
+
+  // Cast back to original type
+  return builder.createBitcast(shuffleResult, resultType);
+}
+
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -1112,7 +1154,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_psrldqi128_byteshift:
   case X86::BI__builtin_ia32_psrldqi256_byteshift:
   case X86::BI__builtin_ia32_psrldqi512_byteshift:
-    llvm_unreachable("psrldqi NYI");
+    emitX86PSRLDQIByteShift(*this, E, Ops);
   case X86::BI__builtin_ia32_kshiftliqi:
   case X86::BI__builtin_ia32_kshiftlihi:
   case X86::BI__builtin_ia32_kshiftlisi:
