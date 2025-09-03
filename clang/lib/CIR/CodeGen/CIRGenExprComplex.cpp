@@ -171,9 +171,12 @@ public:
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     llvm_unreachable("NYI");
   }
+
   mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
-    llvm_unreachable("NYI");
+    CIRGenFunction::CXXDefaultInitExprScope Scope(CGF, DIE);
+    return Visit(DIE->getExpr());
   }
+
   mlir::Value VisitExprWithCleanups(ExprWithCleanups *E) {
     CIRGenFunction::RunCleanupsScope Scope(CGF);
     mlir::Value V = Visit(E->getSubExpr());
