@@ -532,13 +532,17 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
 }
 
 // llvm::Intrinsics accepts only LLVMContext. We need to reimplement it here.
-// Takes AST information to infer correct signedness when
-// IIT returns signed but AST shows unsigned in Function Decl (indicating
-// intrinsic expects unsigned)
-static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
-                                      llvm::Intrinsic::ID id,
-                                      const CallExpr *E) {
-  using namespace llvm::Intrinsic;
+/// Helper function to correct integer signedness for intrinsic arguments.
+/// IIT always returns signed integers, but the actual intrinsic may expect
+/// unsigned integers based on the AST FunctionDecl parameter types.
+static mlir::Type
+correctIntrinsicIntegerSignedness(mlir::Type iitType, const CallExpr *E,
+                                  unsigned argIndex,
+                                  mlir::MLIRContext *context) {
+  // If it's not an integer type, return as-is
+  auto intTy = dyn_cast<cir::IntType>(iitType);
+  if (!intTy)
+    return iitType;
 
   // Get the FunctionDecl from the CallExpr
   const FunctionDecl *FD = nullptr;
@@ -547,41 +551,32 @@ static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
     FD = dyn_cast<FunctionDecl>(DRE->getDecl());
   }
 
+  // If we have FunctionDecl and this argument exists, check its signedness
+  if (FD && argIndex < FD->getNumParams()) {
+    QualType paramType = FD->getParamDecl(argIndex)->getType();
+    if (paramType->isUnsignedIntegerType()) {
+      // Create unsigned version of the type
+      return IntType::get(context, intTy.getWidth(), /*isSigned=*/false);
+    }
+  }
+
+  // Default: keep IIT type (signed)
+  return iitType;
+}
+
+static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
+                                      llvm::Intrinsic::ID id) {
+  using namespace llvm::Intrinsic;
+
   SmallVector<IITDescriptor, 8> table;
   getIntrinsicInfoTableEntries(id, table);
 
   ArrayRef<IITDescriptor> tableRef = table;
   mlir::Type resultTy = decodeFixedType(tableRef, context);
 
-  // Use FunctionDecl return type if available
-  if (auto intTy = dyn_cast<cir::IntType>(resultTy)) {
-    if (FD && FD->getReturnType()->isUnsignedIntegerType()) {
-      resultTy = IntType::get(context, intTy.getWidth(), /*signed=*/false);
-    }
-    // Otherwise keep IIT default (signed)
-  }
-
   SmallVector<mlir::Type, 8> argTypes;
-  unsigned argIndex = 0;
-  while (!tableRef.empty()) {
-    mlir::Type argTy = decodeFixedType(tableRef, context);
-
-    // Adjust argument type signedness based on FunctionDecl parameter
-    // definition
-    if (auto intTy = dyn_cast<cir::IntType>(argTy)) {
-      if (FD && argIndex < FD->getNumParams()) {
-        QualType paramType = FD->getParamDecl(argIndex)->getType();
-        if (paramType->isUnsignedIntegerType()) {
-          argTy = IntType::get(context, intTy.getWidth(), /*signed=*/false);
-        }
-        // Otherwise keep IIT default (signed)
-      }
-      // If no FunctionDecl, keep IIT default (signed)
-    }
-
-    argTypes.push_back(argTy);
-    argIndex++;
-  }
+  while (!tableRef.empty())
+    argTypes.push_back(decodeFixedType(tableRef, context));
 
   return FuncType::get(argTypes, resultTy);
 }
@@ -2763,7 +2758,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       assert(false && "bad intrinsic name!");
 
     cir::FuncType intrinsicType =
-        getIntrinsicType(&getMLIRContext(), intrinsicID, E);
+        getIntrinsicType(&getMLIRContext(), intrinsicID);
 
     SmallVector<mlir::Value> args;
     for (unsigned i = 0; i < E->getNumArgs(); i++) {
@@ -2772,10 +2767,15 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       // we need to do a bit cast.
       mlir::Type argType = argValue.getType();
       mlir::Type expectedTy = intrinsicType.getInput(i);
-      if (argType != expectedTy) {
+
+      // Use helper to get the correct integer type based on AST signedness
+      mlir::Type correctedExpectedTy = correctIntrinsicIntegerSignedness(
+          expectedTy, E, i, &getMLIRContext());
+
+      if (argType != correctedExpectedTy) {
         // XXX - vector of pointers?
         if (cir::PointerType expectedPtrTy =
-                dyn_cast<cir::PointerType>(expectedTy)) {
+                dyn_cast<cir::PointerType>(correctedExpectedTy)) {
           if (cir::PointerType argPtrTy = dyn_cast<cir::PointerType>(argType)) {
             if (expectedPtrTy.getAddrSpace() != argPtrTy.getAddrSpace()) {
               argValue = builder.createAddrSpaceCast(
@@ -2787,7 +2787,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         }
         // TODO(cir): Cast vector type (e.g., v256i32) to x86_amx, this only
         // happens in amx intrinsics.
-        argValue = builder.createBitcast(argValue, expectedTy);
+        if (cir::MissingFeatures::vectorToX86AmxCasting())
+          llvm_unreachable("NYI");
+
+        argValue = builder.createBitcast(argValue, correctedExpectedTy);
       }
 
       args.push_back(argValue);
