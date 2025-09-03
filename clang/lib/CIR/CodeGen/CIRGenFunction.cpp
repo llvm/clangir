@@ -774,6 +774,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         ctorKind = cir::CtorKind::Default;
       if (ctor->isCopyConstructor())
         ctorKind = cir::CtorKind::Copy;
+      if (ctor->isMoveConstructor())
+        ctorKind = cir::CtorKind::Move;
 
       auto cxxCtor = cir::CXXCtorAttr::get(
           convertType(getContext().getRecordType(ctor->getParent())), ctorKind);
@@ -792,6 +794,19 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     } else if (fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
                (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
                 cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator())) {
+      // Attach the special member attribute to the assignment operator.
+      auto method = cast<CXXMethodDecl>(fd);
+      cir::AssignKind assignKind;
+      if (method->isCopyAssignmentOperator())
+        assignKind = cir::AssignKind::Copy;
+      if (method->isMoveAssignmentOperator())
+        assignKind = cir::AssignKind::Move;
+
+      auto cxxAssign = cir::CXXAssignAttr::get(
+          convertType(getContext().getRecordType(method->getParent())),
+          assignKind);
+      fn.setCxxSpecialMemberAttr(cxxAssign);
+
       // Implicit copy-assignment gets the same special treatment as implicit
       // copy-constructors.
       emitImplicitAssignmentOperatorBody(args);

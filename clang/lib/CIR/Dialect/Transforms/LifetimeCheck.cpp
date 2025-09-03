@@ -1793,16 +1793,21 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
   if (auto fnName = callOp.getCallee()) {
-    auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
-    if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember())
-      if (auto cxxCtor =
-              dyn_cast<cir::CXXCtorAttr>(*calleeFuncOp.getCxxSpecialMember()))
+    if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember()) {
+      auto cxxSpecialMember = *calleeFuncOp.getCxxSpecialMember();
+      if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(cxxSpecialMember))
         return checkCtor(callOp, cxxCtor);
+
+      if (auto cxxAssign = dyn_cast<cir::CXXAssignAttr>(cxxSpecialMember)) {
+        switch (cxxAssign.getAssignKind()) {
+        case cir::AssignKind::Move:
+          return checkMoveAssignment(callOp, methodDecl);
+        case cir::AssignKind::Copy:
+          return checkCopyAssignment(callOp, methodDecl);
+        }
+      }
+    }
   }
-  if (methodDecl.isMoveAssignmentOperator())
-    return checkMoveAssignment(callOp, methodDecl);
-  if (methodDecl.isCopyAssignmentOperator())
-    return checkCopyAssignment(callOp, methodDecl);
   if (methodDecl.isOverloadedOperator())
     return checkOperators(callOp, methodDecl);
 
