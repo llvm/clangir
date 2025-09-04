@@ -4712,19 +4712,20 @@ def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
     Examples:
     ```mlir
       // Specify setjmp is builtin.
-      %0 = cir.eh.setjmp %arg0 : <!cir.ptr<!void>>, builtin -> !s32i
+      %0 = cir.eh.setjmp builtin %arg0 : (!cir.ptr<!cir.void>) -> !s32i
 
       // Specify setjmp is not builtin.
-      %0 = cir.eh.setjmp %arg0 : <!cir.ptr<!void>> -> !s32i
+      %0 = cir.eh.setjmp %arg0 : (!cir.ptr<!cir.void>) -> !s32i
     ```
   }];
-
   let arguments = (ins CIR_PointerType:$env, UnitAttr:$is_builtin);
+
   let results = (outs CIR_SInt32:$res);
+
   let assemblyFormat = [{
       (`builtin` $is_builtin^)?
       $env `:` functional-type($env, results) attr-dict
-    }];
+  }];
 }
 
 //===----------------------------------------------------------------------===//
