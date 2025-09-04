@@ -50,7 +50,7 @@ double f1(int n, ...) {
 // AFTER-NEXT: [[VR_TOP_P:%.*]] = cir.get_member [[VARLIST]][2] {name = "vr_top"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: [[VR_TOP:%.*]] = cir.load{{.*}} [[VR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[TMP2:%.*]] = cir.cast(bitcast, [[VR_TOP]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<i8>, [[VR_OFFS]] : !s32i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride [[TMP2]], [[VR_OFFS]] : (!cir.ptr<i8>, !s32i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<i8>), !cir.ptr<!void>
 // AFTER-NEXT: cir.br [[BB_END:\^bb.*]]([[IN_REG_OUTPUT]] : !cir.ptr<!void>)
 
@@ -60,7 +60,7 @@ double f1(int n, ...) {
 // AFTER-NEXT: [[STACK_V:%.*]] = cir.load{{.*}} [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[EIGHT_IN_PTR_ARITH:%.*]]  = cir.const #cir.int<8> : !u64i
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride [[TMP4]], [[EIGHT_IN_PTR_ARITH]] : (!cir.ptr<i8>, !u64i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
 // AFTER-NEXT: cir.store{{.*}} [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)

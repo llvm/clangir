@@ -28,7 +28,7 @@ void foo() {
 // CHECK:     %[[VAL_9:.*]] = cir.const #cir.int<0> : !s32i
 // CHECK:     cir.store{{.*}} %[[VAL_9]], %[[VAL_8]] : !s32i, !cir.ptr<!s32i>
 // CHECK:     %[[VAL_10:.*]] = cir.const #cir.int<1> : !s64i
-// CHECK:     %[[VAL_11:.*]] = cir.ptr_stride(%[[VAL_8]] : !cir.ptr<!s32i>, %[[VAL_10]] : !s64i), !cir.ptr<!s32i>
+// CHECK:     %[[VAL_11:.*]] = cir.ptr_stride %[[VAL_8]], %[[VAL_10]] : (!cir.ptr<!s32i>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:     cir.store{{.*}} %[[VAL_11]], %[[VAL_1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK:     cir.yield
 // CHECK: } while {
