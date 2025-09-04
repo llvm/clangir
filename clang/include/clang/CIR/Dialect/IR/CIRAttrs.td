@@ -1340,8 +1340,10 @@ def CIR_CXXAssignAttr : CIR_Attr<"CXXAssign", "cxx_assign"> {
     The `copy` kind is used if the assignment operator is a copy assignment operator.
     The `move` kind is used if the assignment operator is a move assignment operator.
   }];
-  let parameters = (ins "mlir::Type":$type,
-                        EnumParameter<CIR_AssignKind>:$assignKind);
+  let parameters = (ins
+    "mlir::Type":$type,
+    EnumParameter<CIR_AssignKind>:$assignKind
+  );
 
   let assemblyFormat = [{
     `<` $type `,` $assignKind `>`
