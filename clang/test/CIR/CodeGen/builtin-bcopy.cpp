@@ -4,7 +4,7 @@
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
 void foo(void) {
-  // CIR-LABEL: cir.func dso_local @foo()
+  // CIR-LABEL: cir.func dso_local @_Z3foov()
   // CIR: %[[V0:.*]] = cir.alloca !cir.array<!cir.float x 4>, !cir.ptr<!cir.array<!cir.float x 4>>, ["f4"] {alignment = 16 : i64}
   // CIR: %[[V1:.*]] = cir.alloca !cir.array<!cir.float x 8>, !cir.ptr<!cir.array<!cir.float x 8>>, ["f8"] {alignment = 16 : i64}
   // CIR: %[[V2:.*]] = cir.cast(array_to_ptrdecay, %[[V0]] : !cir.ptr<!cir.array<!cir.float x 4>>), !cir.ptr<!cir.float>
@@ -18,7 +18,7 @@ void foo(void) {
   // CIR: cir.libc.memmove %[[V9]] bytes from %[[V3]] to %[[V5]] : !cir.ptr<!void>, !u64i
   // CIR: cir.return
 
-  // LLVM-LABEL: define dso_local void @foo()
+  // LLVM-LABEL: define dso_local void @_Z3foov()
   // LLVM: %[[V1:.*]] = alloca [4 x float], i64 1, align 16
   // LLVM: %[[V2:.*]] = alloca [8 x float], i64 1, align 16
   // LLVM: %[[V3:.*]] = getelementptr float, ptr %[[V1]], i32 0
@@ -32,11 +32,11 @@ void foo(void) {
 }
 
 void test_conditional_bcopy(void) {
-  // CIR-LABEL: cir.func dso_local @test_conditional_bcopy()
+  // CIR-LABEL: cir.func dso_local @_Z22test_conditional_bcopyv()
   // CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} : !cir.ptr<!void>, !u64i
   // CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} : !cir.ptr<!void>, !u64i
 
-  // LLVM-LABEL: define{{.*}} void @test_conditional_bcopy
+  // LLVM-LABEL: define{{.*}} void @_Z22test_conditional_bcopyv
   // LLVM: call void @llvm.memmove
   // LLVM: call void @llvm.memmove
   // LLVM-NOT: phi
@@ -49,11 +49,11 @@ void test_conditional_bcopy(void) {
 }
 
 void another_conditional_bcopy(char *dst, char *src, int sz, int len) {
-  // CIR-LABEL: cir.func dso_local @another_conditional_bcopy
+  // CIR-LABEL: cir.func dso_local @_Z25another_conditional_bcopyPcS_ii
   // CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} : !cir.ptr<!void>, !u64i
   // CIR: cir.libc.memmove {{.*}} bytes from {{.*}} to {{.*}} : !cir.ptr<!void>, !u64i
 
-  // LLVM-LABEL: define{{.*}} void @another_conditional_bcopy
+  // LLVM-LABEL: define{{.*}} void @_Z25another_conditional_bcopyPcS_ii
   // LLVM: call void @llvm.memmove
   // LLVM: call void @llvm.memmove
   // LLVM-NOT: phi
@@ -62,4 +62,16 @@ void another_conditional_bcopy(char *dst, char *src, int sz, int len) {
     __builtin_bcopy(src, dst, len);
   else
     __builtin_bcopy(src, dst, len * 2);
+}
+
+#define size_t __SIZE_TYPE__
+
+extern "C" void bcopy(const void *__src, void *__dest, size_t __n);
+
+// LLVM: @_Z9testbcopyPKvPvm(
+// LLVM:         call void @llvm.memmove.p0.p0.i64(ptr {{.*}}, ptr {{.*}}, i64 {{.*}}, i1 false)
+// LLVM:    ret void
+
+void testbcopy(const void *src, void *dest, size_t n) {
+  bcopy(src, dest, n);
 }
