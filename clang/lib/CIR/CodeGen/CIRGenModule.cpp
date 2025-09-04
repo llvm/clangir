@@ -2747,43 +2747,8 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     f.setExtraAttrsAttr(
         cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
-    if (fd) {
-      if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
-        auto cxxDtor = cir::CXXDtorAttr::get(
-            convertType(getASTContext().getRecordType(dtor->getParent())));
-        f.setCxxSpecialMemberAttr(cxxDtor);
-      }
-
-      if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
-        cir::CtorKind ctorKind = cir::CtorKind::Custom;
-        if (ctor->isDefaultConstructor())
-          ctorKind = cir::CtorKind::Default;
-        if (ctor->isCopyConstructor())
-          ctorKind = cir::CtorKind::Copy;
-        if (ctor->isMoveConstructor())
-          ctorKind = cir::CtorKind::Move;
-
-        auto cxxCtor = cir::CXXCtorAttr::get(
-            convertType(getASTContext().getRecordType(ctor->getParent())),
-            ctorKind);
-        f.setCxxSpecialMemberAttr(cxxCtor);
-      }
-
-      auto method = dyn_cast<CXXMethodDecl>(fd);
-      if (method && (method->isCopyAssignmentOperator() ||
-                     method->isMoveAssignmentOperator())) {
-        cir::AssignKind assignKind;
-        if (method->isCopyAssignmentOperator())
-          assignKind = cir::AssignKind::Copy;
-        if (method->isMoveAssignmentOperator())
-          assignKind = cir::AssignKind::Move;
-
-        auto cxxAssign = cir::CXXAssignAttr::get(
-            convertType(getASTContext().getRecordType(method->getParent())),
-            assignKind);
-        f.setCxxSpecialMemberAttr(cxxAssign);
-      }
-    }
+    // Set the special member attribute for this function, if applicable.
+    setCXXSpecialMemberAttr(f, fd);
 
     if (!curCGF)
       theModule.push_back(f);
@@ -2798,6 +2763,48 @@ CIRGenModule::createCIRBuiltinFunction(mlir::Location loc, StringRef name,
   cir::FuncOp fnOp = createCIRFunction(loc, name, ty, fd);
   fnOp.setBuiltin(true);
   return fnOp;
+}
+
+void CIRGenModule::setCXXSpecialMemberAttr(
+    cir::FuncOp funcOp, const clang::FunctionDecl *funcDecl) {
+  if (!funcDecl)
+    return;
+
+  if (auto dtor = dyn_cast<CXXDestructorDecl>(funcDecl)) {
+    auto cxxDtor = cir::CXXDtorAttr::get(
+        convertType(getASTContext().getRecordType(dtor->getParent())));
+    funcOp.setCxxSpecialMemberAttr(cxxDtor);
+  }
+
+  if (auto ctor = dyn_cast<CXXConstructorDecl>(funcDecl)) {
+    cir::CtorKind ctorKind = cir::CtorKind::Custom;
+    if (ctor->isDefaultConstructor())
+      ctorKind = cir::CtorKind::Default;
+    if (ctor->isCopyConstructor())
+      ctorKind = cir::CtorKind::Copy;
+    if (ctor->isMoveConstructor())
+      ctorKind = cir::CtorKind::Move;
+
+    auto cxxCtor = cir::CXXCtorAttr::get(
+        convertType(getASTContext().getRecordType(ctor->getParent())),
+        ctorKind);
+    funcOp.setCxxSpecialMemberAttr(cxxCtor);
+  }
+
+  auto method = dyn_cast<CXXMethodDecl>(funcDecl);
+  if (method && (method->isCopyAssignmentOperator() ||
+                 method->isMoveAssignmentOperator())) {
+    cir::AssignKind assignKind;
+    if (method->isCopyAssignmentOperator())
+      assignKind = cir::AssignKind::Copy;
+    if (method->isMoveAssignmentOperator())
+      assignKind = cir::AssignKind::Move;
+
+    auto cxxAssign = cir::CXXAssignAttr::get(
+        convertType(getASTContext().getRecordType(method->getParent())),
+        assignKind);
+    funcOp.setCxxSpecialMemberAttr(cxxAssign);
+  }
 }
 
 cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
