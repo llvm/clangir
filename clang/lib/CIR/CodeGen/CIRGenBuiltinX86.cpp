@@ -161,24 +161,29 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
 static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
                                            const CallExpr *E,
                                            ArrayRef<mlir::Value> Ops) {
-
   auto &builder = cgf.getBuilder();
-  auto loc = cgf.getLoc(E->getExprLoc());
-
   unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
+  auto loc = cgf.getLoc(E->getExprLoc());
   auto resultType = cast<cir::VectorType>(Ops[0].getType());
 
-  unsigned numElts = resultType.getSize() * 8;
+  // If pslldq is shifting the vector more than 15 bytes, emit zero.
+  // This matches the hardware behavior where shifting by 16+ bytes
+  // clears the entire 128-bit lane.
   if (shiftVal >= 16)
     return builder.getZero(loc, resultType);
 
+  // Builtin type is vXi64 so multiply by 8 to get bytes.
+  unsigned numElts = resultType.getSize() * 8;
+  assert(numElts % 16 == 0 && "Vector size must be multiple of 16 bytes");
+
   llvm::SmallVector<int64_t, 64> indices;
 
-  for (unsigned l = 0; l != numElts; l += 16) {
+  // 256/512-bit pslldq operates on 128-bit lanes so we need to handle that
+  for (unsigned l = 0; l < numElts; l += 16) {
     for (unsigned i = 0; i != 16; ++i) {
       unsigned idx = numElts + i - shiftVal;
       if (idx < numElts)
-        idx -= numElts - 16;
+        idx -= numElts - 16; // end of lane, switch operand.
       indices.push_back(idx + l);
     }
   }
