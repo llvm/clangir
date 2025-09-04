@@ -763,9 +763,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
     if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
-      auto cxxDtor = cir::CXXDtorAttr::get(
-          convertType(getContext().getRecordType(dtor->getParent())));
-      fn.setCxxSpecialMemberAttr(cxxDtor);
+      // Attach the special member attribute to the destructor.
+      CGM.setCXXSpecialMemberAttr(fn, dtor);
 
       emitDestructorBody(args);
     } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
@@ -795,17 +794,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
                (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
                 cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator())) {
       // Attach the special member attribute to the assignment operator.
-      auto method = cast<CXXMethodDecl>(fd);
-      cir::AssignKind assignKind;
-      if (method->isCopyAssignmentOperator())
-        assignKind = cir::AssignKind::Copy;
-      if (method->isMoveAssignmentOperator())
-        assignKind = cir::AssignKind::Move;
-
-      auto cxxAssign = cir::CXXAssignAttr::get(
-          convertType(getContext().getRecordType(method->getParent())),
-          assignKind);
-      fn.setCxxSpecialMemberAttr(cxxAssign);
+      CGM.setCXXSpecialMemberAttr(fn, fd);
 
       // Implicit copy-assignment gets the same special treatment as implicit
       // copy-constructors.
