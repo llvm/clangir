@@ -1044,6 +1044,8 @@ def CIR_YieldOp : CIR_Op<"yield", [
 // BreakOp
 //===----------------------------------------------------------------------===//
 
+def CIR_Breakable : NativeOpTrait<"cir::Breakable">;
+
 def CIR_BreakOp : CIR_Op<"break", [Terminator]> {
   let summary = "C/C++ `break` statement equivalent";
   let description = [{
@@ -1053,6 +1055,10 @@ def CIR_BreakOp : CIR_Op<"break", [Terminator]> {
   }];
   let assemblyFormat = "attr-dict";
   let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    /// Find the parent operation corresponding to this break.
+    mlir::Operation *getBreakTarget();
+    }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -1993,7 +1999,8 @@ def CIR_CaseOp : CIR_Op<"case", [
 def CIR_SwitchOp : CIR_Op<"switch", [
   SameVariadicOperandSize,
   DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments
+  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments,
+  CIR_Breakable
 ]> {
   let summary = "Switch operation";
   let description = [{
@@ -2251,7 +2258,7 @@ def CIR_BrCondOp : CIR_Op<"brcond", [
 //===----------------------------------------------------------------------===//
 
 class CIR_WhileOpBase<string mnemonic> : CIR_Op<mnemonic, [
-  CIR_LoopOpInterface, NoRegionArguments
+  CIR_LoopOpInterface, CIR_Breakable, NoRegionArguments
 ]> {
   defvar isWhile = !eq(mnemonic, "while");
   let summary = "C/C++ " # !if(isWhile, "while", "do-while") # " loop";
@@ -2327,7 +2334,7 @@ def CIR_DoWhileOp : CIR_WhileOpBase<"do"> {
 // ForOp
 //===----------------------------------------------------------------------===//
 
-def CIR_ForOp : CIR_Op<"for", [CIR_LoopOpInterface, NoRegionArguments]> {
+def CIR_ForOp : CIR_Op<"for", [CIR_LoopOpInterface, CIR_Breakable, NoRegionArguments]> {
   let summary = "C/C++ for loop counterpart";
   let description = [{
     Represents a C/C++ for loop. It consists of three regions:
