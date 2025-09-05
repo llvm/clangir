@@ -74,7 +74,7 @@ void testPointerDecaySubscriptAccess(int arr[]) {
   // CHECK: %[[#TWO:]] = cir.const #cir.int<2> : !s32i
   // CHECK: %[[#BASE:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CHECK: %[[#DIM1:]] = cir.const #cir.int<1> : !s32i
-  // CHECK: %[[#ELEM:]] = cir.ptr_stride(%[[#BASE]] : !cir.ptr<!s32i>, %[[#DIM1]] : !s32i), !cir.ptr<!s32i>
+  // CHECK: %[[#ELEM:]] = cir.ptr_stride %[[#BASE]], %[[#DIM1]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
   // CHECK: cir.store{{.*}} %[[#TWO]], %[[#ELEM]] : !s32i, !cir.ptr<!s32i>
 }
 
@@ -84,7 +84,7 @@ void testPointerDecayedArrayMultiDimSubscriptAccess(int arr[][3]) {
   // CHECK: %[[#THREE:]] = cir.const #cir.int<3> : !s32i
   // CHECK: %[[#ARRAY:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 3>>>, !cir.ptr<!cir.array<!s32i x 3>>
   // CHECK: %[[#ONE:]] = cir.const #cir.int<1> : !s32i
-  // CHECK: %[[#OUTER:]] = cir.ptr_stride(%[[#ARRAY]] : !cir.ptr<!cir.array<!s32i x 3>>, %[[#ONE]] : !s32i), !cir.ptr<!cir.array<!s32i x 3>>
+  // CHECK: %[[#OUTER:]] = cir.ptr_stride %[[#ARRAY]], %[[#ONE]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!cir.array<!s32i x 3>>
   // CHECK: %[[#TWO:]] = cir.const #cir.int<2> : !s32i
   // CHECK: %[[#INNER:]] = cir.get_element %[[#OUTER]][%[[#TWO]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
   // CHECK: cir.store{{.*}} %[[#THREE]], %[[#INNER]] : !s32i, !cir.ptr<!s32i>

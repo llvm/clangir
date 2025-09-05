@@ -57,7 +57,7 @@ double f1(int n, ...) {
 // CIR: ^[[InRegBlock]]:
 // CIR: [[REG_SAVE_AREA_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][3] {name = "reg_save_area"}
 // CIR: [[REG_SAVE_AREA:%.+]] = cir.load [[REG_SAVE_AREA_P]]
-// CIR: [[UPDATED:%.+]] = cir.ptr_stride([[REG_SAVE_AREA]] {{.*}}, [[FP_OFFSET]]
+// CIR: [[UPDATED:%.+]] = cir.ptr_stride [[REG_SAVE_AREA]], [[FP_OFFSET]] : (!cir.ptr<!void>, !u32i) -> !cir.ptr<!void>
 // CIR: [[CONSTANT:%.+]] = cir.const #cir.int<8>
 // CIR: [[ADDED:%.+]] = cir.binop(add, [[FP_OFFSET]], [[CONSTANT]])
 // CIR: cir.store{{.*}} [[ADDED]], [[FP_OFFSET_P]]
@@ -68,7 +68,7 @@ double f1(int n, ...) {
 // CIR: [[OVERFLOW_ARG_AREA:%.+]] = cir.load [[OVERFLOW_ARG_AREA_P]]
 // CIR: [[OFFSET:%.+]] = cir.const #cir.int<8>
 // CIR: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)
-// CIR: [[NEW_VALUE:%.+]] = cir.ptr_stride([[CASTED]] : !cir.ptr<!s8i>, [[OFFSET]]
+// CIR: [[NEW_VALUE:%.+]] = cir.ptr_stride [[CASTED]], [[OFFSET]] : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
 // CIR: [[CASTED_P:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA_P]] : !cir.ptr<!cir.ptr<!void>>)
 // CIR: cir.store [[NEW_VALUE]], [[CASTED_P]]
 // CIR: cir.br ^[[ContBlock]]([[OVERFLOW_ARG_AREA]]
@@ -120,7 +120,7 @@ long double f2(int n, ...) {
 // CIR-DAG: [[OVERFLOW_AREA:%.+]] = cir.load [[OVERFLOW_AREA_P]]
 // CIR-DAG: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_AREA]] : !cir.ptr<!void>)
 // CIR-DAG: [[CONSTANT:%.+]] = cir.const #cir.int<15>
-// CIR-DAG: [[PTR_STRIDE:%.+]] = cir.ptr_stride([[CASTED]] {{.*}}[[CONSTANT]]
+// CIR-DAG: [[PTR_STRIDE:%.+]] = cir.ptr_stride [[CASTED]], [[CONSTANT]] : (!cir.ptr<!u8i>, !u32i) -> !cir.ptr<!u8i>
 // CIR-DAG: [[MINUS_ALIGN:%.+]] = cir.const #cir.int<-16>
 // CIR-DAG: [[ALIGNED:%.+]] = cir.ptr_mask([[PTR_STRIDE]], [[MINUS_ALIGN]]
 // CIR: [[ALIGN:%.+]] = cir.const #cir.int<16>
@@ -171,7 +171,7 @@ const char *f3(va_list args) {
 
 // CIR:           %[[REG_SAVE_AREA_PTR:.*]] = cir.get_member %[[VALIST]][3] {name = "reg_save_area"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!cir.ptr<!void>>
 // CIR:           %[[REG_SAVE_AREA:.*]] = cir.load %[[REG_SAVE_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:           %[[CUR_REG_SAVE_AREA:.*]] = cir.ptr_stride(%[[REG_SAVE_AREA]] : !cir.ptr<!void>, %[[GP_OFFSET]] : !u32i), !cir.ptr<!void>
+// CIR:           %[[CUR_REG_SAVE_AREA:.*]] = cir.ptr_stride %[[REG_SAVE_AREA]], %[[GP_OFFSET]] : (!cir.ptr<!void>, !u32i) -> !cir.ptr<!void>
 // CIR:           %[[VAL_11:.*]] = cir.const #cir.int<8> : !u32i
 // CIR:           %[[NEW_REG_SAVE_AREA:.*]] = cir.binop(add, %[[GP_OFFSET]], %[[VAL_11]]) : !u32i
 // CIR:           cir.store %[[NEW_REG_SAVE_AREA]], %[[GP_OFFSET_PTR]] : !u32i, !cir.ptr<!u32i>
@@ -181,7 +181,7 @@ const char *f3(va_list args) {
 // CIR:           %[[OVERFLOW_ARG_AREA:.*]] = cir.load %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:           %[[VAL_15:.*]] = cir.const #cir.int<8> : !s32i
 // CIR:           %[[CUR_OVERFLOW_ARG_AREA:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>), !cir.ptr<!s8i>
-// CIR:           %[[NEW_OVERFLOW_ARG_AREA:.*]] = cir.ptr_stride(%[[CUR_OVERFLOW_ARG_AREA]] : !cir.ptr<!s8i>, %[[VAL_15]] : !s32i), !cir.ptr<!s8i>
+// CIR:           %[[NEW_OVERFLOW_ARG_AREA:.*]] = cir.ptr_stride %[[CUR_OVERFLOW_ARG_AREA]], %[[VAL_15]] : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
 // CIR:           %[[VAL_18:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.ptr<!s8i>>
 // CIR:           cir.store %[[NEW_OVERFLOW_ARG_AREA]], %[[VAL_18]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR:           cir.br ^[[CONT_BB]](%[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)

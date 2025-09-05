@@ -311,14 +311,14 @@ uint8x8x2_t test_vtrn_u8(uint8x8_t a, uint8x8_t b) {
   // CIR-LABEL: vtrn_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<8> : !s32i, #cir.int<2> : !s32i, #cir.int<10> : !s32i, 
   // CIR-SAME: #cir.int<4> : !s32i, #cir.int<12> : !s32i, #cir.int<6> : !s32i,
   // CIR-SAME: #cir.int<14> : !s32i] : !cir.vector<!u8i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 8>, !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 8>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<9> : !s32i, #cir.int<3> : !s32i, #cir.int<11> : !s32i, 
   // CIR-SAME: #cir.int<5> : !s32i, #cir.int<13> : !s32i, #cir.int<7> : !s32i, #cir.int<15> : !s32i] : 
@@ -341,12 +341,12 @@ uint16x4x2_t test_vtrn_u16(uint16x4_t a, uint16x4_t b) {
   // CIR-LABEL: vtrn_u16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<2> : !s32i, #cir.int<6> : !s32i] : !cir.vector<!u16i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u16i x 4>, !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u16i x 4>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<5> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u16i x 4>
@@ -367,12 +367,12 @@ int32x2x2_t test_vtrn_s32(int32x2_t a, int32x2_t b) {
   // CIR-LABEL: vtrn_s32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s32i x 2>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
   // CIR-SAME: !cir.vector<!s32i x 2>
@@ -393,7 +393,7 @@ uint8x16x2_t test_vtrnq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-LABEL: vtrnq_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<16> : !s32i, #cir.int<2> : !s32i, #cir.int<18> : !s32i, 
   // CIR-SAME: #cir.int<4> : !s32i, #cir.int<20> : !s32i, #cir.int<6> : !s32i, #cir.int<22> : !s32i,
@@ -401,7 +401,7 @@ uint8x16x2_t test_vtrnq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-SAME: #cir.int<12> : !s32i, #cir.int<28> : !s32i, #cir.int<14> : !s32i, #cir.int<30> : !s32i] : !cir.vector<!u8i x 16>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 16>, !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 16>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<17> : !s32i, #cir.int<3> : !s32i, #cir.int<19> : !s32i, 
   // CIR-SAME: #cir.int<5> : !s32i, #cir.int<21> : !s32i, #cir.int<7> : !s32i, #cir.int<23> : !s32i,
@@ -428,14 +428,14 @@ int16x8x2_t test_vtrnq_s16(int16x8_t a, int16x8_t b) {
   // CIR-LABEL: vtrnq_s16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<8> : !s32i, #cir.int<2> : !s32i, #cir.int<10> : !s32i, 
   // CIR-SAME: #cir.int<4> : !s32i, #cir.int<12> : !s32i, #cir.int<6> : !s32i,
   // CIR-SAME: #cir.int<14> : !s32i] : !cir.vector<!s16i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s16i x 8>, !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s16i x 8>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<9> : !s32i, #cir.int<3> : !s32i, #cir.int<11> : !s32i, 
   // CIR-SAME: #cir.int<5> : !s32i, #cir.int<13> : !s32i, #cir.int<7> : !s32i, #cir.int<15> : !s32i] : 
@@ -457,13 +457,13 @@ uint32x4x2_t test_vtrnq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR-LABEL: vtrnq_u32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>) 
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<2> : !s32i, #cir.int<6> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u32i x 4>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<5> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
@@ -477,14 +477,14 @@ uint8x8x2_t test_vuzp_u8(uint8x8_t a, uint8x8_t b) {
   // CIR-LABEL:vuzp_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i,
   // CIR-SAME: #cir.int<8> : !s32i, #cir.int<10> : !s32i, #cir.int<12> : !s32i,
   // CIR-SAME: #cir.int<14> : !s32i] : !cir.vector<!u8i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 8>, !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i,
   // CIR-SAME: #cir.int<9> : !s32i, #cir.int<11> : !s32i, #cir.int<13> : !s32i, #cir.int<15> : !s32i] :
@@ -508,12 +508,12 @@ uint16x4x2_t test_vuzp_u16(uint16x4_t a, uint16x4_t b) {
   // CIR-LABEL: vuzp_u16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i] : !cir.vector<!u16i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u16i x 4>, !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u16i x 4>
@@ -535,12 +535,12 @@ int32x2x2_t test_vuzp_s32(int32x2_t a, int32x2_t b) {
   // CIR-LABEL: vuzp_s32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s32i x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
   // CIR-SAME: !cir.vector<!s32i x 2>
@@ -562,12 +562,12 @@ float32x2x2_t test_vuzp_f32(float32x2_t a, float32x2_t b) {
   // CIR-LABEL: vuzp_f32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!cir.float x 2>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 2>
@@ -589,7 +589,7 @@ uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-LABEL: vuzpq_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i,
   // CIR-SAME: #cir.int<8> : !s32i, #cir.int<10> : !s32i, #cir.int<12> : !s32i, #cir.int<14> : !s32i,
@@ -597,7 +597,7 @@ uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-SAME: #cir.int<24> : !s32i, #cir.int<26> : !s32i, #cir.int<28> : !s32i, #cir.int<30> : !s32i] : !cir.vector<!u8i x 16>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 16>, !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i,
   // CIR-SAME: #cir.int<9> : !s32i, #cir.int<11> : !s32i, #cir.int<13> : !s32i, #cir.int<15> : !s32i,
@@ -623,14 +623,14 @@ int16x8x2_t test_vuzpq_s16(int16x8_t a, int16x8_t b) {
   // CIR-LABEL: vuzpq_s16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i,
   // CIR-SAME: #cir.int<8> : !s32i, #cir.int<10> : !s32i, #cir.int<12> : !s32i,
   // CIR-SAME: #cir.int<14> : !s32i] : !cir.vector<!s16i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s16i x 8>, !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i,
   // CIR-SAME: #cir.int<9> : !s32i, #cir.int<11> : !s32i, #cir.int<13> : !s32i,
@@ -653,13 +653,13 @@ uint32x4x2_t test_vuzpq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR-LABEL: vuzpq_u32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
@@ -674,13 +674,13 @@ float32x4x2_t test_vuzpq_f32(float32x4_t a, float32x4_t b) {
   // CIR-LABEL: vuzpq_f32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 4>
@@ -695,14 +695,14 @@ uint8x8x2_t test_vzip_u8(uint8x8_t a, uint8x8_t b) {
   // CIR-LABEL:vzip_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<8> : !s32i, #cir.int<1> : !s32i, #cir.int<9> : !s32i,
   // CIR-SAME: #cir.int<2> : !s32i, #cir.int<10> : !s32i, #cir.int<3> : !s32i,
   // CIR-SAME: #cir.int<11> : !s32i] : !cir.vector<!u8i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 8>, !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<4> : !s32i, #cir.int<12> : !s32i, #cir.int<5> : !s32i, #cir.int<13> : !s32i,
   // CIR-SAME: #cir.int<6> : !s32i, #cir.int<14> : !s32i, #cir.int<7> : !s32i,
@@ -725,12 +725,12 @@ uint16x4x2_t test_vzip_u16(uint16x4_t a, uint16x4_t b) {
   // CIR-LABEL: vzip_u16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<1> : !s32i, #cir.int<5> : !s32i] : !cir.vector<!u16i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u16i x 4>, !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u16i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<2> : !s32i, #cir.int<6> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u16i x 4>
@@ -752,12 +752,12 @@ int32x2x2_t test_vzip_s32(int32x2_t a, int32x2_t b) {
   // CIR-LABEL: vzip_s32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s32i x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s32i x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
   // CIR-SAME: !cir.vector<!s32i x 2>
@@ -779,12 +779,12 @@ float32x2x2_t test_vzip_f32(float32x2_t a, float32x2_t b) {
   // CIR-LABEL: vzip_f32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!cir.float x 2>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 2>
@@ -806,7 +806,7 @@ uint8x16x2_t test_vzipq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-LABEL: vzipq_u8
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<16> : !s32i, #cir.int<1> : !s32i, #cir.int<17> : !s32i,
   // CIR-SAME: #cir.int<2> : !s32i, #cir.int<18> : !s32i, #cir.int<3> : !s32i, #cir.int<19> : !s32i,
@@ -814,7 +814,7 @@ uint8x16x2_t test_vzipq_u8(uint8x16_t a, uint8x16_t b) {
   // CIR-SAME: #cir.int<6> : !s32i, #cir.int<22> : !s32i, #cir.int<7> : !s32i, #cir.int<23> : !s32i] : !cir.vector<!u8i x 16>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u8i x 16>, !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u8i x 16>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<8> : !s32i, #cir.int<24> : !s32i, #cir.int<9> : !s32i, #cir.int<25> : !s32i,
   // CIR-SAME: #cir.int<10> : !s32i, #cir.int<26> : !s32i, #cir.int<11> : !s32i, #cir.int<27> : !s32i,
@@ -840,14 +840,14 @@ int16x8x2_t test_vzipq_s16(int16x8_t a, int16x8_t b) {
   // CIR-LABEL: vzipq_s16
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<8> : !s32i, #cir.int<1> : !s32i, #cir.int<9> : !s32i,
   // CIR-SAME: #cir.int<2> : !s32i, #cir.int<10> : !s32i, #cir.int<3> : !s32i,
   // CIR-SAME: #cir.int<11> : !s32i] : !cir.vector<!s16i x 8>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!s16i x 8>, !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!s16i x 8>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<4> : !s32i, #cir.int<12> : !s32i, #cir.int<5> : !s32i, #cir.int<13> : !s32i,
   // CIR-SAME: #cir.int<6> : !s32i, #cir.int<14> : !s32i, #cir.int<7> : !s32i,
@@ -870,13 +870,13 @@ uint32x4x2_t test_vzipq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR-LABEL: vzipq_u32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<1> : !s32i, #cir.int<5> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!u32i x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<2> : !s32i, #cir.int<6> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
@@ -891,13 +891,13 @@ float32x4x2_t test_vzipq_f32(float32x4_t a, float32x4_t b) {
   // CIR-LABEL: vzipq_f32
   // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<1> : !s32i, #cir.int<5> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 4>
   // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride [[PTR]], [[ONE]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<2> : !s32i, #cir.int<6> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 4>

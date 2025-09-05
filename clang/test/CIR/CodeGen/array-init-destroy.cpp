@@ -41,14 +41,14 @@ void x() {
 // AFTER: %[[ArrayAddr0:.*]] = cir.alloca !cir.array<!rec_xpto x 2>
 // AFTER: %[[ConstTwo:.*]] = cir.const #cir.int<2> : !u64i
 // AFTER: %[[ArrayBegin:.*]] = cir.cast(array_to_ptrdecay, %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>>), !cir.ptr<!rec_xpto>
-// AFTER: %[[ArrayPastEnd:.*]] = cir.ptr_stride(%[[ArrayBegin]] : !cir.ptr<!rec_xpto>, %[[ConstTwo]] : !u64i), !cir.ptr<!rec_xpto>
+// AFTER: %[[ArrayPastEnd:.*]] = cir.ptr_stride %[[ArrayBegin]], %[[ConstTwo]] : (!cir.ptr<!rec_xpto>, !u64i) -> !cir.ptr<!rec_xpto>
 // AFTER: %[[TmpIdx:.*]] = cir.alloca !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>, ["__array_idx"] {alignment = 1 : i64}
 // AFTER: cir.store %[[ArrayBegin]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
 // AFTER: cir.do {
 // AFTER:   %[[ArrayElt:.*]] = cir.load %[[TmpIdx]] : !cir.ptr<!cir.ptr<!rec_xpto>>, !cir.ptr<!rec_xpto>
 // AFTER:   cir.call @_ZN4xptoC1Ev(%[[ArrayElt]]) : (!cir.ptr<!rec_xpto>) -> ()
 // AFTER:   %[[ConstOne:.*]] = cir.const #cir.int<1> : !u64i
-// AFTER:   %[[NextElt:.*]] = cir.ptr_stride(%[[ArrayElt]] : !cir.ptr<!rec_xpto>, %[[ConstOne]] : !u64i), !cir.ptr<!rec_xpto>
+// AFTER:   %[[NextElt:.*]] = cir.ptr_stride %[[ArrayElt]], %[[ConstOne]] : (!cir.ptr<!rec_xpto>, !u64i) -> !cir.ptr<!rec_xpto>
 // AFTER:   cir.store %[[NextElt]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
 // AFTER:   cir.yield
 // AFTER: } while {
@@ -58,14 +58,14 @@ void x() {
 // AFTER: }
 // AFTER: %[[ConstOne:.*]] = cir.const #cir.int<1> : !u64i
 // AFTER: %[[ArrayBegin:.*]] = cir.cast(array_to_ptrdecay, %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>>), !cir.ptr<!rec_xpto>
-// AFTER: %[[ArrayEnd:.*]] = cir.ptr_stride(%[[ArrayBegin]] : !cir.ptr<!rec_xpto>, %[[ConstOne]] : !u64i), !cir.ptr<!rec_xpto>
+// AFTER: %[[ArrayEnd:.*]] = cir.ptr_stride %[[ArrayBegin]], %[[ConstOne]] : (!cir.ptr<!rec_xpto>, !u64i) -> !cir.ptr<!rec_xpto>
 // AFTER: %[[TmpIdx:.*]] = cir.alloca !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>, ["__array_idx"] {alignment = 1 : i64}
 // AFTER: cir.store %[[ArrayEnd]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
 // AFTER  cir.do {
 // AFTER    %[[ArrElt:.*]] = cir.load{{.*}} %[[TmpIdx]]
 // AFTER    cir.call @_ZN13array_elementD1Ev(%[[ArrElt]])  : (!cir.ptr<!rec_xpto>) -> ()
 // AFTER    %[[ConstNegOne:.*]] = cir.const #cir.int<-1> : !s64i
-// AFTER    %[[NextElt:.*]] = cir.ptr_stride(%[[ARR_CUR]] : !cir.ptr<!rec_xpto>, %[[ConstNegOne]] : !s64i), !cir.ptr<!rec_xpto>
+// AFTER    %[[NextElt:.*]] = cir.ptr_stride %[[ARR_CUR]], %[[ConstNegOne]] : (!cir.ptr<!rec_xpto>, !s64i) -> !cir.ptr<!rec_xpto>
 // AFTER    cir.store %[[NextElt]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
 // AFTER    cir.yield
 // AFTER  } while {

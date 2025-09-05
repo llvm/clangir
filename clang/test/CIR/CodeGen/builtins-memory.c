@@ -239,7 +239,7 @@ void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
   // CIR: [[ALLOCA:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["__retval"]
   // CIR: cir.libc.memcpy [[NUM:%.*]] bytes from [[S:.*]] to [[DST:.*]] :
   // CIR: [[CAST2:%.*]] = cir.cast(bitcast, [[DST]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!u8i>>
-  // CIR: [[GEP:%.*]] = cir.ptr_stride([[CAST2]] : !cir.ptr<!cir.ptr<!u8i>>, [[NUM]] : !u64i)
+  // CIR: [[GEP:%.*]] = cir.ptr_stride [[CAST2]], [[NUM]] : (!cir.ptr<!cir.ptr<!u8i>>, !u64i) -> !cir.ptr<!cir.ptr<!u8i>>
   // CIR: [[CAST3:%.*]] = cir.cast(bitcast, [[ALLOCA]]
   // CIR: cir.store [[GEP]], [[CAST3:%.*]]
   // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]]

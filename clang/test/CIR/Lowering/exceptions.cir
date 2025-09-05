@@ -88,7 +88,7 @@ module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.si
     cir.store %34, %3 : !u64i, !cir.ptr<!u64i>
     %35 = cir.load %6 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
     %36 = cir.const #cir.int<0> : !s32i
-    %37 = cir.ptr_stride(%35 : !cir.ptr<!s8i>, %36 : !s32i), !cir.ptr<!s8i>
+    %37 = cir.ptr_stride %35, %36 : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
     cir.catch_param end
     // LLVM: call void @__cxa_end_catch()
     cir.br ^bb10
