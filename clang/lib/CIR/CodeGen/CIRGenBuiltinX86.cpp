@@ -1031,13 +1031,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     for (unsigned i = 0; i != dstNumElts; ++i)
       indices[i] = (i >= srcNumElts) ? srcNumElts + (i % srcNumElts) : i;
 
-    cir::ConstantOp poisonVec =
-        builder.getConstant(getLoc(E->getExprLoc()),
-                            builder.getAttr<cir::PoisonAttr>(Ops[1].getType()));
-
-    mlir::Value op1 =
-        builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[1], poisonVec,
-                                 ArrayRef(indices, dstNumElts));
+    mlir::Value op1 = builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[1],
+                                               ArrayRef(indices, dstNumElts));
 
     for (unsigned i = 0; i != dstNumElts; ++i) {
       if (i >= index && i < (index + srcNumElts))
