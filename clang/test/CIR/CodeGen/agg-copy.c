@@ -16,10 +16,10 @@ typedef struct {
 // CHECK:   cir.store{{.*}} %arg1, [[TMP1]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK:   [[TMP2:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:   [[TMP3:%.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:   [[TMP4:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<!rec_A>, [[TMP3]] : !s32i), !cir.ptr<!rec_A>
+// CHECK:   [[TMP4:%.*]] = cir.ptr_stride [[TMP2]], [[TMP3]] : (!cir.ptr<!rec_A>, !s32i) -> !cir.ptr<!rec_A>
 // CHECK:   [[TMP5:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:   [[TMP6:%.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:   [[TMP7:%.*]] = cir.ptr_stride([[TMP5]] : !cir.ptr<!rec_A>, [[TMP6]] : !s32i), !cir.ptr<!rec_A>
+// CHECK:   [[TMP7:%.*]] = cir.ptr_stride [[TMP5]], [[TMP6]] : (!cir.ptr<!rec_A>, !s32i) -> !cir.ptr<!rec_A>
 // CHECK:   cir.copy [[TMP7]] to [[TMP4]] : !cir.ptr<!rec_A>
 void foo1(A* a1, A* a2) {
     a1[1] = a2[1];
