@@ -44,7 +44,7 @@ module {
 
   cir.func @get_element(%arg0: !cir.ptr<!cir.array<!s32i x 5>>, %arg1: !s32i) -> !s32i {
     %0 = cir.cast(array_to_ptrdecay, %arg0 : !cir.ptr<!cir.array<!s32i x 5>>), !cir.ptr<!s32i>
-    %1 = cir.ptr_stride(%0 : !cir.ptr<!s32i>, %arg1 : !s32i), !cir.ptr<!s32i>
+    %1 = cir.ptr_stride %0, %arg1 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
     %2 = cir.load %1 : !cir.ptr<!s32i>, !s32i
     cir.return %2 : !s32i
   }

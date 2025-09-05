@@ -147,11 +147,11 @@ int *inc_p(int *i) {
 // CHECK:   %[[#i_addr:]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
 // CHECK:   %[[#i_dec:]] = cir.load{{.*}} %[[#i_addr]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:   %[[#dec_const:]] = cir.const #cir.int<-1> : !s32i
-// CHECK:   = cir.ptr_stride(%[[#i_dec]] : !cir.ptr<!s32i>, %[[#dec_const]] : !s32i), !cir.ptr<!s32i>
+// CHECK:   = cir.ptr_stride %[[#i_dec]], %[[#dec_const]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 
 // CHECK:   %[[#i_inc:]] = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:   %[[#inc_const:]] = cir.const #cir.int<1> : !s32i
-// CHECK:   = cir.ptr_stride(%[[#i_inc]] : !cir.ptr<!s32i>, %[[#inc_const]] : !s32i), !cir.ptr<!s32i>
+// CHECK:   = cir.ptr_stride %[[#i_inc]], %[[#inc_const]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 
 void floats(float f) {
 // CHECK: cir.func dso_local @{{.+}}floats{{.+}}
@@ -190,19 +190,19 @@ void pointers(int *p) {
 
   ++p;
   // CHECK:  %[[#INC:]] = cir.const #cir.int<1> : !s32i
-  // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#INC]] : !s32i), !cir.ptr<!s32i>
+  // CHECK:  %[[#RES:]] = cir.ptr_stride %{{.+}}, %[[#INC]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
   // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   --p;
   // CHECK:  %[[#DEC:]] = cir.const #cir.int<-1> : !s32i
-  // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#DEC]] : !s32i), !cir.ptr<!s32i>
+  // CHECK:  %[[#RES:]] = cir.ptr_stride %{{.+}}, %[[#DEC]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
   // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   p++;
   // CHECK:  %[[#INC:]] = cir.const #cir.int<1> : !s32i
-  // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#INC]] : !s32i), !cir.ptr<!s32i>
+  // CHECK:  %[[#RES:]] = cir.ptr_stride %{{.+}}, %[[#INC]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
   // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   p--;
   // CHECK:  %[[#DEC:]] = cir.const #cir.int<-1> : !s32i
-  // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#DEC]] : !s32i), !cir.ptr<!s32i>
+  // CHECK:  %[[#RES:]] = cir.ptr_stride %{{.+}}, %[[#DEC]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
   // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 
   bool p1 = !p;

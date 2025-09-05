@@ -12,7 +12,7 @@ void test_setjmp(void *env) {
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[FA]], [[CAST]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: [[SS:%[0-9]+]] = cir.stack_save
   // BEFORE-LOWERING-PREPARE-NEXT: [[TWO:%[0-9]+]] = cir.const #cir.int<2>
-  // BEFORE-LOWERING-PREPARE-NEXT: [[GEP:%[0-9]+]] = cir.ptr_stride([[CAST]] : !cir.ptr<!cir.ptr<!void>>, [[TWO]] : !s32i),
+  // BEFORE-LOWERING-PREPARE-NEXT: [[GEP:%[0-9]+]] = cir.ptr_stride [[CAST]], [[TWO]] : (!cir.ptr<!cir.ptr<!void>>, !s32i) -> !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[SS]], [[GEP]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: [[SJ:%[0-9]+]] = cir.eh.setjmp builtin [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
 
@@ -27,7 +27,7 @@ void test_setjmp(void *env) {
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[FA]], [[CAST]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: [[SS:%[0-9]+]] = cir.stack_save
   // AFTER-LOWERING-PREPARE-NEXT: [[TWO:%[0-9]+]] = cir.const #cir.int<2>
-  // AFTER-LOWERING-PREPARE-NEXT: [[GEP:%[0-9]+]] = cir.ptr_stride([[CAST]] : !cir.ptr<!cir.ptr<!void>>, [[TWO]] : !s32i),
+  // AFTER-LOWERING-PREPARE-NEXT: [[GEP:%[0-9]+]] = cir.ptr_stride [[CAST]], [[TWO]] : (!cir.ptr<!cir.ptr<!void>>, !s32i) -> !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[SS]], [[GEP]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: [[SJ:%[0-9]+]] = cir.eh.setjmp builtin [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
   __builtin_setjmp(env);

@@ -43,7 +43,7 @@ void test() {
 // CIR: cir.store{{.*}} [[LOCAL_ELEM_ARRAY]], [[START_FLD_PTR_AS_PTR_2_CHAR_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: [[ELEM_ARRAY_LEN:%.*]] = cir.const #cir.int<2>
 // CIR: [[END_FLD_PTR:%.*]] = cir.get_member [[INITLIST_LOCAL]][1] {name = "array_end"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!cir.ptr<!cir.ptr<!s8i>>>
-// CIR: [[LOCAL_ELEM_ARRAY_END:%.*]] = cir.ptr_stride([[LOCAL_ELEM_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, [[ELEM_ARRAY_LEN]] : !u64i), !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>
+// CIR: [[LOCAL_ELEM_ARRAY_END:%.*]] = cir.ptr_stride [[LOCAL_ELEM_ARRAY]], [[ELEM_ARRAY_LEN]] : (!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !u64i) -> !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>
 // CIR: [[END_FLD_PTR_AS_PTR_2_CHAR_ARRAY:%.*]] = cir.cast(bitcast, [[END_FLD_PTR]] : !cir.ptr<!cir.ptr<!cir.ptr<!s8i>>>), !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: cir.store{{.*}} [[LOCAL_ELEM_ARRAY_END]], [[END_FLD_PTR_AS_PTR_2_CHAR_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: [[ARG:%.*]] = cir.load{{.*}} [[INITLIST_LOCAL]] : !cir.ptr<[[INITLIST_TYPE]]>, [[INITLIST_TYPE]]

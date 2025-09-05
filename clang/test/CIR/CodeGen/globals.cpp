@@ -72,7 +72,7 @@ int use_func() { return func<int>(); }
 // CHECK-NEXT:   %1 = cir.get_global @s2 : !cir.ptr<!cir.ptr<!s8i>>
 // CHECK-NEXT:   %2 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
 // CHECK-NEXT:   %3 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:   %4 = cir.ptr_stride(%2 : !cir.ptr<!s8i>, %3 : !s32i), !cir.ptr<!s8i>
+// CHECK-NEXT:   %4 = cir.ptr_stride %2, %3 : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
 // CHECK-NEXT:   %5 = cir.load{{.*}} %4 : !cir.ptr<!s8i>, !s8i
 // CHECK-NEXT:   %6 = cir.cast(integral, %5 : !s8i), !u8i
 // CHECK-NEXT:   cir.store{{.*}} %6, %0 : !u8i, !cir.ptr<!u8i>

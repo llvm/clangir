@@ -129,7 +129,7 @@ void zero_init(int x) {
 // CIR:      [[FILLER:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR:      cir.store{{.*}} [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
 // CIR:      [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:      [[NEXT:%.*]] = cir.ptr_stride([[CUR]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
+// CIR:      [[NEXT:%.*]] = cir.ptr_stride [[CUR]], [[ONE]] : (!cir.ptr<!s32i>, !s64i) -> !cir.ptr<!s32i>
 // CIR:      cir.store{{.*}} [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:      cir.yield
 // CIR:    } while {
@@ -176,7 +176,7 @@ void aggr_init() {
 // CIR:      [[FILLER:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR:      cir.store{{.*}} [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
 // CIR:      [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:      [[NEXT:%.*]] = cir.ptr_stride([[CUR]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
+// CIR:      [[NEXT:%.*]] = cir.ptr_stride [[CUR]], [[ONE]] : (!cir.ptr<!s32i>, !s64i) -> !cir.ptr<!s32i>
 // CIR:      cir.store{{.*}} [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:      cir.yield
 // CIR:    } while {

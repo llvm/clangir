@@ -51,7 +51,7 @@ void alloca_in_loop(int* ar, int n) {
 // BEFORE:          %6 = cir.load{{.*}} %4 : !cir.ptr<!s32i>, !s32i
 // BEFORE:          %7 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // BEFORE:          %8 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
-// BEFORE:          %9 = cir.ptr_stride(%7 : !cir.ptr<!s32i>, %8 : !s32i), !cir.ptr<!s32i>
+// BEFORE:          %9 = cir.ptr_stride %7, %8 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // BEFORE:          cir.store{{.*}} %6, %9 : !s32i, !cir.ptr<!s32i>
 // BEFORE:        }
 // BEFORE:        cir.yield
@@ -76,7 +76,7 @@ void alloca_in_loop(int* ar, int n) {
 // MEM2REG:    cir.br ^bb4
 // MEM2REG:  ^bb4:  // pred: ^bb3
 // MEM2REG:    %3 = cir.const #cir.int<4> : !s32i
-// MEM2REG:    %4 = cir.ptr_stride(%arg0 : !cir.ptr<!s32i>, %1 : !s32i), !cir.ptr<!s32i>
+// MEM2REG:    %4 = cir.ptr_stride %arg0, %1 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // MEM2REG:    cir.store{{.*}} %3, %4 : !s32i, !cir.ptr<!s32i>
 // MEM2REG:    cir.br ^bb5
 // MEM2REG:  ^bb5:  // pred: ^bb4

@@ -26,11 +26,11 @@ module {
       } body {
         %10 = cir.load %0 : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
         %11 = cir.load %8 : !cir.ptr<!s32i>, !s32i
-        %12 = cir.ptr_stride(%10 : !cir.ptr<!cir.double>, %11 : !s32i), !cir.ptr<!cir.double>
+        %12 = cir.ptr_stride %10, %11 : (!cir.ptr<!cir.double>, !s32i) -> !cir.ptr<!cir.double>
         %13 = cir.load %12 : !cir.ptr<!cir.double>, !cir.double
         %14 = cir.load %1 : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
         %15 = cir.load %8 : !cir.ptr<!s32i>, !s32i
-        %16 = cir.ptr_stride(%14 : !cir.ptr<!cir.double>, %15 : !s32i), !cir.ptr<!cir.double>
+        %16 = cir.ptr_stride %14, %15 : (!cir.ptr<!cir.double>, !s32i) -> !cir.ptr<!cir.double>
         %17 = cir.load %16 : !cir.ptr<!cir.double>, !cir.double
         %18 = cir.binop(mul, %13, %17) : !cir.double
         %19 = cir.load %4 : !cir.ptr<!cir.double>, !cir.double
