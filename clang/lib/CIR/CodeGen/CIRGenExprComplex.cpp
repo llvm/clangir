@@ -119,7 +119,12 @@ public:
   }
 
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-    llvm_unreachable("NYI");
+    if (E->isGLValue())
+      return emitLoadOfLValue(CGF.getOrCreateOpaqueLValueMapping(E),
+                              E->getExprLoc());
+
+    // Otherwise, assume the mapping is the scalar directly.
+    return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
   }
 
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {

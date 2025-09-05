@@ -228,3 +228,21 @@ void complex_init_atomic() {
 // OGCG: %[[A_IMAG_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[A_ADDR]], i32 0, i32 1
 // OGCG: store float 1.000000e+00, ptr %[[A_REAL_PTR]], align 8
 // OGCG: store float 2.000000e+00, ptr %[[A_IMAG_PTR]], align 4
+
+void complex_opaque_value_expr() {
+  float _Complex a;
+  float b = 1.0f ?: __real__ a;
+}
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>, ["a"]
+// CIR: %[[B_ADDR:.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["b", init]
+// CIR: %[[CONST_1:.*]] = cir.const #cir.fp<1.000000e+00> : !cir.float
+// CIR: cir.store align(4) %[[CONST_1]], %[[B_ADDR]] : !cir.float, !cir.ptr<!cir.float>
+
+// LLVM: %[[A_ADDR:.*]] = alloca { float, float }, i64 1, align 4
+// LLVM: %[[B_ADDR:.*]] = alloca float, i64 1, align 4
+// LLVM: store float 1.000000e+00, ptr %[[B_ADDR]], align 4
+
+// OGCG: %[[A_ADDR:.*]] = alloca { float, float }, align 4
+// OGCG: %[[B_ADDR:.*]] = alloca float, align 4
+// OGCG: store float 1.000000e+00, ptr %[[B_ADDR]], align 4
