@@ -1927,9 +1927,12 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
         builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
     cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
-    cir::EhSetjmp op =
-        cir::EhSetjmp::create(builder, loc, castBuf, /*is_builtin=*/true);
-    return RValue::get(op);
+    mlir::Value setjmpCall =
+        cir::LLVMIntrinsicCallOp::create(
+            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
+            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
+            .getResult();
+    return RValue::get(setjmpCall);
   }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
@@ -2431,13 +2434,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         llvm_unreachable("NYI setjmp on aarch64");
       llvm_unreachable("NYI setjmp on generic MSVCRT");
     }
-    Address buf = emitPointerWithAlignment(E->getArg(0));
-    mlir::Location loc = getLoc(E->getExprLoc());
-    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
-    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
-    cir::EhSetjmp op =
-        cir::EhSetjmp::create(builder, loc, castBuf, /*builtin = */ false);
-    return RValue::get(op);
+    break;
   }
 
   // C++ std:: builtins.
