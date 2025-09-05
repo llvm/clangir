@@ -1443,17 +1443,8 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
     emitPsetRemark();
 }
 
-static FuncOp getCalleeFromSymbol(ModuleOp mod, llvm::StringRef name) {
-  auto global = mlir::SymbolTable::lookupSymbolIn(mod, name);
-  assert(global && "expected to find symbol for function");
-  return dyn_cast<FuncOp>(global);
-}
-
 static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
-  if (!callOp.getCallee())
-    return nullptr;
-  llvm::StringRef name = *callOp.getCallee();
-  auto method = getCalleeFromSymbol(mod, name);
+  auto method = callOp.getDirectCallee(mod);
   if (!method || method.getBuiltin())
     return nullptr;
   return dyn_cast<ASTCXXMethodDeclInterface>(method.getAstAttr());
@@ -1756,12 +1747,10 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
 }
 
 void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
-  if (auto fnName = callOp.getCallee()) {
-    auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
-    if (calleeFuncOp &&
-        (calleeFuncOp.getCoroutine() ||
-         (calleeFuncOp.isDeclaration() && callOp->getNumResults() > 0 &&
-          isTaskType(callOp->getResult(0))))) {
+  if (auto calleeFuncOp = callOp.getDirectCallee(theModule)) {
+    if (calleeFuncOp.getCoroutine() ||
+        (calleeFuncOp.isDeclaration() && callOp->getNumResults() > 0 &&
+         isTaskType(callOp->getResult(0)))) {
       currScope->localTempTasks.insert(callOp->getResult(0));
     }
     return;
@@ -1792,13 +1781,11 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
-  if (auto fnName = callOp.getCallee()) {
-    auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
-    if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember())
-      if (auto cxxCtor =
-              dyn_cast<cir::CXXCtorAttr>(*calleeFuncOp.getCxxSpecialMember()))
-        return checkCtor(callOp, cxxCtor);
-  }
+  auto calleeFuncOp = callOp.getDirectCallee(theModule);
+  if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember())
+    if (auto cxxCtor =
+            dyn_cast<cir::CXXCtorAttr>(*calleeFuncOp.getCxxSpecialMember()))
+      return checkCtor(callOp, cxxCtor);
   if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);
   if (methodDecl.isCopyAssignmentOperator())

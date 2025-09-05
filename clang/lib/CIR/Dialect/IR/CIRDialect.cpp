@@ -2950,6 +2950,21 @@ unsigned cir::CallOp::getNumArgOperands() {
   return this->getOperation()->getNumOperands();
 }
 
+cir::FuncOp cir::CallOp::getDirectCallee(mlir::SymbolTable &symbolTable) {
+  if (!getCallee())
+    return {};
+  llvm::StringRef name = *getCallee();
+  return symbolTable.lookup<cir::FuncOp>(name);
+}
+
+cir::FuncOp cir::CallOp::getDirectCallee(mlir::ModuleOp module) {
+  if (!getCallee())
+    return {};
+  llvm::StringRef name = *getCallee();
+  mlir::Operation *global = mlir::SymbolTable::lookupSymbolIn(module, name);
+  return mlir::dyn_cast_if_present<FuncOp>(global);
+}
+
 static LogicalResult
 verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
   // Callee attribute only need on indirect calls.
