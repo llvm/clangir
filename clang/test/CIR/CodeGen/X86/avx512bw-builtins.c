@@ -6,7 +6,10 @@
 // RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx512bw -fno-signed-char  -fclangir -emit-cir -o %t.cir -Wall -Werror -Wsign-conversion 
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux  -target-feature +avx512bw -fno-signed-char  -fclangir -emit-llvm -o %t.ll -Wall -Werror -Wsign-conversion
-// RUN: FileCheck --check-prefixes=LLVM --input-file=%t.ll %s
+// RUN: FileCheck --check-prefixes=LLVM-UNSIGNED-CHAR --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx512bw -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefix=OGCG
+// RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx512bw -fno-signed-char -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefix=OGCG
 
 #include <immintrin.h>
 
@@ -72,4 +75,32 @@ __m512i test_mm512_maskz_loadu_epi8(__mmask64 __U, void const *__P) {
   // LLVM-LABEL: @test_mm512_maskz_loadu_epi8
   // LLVM: @llvm.masked.load.v64i8.p0(ptr %{{.*}}, i32 1, <64 x i1> %{{.*}}, <64 x i8> %{{.*}})
   return _mm512_maskz_loadu_epi8(__U, __P); 
+}
+
+__mmask64 test_mm512_movepi8_mask(__m512i __A) {
+  // CIR-LABEL: @_mm512_movepi8_mask
+  // CIR: %{{.*}} = cir.vec.cmp(lt, %{{.*}}, %{{.*}}) : !cir.vector<{{!s8i|!u8i}} x 64>, !cir.vector<!cir.int<u, 1> x 64>
+
+  // LLVM-LABEL: @test_mm512_movepi8_mask
+  // LLVM: [[CMP:%.*]] = icmp slt <64 x i8> %{{.*}}, zeroinitializer
+
+  // In the unsigned case below, the canonicalizer proves the comparison is
+  // always false (no i8 unsigned value can be < 0) and folds it away.
+  // LLVM-UNSIGNED-CHAR: store i64 0, ptr %{{.*}}, align 8
+  
+  // OGCG-LABEL: @test_mm512_movepi8_mask
+  // OGCG: [[CMP:%.*]] = icmp slt <64 x i8> %{{.*}}, zeroinitializer
+  return _mm512_movepi8_mask(__A); 
+}
+
+__mmask32 test_mm512_movepi16_mask(__m512i __A) {
+  // CIR-LABEL: @_mm512_movepi16_mask
+  // CIR: %{{.*}} = cir.vec.cmp(lt, %{{.*}}, %{{.*}}) : !cir.vector<!s16i x 32>, !cir.vector<!cir.int<u, 1> x 32>
+
+  // LLVM-LABEL: @test_mm512_movepi16_mask
+  // LLVM: [[CMP:%.*]] = icmp slt <32 x i16> %{{.*}}, zeroinitializer
+
+  // OGCG-LABEL: @test_mm512_movepi16_mask
+  // OGCG: [[CMP:%.*]] = icmp slt <32 x i16> %{{.*}}, zeroinitializer
+  return _mm512_movepi16_mask(__A); 
 }
