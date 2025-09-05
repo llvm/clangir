@@ -7,6 +7,8 @@ sort : 3
 Tests are an important part on preventing regressions and covering new feature
 functionality. There are multiple ways to run CIR tests.
 
+## Unit tests
+
 The more aggresive (slower) one:
 ```
 $ ninja check-all
@@ -25,23 +27,15 @@ $ cd build-release
 $ ./bin/llvm-lit -a ../../clang/test/CIR
 ```
 
-## External
+## [LLVM Test Suite](https://github.com/llvm/llvm-test-suite)
 
-Currently we do not evaluate ClangIR against external test suites automatically, this, however, can be achieved with some manual work.
+We often evaluate and monitor ClangIR support against singlesource, multisource and spec benchmarks. See the [benchmark results](https://llvm.github.io/clangir/Development/benchmark.html) page for more information.
 
-### [LLVM Test Suite](https://github.com/llvm/llvm-test-suite)
-
-So far, we have tested ClangIR **only against the SingleSource** tests from this suite.
-
-A table detailing ClangIR's status for each tests can be found [here](../Standalone/single-source-tests-table.md).
-
-Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to start contributing to ClangIR is to pick one of the `NOEXE` of `FAIL` tests and try to patch it!
-
-#### How to Run
+### How to build and run
 
 * Build a release version of ClangIR with assertions enabled (prevents some false positives).
-* Apply the following patch to create a CMake flag that will enable ClangIR: \
-  [001-enable-clangir-on-singlesouce.patch](../Files/001-enable-clangir-on-singlesouce.patch)
+
+* Cherry-pick [this git commit](https://github.com/bcardosolopes/llvm-test-suite/commit/87315cdd064aa2ba676575d3ec0e807cf84943c0) for extra CMake flags that enable ClangIR.
 
 * Create a build directory and build the tests with the release version of ClangIR:
   ```bash
@@ -52,9 +46,11 @@ Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to 
     -DCMAKE_C_COMPILER=<path-to-clangir-build>/bin/clang \
     -DCMAKE_CXX_COMPILER=<path-to-clangir-build>/bin/clang++ \
     -C=../cmake/caches/O3.cmake \
-    -DTEST_SUITE_SUBDIRS=SingleSource \
+    -DTEST_SUITE_SUBDIRS=SingleSource \ # MultiSource, External/SPEC/CINT2017rate, External/SPEC/CFP2017rate
     -DTEST_SUITE_CLANGIR_ENABLE=ON
   ```
+
+* For SPEC [extra setup](https://llvm.org/docs/TestSuiteGuide.html#external-suites) is also needed.
 
 * Build tests (`-k` ensures it won't stop if a test fails to compile):
   ```bash
@@ -66,7 +62,7 @@ Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to 
   lit -v .
   ```
 
-#### Generating the Comparison Table
+### Generating a comparison Table
 
 * Patch the `utils/compare.py` tool with:\
 [002-generate-clangir-comparison-table.patch](../Files/002-generate-clangir-comparison-table.patch)
