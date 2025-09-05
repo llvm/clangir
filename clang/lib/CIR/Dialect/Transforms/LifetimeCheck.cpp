@@ -1793,7 +1793,7 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
   if (auto fnName = callOp.getCallee()) {
-    auto calleeFuncOp = getCalleeFromSymbol(theModule, fnName);
+    auto calleeFuncOp = getCalleeFromSymbol(theModule, *fnName);
     if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember()) {
       auto cxxSpecialMember = *calleeFuncOp.getCxxSpecialMember();
       if (auto cxxCtor = dyn_cast<cir::CXXCtorAttr>(cxxSpecialMember))
