@@ -1536,8 +1536,7 @@ mlir::Value CIRGenFunction::GetVTTParameter(GlobalDecl GD, bool ForVirtualBase,
   uint64_t SubVTTIndex;
 
   if (Delegating) {
-    // If this is a delegating constructor call, just load the VTT.
-    return LoadCXXVTT();
+    llvm_unreachable("NYI");
   } else if (RD == Base) {
     // If the record matches the base, this is the complete ctor/dtor
     // variant calling the base variant in a class with virtual bases.
