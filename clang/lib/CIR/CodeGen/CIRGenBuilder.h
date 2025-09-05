@@ -991,9 +991,11 @@ public:
 
   cir::VecShuffleOp createVecShuffle(mlir::Location loc, mlir::Value vec1,
                                      llvm::ArrayRef<int64_t> mask) {
-    // FIXME(cir): Support use cir.vec.shuffle with single vec
-    // Workaround: pass Vec as both vec1 and vec2
-    return createVecShuffle(loc, vec1, vec1, mask);
+    /// Create a unary shuffle. The second vector operand of the IR instruction
+    /// is poison.
+    return createVecShuffle(
+        loc, vec1, getConstant(loc, cir::PoisonAttr::get(vec1.getType())),
+        mask);
   }
 
   cir::StoreOp
