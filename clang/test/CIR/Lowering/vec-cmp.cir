@@ -14,3 +14,13 @@ cir.func @vec_cmp(%0: !cir.vector<!s16i x 16>, %1: !cir.vector<!s16i x 16>) -> (
 // MLIR-NEXT: %{{[0-9]+}} = llvm.icmp "slt" %arg0, %arg1 : vector<16xi16>
 // MLIR-NEXT: %{{[0-9]+}} = llvm.bitcast %{{[0-9]+}} : vector<16xi1> to i16
 // MLIR-NEXT: llvm.return
+
+
+cir.func @vec_fcmp_ordered(%0: !cir.vector<!cir.float x 4>, %1: !cir.vector<!cir.float x 4>) -> () {
+  %2 = cir.vec.cmp(lt, %0, %1, ordered) : !cir.vector<!cir.float x 4>, !cir.vector<!cir.int<u, 1> x 4> 
+  cir.return
+}
+
+// MLIR: llvm.func @vec_fcmp_ordered
+// MLIR-NEXT: %{{[0-9]+}} = llvm.fcmp "olt" %arg0, %arg1 : vector<4xf32>
+// MLIR-NEXT: llvm.return

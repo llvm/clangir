@@ -116,7 +116,8 @@ mlir::LLVM::ICmpPredicate convertCmpKindToICmpPredicate(cir::CmpOpKind kind,
 
 /// Convert from a CIR comparison kind to an LLVM IR floating-point comparison
 /// kind.
-mlir::LLVM::FCmpPredicate convertCmpKindToFCmpPredicate(cir::CmpOpKind kind) {
+mlir::LLVM::FCmpPredicate convertCmpKindToFCmpPredicate(cir::CmpOpKind kind,
+                                                        bool isOrdered) {
   using CIR = cir::CmpOpKind;
   using LLVMFCmp = mlir::LLVM::FCmpPredicate;
   switch (kind) {
@@ -125,13 +126,13 @@ mlir::LLVM::FCmpPredicate convertCmpKindToFCmpPredicate(cir::CmpOpKind kind) {
   case CIR::ne:
     return LLVMFCmp::une;
   case CIR::lt:
-    return LLVMFCmp::olt;
+    return isOrdered ? LLVMFCmp::olt : LLVMFCmp::ult;
   case CIR::le:
-    return LLVMFCmp::ole;
+    return isOrdered ? LLVMFCmp::ole : LLVMFCmp::ule;
   case CIR::gt:
-    return LLVMFCmp::ogt;
+    return isOrdered ? LLVMFCmp::ogt : LLVMFCmp::ugt;
   case CIR::ge:
-    return LLVMFCmp::oge;
+    return isOrdered ? LLVMFCmp::oge : LLVMFCmp::uge;
   }
   llvm_unreachable("Unknown CmpOpKind");
 }
@@ -2068,7 +2069,8 @@ mlir::LogicalResult CIRToLLVMVecCmpOpLowering::matchAndRewrite(
         adaptor.getLhs(), adaptor.getRhs());
   } else if (mlir::isa<cir::FPTypeInterface>(elementType)) {
     bitResult = rewriter.create<mlir::LLVM::FCmpOp>(
-        op.getLoc(), convertCmpKindToFCmpPredicate(op.getKind()),
+        op.getLoc(),
+        convertCmpKindToFCmpPredicate(op.getKind(), op.getIsOrdered()),
         adaptor.getLhs(), adaptor.getRhs());
   } else {
     return op.emitError() << "unsupported type for VecCmpOp: " << elementType;
@@ -3225,7 +3227,8 @@ mlir::LogicalResult CIRToLLVMCmpOpLowering::matchAndRewrite(
     rewriter.replaceOpWithNewOp<mlir::LLVM::ICmpOp>(
         cmpOp, kind, adaptor.getLhs(), adaptor.getRhs());
   } else if (mlir::isa<cir::FPTypeInterface>(type)) {
-    auto kind = convertCmpKindToFCmpPredicate(cmpOp.getKind());
+    auto kind =
+        convertCmpKindToFCmpPredicate(cmpOp.getKind(), /*isOrdered=*/true);
     rewriter.replaceOpWithNewOp<mlir::LLVM::FCmpOp>(
         cmpOp, kind, adaptor.getLhs(), adaptor.getRhs());
   } else {

@@ -3538,17 +3538,19 @@ def CIR_VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
   let arguments = (ins
     CIR_CmpOpKind:$kind,
     CIR_VectorType:$lhs,
-    CIR_VectorType:$rhs
+    CIR_VectorType:$rhs,
+    UnitAttr:$isOrdered
   );
 
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
-    `(` $kind `,` $lhs `,` $rhs `)` `:` qualified(type($lhs)) `,`
+    `(` $kind `,` $lhs `,` $rhs(`,` `ordered` $isOrdered^)? `)` `:` qualified(type($lhs)) `,`
     qualified(type($result)) attr-dict
   }];
 
   let hasFolder = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
