@@ -663,9 +663,11 @@ public:
     return cir::YieldOp::create(*this, loc, value);
   }
 
-  cir::PtrStrideOp createPtrStride(mlir::Location loc, mlir::Value base,
-                                   mlir::Value stride) {
-    return cir::PtrStrideOp::create(*this, loc, base.getType(), base, stride);
+  cir::PtrStrideOp
+  createPtrStride(mlir::Location loc, mlir::Value base, mlir::Value stride,
+                  std::optional<CIR_GEPNoWrapFlags> flags = std::nullopt) {
+    return cir::PtrStrideOp::create(*this, loc, base.getType(), base, stride,
+                                    flags.value_or(CIR_GEPNoWrapFlags::none));
   }
 
   cir::CallOp createCallOp(mlir::Location loc,
