@@ -31,6 +31,7 @@
 #include "clang/CIR/MissingFeatures.h"
 
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -498,7 +499,26 @@ static bool onlyHasInlineBuiltinDeclaration(const FunctionDecl *FD) {
 static CIRGenCallee emitDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
   const auto *FD = cast<FunctionDecl>(GD.getDecl());
 
-  if (auto builtinID = FD->getBuiltinID()) {
+  unsigned builtinID = FD->getBuiltinID();
+  if (!builtinID) {
+    if (const FunctionDecl *Prev = FD->getPreviousDecl()) {
+      for (; Prev; Prev = Prev->getPreviousDecl()) {
+        builtinID = Prev->getBuiltinID();
+        if (builtinID)
+          break;
+      }
+    }
+  }
+
+  if (!builtinID) {
+    if (const IdentifierInfo *II = FD->getIdentifier()) {
+      StringRef Name = II->getName();
+      if (Name.starts_with("__builtin_"))
+        builtinID = II->getBuiltinID();
+    }
+  }
+
+  if (builtinID) {
     std::string NoBuiltinFD = ("no-builtin-" + FD->getName()).str();
     std::string NoBuiltins = "no-builtins";
 

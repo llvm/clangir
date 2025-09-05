@@ -40,6 +40,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
@@ -6043,7 +6044,26 @@ static bool OnlyHasInlineBuiltinDeclaration(const FunctionDecl *FD) {
 static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
 
-  if (auto builtinID = FD->getBuiltinID()) {
+  unsigned builtinID = FD->getBuiltinID();
+  if (!builtinID) {
+    if (const FunctionDecl *Prev = FD->getPreviousDecl()) {
+      for (; Prev; Prev = Prev->getPreviousDecl()) {
+        builtinID = Prev->getBuiltinID();
+        if (builtinID)
+          break;
+      }
+    }
+  }
+
+  if (!builtinID) {
+    if (const IdentifierInfo *II = FD->getIdentifier()) {
+      StringRef Name = II->getName();
+      if (Name.starts_with("__builtin_"))
+        builtinID = II->getBuiltinID();
+    }
+  }
+
+  if (builtinID) {
     std::string NoBuiltinFD = ("no-builtin-" + FD->getName()).str();
     std::string NoBuiltins = "no-builtins";
 
