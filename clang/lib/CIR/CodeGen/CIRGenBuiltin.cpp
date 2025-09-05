@@ -1716,8 +1716,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BIbzero like NYI");
 
   case Builtin::BIbcopy:
-  case Builtin::BI__builtin_bcopy:
-    llvm_unreachable("BIbcopy like NYI");
+  case Builtin::BI__builtin_bcopy: {
+    Address src = emitPointerWithAlignment(E->getArg(0));
+    Address dest = emitPointerWithAlignment(E->getArg(1));
+    mlir::Value sizeVal = emitScalarExpr(E->getArg(2));
+    emitNonNullArgCheck(RValue::get(src.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
+    emitNonNullArgCheck(RValue::get(dest.getPointer()), E->getArg(1)->getType(),
+                        E->getArg(1)->getExprLoc(), FD, 0);
+    builder.createMemMove(getLoc(E->getSourceRange()), dest.getPointer(),
+                          src.getPointer(), sizeVal);
+
+    return RValue::get(nullptr);
+  }
 
   case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy:
