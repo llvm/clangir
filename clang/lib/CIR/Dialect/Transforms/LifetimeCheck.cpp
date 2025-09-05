@@ -1444,7 +1444,7 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
 }
 
 static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
-  auto method = callOp.getDirectCallee(mod);
+  cir::FuncOp method = callOp.getDirectCallee(mod);
   if (!method || method.getBuiltin())
     return nullptr;
   return dyn_cast<ASTCXXMethodDeclInterface>(method.getAstAttr());
@@ -1747,9 +1747,9 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
 }
 
 void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
-  if (auto calleeFuncOp = callOp.getDirectCallee(theModule)) {
-    if (calleeFuncOp.getCoroutine() ||
-        (calleeFuncOp.isDeclaration() && callOp->getNumResults() > 0 &&
+  if (cir::FuncOp callee = callOp.getDirectCallee(theModule)) {
+    if (callee.getCoroutine() ||
+        (callee.isDeclaration() && callOp->getNumResults() > 0 &&
          isTaskType(callOp->getResult(0)))) {
       currScope->localTempTasks.insert(callOp->getResult(0));
     }
@@ -1781,10 +1781,10 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
-  auto calleeFuncOp = callOp.getDirectCallee(theModule);
-  if (calleeFuncOp && calleeFuncOp.getCxxSpecialMember())
+  cir::FuncOp callee = callOp.getDirectCallee(theModule);
+  if (callee && callee.getCxxSpecialMember())
     if (auto cxxCtor =
-            dyn_cast<cir::CXXCtorAttr>(*calleeFuncOp.getCxxSpecialMember()))
+            dyn_cast<cir::CXXCtorAttr>(*callee.getCxxSpecialMember()))
       return checkCtor(callOp, cxxCtor);
   if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);
