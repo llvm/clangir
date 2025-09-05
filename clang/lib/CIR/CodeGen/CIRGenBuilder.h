@@ -994,7 +994,7 @@ public:
     /// Create a unary shuffle. The second vector operand of the IR instruction
     /// is poison.
     return createVecShuffle(
-        loc, vec1, getConstant(loc, getAttr<cir::PoisonAttr>(vec1.getType())),
+        loc, vec1, getConstant(loc, cir::PoisonAttr::get(vec1.getType())),
         mask);
   }
 
