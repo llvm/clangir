@@ -1197,8 +1197,7 @@ mlir::LogicalResult CIRToLLVMVTTAddrPointOpLowering::matchAndRewrite(
     }
 
     offsets.push_back(adaptor.getOffset());
-    eltType = mlir::IntegerType::get(resultType.getContext(), 8,
-                                     mlir::IntegerType::Signless);
+    eltType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
   } else {
     llvmAddr = getValueForVTableSymbol(op, rewriter, getTypeConverter(),
                                        op.getNameAttr(), eltType);
