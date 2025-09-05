@@ -324,23 +324,13 @@ void cir::AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 // BreakOp
 //===----------------------------------------------------------------------===//
 
-static bool isBreakableOp(mlir::Operation *op) {
-  return mlir::isa<cir::LoopOpInterface, cir::SwitchOp>(op);
-}
-
 mlir::Operation *cir::BreakOp::getBreakTarget() {
-  // Find the innermost loop or switch parent operation.
-  mlir::Operation *parentOp = getOperation()->getParentOp();
-  while (parentOp && !isBreakableOp(parentOp))
-    parentOp = parentOp->getParentOp();
-
-  return parentOp;
+  return getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>();
 }
 
 LogicalResult cir::BreakOp::verify() {
-  if (!getOperation()->getParentOfType<LoopOpInterface>() &&
-      !getOperation()->getParentOfType<SwitchOp>())
-    return emitOpError("must be within a loop or switch");
+  if (!getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>())
+    return emitOpError("must be within a breakable operation");
   return success();
 }
 
