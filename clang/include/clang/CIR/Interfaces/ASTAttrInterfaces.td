@@ -125,6 +125,11 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->isCopyConstructor();
         }]
+      >,
+      InterfaceMethod<"", "bool", "isMoveConstructor", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->isMoveConstructor();
+        }]
       >
     ];
   }
