@@ -158,6 +158,49 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
   return cgf.getBuilder().createCast(loc, cir::CastKind::integral, mask, dstTy);
 }
 
+static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
+                                           const CallExpr *E,
+                                           ArrayRef<mlir::Value> Ops) {
+  auto &builder = cgf.getBuilder();
+  unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
+  auto loc = cgf.getLoc(E->getExprLoc());
+  auto resultType = cast<cir::VectorType>(Ops[0].getType());
+
+  // If pslldq is shifting the vector more than 15 bytes, emit zero.
+  // This matches the hardware behavior where shifting by 16+ bytes
+  // clears the entire 128-bit lane.
+  if (shiftVal >= 16)
+    return builder.getZero(loc, resultType);
+
+  // Builtin type is vXi64 so multiply by 8 to get bytes.
+  unsigned numElts = resultType.getSize() * 8;
+  assert(numElts % 16 == 0 && "Vector size must be multiple of 16 bytes");
+
+  llvm::SmallVector<int64_t, 64> indices;
+
+  // 256/512-bit pslldq operates on 128-bit lanes so we need to handle that
+  for (unsigned l = 0; l < numElts; l += 16) {
+    for (unsigned i = 0; i != 16; ++i) {
+      unsigned idx = numElts + i - shiftVal;
+      if (idx < numElts)
+        idx -= numElts - 16; // end of lane, switch operand.
+      indices.push_back(idx + l);
+    }
+  }
+
+  // Cast to byte vector for shuffle operation
+  auto byteVecTy = cir::VectorType::get(builder.getSInt8Ty(), numElts);
+  mlir::Value byteCast = builder.createBitcast(Ops[0], byteVecTy);
+  mlir::Value zero = builder.getZero(loc, byteVecTy);
+
+  // Perform the shuffle (left shift by inserting zeros)
+  mlir::Value shuffleResult =
+      builder.createVecShuffle(loc, zero, byteCast, indices);
+
+  // Cast back to original type
+  return builder.createBitcast(shuffleResult, resultType);
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -1108,7 +1151,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_pslldqi128_byteshift:
   case X86::BI__builtin_ia32_pslldqi256_byteshift:
   case X86::BI__builtin_ia32_pslldqi512_byteshift:
-    llvm_unreachable("pslldqi NYI");
+    return emitX86PSLLDQIByteShift(*this, E, Ops);
   case X86::BI__builtin_ia32_psrldqi128_byteshift:
   case X86::BI__builtin_ia32_psrldqi256_byteshift:
   case X86::BI__builtin_ia32_psrldqi512_byteshift:
