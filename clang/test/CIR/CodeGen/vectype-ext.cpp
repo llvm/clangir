@@ -318,19 +318,19 @@ void vector_double_test(int x, double y) {
   // LLVM-NEXT: sext <2 x i1> %[[#RES:]] to <2 x i64>
   vl2 q = a < b;
   // CIR: %{{[0-9]+}} = cir.vec.cmp(lt, %{{[0-9]+}}, %{{[0-9]+}}) : !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
-  // LLVM: %[[#RES:]] = fcmp olt <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
+  // LLVM: %[[#RES:]] = fcmp ult <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
   // LLVM-NEXT: sext <2 x i1> %[[#RES:]] to <2 x i64>
   vl2 r = a > b;
   // CIR: %{{[0-9]+}} = cir.vec.cmp(gt, %{{[0-9]+}}, %{{[0-9]+}}) : !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
-  // LLVM: %[[#RES:]] = fcmp ogt <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
+  // LLVM: %[[#RES:]] = fcmp ugt <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
   // LLVM-NEXT: sext <2 x i1> %[[#RES:]] to <2 x i64>
   vl2 s = a <= b;
   // CIR: %{{[0-9]+}} = cir.vec.cmp(le, %{{[0-9]+}}, %{{[0-9]+}}) : !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
-  // LLVM: %[[#RES:]] = fcmp ole <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
+  // LLVM: %[[#RES:]] = fcmp ule <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
   // LLVM-NEXT: sext <2 x i1> %[[#RES:]] to <2 x i64>
   vl2 t = a >= b;
   // CIR: %{{[0-9]+}} = cir.vec.cmp(ge, %{{[0-9]+}}, %{{[0-9]+}}) : !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
-  // LLVM: %[[#RES:]] = fcmp oge <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
+  // LLVM: %[[#RES:]] = fcmp uge <2 x double> %{{[0-9]+}}, %{{[0-9]+}}
   // LLVM-NEXT: sext <2 x i1> %[[#RES:]] to <2 x i64>
 
   // __builtin_convertvector

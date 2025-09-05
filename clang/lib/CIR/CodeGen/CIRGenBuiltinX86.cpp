@@ -183,6 +183,16 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     Ops.push_back(emitScalarOrConstFoldImmArg(ICEArguments, i, E));
   }
 
+  // TODO: Add isSignaling boolean once emitConstrainedFPCall implemented
+  auto getVectorFCmpIR = [this, &Ops, &E](cir::CmpOpKind pred, bool isOrdered) {
+    assert(!cir::MissingFeatures::CGFPOptionsRAII());
+    assert(!cir::MissingFeatures::emitConstrainedFPCall());
+    auto loc = getLoc(E->getExprLoc());
+    mlir::Value cmp =
+        builder.createVecCompare(loc, pred, Ops[0], Ops[1], isOrdered);
+    return cmp;
+  };
+
   switch (BuiltinID) {
   default:
     return nullptr;
@@ -1411,7 +1421,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     llvm_unreachable("cmpnltps NYI");
   case X86::BI__builtin_ia32_cmpnleps:
   case X86::BI__builtin_ia32_cmpnlepd:
-    llvm_unreachable("cmpnleps NYI");
+    return getVectorFCmpIR(cir::CmpOpKind::gt, /*isOrdered=*/false);
   case X86::BI__builtin_ia32_cmpordps:
   case X86::BI__builtin_ia32_cmpordpd:
     llvm_unreachable("cmpordps NYI");

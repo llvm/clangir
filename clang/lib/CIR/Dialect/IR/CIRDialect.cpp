@@ -1321,6 +1321,18 @@ OpFoldResult cir::VecCmpOp::fold(FoldAdaptor adaptor) {
       getType(), mlir::ArrayAttr::get(getContext(), elements));
 }
 
+LogicalResult cir::VecCmpOp::verify() {
+  // Check that isOrderedAttr attribute is emitted only with floating point
+  // types
+  if (getIsOrderedAttr()) {
+    cir::VectorType vecType = mlir::cast<cir::VectorType>(getLhs().getType());
+    if (!mlir::isa<cir::FPTypeInterface>(vecType.getElementType()))
+      return emitOpError("only floating point types can elect to be either "
+                         "ordered or unordered");
+  }
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // VecExtractOp
 //===----------------------------------------------------------------------===//

@@ -321,25 +321,25 @@ void vector_double_test(int x, double y) {
   vll2 q = a < b;
   // CHECK: %[[#T68:]] = llvm.load %[[#T5]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
   // CHECK: %[[#T69:]] = llvm.load %[[#T7]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
-  // CHECK: %[[#T70:]] = llvm.fcmp "olt" %[[#T68]], %[[#T69]] : vector<2xf64>
+  // CHECK: %[[#T70:]] = llvm.fcmp "ult" %[[#T68]], %[[#T69]] : vector<2xf64>
   // CHECK: %[[#T71:]] = llvm.sext %[[#T70]] : vector<2xi1> to vector<2xi64>
   // CHECK: llvm.store %[[#T71]], %[[#Tq:]] {alignment = 16 : i64} : vector<2xi64>, !llvm.ptr
   vll2 r = a > b;
   // CHECK: %[[#T72:]] = llvm.load %[[#T5]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
   // CHECK: %[[#T73:]] = llvm.load %[[#T7]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
-  // CHECK: %[[#T74:]] = llvm.fcmp "ogt" %[[#T72]], %[[#T73]] : vector<2xf64>
+  // CHECK: %[[#T74:]] = llvm.fcmp "ugt" %[[#T72]], %[[#T73]] : vector<2xf64>
   // CHECK: %[[#T75:]] = llvm.sext %[[#T74]] : vector<2xi1> to vector<2xi64>
   // CHECK: llvm.store %[[#T75]], %[[#Tr:]] {alignment = 16 : i64} : vector<2xi64>, !llvm.ptr
   vll2 s = a <= b;
   // CHECK: %[[#T76:]] = llvm.load %[[#T5]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
   // CHECK: %[[#T77:]] = llvm.load %[[#T7]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
-  // CHECK: %[[#T78:]] = llvm.fcmp "ole" %[[#T76]], %[[#T77]] : vector<2xf64>
+  // CHECK: %[[#T78:]] = llvm.fcmp "ule" %[[#T76]], %[[#T77]] : vector<2xf64>
   // CHECK: %[[#T79:]] = llvm.sext %[[#T78]] : vector<2xi1> to vector<2xi64>
   // CHECK: llvm.store %[[#T79]], %[[#Ts:]] {alignment = 16 : i64} : vector<2xi64>, !llvm.ptr
   vll2 t = a >= b;
   // CHECK: %[[#T80:]] = llvm.load %[[#T5]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
   // CHECK: %[[#T81:]] = llvm.load %[[#T7]] {alignment = 16 : i64} : !llvm.ptr -> vector<2xf64>
-  // CHECK: %[[#T82:]] = llvm.fcmp "oge" %[[#T80]], %[[#T81]] : vector<2xf64>
+  // CHECK: %[[#T82:]] = llvm.fcmp "uge" %[[#T80]], %[[#T81]] : vector<2xf64>
   // CHECK: %[[#T83:]] = llvm.sext %[[#T82]] : vector<2xi1> to vector<2xi64>
   // CHECK: llvm.store %[[#T83]], %[[#Tt:]] {alignment = 16 : i64} : vector<2xi64>, !llvm.ptr
 
