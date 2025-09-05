@@ -53,7 +53,7 @@ cir.func @yield0() {
 cir.func @yieldbreak() {
   %0 = cir.const #true
   cir.if %0 {
-    cir.break // expected-error {{op must be within a loop or switch}}
+    cir.break // expected-error {{op must be within a breakable operation}}
   }
   cir.return
 }
