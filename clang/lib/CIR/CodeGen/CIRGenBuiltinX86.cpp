@@ -201,6 +201,85 @@ static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
   return builder.createBitcast(shuffleResult, resultType);
 }
 
+static mlir::Value emitX86MaskedCompareResult(CIRGenFunction &cgf,
+                                              mlir::Value cmp, unsigned numElts,
+                                              mlir::Value maskIn,
+                                              mlir::Location loc) {
+  if (maskIn) {
+    llvm_unreachable("NYI");
+  }
+  if (numElts < 8) {
+    int64_t indices[8];
+    for (unsigned i = 0; i != numElts; ++i)
+      indices[i] = i;
+    for (unsigned i = numElts; i != 8; ++i)
+      indices[i] = i % numElts + numElts;
+
+    // This should shuffle between cmp (first vector) and null (second vector)
+    mlir::Value nullVec = cgf.getBuilder().getNullValue(cmp.getType(), loc);
+    cmp = cgf.getBuilder().createVecShuffle(loc, cmp, nullVec, indices);
+  }
+  return cgf.getBuilder().createBitcast(
+      cmp, cgf.getBuilder().getUIntNTy(std::max(numElts, 8U)));
+}
+
+static mlir::Value emitX86MaskedCompare(CIRGenFunction &cgf, unsigned cc,
+                                        bool isSigned,
+                                        ArrayRef<mlir::Value> ops,
+                                        mlir::Location loc) {
+  assert((ops.size() == 2 || ops.size() == 4) &&
+         "Unexpected number of arguments");
+  unsigned numElts = cast<cir::VectorType>(ops[0].getType()).getSize();
+  mlir::Value cmp;
+
+  if (cc == 3) {
+    llvm_unreachable("NYI");
+  } else if (cc == 7) {
+    llvm_unreachable("NYI");
+  } else {
+    cir::CmpOpKind pred;
+    switch (cc) {
+    default:
+      llvm_unreachable("Unknown condition code");
+    case 0:
+      pred = cir::CmpOpKind::eq;
+      break;
+    case 1:
+      pred = cir::CmpOpKind::lt;
+      break;
+    case 2:
+      pred = cir::CmpOpKind::le;
+      break;
+    case 4:
+      pred = cir::CmpOpKind::ne;
+      break;
+    case 5:
+      pred = cir::CmpOpKind::ge;
+      break;
+    case 6:
+      pred = cir::CmpOpKind::gt;
+      break;
+    }
+
+    auto resultTy = cgf.getBuilder().getType<cir::VectorType>(
+        cgf.getBuilder().getUIntNTy(1), numElts);
+    cmp = cgf.getBuilder().create<cir::VecCmpOp>(loc, resultTy, pred, ops[0],
+                                                 ops[1]);
+  }
+
+  mlir::Value maskIn;
+  if (ops.size() == 4)
+    maskIn = ops[3];
+
+  return emitX86MaskedCompareResult(cgf, cmp, numElts, maskIn, loc);
+}
+
+static mlir::Value emitX86ConvertToMask(CIRGenFunction &cgf, mlir::Value in,
+                                        mlir::Location loc) {
+  cir::ConstantOp zero = cgf.getBuilder().getNullValue(in.getType(), loc);
+  return emitX86MaskedCompare(cgf, 1, true, {in, zero}, loc);
+}
+
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
                                                const CallExpr *E) {
   if (BuiltinID == Builtin::BI__builtin_cpu_is)
@@ -547,6 +626,20 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_cvtmask2q512:
     return emitX86SExtMask(*this, Ops[0], convertType(E->getType()),
                            getLoc(E->getExprLoc()));
+
+  case X86::BI__builtin_ia32_cvtb2mask128:
+  case X86::BI__builtin_ia32_cvtb2mask256:
+  case X86::BI__builtin_ia32_cvtb2mask512:
+  case X86::BI__builtin_ia32_cvtw2mask128:
+  case X86::BI__builtin_ia32_cvtw2mask256:
+  case X86::BI__builtin_ia32_cvtw2mask512:
+  case X86::BI__builtin_ia32_cvtd2mask128:
+  case X86::BI__builtin_ia32_cvtd2mask256:
+  case X86::BI__builtin_ia32_cvtd2mask512:
+  case X86::BI__builtin_ia32_cvtq2mask128:
+  case X86::BI__builtin_ia32_cvtq2mask256:
+  case X86::BI__builtin_ia32_cvtq2mask512:
+    return emitX86ConvertToMask(*this, Ops[0], getLoc(E->getExprLoc()));
   case X86::BI__builtin_ia32_cvtdq2ps512_mask:
   case X86::BI__builtin_ia32_cvtqq2ps512_mask:
   case X86::BI__builtin_ia32_cvtqq2pd512_mask:
