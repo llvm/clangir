@@ -111,8 +111,37 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   return FuncType::get(ArgTypes, resultType, FI.isVariadic());
 }
 
+static void dumpType(mlir::Type t) {
+  auto *interface =
+      llvm::dyn_cast<mlir::OpAsmDialectInterface>(&t.getDialect());
+  auto printType = [&](mlir::Type typeToPrint, bool ptrLevel = 0) {
+    llvm::SmallString<256> buffer;
+    llvm::raw_svector_ostream out(buffer);
+    mlir::OpAsmDialectInterface::AliasResult r =
+        interface->getAlias(typeToPrint, out);
+    llvm::errs() << "Missing default ABI-specific for type: ";
+    if (ptrLevel)
+      llvm::errs() << ptrLevel << " pointer indirection to ";
+    if (r == mlir::OpAsmDialectInterface::AliasResult::NoAlias) {
+      llvm::errs() << typeToPrint << "\n";
+      return;
+    }
+    llvm::errs() << out.str() << "\n";
+  };
+
+  mlir::Type finalTy = t;
+  int ptrInd = 0;
+  auto ptrTy = llvm::dyn_cast<cir::PointerType>(t);
+  while (ptrTy) {
+    finalTy = ptrTy.getPointee();
+    ptrInd++;
+    ptrTy = llvm::dyn_cast<cir::PointerType>(finalTy);
+  }
+  printType(finalTy, ptrInd);
+}
+
 /// Convert a CIR type to its ABI-specific default form.
-mlir::Type LowerTypes::convertType(mlir::Type T) {
+mlir::Type LowerTypes::convertType(mlir::Type t) {
   /// NOTE(cir): It the original codegen this method is used to get the default
   /// LLVM IR representation for a given AST type. When a the ABI-specific
   /// function info sets a nullptr for a return or argument type, the default
@@ -121,12 +150,13 @@ mlir::Type LowerTypes::convertType(mlir::Type T) {
   /// It's kept here for codegen parity's sake.
 
   // Certain CIR types are already ABI-specific, so we just return them.
-  if (mlir::isa<BoolType, IntType, SingleType, DoubleType>(T)) {
-    return T;
+  if (mlir::isa<BoolType, IntType, SingleType, DoubleType>(t)) {
+    return t;
   }
 
-  llvm::outs() << "Missing default ABI-specific type for " << T << "\n";
+  dumpType(t);
   cir_cconv_assert_or_abort(
-      !cir::MissingFeatures::X86DefaultABITypeConvertion(), "NYI");
-  return T;
+      !cir::MissingFeatures::X86DefaultABITypeConvertion(),
+      "TargetLowering convertType NYI");
+  return t;
 }

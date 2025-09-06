@@ -472,15 +472,63 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
   switch (descriptor.Kind) {
   case IITDescriptor::Void:
     return VoidType::get(context);
-  case IITDescriptor::Integer:
-    return IntType::get(context, descriptor.Integer_Width, /*signed=*/true);
+  case IITDescriptor::VarArg:
+    llvm_unreachable("NYI: IITDescriptor::VarArg");
+  case IITDescriptor::MMX:
+    llvm_unreachable("NYI: IITDescriptor::MMX");
+  case IITDescriptor::Token:
+    llvm_unreachable("NYI: IITDescriptor::Token");
+  case IITDescriptor::Metadata:
+    llvm_unreachable("NYI: IITDescriptor::Metadata");
+  case IITDescriptor::Half:
+    llvm_unreachable("NYI: IITDescriptor::Half");
+  case IITDescriptor::BFloat:
+    llvm_unreachable("NYI: IITDescriptor::BFloat");
   case IITDescriptor::Float:
     return SingleType::get(context);
   case IITDescriptor::Double:
     return DoubleType::get(context);
-  default:
-    llvm_unreachable("NYI");
+  case IITDescriptor::Quad:
+    llvm_unreachable("NYI: IITDescriptor::Quad");
+  case IITDescriptor::Integer:
+    return IntType::get(context, descriptor.Integer_Width, /*isSigned=*/true);
+  case IITDescriptor::Vector: {
+    mlir::Type elementType = decodeFixedType(infos, context);
+    unsigned numElements = descriptor.Vector_Width.getFixedValue();
+    return cir::VectorType::get(context, elementType, numElements);
   }
+  case IITDescriptor::Pointer:
+    llvm_unreachable("NYI: IITDescriptor::Pointer");
+  case IITDescriptor::Struct:
+    llvm_unreachable("NYI: IITDescriptor::Struct");
+  case IITDescriptor::Argument:
+    llvm_unreachable("NYI: IITDescriptor::Argument");
+  case IITDescriptor::ExtendArgument:
+    llvm_unreachable("NYI: IITDescriptor::ExtendArgument");
+  case IITDescriptor::TruncArgument:
+    llvm_unreachable("NYI: IITDescriptor::TruncArgument");
+  case IITDescriptor::OneNthEltsVecArgument:
+    llvm_unreachable("NYI: IITDescriptor::OneNthEltsVecArgument");
+  case IITDescriptor::SameVecWidthArgument:
+    llvm_unreachable("NYI: IITDescriptor::SameVecWidthArgument");
+  case IITDescriptor::VecOfAnyPtrsToElt:
+    llvm_unreachable("NYI: IITDescriptor::VecOfAnyPtrsToElt");
+  case IITDescriptor::VecElementArgument:
+    llvm_unreachable("NYI: IITDescriptor::VecElementArgument");
+  case IITDescriptor::Subdivide2Argument:
+    llvm_unreachable("NYI: IITDescriptor::Subdivide2Argument");
+  case IITDescriptor::Subdivide4Argument:
+    llvm_unreachable("NYI: IITDescriptor::Subdivide4Argument");
+  case IITDescriptor::VecOfBitcastsToInt:
+    llvm_unreachable("NYI: IITDescriptor::VecOfBitcastsToInt");
+  case IITDescriptor::AMX:
+    llvm_unreachable("NYI: IITDescriptor::AMX");
+  case IITDescriptor::PPCQuad:
+    llvm_unreachable("NYI: IITDescriptor::PPCQuad");
+  case IITDescriptor::AArch64Svcount:
+    llvm_unreachable("NYI: IITDescriptor::AArch64Svcount");
+  }
+  llvm_unreachable("Unhandled IITDescriptor, must return from switch");
 }
 
 // llvm::Intrinsics accepts only LLVMContext. We need to reimplement it here.
@@ -1668,8 +1716,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BIbzero like NYI");
 
   case Builtin::BIbcopy:
-  case Builtin::BI__builtin_bcopy:
-    llvm_unreachable("BIbcopy like NYI");
+  case Builtin::BI__builtin_bcopy: {
+    Address src = emitPointerWithAlignment(E->getArg(0));
+    Address dest = emitPointerWithAlignment(E->getArg(1));
+    mlir::Value sizeVal = emitScalarExpr(E->getArg(2));
+    emitNonNullArgCheck(RValue::get(src.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
+    emitNonNullArgCheck(RValue::get(dest.getPointer()), E->getArg(1)->getType(),
+                        E->getArg(1)->getExprLoc(), FD, 0);
+    builder.createMemMove(getLoc(E->getSourceRange()), dest.getPointer(),
+                          src.getPointer(), sizeVal);
+
+    return RValue::get(nullptr);
+  }
 
   case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy:

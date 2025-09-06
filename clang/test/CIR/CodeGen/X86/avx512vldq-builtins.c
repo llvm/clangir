@@ -65,3 +65,21 @@ __m256i test_mm256_movm_epi64(__mmask8 __A) {
   // LLVM: %{{.*}} = sext <4 x i1> %{{.*}} to <4 x i64>
   return _mm256_movm_epi64(__A); 
 }
+
+__m256d test_mm256_insertf64x2(__m256d __A, __m128d __B) {
+  // CIR-LABEL: test_mm256_insertf64x2
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.double x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i] : !cir.vector<!cir.double x 4>
+
+  // LLVM-LABEL: @test_mm256_insertf64x2
+  // LLVM: shufflevector <4 x double> %{{.*}}, <4 x double> %{{.*}}, <4 x i32> <i32 0, i32 1, i32 4, i32 5>
+  return _mm256_insertf64x2(__A, __B, 1); 
+}
+
+__m256i test_mm256_inserti64x2(__m256i __A, __m128i __B) {
+  // CIR-LABEL: test_mm256_inserti64x2
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!s64i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i] : !cir.vector<!s64i x 4>
+
+  // LLVM-LABEL: @test_mm256_inserti64x2
+  // LLVM: shufflevector <4 x i64> %{{.*}}, <4 x i64> %{{.*}}, <4 x i32> <i32 0, i32 1, i32 4, i32 5>
+  return _mm256_inserti64x2(__A, __B, 1); 
+}

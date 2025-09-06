@@ -1842,6 +1842,13 @@ public:
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
                                     cir::IntType ResType, mlir::Value EmittedE,
                                     bool IsDynamic);
+
+  /// Get size of type in bits using SizedTypeInterface
+  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const {
+    assert(cir::isSized(Ty) && "Type must implement SizedTypeInterface");
+    return CGM.getDataLayout().getTypeSizeInBits(Ty);
+  }
+
   template <uint32_t N>
   [[maybe_unused]] RValue
   emitBuiltinWithOneOverloadedType(const CallExpr *E, llvm::StringRef Name) {

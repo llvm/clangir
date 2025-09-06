@@ -30,6 +30,7 @@
 #include "clang/CIR/Dialect/IR/CIROpsDialect.h.inc"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIROpsStructs.h.inc"
+#include "clang/CIR/Dialect/IR/CIRTraits.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"

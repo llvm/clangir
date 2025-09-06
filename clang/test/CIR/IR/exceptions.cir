@@ -55,7 +55,7 @@ module {
         cir.store %12, %3 : !u64i, !cir.ptr<!u64i>
         %13 = cir.load %8 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
         %14 = cir.const #cir.int<0> : !s32i
-        %15 = cir.ptr_stride(%13 : !cir.ptr<!s8i>, %14 : !s32i), !cir.ptr<!s8i>
+        %15 = cir.ptr_stride %13, %14 : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
         cir.yield
       }, #cir.unwind {
         cir.resume

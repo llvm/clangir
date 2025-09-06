@@ -112,13 +112,19 @@ public:
 
   mlir::Value VisitMemberExpr(MemberExpr *ME) {
     if (CIRGenFunction::ConstantEmission constant = CGF.tryEmitAsConstant(ME)) {
-      llvm_unreachable("VisitMemberExpr tryEmitAsConstant");
+      CGF.emitIgnoredExpr(ME->getBase());
+      return emitConstant(constant, ME);
     }
     return emitLoadOfLValue(ME);
   }
 
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-    llvm_unreachable("NYI");
+    if (E->isGLValue())
+      return emitLoadOfLValue(CGF.getOrCreateOpaqueLValueMapping(E),
+                              E->getExprLoc());
+
+    // Otherwise, assume the mapping is the scalar directly.
+    return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
   }
 
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {
@@ -170,9 +176,12 @@ public:
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     llvm_unreachable("NYI");
   }
+
   mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
-    llvm_unreachable("NYI");
+    CIRGenFunction::CXXDefaultInitExprScope Scope(CGF, DIE);
+    return Visit(DIE->getExpr());
   }
+
   mlir::Value VisitExprWithCleanups(ExprWithCleanups *E) {
     CIRGenFunction::RunCleanupsScope Scope(CGF);
     mlir::Value V = Visit(E->getSubExpr());
@@ -445,15 +454,15 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_Dependent:
     llvm_unreachable("dependent cast kind in IR gen!");
 
-  // Atomic to non-atomic casts may be more than a no-op for some platforms and
-  // for some types.
   case CK_NoOp:
   case CK_LValueToRValue:
+  case CK_UserDefinedConversion:
     return Visit(Op);
 
+  // Atomic to non-atomic casts may be more than a no-op for some platforms
+  // and for some types.
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
-  case CK_UserDefinedConversion:
     llvm_unreachable("NYI");
 
   case CK_LValueBitCast: {
