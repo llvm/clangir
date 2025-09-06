@@ -4456,6 +4456,30 @@ mlir::LogicalResult CIRToLLVMLinkerOptionsOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
+    cir::BlockAddressOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  cir::LabelOp labelOp;
+  mlir::MLIRContext *ctx = rewriter.getContext();
+
+  op.findLabel(labelOp);
+
+  auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, BlockAddressOp::tagIndex);
+  ++BlockAddressOp::tagIndex;
+  rewriter.setInsertionPoint(labelOp);
+  mlir::LLVM::BlockTagOp::create(rewriter, labelOp->getLoc(), tagAttr);
+  rewriter.eraseOp(labelOp);
+
+  auto fnSym = mlir::FlatSymbolRefAttr::get(ctx, op.getFunc());
+  auto blkAddr =
+      mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(), fnSym, tagAttr);
+  rewriter.setInsertionPoint(op);
+  auto newOp = mlir::LLVM::BlockAddressOp::create(
+      rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
+  rewriter.replaceOp(op, newOp);
+  return mlir::success();
+}
+
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
     mlir::DataLayout &dataLayout, cir::LowerModule *lowerModule,
@@ -4514,6 +4538,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMBitFfsOpLowering,
       CIRToLLVMBitParityOpLowering,
       CIRToLLVMBitPopcountOpLowering,
+      CIRToLLVMBlockAddressOpLowering,
       CIRToLLVMBrCondOpLowering,
       CIRToLLVMBrOpLowering,
       CIRToLLVMByteswapOpLowering,
