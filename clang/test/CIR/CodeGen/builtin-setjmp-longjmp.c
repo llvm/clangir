@@ -5,7 +5,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux -O2 -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
 void test_setjmp(void *env) {
-
   // CIR-LABEL: test_setjmp
   // CIR-SAME: [[ENV:%.*]]: 
   // CIR-NEXT: [[ENV_ALLOCA:%[0-9]+]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>,
@@ -19,7 +18,7 @@ void test_setjmp(void *env) {
   // CIR-NEXT: [[TWO:%[0-9]+]] = cir.const #cir.int<2>
   // CIR-NEXT: [[GEP:%[0-9]+]] = cir.ptr_stride [[CAST]], [[TWO]] : (!cir.ptr<!cir.ptr<!void>>, !s32i) -> !cir.ptr<!cir.ptr<!void>>
   // CIR-NEXT: cir.store [[SS]], [[GEP]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
-  // CIR-NEXT: [[SJ:%[0-9]+]] = cir.llvm.intrinsic "eh.sjlj.setjmp" [[CAST]]
+  // CIR-NEXT: [[SJ:%[0-9]+]] = cir.eh.setjmp builtin [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
 
 
   // LLVM-LABEL: test_setjmp
@@ -44,14 +43,14 @@ void test_setjmp(void *env) {
 
 extern int _setjmp(void *env);
 void test_setjmp2(void *env) {
-
   // CIR-LABEL: test_setjmp2
-  // CIR-SAME: [[ENV:%.*]]: !cir.ptr<!void>
-  // CIR-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
+  // CIR-SAME: [[ENV:%.*]]:
+  // CIR-NEXT: [[ENV_ALLOCA]] = cir.alloca
   // CIR-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
-  // CIR-NEXT: [[DEAD_GET_GLOBAL:%.*]] = cir.get_global @_setjmp
   // CIR-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // CIR-NEXT: cir.call @_setjmp([[ENV_LOAD]])
+  // CIR-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // CIR-NEXT: cir.eh.setjmp [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
+
 
   // LLVM-LABEL: test_setjmp2
   // LLVM-SAME: (ptr{{.*}}[[ENV:%.*]])
