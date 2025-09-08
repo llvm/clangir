@@ -287,7 +287,8 @@ LValue CIRGenFunction::emitLValueForBitField(LValue base,
   const RecordDecl *rec = field->getParent();
   auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
   auto &info = layout.getBitFieldInfo(field);
-  auto useVolatile = useVolatileForBitField(CGM, base, info, field);
+  [[maybe_unused]] auto useVolatile =
+      useVolatileForBitField(CGM, base, info, field);
   unsigned Idx = layout.getCIRFieldNo(field);
 
   if ((IsInPreservedAIRegion ||
