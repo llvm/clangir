@@ -17,8 +17,8 @@
 #include "TargetInfo.h"
 #include "clang/CIR/MissingFeatures.h"
 
-#include "clang/AST/StmtVisitor.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/StmtVisitor.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
