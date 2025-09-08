@@ -875,6 +875,11 @@ public:
                                        cir::FuncType Ty,
                                        const clang::FunctionDecl *FD);
 
+  /// Sets the CXX special member attribute for the function based on the
+  /// function declaration.
+  void setCXXSpecialMemberAttr(cir::FuncOp func,
+                               const clang::FunctionDecl *funcDecl);
+
   cir::FuncOp createRuntimeFunction(cir::FuncType Ty, llvm::StringRef Name,
                                     mlir::ArrayAttr = {}, bool Local = false,
                                     bool AssumeConvergent = false);
