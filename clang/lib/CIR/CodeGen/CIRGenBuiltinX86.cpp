@@ -25,6 +25,7 @@
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -155,6 +156,128 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
   mlir::Value mask = getMaskVecValue(cgf, op, numberOfElements, loc);
 
   return cgf.getBuilder().createCast(loc, cir::CastKind::integral, mask, dstTy);
+}
+
+static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
+                                           const CallExpr *E,
+                                           ArrayRef<mlir::Value> Ops) {
+  auto &builder = cgf.getBuilder();
+  unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
+  auto loc = cgf.getLoc(E->getExprLoc());
+  auto resultType = cast<cir::VectorType>(Ops[0].getType());
+
+  // If pslldq is shifting the vector more than 15 bytes, emit zero.
+  // This matches the hardware behavior where shifting by 16+ bytes
+  // clears the entire 128-bit lane.
+  if (shiftVal >= 16)
+    return builder.getZero(loc, resultType);
+
+  // Builtin type is vXi64 so multiply by 8 to get bytes.
+  unsigned numElts = resultType.getSize() * 8;
+  assert(numElts % 16 == 0 && "Vector size must be multiple of 16 bytes");
+
+  llvm::SmallVector<int64_t, 64> indices;
+
+  // 256/512-bit pslldq operates on 128-bit lanes so we need to handle that
+  for (unsigned l = 0; l < numElts; l += 16) {
+    for (unsigned i = 0; i != 16; ++i) {
+      unsigned idx = numElts + i - shiftVal;
+      if (idx < numElts)
+        idx -= numElts - 16; // end of lane, switch operand.
+      indices.push_back(idx + l);
+    }
+  }
+
+  // Cast to byte vector for shuffle operation
+  auto byteVecTy = cir::VectorType::get(builder.getSInt8Ty(), numElts);
+  mlir::Value byteCast = builder.createBitcast(Ops[0], byteVecTy);
+  mlir::Value zero = builder.getZero(loc, byteVecTy);
+
+  // Perform the shuffle (left shift by inserting zeros)
+  mlir::Value shuffleResult =
+      builder.createVecShuffle(loc, zero, byteCast, indices);
+
+  // Cast back to original type
+  return builder.createBitcast(shuffleResult, resultType);
+}
+
+static mlir::Value emitX86MaskedCompareResult(CIRGenFunction &cgf,
+                                              mlir::Value cmp, unsigned numElts,
+                                              mlir::Value maskIn,
+                                              mlir::Location loc) {
+  if (maskIn) {
+    llvm_unreachable("NYI");
+  }
+  if (numElts < 8) {
+    int64_t indices[8];
+    for (unsigned i = 0; i != numElts; ++i)
+      indices[i] = i;
+    for (unsigned i = numElts; i != 8; ++i)
+      indices[i] = i % numElts + numElts;
+
+    // This should shuffle between cmp (first vector) and null (second vector)
+    mlir::Value nullVec = cgf.getBuilder().getNullValue(cmp.getType(), loc);
+    cmp = cgf.getBuilder().createVecShuffle(loc, cmp, nullVec, indices);
+  }
+  return cgf.getBuilder().createBitcast(
+      cmp, cgf.getBuilder().getUIntNTy(std::max(numElts, 8U)));
+}
+
+static mlir::Value emitX86MaskedCompare(CIRGenFunction &cgf, unsigned cc,
+                                        bool isSigned,
+                                        ArrayRef<mlir::Value> ops,
+                                        mlir::Location loc) {
+  assert((ops.size() == 2 || ops.size() == 4) &&
+         "Unexpected number of arguments");
+  unsigned numElts = cast<cir::VectorType>(ops[0].getType()).getSize();
+  mlir::Value cmp;
+
+  if (cc == 3) {
+    llvm_unreachable("NYI");
+  } else if (cc == 7) {
+    llvm_unreachable("NYI");
+  } else {
+    cir::CmpOpKind pred;
+    switch (cc) {
+    default:
+      llvm_unreachable("Unknown condition code");
+    case 0:
+      pred = cir::CmpOpKind::eq;
+      break;
+    case 1:
+      pred = cir::CmpOpKind::lt;
+      break;
+    case 2:
+      pred = cir::CmpOpKind::le;
+      break;
+    case 4:
+      pred = cir::CmpOpKind::ne;
+      break;
+    case 5:
+      pred = cir::CmpOpKind::ge;
+      break;
+    case 6:
+      pred = cir::CmpOpKind::gt;
+      break;
+    }
+
+    auto resultTy = cgf.getBuilder().getType<cir::VectorType>(
+        cgf.getBuilder().getUIntNTy(1), numElts);
+    cmp = cgf.getBuilder().create<cir::VecCmpOp>(loc, resultTy, pred, ops[0],
+                                                 ops[1]);
+  }
+
+  mlir::Value maskIn;
+  if (ops.size() == 4)
+    maskIn = ops[3];
+
+  return emitX86MaskedCompareResult(cgf, cmp, numElts, maskIn, loc);
+}
+
+static mlir::Value emitX86ConvertToMask(CIRGenFunction &cgf, mlir::Value in,
+                                        mlir::Location loc) {
+  cir::ConstantOp zero = cgf.getBuilder().getNullValue(in.getType(), loc);
+  return emitX86MaskedCompare(cgf, 1, true, {in, zero}, loc);
 }
 
 mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
@@ -503,6 +626,20 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_cvtmask2q512:
     return emitX86SExtMask(*this, Ops[0], convertType(E->getType()),
                            getLoc(E->getExprLoc()));
+
+  case X86::BI__builtin_ia32_cvtb2mask128:
+  case X86::BI__builtin_ia32_cvtb2mask256:
+  case X86::BI__builtin_ia32_cvtb2mask512:
+  case X86::BI__builtin_ia32_cvtw2mask128:
+  case X86::BI__builtin_ia32_cvtw2mask256:
+  case X86::BI__builtin_ia32_cvtw2mask512:
+  case X86::BI__builtin_ia32_cvtd2mask128:
+  case X86::BI__builtin_ia32_cvtd2mask256:
+  case X86::BI__builtin_ia32_cvtd2mask512:
+  case X86::BI__builtin_ia32_cvtq2mask128:
+  case X86::BI__builtin_ia32_cvtq2mask256:
+  case X86::BI__builtin_ia32_cvtq2mask512:
+    return emitX86ConvertToMask(*this, Ops[0], getLoc(E->getExprLoc()));
   case X86::BI__builtin_ia32_cvtdq2ps512_mask:
   case X86::BI__builtin_ia32_cvtqq2ps512_mask:
   case X86::BI__builtin_ia32_cvtqq2pd512_mask:
@@ -973,8 +1110,34 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_insertf64x2_256:
   case X86::BI__builtin_ia32_inserti64x2_256:
   case X86::BI__builtin_ia32_insertf64x2_512:
-  case X86::BI__builtin_ia32_inserti64x2_512:
-    llvm_unreachable("insertf128 NYI");
+  case X86::BI__builtin_ia32_inserti64x2_512: {
+    unsigned dstNumElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
+    unsigned srcNumElts = cast<cir::VectorType>(Ops[1].getType()).getSize();
+    unsigned subVectors = dstNumElts / srcNumElts;
+    unsigned index =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+    assert(llvm::isPowerOf2_32(subVectors) && "Expected power of 2 subvectors");
+    index &= subVectors - 1; // Remove any extra bits.
+    index *= srcNumElts;
+
+    int64_t indices[16];
+    for (unsigned i = 0; i != dstNumElts; ++i)
+      indices[i] = (i >= srcNumElts) ? srcNumElts + (i % srcNumElts) : i;
+
+    mlir::Value op1 = builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[1],
+                                               ArrayRef(indices, dstNumElts));
+
+    for (unsigned i = 0; i != dstNumElts; ++i) {
+      if (i >= index && i < (index + srcNumElts))
+        indices[i] = (i - index) + dstNumElts;
+      else
+        indices[i] = i;
+    }
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], op1,
+                                    ArrayRef(indices, dstNumElts));
+  }
+
   case X86::BI__builtin_ia32_pmovqd512_mask:
   case X86::BI__builtin_ia32_pmovwb512_mask:
     llvm_unreachable("pmovqd512_mask NYI");
@@ -985,8 +1148,20 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_blendps256:
   case X86::BI__builtin_ia32_pblendw256:
   case X86::BI__builtin_ia32_pblendd128:
-  case X86::BI__builtin_ia32_pblendd256:
-    llvm_unreachable("pblendd128 NYI");
+  case X86::BI__builtin_ia32_pblendd256: {
+    unsigned numElts = cast<cir::VectorType>(Ops[0].getType()).getSize();
+    unsigned imm =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+
+    int64_t indices[16];
+    // If there are more than 8 elements, the immediate is used twice so make
+    // sure we handle that.
+    for (unsigned i = 0; i != numElts; ++i)
+      indices[i] = ((imm >> (i % 8)) & 0x1) ? numElts + i : i;
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], Ops[1],
+                                    ArrayRef(indices, numElts));
+  }
   case X86::BI__builtin_ia32_pshuflw:
   case X86::BI__builtin_ia32_pshuflw256:
   case X86::BI__builtin_ia32_pshuflw512:
@@ -1003,8 +1178,27 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vpermilpd256:
   case X86::BI__builtin_ia32_vpermilps256:
   case X86::BI__builtin_ia32_vpermilpd512:
-  case X86::BI__builtin_ia32_vpermilps512:
-    llvm_unreachable("pshufd NYI");
+  case X86::BI__builtin_ia32_vpermilps512: {
+    uint32_t imm = getIntValueFromConstOp(Ops[1]);
+    auto vecTy = cast<cir::VectorType>(Ops[0].getType());
+    unsigned numElts = vecTy.getSize();
+    auto eltTy = vecTy.getElementType();
+
+    unsigned eltBitWidth = getTypeSizeInBits(eltTy).getFixedValue();
+    unsigned vecBitWidth = numElts * eltBitWidth;
+    unsigned numLanes = vecBitWidth / 128;
+    unsigned numLaneElts = numElts / numLanes;
+
+    imm = (imm & 0xff) * 0x01010101;
+    llvm::SmallVector<int64_t, 16> indices;
+    for (unsigned l = 0; l != numElts; l += numLaneElts) {
+      for (unsigned i = 0; i != numLaneElts; ++i) {
+        indices.push_back((imm % numLaneElts) + l);
+        imm /= numLaneElts;
+      }
+    }
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], indices);
+  }
   case X86::BI__builtin_ia32_shufpd:
   case X86::BI__builtin_ia32_shufpd256:
   case X86::BI__builtin_ia32_shufpd512:
@@ -1045,7 +1239,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_pslldqi128_byteshift:
   case X86::BI__builtin_ia32_pslldqi256_byteshift:
   case X86::BI__builtin_ia32_pslldqi512_byteshift:
-    llvm_unreachable("pslldqi NYI");
+    return emitX86PSLLDQIByteShift(*this, E, Ops);
   case X86::BI__builtin_ia32_psrldqi128_byteshift:
   case X86::BI__builtin_ia32_psrldqi256_byteshift:
   case X86::BI__builtin_ia32_psrldqi512_byteshift:

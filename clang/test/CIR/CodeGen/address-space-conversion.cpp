@@ -58,7 +58,7 @@ void test_nullptr() {
 
 void test_side_effect(pi1_t b) {
   pi2_t p = (pi2_t)(*b++, (int*)0);
-  // CIR:      %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!s32i, addrspace(target<1>)>, %{{[0-9]+}} : !s32i), !cir.ptr<!s32i, addrspace(target<1>)>
+  // CIR:      %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!s32i, addrspace(target<1>)>, !s32i) -> !cir.ptr<!s32i, addrspace(target<1>)>
   // CIR:      %[[#CAST:]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i, addrspace(target<2>)>
   // CIR-NEXT: cir.store{{.*}} %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(target<2>)>, !cir.ptr<!cir.ptr<!s32i, addrspace(target<2>)>>
 

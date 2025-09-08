@@ -325,10 +325,13 @@ void cir::AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 // BreakOp
 //===----------------------------------------------------------------------===//
 
+mlir::Operation *cir::BreakOp::getBreakTarget() {
+  return getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>();
+}
+
 LogicalResult cir::BreakOp::verify() {
-  if (!getOperation()->getParentOfType<LoopOpInterface>() &&
-      !getOperation()->getParentOfType<SwitchOp>())
-    return emitOpError("must be within a loop or switch");
+  if (!getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>())
+    return emitOpError("must be within a breakable operation");
   return success();
 }
 
@@ -1710,23 +1713,24 @@ ParseResult parseCatchRegions(
   };
 
   auto parseCatchEntry = [&]() -> ParseResult {
-    mlir::Type exceptionType;
     mlir::Attribute exceptionTypeInfo;
 
-    // FIXME: support most recent syntax, currently broken.
-    ::llvm::StringRef attrStr;
-    if (!parser.parseOptionalKeyword(&attrStr, {"all"})) {
-      if (parser.parseKeyword("type").failed())
+    if (parser.parseOptionalAttribute(exceptionTypeInfo).has_value()) {
+      catchList.push_back(exceptionTypeInfo);
+    } else {
+      ::llvm::StringRef attrStr;
+      if (parser.parseOptionalKeyword(&attrStr, {"all"}).succeeded()) {
+        // "all" keyword found, exceptionTypeInfo remains null
+      } else if (parser.parseOptionalKeyword("type").succeeded()) {
+        if (parser.parseAttribute(exceptionTypeInfo).failed())
+          return parser.emitError(parser.getCurrentLocation(),
+                                  "expected valid RTTI info attribute");
+      } else {
         return parser.emitError(parser.getCurrentLocation(),
-                                "expected 'type' keyword here");
-      if (parser.parseType(exceptionType).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid exception type");
-      if (parser.parseAttribute(exceptionTypeInfo).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid RTTI info attribute");
+                                "expected attribute, 'all', or 'type' keyword");
+      }
+      catchList.push_back(exceptionTypeInfo);
     }
-    catchList.push_back(exceptionTypeInfo);
     return parseAndCheckRegion();
   };
 

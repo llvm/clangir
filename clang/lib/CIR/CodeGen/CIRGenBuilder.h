@@ -779,6 +779,13 @@ public:
                                 const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+
+    // If using AAPCS and the field is volatile, load with the size of the
+    // declared field
+    storageType =
+        useVolatile ? cir::IntType::get(storageType.getContext(),
+                                        info.VolatileStorageSize, info.IsSigned)
+                    : storageType;
     return cir::GetBitfieldOp::create(*this, loc, resultType, addr.getPointer(),
                                       storageType, info.Name, info.Size, offset,
                                       info.IsSigned, isLvalueVolatile,
@@ -790,6 +797,13 @@ public:
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+
+    // If using AAPCS and the field is volatile, load with the size of the
+    // declared field
+    storageType =
+        useVolatile ? cir::IntType::get(storageType.getContext(),
+                                        info.VolatileStorageSize, info.IsSigned)
+                    : storageType;
     return cir::SetBitfieldOp::create(
         *this, loc, resultType, dstAddr.getPointer(), storageType, src,
         info.Name, info.Size, offset, info.IsSigned, isLvalueVolatile,
@@ -977,9 +991,11 @@ public:
 
   cir::VecShuffleOp createVecShuffle(mlir::Location loc, mlir::Value vec1,
                                      llvm::ArrayRef<int64_t> mask) {
-    // FIXME(cir): Support use cir.vec.shuffle with single vec
-    // Workaround: pass Vec as both vec1 and vec2
-    return createVecShuffle(loc, vec1, vec1, mask);
+    /// Create a unary shuffle. The second vector operand of the IR instruction
+    /// is poison.
+    return createVecShuffle(
+        loc, vec1, getConstant(loc, getAttr<cir::PoisonAttr>(vec1.getType())),
+        mask);
   }
 
   cir::StoreOp
