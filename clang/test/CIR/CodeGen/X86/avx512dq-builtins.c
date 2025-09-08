@@ -2,6 +2,7 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx512dq -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefixes=LLVM --input-file=%t.ll %s
+// RUN: %clang_cc1 -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx512dq -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefix=OGCG
 
 #include <immintrin.h>
 
@@ -49,4 +50,28 @@ __m512i test_mm512_inserti64x2(__m512i __A, __m128i __B) {
   // LLVM-LABEL: @test_mm512_inserti64x2
   // LLVM: shufflevector <8 x i64> %{{.*}}, <8 x i64> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 8, i32 9, i32 4, i32 5, i32 6, i32 7>
   return _mm512_inserti64x2(__A, __B, 1); 
+}
+
+__mmask16 test_mm512_movepi32_mask(__m512i __A) {
+  // CIR-LABEL: _mm512_movepi32_mask
+  // CIR: %{{.*}} = cir.vec.cmp(lt, %{{.*}}, %{{.*}}) : !cir.vector<!s32i x 16>, !cir.vector<!cir.int<u, 1> x 16>
+
+  // LLVM-LABEL: @test_mm512_movepi32_mask
+  // LLVM: [[CMP:%.*]] = icmp slt <16 x i32> %{{.*}}, zeroinitializer
+
+  // OGCG-LABEL: @test_mm512_movepi32_mask
+  // OGCG: [[CMP:%.*]] = icmp slt <16 x i32> %{{.*}}, zeroinitializer
+  return _mm512_movepi32_mask(__A); 
+}
+
+__mmask8 test_mm512_movepi64_mask(__m512i __A) {
+  // CIR-LABEL: @_mm512_movepi64_mask
+  // CIR: %{{.*}} = cir.vec.cmp(lt, %{{.*}}, %{{.*}}) : !cir.vector<!s64i x 8>, !cir.vector<!cir.int<u, 1> x 8>
+
+  // LLVM-LABEL: @test_mm512_movepi64_mask
+  // LLVM: [[CMP:%.*]] = icmp slt <8 x i64> %{{.*}}, zeroinitializer
+
+  // OGCG-LABEL: @test_mm512_movepi64_mask
+  // OGCG: [[CMP:%.*]] = icmp slt <8 x i64> %{{.*}}, zeroinitializer
+  return _mm512_movepi64_mask(__A); 
 }
