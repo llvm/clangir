@@ -95,19 +95,18 @@ void walkRegionSkipping(mlir::Region &region,
 /// Convert from a CIR PtrStrideOp kind to an LLVM IR equivalent of GEP.
 mlir::LLVM::GEPNoWrapFlags
 convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
-  static std::unordered_map<cir::CIR_GEPNoWrapFlags, mlir::LLVM::GEPNoWrapFlags>
-      mp = {
-          {cir::CIR_GEPNoWrapFlags::none, mlir::LLVM::GEPNoWrapFlags::none},
-          {cir::CIR_GEPNoWrapFlags::inbounds,
-           mlir::LLVM::GEPNoWrapFlags::inbounds},
-          {cir::CIR_GEPNoWrapFlags::inboundsFlag,
-           mlir::LLVM::GEPNoWrapFlags::inboundsFlag},
-          {cir::CIR_GEPNoWrapFlags::nusw, mlir::LLVM::GEPNoWrapFlags::nusw},
-          {cir::CIR_GEPNoWrapFlags::nuw, mlir::LLVM::GEPNoWrapFlags::nuw},
-      };
-  mlir::LLVM::GEPNoWrapFlags x = mlir::LLVM::GEPNoWrapFlags::none;
-  for (auto [key, _] : mp)
-    x = x | mp.at(flags & key);
+  using CIRFlags = cir::CIR_GEPNoWrapFlags;
+  using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
+
+  LLVMFlags x = LLVMFlags::none;
+  if ((flags & CIRFlags::inboundsFlag) == CIRFlags::inboundsFlag)
+    x = x | LLVMFlags::inboundsFlag;
+  if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
+    x = x | LLVMFlags::nusw;
+  if ((flags & CIRFlags::inbounds) == CIRFlags::inbounds)
+    x = x | LLVMFlags::inbounds;
+  if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
+    x = x | LLVMFlags::nuw;
   return x;
 }
 
