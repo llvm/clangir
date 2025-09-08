@@ -1164,12 +1164,55 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   }
   case X86::BI__builtin_ia32_pshuflw:
   case X86::BI__builtin_ia32_pshuflw256:
-  case X86::BI__builtin_ia32_pshuflw512:
-    llvm_unreachable("pshuflw NYI");
+  case X86::BI__builtin_ia32_pshuflw512: {
+
+    unsigned imm =
+        Ops[1].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+    auto Ty = cast<cir::VectorType>(Ops[0].getType());
+    unsigned numElts = Ty.getSize();
+
+    // Splat the 8-bits of immediate 4 times to help the loop wrap around.
+    imm = (imm & 0xff) * 0x01010101;
+
+    int64_t indices[32];
+    for (unsigned l = 0; l != numElts; l += 8) {
+      for (unsigned i = 0; i != 4; ++i) {
+        indices[l + i] = l + (imm & 3);
+        imm >>= 2;
+      }
+      for (unsigned i = 4; i != 8; ++i)
+        indices[l + i] = l + i;
+    }
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0],
+                                    ArrayRef(indices, numElts));
+  }
   case X86::BI__builtin_ia32_pshufhw:
   case X86::BI__builtin_ia32_pshufhw256:
-  case X86::BI__builtin_ia32_pshufhw512:
-    llvm_unreachable("pshufhw NYI");
+  case X86::BI__builtin_ia32_pshufhw512: {
+
+    unsigned imm =
+        Ops[1].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+    auto ty = cast<cir::VectorType>(Ops[0].getType());
+    unsigned numElts = ty.getSize();
+
+    // Splat the 8-bits of immediate 4 times to help the loop wrap around.
+    imm = (imm & 0xff) * 0x01010101;
+
+    int64_t indices[32];
+    for (unsigned l = 0; l != numElts; l += 8) {
+      for (unsigned i = 0; i != 4; ++i)
+        indices[l + i] = l + i;
+      for (unsigned i = 4; i != 8; ++i) {
+        indices[l + i] = l + 4 + (imm & 3);
+        imm >>= 2;
+      }
+    }
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0],
+                                    ArrayRef(indices, numElts));
+  }
+
   case X86::BI__builtin_ia32_pshufd:
   case X86::BI__builtin_ia32_pshufd256:
   case X86::BI__builtin_ia32_pshufd512:
@@ -1204,8 +1247,31 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_shufpd512:
   case X86::BI__builtin_ia32_shufps:
   case X86::BI__builtin_ia32_shufps256:
-  case X86::BI__builtin_ia32_shufps512:
-    llvm_unreachable("shufpd NYI");
+  case X86::BI__builtin_ia32_shufps512: {
+    unsigned imm =
+        Ops[2].getDefiningOp<cir::ConstantOp>().getIntValue().getZExtValue();
+    auto ty = cast<cir::VectorType>(Ops[0].getType());
+    unsigned numElts = ty.getSize();
+    unsigned numLanes = CGM.getDataLayout().getTypeSizeInBits(ty) / 128;
+    unsigned numLaneElts = numElts / numLanes;
+
+    // Splat the 8-bits of immediate 4 times to help the loop wrap around.
+    imm = (imm & 0xff) * 0x01010101;
+
+    int64_t indices[16];
+    for (unsigned l = 0; l != numElts; l += numLaneElts) {
+      for (unsigned i = 0; i != numLaneElts; ++i) {
+        unsigned index = imm % numLaneElts;
+        imm /= numLaneElts;
+        if (i >= (numLaneElts / 2))
+          index += numElts;
+        indices[l + i] = l + index;
+      }
+    }
+
+    return builder.createVecShuffle(getLoc(E->getExprLoc()), Ops[0], Ops[1],
+                                    ArrayRef(indices, numElts));
+  }
   case X86::BI__builtin_ia32_permdi256:
   case X86::BI__builtin_ia32_permdf256:
   case X86::BI__builtin_ia32_permdi512:
