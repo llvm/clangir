@@ -1927,8 +1927,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
         builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
     cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
-    cir::EhSetjmp op =
-        cir::EhSetjmp::create(builder, loc, castBuf, /*is_builtin=*/true);
+    auto op =
+        cir::EhSetjmpOp::create(builder, loc, castBuf, /*is_builtin=*/true);
     return RValue::get(op);
   }
   case Builtin::BI__builtin_longjmp:
@@ -2435,8 +2435,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::Location loc = getLoc(E->getExprLoc());
     cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
     mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
-    cir::EhSetjmp op =
-        cir::EhSetjmp::create(builder, loc, castBuf, /*builtin = */ false);
+    auto op =
+        cir::EhSetjmpOp::create(builder, loc, castBuf, /*is_builtin = */ false);
     return RValue::get(op);
   }
 

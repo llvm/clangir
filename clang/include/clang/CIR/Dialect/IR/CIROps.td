@@ -4703,7 +4703,7 @@ def CIR_EhTypeIdOp : CIR_Op<"eh.typeid",
   }];
 }
 
-def CIR_EhSetjmp : CIR_Op<"eh.setjmp"> {
+def CIR_EhSetjmpOp : CIR_Op<"eh.setjmp"> {
   let summary = "CIR setjmp operation";
   let description = [{
     Saves call-site information (e.g., stack pointer, instruction

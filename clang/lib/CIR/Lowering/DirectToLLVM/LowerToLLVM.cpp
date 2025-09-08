@@ -4288,7 +4288,7 @@ mlir::LogicalResult CIRToLLVMEhTypeIdOpLowering::matchAndRewrite(
 }
 
 mlir::LogicalResult CIRToLLVMEhSetjmpOpLowering::matchAndRewrite(
-    cir::EhSetjmp op, OpAdaptor adaptor,
+    cir::EhSetjmpOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::Type returnType = typeConverter->convertType(op.getType());
   if (op.getIsBuiltin()) {

@@ -1221,12 +1221,12 @@ public:
 };
 
 class CIRToLLVMEhSetjmpOpLowering
-    : public mlir::OpConversionPattern<cir::EhSetjmp> {
+    : public mlir::OpConversionPattern<cir::EhSetjmpOp> {
 public:
-  using mlir::OpConversionPattern<cir::EhSetjmp>::OpConversionPattern;
+  using mlir::OpConversionPattern<cir::EhSetjmpOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::EhSetjmp op, OpAdaptor,
+  matchAndRewrite(cir::EhSetjmpOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 
