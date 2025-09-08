@@ -4317,14 +4317,14 @@ mlir::LogicalResult CIRToLLVMEhSetjmpOpLowering::matchAndRewrite(
     return mlir::success();
   }
 
-    StringRef fnName = "_setjmp";
-    auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
-    auto fnType = mlir::LLVM::LLVMFunctionType::get(returnType, llvmPtrTy,
-                                                    /*isVarArg=*/false);
-    getOrCreateLLVMFuncOp(rewriter, op, fnName, fnType);
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, returnType, fnName,
-                                                    adaptor.getEnv());
-    return mlir::success();
+  StringRef fnName = "_setjmp";
+  auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+  auto fnType = mlir::LLVM::LLVMFunctionType::get(returnType, llvmPtrTy,
+                                                  /*isVarArg=*/false);
+  getOrCreateLLVMFuncOp(rewriter, op, fnName, fnType);
+  rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, returnType, fnName,
+                                                  adaptor.getEnv());
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMCatchParamOpLowering::matchAndRewrite(
