@@ -20,7 +20,7 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-incubator | 6 (60.00%) | 6 (60.00%) |
 | cir-incubator-callconv | 6 (60.00%) | 6 (60.00%) |
 | cir-incubator-throughmlir | 0 (0) | 0 (0) |
-| cir-upstream | 10 (100.00%) | 1 (10.00%) |
+| cir-upstream | 1 (10.00%) | 1 (10.00%) |
 | no-cir | 10 (100.00%) | 10 (100.00%) |
 
 #### spec2017fp
@@ -40,7 +40,7 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-incubator | 167 (83.08%) | 167 (83.08%) |
 | cir-incubator-callconv | 148 (73.63%) | 148 (73.63%) |
 | cir-incubator-throughmlir | 0 (0) | 0 (0) |
-| cir-upstream | 201 (100.00%) | 59 (29.35%) |
+| cir-upstream | 49 (24.38%) | 59 (29.35%) |
 | no-cir | 201 (100.00%) | 201 (100.00%) |
 
 #### singlesource
@@ -50,7 +50,7 @@ The pipeline is: AST -> CIR -> CIR Passes -> LLVM -> -O2 opt ...
 | cir-incubator | 1673 (91.27%) | 1674 (91.33%) |
 | cir-incubator-callconv | 1642 (89.58%) | 1643 (89.63%) |
 | cir-incubator-throughmlir | 472 (25.75%) | 472 (25.75%) |
-| cir-upstream | 1832 (99.95%) | 1248 (68.09%) |
+| cir-upstream | 1203 (65.63%) | 1248 (68.09%) |
 | no-cir | 1832 (99.95%) | 1832 (99.95%) |
 
 ### ARM64
