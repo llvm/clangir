@@ -4255,6 +4255,16 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []>
       // For indirect call, the operand list is shifted by one.
       setOperand(index + 1, value);
     }
+
+    /// If this is a direct call, returns the callee as a `cir::FuncOp` in `symbolTable`.
+    /// Otherwise, returns `null`.
+    cir::FuncOp getDirectCallee(mlir::SymbolTable &symbolTable);
+
+    /// If this is a direct call, returns the callee as a `cir::FuncOp` in parent `module`.
+    /// Otherwise, returns `null`.
+    /// NOTE: This method walks the symbol table. If you are calling this method a lot,
+    /// consider using `cir::FuncOp::getDirectCallee(mlir::SymbolTable &)` instead.
+    cir::FuncOp getDirectCallee(mlir::ModuleOp module);
   }];
 
   let hasCustomAssemblyFormat = 1;
