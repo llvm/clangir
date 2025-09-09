@@ -14,7 +14,7 @@ on:
         required: false
       os_list:
         required: false
-        default: '["ubuntu-24.04", "windows-2019", "macOS-13"]'
+        default: '["ubuntu-24.04", "windows-2022", "macOS-13"]'
       python_version:
         required: false
         type: string
@@ -37,9 +37,8 @@ on:
       os_list:
         required: false
         type: string
-        # Use windows-2019 due to:
-        # https://developercommunity.visualstudio.com/t/Prev-Issue---with-__assume-isnan-/1597317
-        default: '["ubuntu-24.04", "windows-2019", "macOS-13"]'
+        # Pin windows-2022 because GitHub-hosted windows-2019 runners are deprecated.
+        default: '["ubuntu-24.04", "windows-2022", "macOS-13"]'
 
       python_version:
         required: false
