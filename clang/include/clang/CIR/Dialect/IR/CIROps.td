@@ -386,6 +386,24 @@ def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
+def CIR_GEPNone : I32BitEnumCaseNone<"none">;
+def CIR_GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
+def CIR_GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
+def CIR_GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
+def CIR_GEPInbounds
+    : BitEnumCaseGroup<"inbounds", [CIR_GEPInboundsFlag, CIR_GEPNusw]>;
+
+def CIR_GEPNoWrapFlags
+    : CIR_I32BitEnum<"CIR_GEPNoWrapFlags", "::cir::CIR_GEPNoWrapFlags",
+                     [CIR_GEPNone, CIR_GEPInboundsFlag, CIR_GEPNusw, CIR_GEPNuw,
+                      CIR_GEPInbounds]> {
+  let cppNamespace = "::cir";
+  let printBitEnumPrimaryGroups = 1;
+}
+
+def CIR_GEPNoWrapFlagsProp : EnumProp<CIR_GEPNoWrapFlags> {
+  let defaultValue = interfaceType#"::none";
+}
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
   Pure, AllTypesMatch<["base", "result"]>
@@ -397,19 +415,23 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 
     ```mlir
     %3 = cir.const 0 : i32
+
     %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
+
+    %5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
+
+    %6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
+
     ```
   }];
 
-  let arguments = (ins
-    CIR_PointerType:$base,
-    CIR_AnyFundamentalIntType:$stride
-  );
+  let arguments = (ins CIR_PointerType:$base, CIR_AnyFundamentalIntType:$stride,
+      CIR_GEPNoWrapFlagsProp:$noWrapFlags);
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    $base`,` $stride `:` functional-type(operands, results) attr-dict
+    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
   }];
 
   let extraClassDeclaration = [{
