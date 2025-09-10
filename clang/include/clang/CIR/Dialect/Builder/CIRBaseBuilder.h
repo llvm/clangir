@@ -89,7 +89,7 @@ public:
     return cir::IntType::get(getContext(), N, false);
   }
 
-  unsigned getCIRIntOrFloatBitWidth(mlir::Type eltTy) const {
+  static unsigned getCIRIntOrFloatBitWidth(mlir::Type eltTy) {
     if (auto intType = mlir::dyn_cast<cir::IntTypeInterface>(eltTy))
       return intType.getWidth();
     if (auto floatType = mlir::dyn_cast<cir::FPTypeInterface>(eltTy))

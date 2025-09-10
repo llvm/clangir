@@ -312,11 +312,11 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     assert(!cir::MissingFeatures::CGFPOptionsRAII());
     auto loc = getLoc(E->getExprLoc());
     mlir::Value cmp;
-    if (isSignaling) {
-      assert(!cir::MissingFeatures::emitConstrainedFPCall());
+    if (builder.getIsFPConstrained())
+      assert(cir::MissingFeatures::emitConstrainedFPCall());
+    else
       cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
-    } else
-      cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
+
     mlir::Value bitCast = builder.createBitcast(
         shouldInvert ? builder.createNot(cmp) : cmp, Ops[0].getType());
     return bitCast;
