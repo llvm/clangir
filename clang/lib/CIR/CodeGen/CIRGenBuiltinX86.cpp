@@ -308,11 +308,15 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
 
   // TODO: Add isSignaling boolean once emitConstrainedFPCall implemented
   auto getVectorFCmpIR = [this, &Ops, &E](cir::CmpOpKind pred,
-                                          bool shouldInvert) {
+                                          bool shouldInvert, bool isSignaling) {
     assert(!cir::MissingFeatures::CGFPOptionsRAII());
-    assert(!cir::MissingFeatures::emitConstrainedFPCall());
     auto loc = getLoc(E->getExprLoc());
-    mlir::Value cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
+    mlir::Value cmp;
+    if (isSignaling) {
+      assert(!cir::MissingFeatures::emitConstrainedFPCall());
+      cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
+    } else
+      cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
     mlir::Value bitCast = builder.createBitcast(
         shouldInvert ? builder.createNot(cmp) : cmp, Ops[0].getType());
     return bitCast;
@@ -1683,7 +1687,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     llvm_unreachable("cmpnltps NYI");
   case X86::BI__builtin_ia32_cmpnleps:
   case X86::BI__builtin_ia32_cmpnlepd:
-    return getVectorFCmpIR(cir::CmpOpKind::le, /*shouldInvert=*/true);
+    return getVectorFCmpIR(cir::CmpOpKind::le, /*shouldInvert=*/true,
+                           /*isSignaling=*/true);
   case X86::BI__builtin_ia32_cmpordps:
   case X86::BI__builtin_ia32_cmpordpd:
     llvm_unreachable("cmpordps NYI");
