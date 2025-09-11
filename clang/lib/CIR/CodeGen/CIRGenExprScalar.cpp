@@ -226,11 +226,27 @@ public:
   }
 
   mlir::Value VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *E);
+
   mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *e) {
     auto func = cast<cir::FuncOp>(CGF.CurFn);
-    return cir::BlockAddressOp::create(
+    llvm::StringRef synName = func.getSymName();
+    mlir::FlatSymbolRefAttr funName =
+        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), synName);
+    mlir::StringAttr labelName =
+        mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
+    auto blockAddress = cir::BlockAddressOp::create(
         Builder, CGF.getLoc(e->getSourceRange()), CGF.convertType(e->getType()),
-        e->getLabel()->getName(), func.getSymName());
+        labelName, funName);
+
+    cir::LabelOp resolvedLabel = CGF.CGM.lookupBlockAddressInfo(
+        std::make_pair(synName, e->getLabel()->getName()));
+
+    if (!resolvedLabel)
+      CGF.CGM.mapUnresolvedBlockAddress(blockAddress, nullptr);
+    else
+      CGF.CGM.mapResolvedBlockAddress(blockAddress, resolvedLabel);
+
+    return blockAddress;
   }
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");

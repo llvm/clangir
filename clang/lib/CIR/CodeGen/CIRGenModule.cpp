@@ -4330,6 +4330,35 @@ void CIRGenModule::emitVTablesOpportunistically() {
   opportunisticVTables.clear();
 }
 
+void CIRGenModule::mapBlockAddress(
+    std::pair<llvm::StringRef, llvm::StringRef> blockInfo, cir::LabelOp label) {
+  auto result = blockAddressInfoToLabel.try_emplace(blockInfo, label);
+  (void)result;
+  assert(result.second &&
+         "attempting to map a blockaddress info that is already mapped");
+}
+
+void CIRGenModule::mapUnresolvedBlockAddress(cir::BlockAddressOp op,
+                                             cir::LabelOp label) {
+  auto result = unresolvedBlockAddressToLabel.try_emplace(op, label);
+  (void)result;
+  assert(result.second &&
+         "attempting to map a blockaddress operation that is already mapped");
+}
+
+void CIRGenModule::mapResolvedBlockAddress(cir::BlockAddressOp op,
+                                           cir::LabelOp label) {
+  auto result = blockAddressToLabel.try_emplace(op, label);
+  (void)result;
+  assert(result.second &&
+         "attempting to map a blockaddress operation that is already mapped");
+}
+
+cir::LabelOp CIRGenModule::lookupBlockAddressInfo(
+    std::pair<llvm::StringRef, llvm::StringRef> blockInfo) {
+  return blockAddressInfoToLabel.lookup(blockInfo);
+}
+
 void CIRGenModule::emitGlobalAnnotations() {
   for (const auto &[mangledName, vd] : deferredAnnotations) {
     mlir::Operation *gv = getGlobalValue(mangledName);

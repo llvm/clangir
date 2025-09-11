@@ -6122,7 +6122,7 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 // BlockAddressOp
 //===----------------------------------------------------------------------===//
 
-def CIR_BlockAddressOp : CIR_Op<"blockaddress"> {
+def CIR_BlockAddressOp : CIR_Op<"blockaddress", [ConstantLike, Pure]> {
   let summary = "Get the address of a cir.label within a function";
   let description = [{
     The `cir.blockaddress` operation takes a label and a function name and
@@ -6135,20 +6135,27 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress"> {
 
     Example:
     ```mlir
-    %addr = cir.blockaddress("label", "foo") -> !cir.ptr<!cir.void>
+    %1 = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
+    %addr = cir.blockaddress("foo", "label") -> !cir.ptr<!cir.void>
+    cir.store align(8) %addr, %1 : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+    cir.br ^bb1
+   ^bb1:
+    cir.label "label"
     ```
   }];
 
-  let arguments = (ins StrAttr:$label, StrAttr:$func);
+  let arguments = (ins StrAttr:$label, FlatSymbolRefAttr:$func);
   let results = (outs CIR_VoidPtrType:$addr);
   let assemblyFormat = [{
-    `(` $label `,` $func `)` `->` qualified(type($addr)) attr-dict
+    `(` $func `,` $label `)` `->` qualified(type($addr)) attr-dict
   }];
   let extraClassDeclaration = [{
     static int32_t tagIndex;
     /// Search for the matching `cir.label` operation.
     void findLabel(cir::LabelOp &label);
   }];
+
+  let hasFolder = 1;
 
 }
 
