@@ -5,30 +5,30 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm  %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=OGCG
 
-void a(void) {
+void A(void) {
   void *ptr = &&A;
 A:
   return;
 }
-// CIR:  cir.func dso_local @a
+// CIR:  cir.func dso_local @A
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
-// CIR:    [[BLOCK:%.*]] = cir.blockaddress("A", "a") -> !cir.ptr<!void>
+// CIR:    [[BLOCK:%.*]] = cir.blockaddress(@A, "A") -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.br ^bb1
 // CIR:  ^bb1:  // pred: ^bb0
 // CIR:    cir.label "A"
 // CIR:    cir.return
 
-// LLVM: define dso_local void @a()
+// LLVM: define dso_local void @A()
 // LLVM:   [[PTR:%.*]] = alloca ptr, i64 1, align 8
-// LLVM:   store ptr blockaddress(@a, %[[A:.*]]), ptr [[PTR]], align 8
+// LLVM:   store ptr blockaddress(@A, %[[A:.*]]), ptr [[PTR]], align 8
 // LLVM:   br label %[[A]]
 // LLVM: [[A]]:                                                ; preds = %0
 // LLVM:   ret void
 
-// OGCG: define dso_local void @a()
+// OGCG: define dso_local void @A()
 // OGCG:   [[PTR:%.*]] = alloca ptr, align 8
-// OGCG:   store ptr blockaddress(@a, %A), ptr [[PTR]], align 8
+// OGCG:   store ptr blockaddress(@A, %A), ptr [[PTR]], align 8
 // OGCG:   br label %A
 // OGCG: A:                                                ; preds = %entry, %indirectgoto
 // OGCG:   ret void
@@ -43,9 +43,16 @@ B:
 // CIR:  cir.func dso_local @B()
 // CIR:    cir.label "B"
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
-// CIR:    [[BLOCK:%.*]] = cir.blockaddress("B", "B") -> !cir.ptr<!void>
+// CIR:    [[BLOCK:%.*]] = cir.blockaddress(@B, "B") -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.return
+
+// LLVM: define dso_local void @B
+// LLVM:   br label %[[B:.*]]
+// LLVM: [[B]]:
+// LLVM:   %[[PTR:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   store ptr blockaddress(@B, %[[B]]), ptr %[[PTR]], align 8
+// LLVM:   ret void
 
 // OGCG: define dso_local void @B
 // OGCG:   [[PTR:%.*]] = alloca ptr, align 8
@@ -65,8 +72,8 @@ B:
 }
 
 // CIR:  cir.func dso_local @C
-// CIR:    [[BLOCK1:%.*]] = cir.blockaddress("A", "C") -> !cir.ptr<!void>
-// CIR:    [[BLOCK2:%.*]] = cir.blockaddress("B", "C") -> !cir.ptr<!void>
+// CIR:    [[BLOCK1:%.*]] = cir.blockaddress(@C, "A") -> !cir.ptr<!void>
+// CIR:    [[BLOCK2:%.*]] = cir.blockaddress(@C, "B") -> !cir.ptr<!void>
 // CIR:    [[COND:%.*]] = cir.select if [[CMP:%.*]] then [[BLOCK1]] else [[BLOCK2]] : (!cir.bool, !cir.ptr<!void>, !cir.ptr<!void>) -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[COND]], [[PTR:%.*]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.br ^bb2
@@ -102,3 +109,50 @@ B:
 // OGCG:   ret void
 // OGCG: indirectgoto:                                     ; No predecessors!
 // OGCG:   indirectbr ptr poison, [label %A, label %B]
+
+void D(void) {
+  void *ptr = &&A;
+  void *ptr2 = &&A;
+A:
+  void *ptr3 = &&A;
+  return;
+}
+
+// CIR:  cir.func dso_local @D
+// CIR:    %[[PTR:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init]
+// CIR:    %[[PTR2:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr2", init]
+// CIR:    %[[PTR3:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr3", init]
+// CIR:    %[[BLK1:.*]] = cir.blockaddress(@D, "A") -> !cir.ptr<!void>
+// CIR:    cir.store align(8) %[[BLK1]], %[[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:    %[[BLK2:.*]] = cir.blockaddress(@D, "A") -> !cir.ptr<!void>
+// CIR:    cir.store align(8) %[[BLK2]], %[[PTR2]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:    cir.br ^bb1
+// CIR:  ^bb1:  // pred: ^bb0
+// CIR:    cir.label "A"
+// CIR:    %[[BLK3:.*]] = cir.blockaddress(@D, "A") -> !cir.ptr<!void>
+// CIR:    cir.store align(8) %[[BLK3]], %[[PTR3]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:    cir.return
+
+// LLVM: define dso_local void @D
+// LLVM:   %[[PTR:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   %[[PTR2:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   %[[PTR3:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   store ptr blockaddress(@D, %[[A:.*]]), ptr %[[PTR]], align 8
+// LLVM:   store ptr blockaddress(@D, %[[A]]), ptr %[[PTR2]], align 8
+// LLVM:   br label %[[A]]
+// LLVM: [[A]]:
+// LLVM:   store ptr blockaddress(@D, %[[A]]), ptr %[[PTR3]], align 8
+// LLVM:   ret void
+
+// OGCG: define dso_local void @D
+// OGCG:   %[[PTR:.*]] = alloca ptr, align 8
+// OGCG:   %[[PTR2:.*]] = alloca ptr, align 8
+// OGCG:   %[[PTR3:.*]] = alloca ptr, align 8
+// OGCG:   store ptr blockaddress(@D, %A), ptr %[[PTR]], align 8
+// OGCG:   store ptr blockaddress(@D, %A), ptr %[[PTR2]], align 8
+// OGCG:   br label %A
+// OGCG: A:
+// OGCG:   store ptr blockaddress(@D, %A), ptr %[[PTR3]], align 8
+// OGCG:   ret void
+// OGCG: indirectgoto:
+// OGCG:   indirectbr ptr poison, [label %A, label %A, label %A]

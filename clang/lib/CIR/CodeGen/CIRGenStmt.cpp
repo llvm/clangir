@@ -652,8 +652,13 @@ mlir::LogicalResult CIRGenFunction::emitLabel(const LabelDecl *D) {
   }
 
   builder.setInsertionPointToEnd(labelBlock);
-  builder.create<cir::LabelOp>(getLoc(D->getSourceRange()), D->getName());
+  auto label =
+      builder.create<cir::LabelOp>(getLoc(D->getSourceRange()), D->getName());
   builder.setInsertionPointToEnd(labelBlock);
+
+  auto func = cast<cir::FuncOp>(CurFn);
+  CGM.mapBlockAddress(std::make_pair(func.getSymName(), label.getLabel()),
+                      label);
 
   //  FIXME: emit debug info for labels, incrementProfileCounter
   return mlir::success();

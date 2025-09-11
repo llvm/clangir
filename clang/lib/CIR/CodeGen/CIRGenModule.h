@@ -206,6 +206,25 @@ public:
   /// this if it ends up taking too much memory.
   llvm::DenseMap<const clang::FieldDecl *, llvm::StringRef> LambdaFieldToName;
 
+  /// Map (function name, label name) pairs to the corresponding CIR LabelOp.
+  /// This provides the main lookup table used to resolve block addresses
+  /// into their label operations.
+  llvm::DenseMap<std::pair<llvm::StringRef, llvm::StringRef>, cir::LabelOp>
+      blockAddressInfoToLabel;
+  /// Map CIR BlockAddressOps directly to their resolved LabelOps.
+  /// Used once a block address has been successfully lowered to a label.
+  llvm::DenseMap<cir::BlockAddressOp, cir::LabelOp> blockAddressToLabel;
+  /// Track CIR BlockAddressOps that cannot be resolved immediately
+  /// because their LabelOp has not yet been emitted. These entries
+  /// are patched later once the corresponding label is available.
+  llvm::DenseMap<cir::BlockAddressOp, cir::LabelOp>
+      unresolvedBlockAddressToLabel;
+  cir::LabelOp
+  lookupBlockAddressInfo(std::pair<llvm::StringRef, llvm::StringRef> blockInfo);
+  void mapBlockAddress(std::pair<llvm::StringRef, llvm::StringRef> blockInfo,
+                       cir::LabelOp label);
+  void mapUnresolvedBlockAddress(cir::BlockAddressOp op, cir::LabelOp);
+  void mapResolvedBlockAddress(cir::BlockAddressOp op, cir::LabelOp);
   /// If the declaration has internal linkage but is inside an
   /// extern "C" linkage specification, prepare to emit an alias for it
   /// to the expected name.

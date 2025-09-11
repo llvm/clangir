@@ -1858,6 +1858,8 @@ void cir::BlockAddressOp::findLabel(cir::LabelOp &label) {
   }));
 }
 
+OpFoldResult cir::BlockAddressOp::fold(FoldAdaptor) { return getLabelAttr(); }
+
 //===----------------------------------------------------------------------===//
 // CaseOp
 //===----------------------------------------------------------------------===//
