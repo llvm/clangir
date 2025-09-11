@@ -1,12 +1,12 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -O2 -fclangir -emit-cir -o - %s | FileCheck %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -O2 -fclangir -emit-llvm -o - %s | FileCheck %s -check-prefix=LLVM
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -O2 -emit-llvm -o - %s | FileCheck %s -check-prefix=OG
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -O2 -emit-llvm -o - %s | FileCheck %s -check-prefix=OGCG
 
 // CIR: !rec_A = !cir.record<class "A" {!s32i} #cir.record.decl.ast>
 // CIR: cir.global "private" constant external @_ZN1B1AE : !cir.ptr<!rec_A> {alignment = 8 : i64}
 
 // LLVM: @_ZN1B1AE = external local_unnamed_addr constant ptr, align 8
-// OG: @_ZN1B1AE = external local_unnamed_addr constant ptr, align 8
+// OGCG: @_ZN1B1AE = external local_unnamed_addr constant ptr, align 8
 class A { int p = 1;};
 class B {
 public:
@@ -24,8 +24,8 @@ A& ref() {
   // LLVM: [[LD:%.*]] = load ptr, ptr @_ZN1B1AE
   // LLVM-NEXT: ret ptr [[LD]]
 
-  // OG-LABEL: _Z3refv
-  // OG: [[LD:%.*]] = load ptr, ptr @_ZN1B1AE
-  // OG-NEXT: ret ptr [[LD]]
+  // OGCG-LABEL: _Z3refv
+  // OGCG: [[LD:%.*]] = load ptr, ptr @_ZN1B1AE
+  // OGCG-NEXT: ret ptr [[LD]]
   return B::A;
 }
