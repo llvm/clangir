@@ -935,7 +935,8 @@ static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   }
   LValue LV;
   if (VD->getType()->isReferenceType())
-    assert(0 && "NYI");
+    LV = CGF.emitLoadOfReferenceLValue(Addr, CGF.getLoc(E->getExprLoc()),
+                                       VD->getType(), AlignmentSource::Decl);
   else
     LV = CGF.makeAddrLValue(Addr, T, AlignmentSource::Decl);
   assert(!cir::MissingFeatures::setObjCGCLValueClass() && "NYI");
