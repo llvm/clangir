@@ -2476,7 +2476,8 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
 
   // Switch any previous uses to the alias.
   if (op) {
-    llvm_unreachable("NYI");
+    op->replaceAllUsesWith(alias);
+    op->erase();
   } else {
     // Name already set by createCIRFunction
   }
