@@ -2772,26 +2772,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       mlir::Type correctedExpectedTy = correctIntrinsicIntegerSignedness(
           expectedTy, E, i, &getMLIRContext());
 
-      if (argType != correctedExpectedTy) {
-        // XXX - vector of pointers?
-        if (cir::PointerType expectedPtrTy =
-                dyn_cast<cir::PointerType>(correctedExpectedTy)) {
-          if (cir::PointerType argPtrTy = dyn_cast<cir::PointerType>(argType)) {
-            if (expectedPtrTy.getAddrSpace() != argPtrTy.getAddrSpace()) {
-              argValue = builder.createAddrSpaceCast(
-                  getLoc(E->getExprLoc()), argValue,
-                  cir::PointerType::get(expectedPtrTy,
-                                        expectedPtrTy.getAddrSpace()));
-            }
-          }
-        }
-        // TODO(cir): Cast vector type (e.g., v256i32) to x86_amx, this only
-        // happens in amx intrinsics.
-        if (cir::MissingFeatures::vectorToX86AmxCasting())
-          llvm_unreachable("NYI");
-
-        argValue = builder.createBitcast(argValue, correctedExpectedTy);
-      }
+      if (argType != correctedExpectedTy)
+        llvm_unreachable("NYI");
 
       args.push_back(argValue);
     }
