@@ -535,10 +535,10 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
 /// Helper function to correct integer signedness for intrinsic arguments.
 /// IIT always returns signed integers, but the actual intrinsic may expect
 /// unsigned integers based on the AST FunctionDecl parameter types.
-static mlir::Type
-correctIntrinsicIntegerSignedness(mlir::Type iitType, const CallExpr *E,
-                                  unsigned argIndex,
-                                  mlir::MLIRContext *context) {
+static mlir::Type getIntrinsicArgumentTypeFromAST(mlir::Type iitType,
+                                                  const CallExpr *E,
+                                                  unsigned argIndex,
+                                                  mlir::MLIRContext *context) {
   // If it's not an integer type, return as-is
   auto intTy = dyn_cast<cir::IntType>(iitType);
   if (!intTy)
@@ -2769,8 +2769,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       mlir::Type expectedTy = intrinsicType.getInput(i);
 
       // Use helper to get the correct integer type based on AST signedness
-      mlir::Type correctedExpectedTy = correctIntrinsicIntegerSignedness(
-          expectedTy, E, i, &getMLIRContext());
+      mlir::Type correctedExpectedTy =
+          getIntrinsicArgumentTypeFromAST(expectedTy, E, i, &getMLIRContext());
 
       if (argType != correctedExpectedTy)
         llvm_unreachable("NYI");
