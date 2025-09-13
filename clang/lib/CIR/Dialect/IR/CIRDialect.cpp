@@ -1850,8 +1850,32 @@ Block *cir::BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
 //===----------------------------------------------------------------------===//
 // BlockAddressOp
 //===----------------------------------------------------------------------===//
+cir::LabelOp cir::BlockAddressOp::findLabel() {
+  cir::LabelOp label = nullptr;
+  auto funcOp = getOperation()->getParentOfType<cir::FuncOp>();
+  if (!funcOp)
+    return nullptr;
+  if (funcOp.getSymName() != getFunc())
+    return nullptr;
 
-LogicalResult cir::BlockAddressOp::verify() { return success(); }
+  funcOp.walk(([&](mlir::Operation *op) {
+    if (auto labelOp = dyn_cast<cir::LabelOp>(op))
+      if (labelOp.getLabel() == getLabel()) {
+        label = labelOp;
+        return WalkResult::interrupt();
+      }
+    return WalkResult::advance();
+  }));
+
+  return label;
+}
+
+LogicalResult cir::BlockAddressOp::verify() {
+  if (!findLabel())
+    return emitError()
+           << "expects an existing label target in the referenced function";
+  return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // CaseOp
