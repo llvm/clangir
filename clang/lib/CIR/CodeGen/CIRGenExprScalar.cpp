@@ -234,11 +234,10 @@ public:
         mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), symName);
     mlir::StringAttr labelName =
         mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
-    auto blockAddress = cir::BlockAddressOp::create(
-        Builder, CGF.getLoc(e->getSourceRange()), CGF.convertType(e->getType()),
-        funName, labelName);
-
-    return blockAddress;
+    return cir::BlockAddressOp::create(Builder, CGF.getLoc(e->getSourceRange()),
+                                       CGF.convertType(e->getType()), funName,
+                                       labelName);
+    ;
   }
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");
