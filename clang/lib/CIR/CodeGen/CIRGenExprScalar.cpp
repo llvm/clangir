@@ -229,22 +229,14 @@ public:
 
   mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *e) {
     auto func = cast<cir::FuncOp>(CGF.CurFn);
-    llvm::StringRef synName = func.getSymName();
+    llvm::StringRef symName = func.getSymName();
     mlir::FlatSymbolRefAttr funName =
-        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), synName);
+        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), symName);
     mlir::StringAttr labelName =
         mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
     auto blockAddress = cir::BlockAddressOp::create(
         Builder, CGF.getLoc(e->getSourceRange()), CGF.convertType(e->getType()),
-        labelName, funName);
-
-    cir::LabelOp resolvedLabel = CGF.CGM.lookupBlockAddressInfo(
-        std::make_pair(synName, e->getLabel()->getName()));
-
-    if (!resolvedLabel)
-      CGF.CGM.mapUnresolvedBlockAddress(blockAddress, nullptr);
-    else
-      CGF.CGM.mapResolvedBlockAddress(blockAddress, resolvedLabel);
+        funName, labelName);
 
     return blockAddress;
   }

@@ -4503,63 +4503,6 @@ mlir::LogicalResult CIRToLLVMLinkerOptionsOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
-mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
-    cir::LabelOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::MLIRContext *ctx = rewriter.getContext();
-  mlir::Block *block = op->getBlock();
-  // A BlockTagOp cannot reside in the entry block.
-  if (block->isEntryBlock()) {
-    mlir::Block *newBlock =
-        rewriter.splitBlock(op->getBlock(), mlir::Block::iterator(op));
-    rewriter.setInsertionPointToEnd(block);
-    mlir::LLVM::BrOp::create(rewriter, op.getLoc(), newBlock);
-  }
-  auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, BlockAddressOp::tagIndex);
-  ++BlockAddressOp::tagIndex;
-  rewriter.setInsertionPoint(op);
-
-  auto blockTagOp =
-      mlir::LLVM::BlockTagOp::create(rewriter, op->getLoc(), tagAttr);
-  auto func = op->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-  auto result = blockInfoToTagOp.try_emplace(
-      std::make_pair(func.getSymName(), op.getLabel()), blockTagOp);
-  assert(result.second &&
-         "attempting to map a BlockTag operation that is already mapped");
-  rewriter.eraseOp(op);
-
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
-    cir::BlockAddressOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::MLIRContext *ctx = rewriter.getContext();
-
-  mlir::LLVM::BlockTagOp matchLabel =
-      blockInfoToTagOp.lookup(std::make_pair(op.getFunc(), op.getLabel()));
-  mlir::LLVM::BlockTagAttr tagAttr;
-  if (!matchLabel)
-    // If the BlockTagOp has not been emitted yet, use the maximum uint32_t
-    // value as a placeholder. This will later be replaced with the correct
-    // tag index during `resolveBlockAddressOp`.
-    tagAttr = mlir::LLVM::BlockTagAttr::get(
-        ctx, std::numeric_limits<uint32_t>::max());
-  else
-    tagAttr = matchLabel.getTag();
-
-  auto blkAddr = mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(),
-                                                   op.getFuncAttr(), tagAttr);
-  rewriter.setInsertionPoint(op);
-  auto newOp = mlir::LLVM::BlockAddressOp::create(
-      rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
-  if (!matchLabel)
-    unresolvedBlockAddresOp.try_emplace(
-        newOp, std::make_pair(op.getFunc(), op.getLabel()));
-  rewriter.replaceOp(op, newOp);
-  return mlir::success();
-}
-
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
     mlir::DataLayout &dataLayout, cir::LowerModule *lowerModule,
@@ -4575,11 +4518,6 @@ void populateCIRToLLVMConversionPatterns(
   patterns.add<CIRToLLVMAllocaOpLowering>(converter, dataLayout,
                                           stringGlobalsMap, argStringGlobalsMap,
                                           argsVarMap, patterns.getContext());
-  patterns.add<CIRToLLVMBlockAddressOpLowering>(
-      converter, patterns.getContext(), blockInfoToTagOp,
-      unresolvedBlockAddresOp);
-  patterns.add<CIRToLLVMLabelOpLowering>(converter, patterns.getContext(),
-                                         blockInfoToTagOp);
   patterns.add<
       // clang-format off
       CIRToLLVMCastOpLowering,

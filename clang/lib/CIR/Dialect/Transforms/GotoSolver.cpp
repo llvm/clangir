@@ -37,7 +37,6 @@ static void process(cir::FuncOp func) {
     }
   });
 
-  // Second pass: erase only unused labels
   for (auto &lab : labels) {
     StringRef labelName = lab.getKey();
     Block *block = lab.getValue();

@@ -1449,20 +1449,6 @@ bool CIRGenFunction::ShouldInstrumentFunction() {
   llvm_unreachable("NYI");
 }
 
-mlir::LogicalResult CIRGenFunction::convertUnresolvedBlockAddress() {
-
-  for (auto &[blockAddress, label] : CGM.unresolvedBlockAddressToLabel) {
-    llvm::StringRef labelName = blockAddress.getLabel();
-    llvm::StringRef funcName = blockAddress.getFunc();
-    cir::LabelOp labelOp =
-        CGM.lookupBlockAddressInfo(std::make_pair(funcName, labelName));
-    assert(labelOp && "expected cir.labelOp to already be emitted");
-    CGM.mapResolvedBlockAddress(blockAddress, labelOp);
-  }
-  CGM.unresolvedBlockAddressToLabel.clear();
-  return mlir::success();
-}
-
 mlir::LogicalResult CIRGenFunction::emitFunctionBody(const clang::Stmt *body) {
   // TODO: incrementProfileCounter(Body);
 
@@ -1474,8 +1460,6 @@ mlir::LogicalResult CIRGenFunction::emitFunctionBody(const clang::Stmt *body) {
     emitCompoundStmtWithoutScope(*s);
   else
     result = emitStmt(body, /*useCurrentScope*/ true);
-
-  result = convertUnresolvedBlockAddress();
 
   // This is checked after emitting the function body so we know if there are
   // any permitted infinite loops.
