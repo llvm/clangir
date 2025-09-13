@@ -74,6 +74,7 @@ struct MissingFeatures {
   // GNU vectors are done, but other kinds of vectors haven't been implemented.
   static bool scalableVectors() { return false; }
   static bool vectorConstants() { return false; }
+  static bool vectorToX86AmxCasting() { return false; }
 
   // Address space related
   static bool addressSpace() { return false; }
