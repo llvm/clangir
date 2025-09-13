@@ -1848,36 +1848,6 @@ Block *cir::BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
-// BlockAddressOp
-//===----------------------------------------------------------------------===//
-cir::LabelOp cir::BlockAddressOp::findLabel() {
-  cir::LabelOp label = nullptr;
-  auto funcOp = getOperation()->getParentOfType<cir::FuncOp>();
-  if (!funcOp)
-    return nullptr;
-  if (funcOp.getSymName() != getFunc())
-    return nullptr;
-
-  funcOp.walk(([&](mlir::Operation *op) {
-    if (auto labelOp = dyn_cast<cir::LabelOp>(op))
-      if (labelOp.getLabel() == getLabel()) {
-        label = labelOp;
-        return WalkResult::interrupt();
-      }
-    return WalkResult::advance();
-  }));
-
-  return label;
-}
-
-LogicalResult cir::BlockAddressOp::verify() {
-  if (!findLabel())
-    return emitError()
-           << "expects an existing label target in the referenced function";
-  return mlir::success();
-}
-
-//===----------------------------------------------------------------------===//
 // CaseOp
 //===----------------------------------------------------------------------===//
 
@@ -2960,21 +2930,41 @@ LogicalResult cir::FuncOp::verify() {
 
   std::set<llvm::StringRef> labels;
   std::set<llvm::StringRef> gotos;
-
+  std::set<llvm::StringRef> blockAddresses;
+  bool invalidBlockAddress = false;
   getOperation()->walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
       labels.emplace(lab.getLabel());
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.emplace(goTo.getLabel());
+    } else if (auto blkAdd = dyn_cast<cir::BlockAddressOp>(op)) {
+      if (blkAdd.getFunc() != getSymName())
+        invalidBlockAddress = true;
+      blockAddresses.emplace(blkAdd.getLabel());
     }
   });
 
-  std::vector<llvm::StringRef> mismatched;
-  std::set_difference(gotos.begin(), gotos.end(), labels.begin(), labels.end(),
-                      std::back_inserter(mismatched));
+  if (invalidBlockAddress)
+    return emitOpError() << "blockaddress references a different function";
 
-  if (!mismatched.empty())
-    return emitOpError() << "goto/label mismatch";
+  {
+    std::vector<llvm::StringRef> mismatched;
+    std::set_difference(gotos.begin(), gotos.end(), labels.begin(),
+                        labels.end(), std::back_inserter(mismatched));
+
+    if (!mismatched.empty())
+      return emitOpError() << "goto/label mismatch";
+  }
+  {
+    std::vector<llvm::StringRef> mismatched;
+    std::set_difference(blockAddresses.begin(), blockAddresses.end(),
+                        labels.begin(), labels.end(),
+                        std::back_inserter(mismatched));
+
+    if (!mismatched.empty())
+      return emitOpError()
+             << "expects an existing label target in the referenced function";
+  }
 
   return success();
 }

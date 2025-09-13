@@ -6149,13 +6149,6 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress", [Pure]> {
   let assemblyFormat = [{
     `(` $func `,` $label `)` `->` qualified(type($addr)) attr-dict
   }];
-
-  let extraClassDeclaration = [{
-    /// Search for the matching `cir.label` operation.
-    cir::LabelOp findLabel();
-  }];
-
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
