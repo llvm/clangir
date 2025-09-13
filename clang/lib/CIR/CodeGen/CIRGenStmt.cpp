@@ -180,7 +180,6 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
   case Stmt::CXXForRangeStmtClass:
     return emitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
 
-  case Stmt::IndirectGotoStmtClass:
   case Stmt::ReturnStmtClass:
   // When implemented, GCCAsmStmtClass should fall-through to MSAsmStmtClass.
   case Stmt::GCCAsmStmtClass:
@@ -196,6 +195,7 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
   case Stmt::OMPBarrierDirectiveClass:
     return emitOMPBarrierDirective(cast<OMPBarrierDirective>(*S));
   // Unsupported AST nodes:
+  case Stmt::IndirectGotoStmtClass:
   case Stmt::CapturedStmtClass:
   case Stmt::ObjCAtTryStmtClass:
   case Stmt::ObjCAtThrowStmtClass:
