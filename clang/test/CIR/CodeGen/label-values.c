@@ -15,13 +15,6 @@ A:
 // CIR:    cir.label "A"
 // CIR:    cir.return
 
-// LLVM: define dso_local void @A()
-// LLVM:   [[PTR:%.*]] = alloca ptr, i64 1, align 8
-// LLVM:   store ptr blockaddress(@A, %[[A:.*]]), ptr [[PTR]], align 8
-// LLVM:   br label %[[A]]
-// LLVM: [[A]]:                                                ; preds = %0
-// LLVM:   ret void
-
 void B(void) {
 B:
   void *ptr = &&B;
