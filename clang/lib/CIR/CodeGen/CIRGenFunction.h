@@ -100,8 +100,6 @@ private:
   llvm::DenseMap<const clang::LabelDecl *, JumpDest> LabelMap;
   JumpDest &getJumpDestForLabel(const clang::LabelDecl *D);
 
-  mlir::LogicalResult convertUnresolvedBlockAddress();
-
   // ---------------------
   // Opaque value handling
   // ---------------------
