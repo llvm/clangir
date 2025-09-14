@@ -287,11 +287,11 @@ LValue CIRGenFunction::emitLValueForBitField(LValue base,
   const RecordDecl *rec = field->getParent();
   auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
   auto &info = layout.getBitFieldInfo(field);
-  auto useVolatile = useVolatileForBitField(CGM, base, info, field);
+  [[maybe_unused]] auto useVolatile =
+      useVolatileForBitField(CGM, base, info, field);
   unsigned Idx = layout.getCIRFieldNo(field);
 
-  if (useVolatile ||
-      (IsInPreservedAIRegion ||
+  if ((IsInPreservedAIRegion ||
        (getDebugInfo() && rec->hasAttr<BPFPreserveAccessIndexAttr>()))) {
     llvm_unreachable("NYI");
   }
@@ -935,7 +935,8 @@ static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   }
   LValue LV;
   if (VD->getType()->isReferenceType())
-    assert(0 && "NYI");
+    LV = CGF.emitLoadOfReferenceLValue(Addr, CGF.getLoc(E->getExprLoc()),
+                                       VD->getType(), AlignmentSource::Decl);
   else
     LV = CGF.makeAddrLValue(Addr, T, AlignmentSource::Decl);
   assert(!cir::MissingFeatures::setObjCGCLValueClass() && "NYI");
@@ -2016,7 +2017,25 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_ToUnion:
     assert(0 && "NYI");
   case CK_BaseToDerived: {
-    assert(0 && "NYI");
+    const auto *derivedClassTy = E->getType()->castAs<RecordType>();
+    auto *derivedClassDecl = cast<CXXRecordDecl>(derivedClassTy->getDecl());
+
+    LValue lv = emitLValue(E->getSubExpr());
+
+    // Perform the base-to-derived conversion
+    Address derived = getAddressOfDerivedClass(
+        lv.getAddress(), derivedClassDecl, E->path_begin(), E->path_end(),
+        /*NullCheckValue=*/false);
+    // C++11 [expr.static.cast]p2: Behavior is undefined if a downcast is
+    // performed and the object is not of the derived type.
+    if (sanitizePerformTypeCheck())
+      llvm_unreachable("TCK_DowncastReference NYI");
+
+    if (SanOpts.has(SanitizerKind::CFIDerivedCast))
+      llvm_unreachable("CFITypeCheckKind NYI");
+
+    return makeAddrLValue(derived, E->getType(), lv.getBaseInfo(),
+                          CGM.getTBAAInfoForSubobject(lv, E->getType()));
   }
   case CK_LValueBitCast: {
     // This must be a reinterpret_cast (or c-style equivalent).

@@ -1201,6 +1201,10 @@ def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }
 
+def CIR_HotAttr : CIR_UnitAttr<"Hot", "hot"> {
+  let storageType = [{ HotAttr }];
+}
+
 //===----------------------------------------------------------------------===//
 // UWTableAttr
 //===----------------------------------------------------------------------===//
@@ -1275,6 +1279,7 @@ def CIR_CtorKind : CIR_I32EnumAttr<"CtorKind", "CXX Constructor Kind", [
   I32EnumAttrCase<"Custom", 0, "custom">,
   I32EnumAttrCase<"Default", 1, "default">,
   I32EnumAttrCase<"Copy", 2, "copy">,
+  I32EnumAttrCase<"Move", 3, "move">,
 ]> {
   let genSpecializedAttr = 0;
 }
@@ -1286,6 +1291,7 @@ def CIR_CXXCtorAttr : CIR_Attr<"CXXCtor", "cxx_ctor"> {
     The `custom` kind is used if the constructor is a custom constructor.
     The `default` kind is used if the constructor is a default constructor.
     The `copy` kind is used if the constructor is a copy constructor.
+    The `move` kind is used if the constructor is a move constructor.
   }];
   let parameters = (ins "mlir::Type":$type,
                         EnumParameter<CIR_CtorKind>:$ctorKind);
@@ -1320,9 +1326,41 @@ def CIR_CXXDtorAttr : CIR_Attr<"CXXDtor", "cxx_dtor"> {
   ];
 }
 
+def CIR_AssignKind : CIR_I32EnumAttr<"AssignKind", "CXX Assignment Operator Kind", [
+  I32EnumAttrCase<"Copy", 0, "copy">,
+  I32EnumAttrCase<"Move", 1, "move">,
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_CXXAssignAttr : CIR_Attr<"CXXAssign", "cxx_assign"> {
+  let summary = "Marks a function as a CXX assignment operator";
+  let description = [{
+    Functions with this attribute are CXX assignment operators.
+    The `copy` kind is used if the assignment operator is a copy assignment operator.
+    The `move` kind is used if the assignment operator is a move assignment operator.
+  }];
+  let parameters = (ins
+    "mlir::Type":$type,
+    EnumParameter<CIR_AssignKind>:$assignKind
+  );
+
+  let assemblyFormat = [{
+    `<` $type `,` $assignKind `>`
+  }];
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+        CArg<"AssignKind">:$assignKind), [{
+      return $_get(type.getContext(), type, assignKind);
+    }]>
+  ];
+}
+
 def CIR_CXXSpecialMemberAttr : AnyAttrOf<[
   CIR_CXXCtorAttr,
-  CIR_CXXDtorAttr
+  CIR_CXXDtorAttr,
+  CIR_CXXAssignAttr
 ]>;
 
 def CIR_BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {

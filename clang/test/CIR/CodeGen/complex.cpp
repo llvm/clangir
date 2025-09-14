@@ -2,6 +2,8 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fclangir -emit-llvm %s -o %t-cir.ll
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -Wno-unused-value -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll %s -check-prefix=OGCG
 
 void complex_functional_cast() {
   using IntComplex = int _Complex;
@@ -149,6 +151,26 @@ int _Complex complex_imag_operator_on_rvalue() {
 // LLVM: %[[TMP_RET:.*]] = load { i32, i32 }, ptr %[[RET_ADDR]], align 4
 // LLVM: ret { i32, i32 } %[[TMP_RET]]
 
+struct Container {
+  static int _Complex c;
+};
+
+void complex_member_expr_with_var_deal() {
+  Container con;
+  int r = __real__ con.c;
+}
+
+// CIR: %[[REAL_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init]
+// CIR: %[[ELEM_PTR:.*]] = cir.get_global @_ZN9Container1cE : !cir.ptr<!cir.complex<!s32i>>
+// CIR: %[[ELEM:.*]] = cir.load{{.*}} %[[ELEM_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR: %[[REAL:.*]] = cir.complex.real %[[ELEM]] : !cir.complex<!s32i> -> !s32i
+// CIR: cir.store{{.*}} %[[REAL]], %[[REAL_ADDR]] : !s32i, !cir.ptr<!s32i>
+
+// LLVM: %[[REAL_ADDR:.*]] = alloca i32, i64 1, align 4
+// LLVM: %[[ELEM:.*]] = load { i32, i32 }, ptr @_ZN9Container1cE, align 4
+// LLVM: %[[REAL:.*]] = extractvalue { i32, i32 } %[[ELEM]], 0
+// LLVM: store i32 %[[REAL]], ptr %[[REAL_ADDR]], align 4
+
 void complex_comma_operator(int _Complex a, int _Complex b) {
   int _Complex c = (a, b);
 }
@@ -164,3 +186,63 @@ void complex_comma_operator(int _Complex a, int _Complex b) {
 // LLVM: %[[RESULT:.*]] = alloca { i32, i32 }, i64 1, align 4
 // LLVM: %[[TMP_B:.*]] = load { i32, i32 }, ptr %[[COMPLEX_B]], align 4
 // LLVM: store { i32, i32 } %[[TMP_B]], ptr %[[RESULT]], align 4
+
+void complex_cxx_default_init_expr() {
+  struct FPComplexWrapper {
+    float _Complex c{};
+  };
+
+  FPComplexWrapper w{};
+}
+
+// CIR: %[[W_ADDR:.*]] = cir.alloca !rec_FPComplexWrapper, !cir.ptr<!rec_FPComplexWrapper>, ["w", init]
+// CIR: %[[C_ADDR:.*]] = cir.get_member %[[W_ADDR]][0] {name = "c"} : !cir.ptr<!rec_FPComplexWrapper> -> !cir.ptr<!cir.complex<!cir.float>>
+// CIR: %[[CONST_COMPLEX:.*]] = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.float, #cir.fp<0.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CIR: cir.store{{.*}} %[[CONST_COMPLEX]], %[[C_ADDR]] : !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>
+
+// LLVM: %[[W_ADDR:.*]] = alloca %struct.FPComplexWrapper, i64 1, align 4
+// LLVM: %[[C_ADDR:.*]] = getelementptr %struct.FPComplexWrapper, ptr %[[W_ADDR]], i32 0, i32 0
+// LLVM: store { float, float } zeroinitializer, ptr %[[C_ADDR]], align 4
+
+// OGCG: %[[W_ADDR:.*]] = alloca %struct.Wrapper, align 4
+// OGCG: %[[C_ADDR:.*]] = getelementptr inbounds nuw %struct.FPComplexWrapper, ptr %[[W_ADDR]], i32 0, i32 0
+// OGCG: %[[C_REAL_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[C_ADDR]], i32 0, i32 0
+// OGCG: %[[C_IMAG_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[C_ADDR]], i32 0, i32 1
+// OGCG: store float 0.000000e+00, ptr %[[C_REAL_PTR]], align 4
+// OGCG: store float 0.000000e+00, ptr %[[C_IMAG_PTR]], align 4
+
+void complex_init_atomic() {
+  _Atomic(float _Complex) a;
+  __c11_atomic_init(&a, {1.0f, 2.0f});
+}
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>, ["a"]
+// CIR: %[[CONST_COMPLEX:.*]] = cir.const #cir.complex<#cir.fp<1.000000e+00> : !cir.float, #cir.fp<2.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CIR: cir.store{{.*}} %[[CONST_COMPLEX]], %[[A_ADDR]] : !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>
+
+// LLVM: %[[A_ADDR:.*]] = alloca { float, float }, i64 1, align 8
+// LLVM: store { float, float } { float 1.000000e+00, float 2.000000e+00 }, ptr %[[A_ADDR]], align 8
+
+// OGCG: %[[A_ADDR:.*]] = alloca { float, float }, align 8
+// OGCG: %[[A_REAL_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[A_ADDR]], i32 0, i32 0
+// OGCG: %[[A_IMAG_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[A_ADDR]], i32 0, i32 1
+// OGCG: store float 1.000000e+00, ptr %[[A_REAL_PTR]], align 8
+// OGCG: store float 2.000000e+00, ptr %[[A_IMAG_PTR]], align 4
+
+void complex_opaque_value_expr() {
+  float _Complex a;
+  float b = 1.0f ?: __real__ a;
+}
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>, ["a"]
+// CIR: %[[B_ADDR:.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["b", init]
+// CIR: %[[CONST_1:.*]] = cir.const #cir.fp<1.000000e+00> : !cir.float
+// CIR: cir.store align(4) %[[CONST_1]], %[[B_ADDR]] : !cir.float, !cir.ptr<!cir.float>
+
+// LLVM: %[[A_ADDR:.*]] = alloca { float, float }, i64 1, align 4
+// LLVM: %[[B_ADDR:.*]] = alloca float, i64 1, align 4
+// LLVM: store float 1.000000e+00, ptr %[[B_ADDR]], align 4
+
+// OGCG: %[[A_ADDR:.*]] = alloca { float, float }, align 4
+// OGCG: %[[B_ADDR:.*]] = alloca float, align 4
+// OGCG: store float 1.000000e+00, ptr %[[B_ADDR]], align 4

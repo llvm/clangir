@@ -8,6 +8,11 @@
 // RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +avx512f -fclangir -emit-llvm -o %t.ll -Wall -Werror -Wsign-conversion
 // RUN: FileCheck --check-prefixes=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx512f -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -fms-extensions -fms-compatibility -ffreestanding %s -triple=x86_64-windows-msvc -target-feature +avx512f -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx512f -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -fms-extensions -fms-compatibility -ffreestanding %s -triple=x86_64-windows-msvc -target-feature +avx512f -emit-llvm -o - -Wall -Werror -Wsign-conversion | FileCheck %s --check-prefixes=OGCG
+
 #include <immintrin.h>
 
 __m512 test_mm512_undefined(void) {
@@ -634,3 +639,64 @@ void test_mm512_mask_i64scatter_epi32(void *__addr, __mmask8 __mask, __m512i __i
   // LLVM: @llvm.x86.avx512.mask.scatter.qpi.512
   return _mm512_mask_i64scatter_epi32(__addr, __mask, __index, __v1, 2); 
 }
+
+__m512d test_mm512_insertf64x4(__m512d __A, __m256d __B) {
+  // CIR-LABEL: test_mm512_insertf64x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.double x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!cir.double x 8>
+
+  // LLVM-LABEL: test_mm512_insertf64x4
+  // LLVM: shufflevector <8 x double> %{{.*}}, <8 x double> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 8, i32 9, i32 10, i32 11>
+  return _mm512_insertf64x4(__A, __B, 1);
+}
+
+__m512 test_mm512_insertf32x4(__m512 __A, __m128 __B) {
+  // CIR-LABEL: test_mm512_insertf32x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 16>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<16> : !s32i, #cir.int<17> : !s32i, #cir.int<18> : !s32i, #cir.int<19> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<12> : !s32i, #cir.int<13> : !s32i, #cir.int<14> : !s32i, #cir.int<15> : !s32i] : !cir.vector<!cir.float x 16>
+
+  // LLVM-LABEL: test_mm512_insertf32x4
+  // LLVM: shufflevector <16 x float> %{{.*}}, <16 x float> %{{.*}}, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 16, i32 17, i32 18, i32 19, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+  return _mm512_insertf32x4(__A, __B, 1);
+}
+
+__m512i test_mm512_inserti64x4(__m512i __A, __m256i __B) {
+  // CIR-LABEL: test_mm512_inserti64x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!s64i x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!s64i x 8>
+
+  // LLVM-LABEL: test_mm512_inserti64x4
+  // LLVM: shufflevector <8 x i64> %{{.*}}, <8 x i64> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 8, i32 9, i32 10, i32 11>
+  return _mm512_inserti64x4(__A, __B, 1); 
+}
+
+__m512i test_mm512_inserti32x4(__m512i __A, __m128i __B) {
+  // CIR-LABEL: test_mm512_inserti32x4
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!s32i x 16>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<16> : !s32i, #cir.int<17> : !s32i, #cir.int<18> : !s32i, #cir.int<19> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<12> : !s32i, #cir.int<13> : !s32i, #cir.int<14> : !s32i, #cir.int<15> : !s32i] : !cir.vector<!s32i x 16>
+
+  // LLVM-LABEL: test_mm512_inserti32x4
+  // LLVM: shufflevector <16 x i32> %{{.*}}, <16 x i32> %{{.*}}, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 16, i32 17, i32 18, i32 19, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+  return _mm512_inserti32x4(__A, __B, 1); 
+}
+
+__m512d test_mm512_shuffle_pd(__m512d __M, __m512d __V) {
+  // CIR-LABEL: test_mm512_shuffle_pd
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.double x 8>) [#cir.int<0> : !s32i, #cir.int<8> : !s32i, #cir.int<3> : !s32i, #cir.int<10> : !s32i, #cir.int<4> : !s32i, #cir.int<12> : !s32i, #cir.int<6> : !s32i, #cir.int<14> : !s32i] : !cir.vector<!cir.double x 8>
+
+  // CHECK-LABEL: test_mm512_shuffle_pd
+  // CHECK: shufflevector <8 x double> %{{.*}}, <8 x double> %{{.*}}, <8 x i32> <i32 0, i32 8, i32 3, i32 10, i32 4, i32 12, i32 6, i32 14>
+
+  // OGCG-LABEL: test_mm512_shuffle_pd
+  // OGCG: shufflevector <8 x double> %{{.*}}, <8 x double> %{{.*}}, <8 x i32> <i32 0, i32 8, i32 3, i32 10, i32 4, i32 12, i32 6, i32 14>
+  return _mm512_shuffle_pd(__M, __V, 4); 
+}
+
+__m512 test_mm512_shuffle_ps(__m512 __M, __m512 __V) {
+  // CIR-LABEL: test_mm512_shuffle_ps
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 16>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<16> : !s32i, #cir.int<16> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<20> : !s32i, #cir.int<20> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<24> : !s32i, #cir.int<24> : !s32i, #cir.int<12> : !s32i, #cir.int<13> : !s32i, #cir.int<28> : !s32i, #cir.int<28> : !s32i] : !cir.vector<!cir.float x 16>
+
+  // CHECK-LABEL: test_mm512_shuffle_ps
+  // CHECK: shufflevector <16 x float> %{{.*}}, <16 x float> %{{.*}}, <16 x i32> <i32 0, i32 1, i32 16, i32 16, i32 4, i32 5, i32 20, i32 20, i32 8, i32 9, i32 24, i32 24, i32 12, i32 13, i32 28, i32 28>
+
+  // OGCG-LABEL: test_mm512_shuffle_ps
+  // OGCG: shufflevector <16 x float> %{{.*}}, <16 x float> %{{.*}}, <16 x i32> <i32 0, i32 1, i32 16, i32 16, i32 4, i32 5, i32 20, i32 20, i32 8, i32 9, i32 24, i32 24, i32 12, i32 13, i32 28, i32 28>
+  return _mm512_shuffle_ps(__M, __V, 4);
+}
+

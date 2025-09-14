@@ -17,6 +17,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/MissingFeatures.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LogicalResult.h"
@@ -324,10 +325,13 @@ void cir::AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 // BreakOp
 //===----------------------------------------------------------------------===//
 
+mlir::Operation *cir::BreakOp::getBreakTarget() {
+  return getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>();
+}
+
 LogicalResult cir::BreakOp::verify() {
-  if (!getOperation()->getParentOfType<LoopOpInterface>() &&
-      !getOperation()->getParentOfType<SwitchOp>())
-    return emitOpError("must be within a loop or switch");
+  if (!getOperation()->getParentWithTrait<mlir::OpTrait::cir::Breakable>())
+    return emitOpError("must be within a breakable operation");
   return success();
 }
 
@@ -1709,23 +1713,24 @@ ParseResult parseCatchRegions(
   };
 
   auto parseCatchEntry = [&]() -> ParseResult {
-    mlir::Type exceptionType;
     mlir::Attribute exceptionTypeInfo;
 
-    // FIXME: support most recent syntax, currently broken.
-    ::llvm::StringRef attrStr;
-    if (!parser.parseOptionalKeyword(&attrStr, {"all"})) {
-      if (parser.parseKeyword("type").failed())
+    if (parser.parseOptionalAttribute(exceptionTypeInfo).has_value()) {
+      catchList.push_back(exceptionTypeInfo);
+    } else {
+      ::llvm::StringRef attrStr;
+      if (parser.parseOptionalKeyword(&attrStr, {"all"}).succeeded()) {
+        // "all" keyword found, exceptionTypeInfo remains null
+      } else if (parser.parseOptionalKeyword("type").succeeded()) {
+        if (parser.parseAttribute(exceptionTypeInfo).failed())
+          return parser.emitError(parser.getCurrentLocation(),
+                                  "expected valid RTTI info attribute");
+      } else {
         return parser.emitError(parser.getCurrentLocation(),
-                                "expected 'type' keyword here");
-      if (parser.parseType(exceptionType).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid exception type");
-      if (parser.parseAttribute(exceptionTypeInfo).failed())
-        return parser.emitError(parser.getCurrentLocation(),
-                                "expected valid RTTI info attribute");
+                                "expected attribute, 'all', or 'type' keyword");
+      }
+      catchList.push_back(exceptionTypeInfo);
     }
-    catchList.push_back(exceptionTypeInfo);
     return parseAndCheckRegion();
   };
 
@@ -2594,12 +2599,15 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword("special_member").succeeded()) {
     cir::CXXCtorAttr ctorAttr;
     cir::CXXDtorAttr dtorAttr;
+    cir::CXXAssignAttr assignAttr;
     if (parser.parseLess().failed())
       return failure();
     if (parser.parseOptionalAttribute(ctorAttr).has_value())
       state.addAttribute(cxxSpecialMemberAttr, ctorAttr);
     if (parser.parseOptionalAttribute(dtorAttr).has_value())
       state.addAttribute(cxxSpecialMemberAttr, dtorAttr);
+    if (parser.parseOptionalAttribute(assignAttr).has_value())
+      state.addAttribute(cxxSpecialMemberAttr, assignAttr);
     if (parser.parseGreater().failed())
       return failure();
   }
@@ -2785,7 +2793,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   }
 
   if (auto specialMemberAttr = getCxxSpecialMember()) {
-    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr>(*specialMemberAttr)));
+    assert((mlir::isa<cir::CXXCtorAttr, cir::CXXDtorAttr, cir::CXXAssignAttr>(
+        *specialMemberAttr)));
     p << " special_member<";
     p.printAttribute(*specialMemberAttr);
     p << '>';

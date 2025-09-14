@@ -63,10 +63,10 @@ int f() {
 // CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vptr), !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.const #cir.int<-24> : !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!s64i>
 // CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR: }
@@ -78,7 +78,7 @@ int f() {
 // LLVM:   %[[VTT:.*]] = load ptr, ptr %[[VTT_ADDR]], align 8
 // LLVM:   %[[V:.*]] = load ptr, ptr %[[VTT]], align 8
 // LLVM:   store ptr %[[V]], ptr %[[THIS]], align 8
-// LLVM:   getelementptr inbounds i8, ptr %[[VTT]], i32 1
+// LLVM:   getelementptr inbounds ptr, ptr %[[VTT]], i32 1
 // LLVM:   ret void
 // LLVM: }
 
@@ -97,10 +97,10 @@ int f() {
 // CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vptr), !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.const #cir.int<-24> : !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!s64i>
 // CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!rec_C>
 // CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>

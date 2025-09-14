@@ -92,6 +92,24 @@ void walkRegionSkipping(mlir::Region &region,
   });
 }
 
+/// Convert from a CIR PtrStrideOp kind to an LLVM IR equivalent of GEP.
+mlir::LLVM::GEPNoWrapFlags
+convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
+  using CIRFlags = cir::CIR_GEPNoWrapFlags;
+  using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
+
+  LLVMFlags x = LLVMFlags::none;
+  if ((flags & CIRFlags::inboundsFlag) == CIRFlags::inboundsFlag)
+    x = x | LLVMFlags::inboundsFlag;
+  if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
+    x = x | LLVMFlags::nusw;
+  if ((flags & CIRFlags::inbounds) == CIRFlags::inbounds)
+    x = x | LLVMFlags::inbounds;
+  if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
+    x = x | LLVMFlags::nuw;
+  return x;
+}
+
 /// Convert from a CIR comparison kind to an LLVM IR integral comparison kind.
 mlir::LLVM::ICmpPredicate convertCmpKindToICmpPredicate(cir::CmpOpKind kind,
                                                         bool isSigned) {
@@ -1023,9 +1041,9 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
       isUnsigned = strideTy.isUnsigned();
     index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
   }
-
   rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
-      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
+      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index,
+      convertPtrStrideKindToGEPFlags(adaptor.getNoWrapFlags()));
   return mlir::success();
 }
 
@@ -1197,8 +1215,7 @@ mlir::LogicalResult CIRToLLVMVTTAddrPointOpLowering::matchAndRewrite(
     }
 
     offsets.push_back(adaptor.getOffset());
-    eltType = mlir::IntegerType::get(resultType.getContext(), 8,
-                                     mlir::IntegerType::Signless);
+    eltType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
   } else {
     llvmAddr = getValueForVTableSymbol(op, rewriter, getTypeConverter(),
                                        op.getNameAttr(), eltType);
@@ -4288,6 +4305,28 @@ mlir::LogicalResult CIRToLLVMEhTypeIdOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMEhSetjmpOpLowering::matchAndRewrite(
+    cir::EhSetjmpOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type returnType = typeConverter->convertType(op.getType());
+  if (op.getIsBuiltin()) {
+    mlir::LLVM::CallIntrinsicOp newOp =
+        createCallLLVMIntrinsicOp(rewriter, op.getLoc(), "llvm.eh.sjlj.setjmp",
+                                  returnType, adaptor.getEnv());
+    rewriter.replaceOp(op, newOp);
+    return mlir::success();
+  }
+
+  StringRef fnName = "_setjmp";
+  auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+  auto fnType = mlir::LLVM::LLVMFunctionType::get(returnType, llvmPtrTy,
+                                                  /*isVarArg=*/false);
+  getOrCreateLLVMFuncOp(rewriter, op, fnName, fnType);
+  rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, returnType, fnName,
+                                                  adaptor.getEnv());
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMCatchParamOpLowering::matchAndRewrite(
     cir::CatchParamOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4531,6 +4570,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMDerivedClassAddrOpLowering,
       CIRToLLVMEhInflightOpLowering,
       CIRToLLVMEhTypeIdOpLowering,
+      CIRToLLVMEhSetjmpOpLowering,
       CIRToLLVMExpectOpLowering,
       CIRToLLVMExtractMemberOpLowering,
       CIRToLLVMFrameAddrOpLowering,
