@@ -10,6 +10,19 @@
 // RUN:            %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda \
+// RUN:            -fcuda-is-device -emit-llvm -target-sdk-version=12.3 \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=OGCHECK --input-file=%t.ll %s
+
+__device__ void sync() {
+
+  // CIR: cir.llvm.intrinsic "nvvm.barrier.cta.sync.aligned.all" {{.*}} : (!s32i)
+  // LLVM: call void @llvm.nvvm.barrier.cta.sync.aligned.all(i32 0)
+  // OGCHECK: call void @llvm.nvvm.barrier.cta.sync.aligned.all(i32 0)
+  __nvvm_bar_sync(0);
+}
+
 __device__ void builtins() {
   float f1, f2;
   double d1, d2;
@@ -59,7 +72,8 @@ __device__ void builtins() {
   // LLVM: call void @llvm.nvvm.membar.sys()
   __nvvm_membar_sys();
   
-  // TODO-CIR: cir.llvm.intrinsic "nvvm.barrier0"
-  // TODO-LLVM: call void @llvm.nvvm.barrier0()
-  // __syncthreads();
+  // CIR: cir.llvm.intrinsic "nvvm.barrier.cta.sync.aligned.all"
+  // LLVM: call void @llvm.nvvm.barrier.cta.sync.aligned.all(i32 0)
+  // OGCHECK: call void @llvm.nvvm.barrier.cta.sync.aligned.all(i32 0)
+  __syncthreads();
 }
