@@ -8,6 +8,9 @@
 // RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-unknown-linux -target-feature +sse -fclangir -emit-llvm -o %t.ll -Wall -Werror
 // RUN: FileCheck --check-prefixes=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -x c -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+// RUN: %clang_cc1 -x c++ -flax-vector-conversions=none -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse -emit-llvm -o - -Wall -Werror | FileCheck %s --check-prefixes=OGCG
+
 // This test mimics clang/test/CodeGen/X86/sse-builtins.c, which eventually
 // CIR shall be able to support fully.
 
@@ -65,3 +68,14 @@ unsigned int test_mm_getcsr(void) {
   return _mm_getcsr();
 }
 
+__m128 test_mm_shuffle_ps(__m128 A, __m128 B) {
+  // CIR-LABEL: _mm_shuffle_ps
+  // CIR: %{{.*}} = cir.vec.shuffle(%{{.*}}, %{{.*}} : !cir.vector<!cir.float x 4>) [#cir.int<0> : !s32i, #cir.int<0> : !s32i, #cir.int<4> : !s32i, #cir.int<4> : !s32i] : !cir.vector<!cir.float x 4>
+
+  // CHECK-LABEL: test_mm_shuffle_ps
+  // CHECK: shufflevector <4 x float> {{.*}}, <4 x float> {{.*}}, <4 x i32> <i32 0, i32 0, i32 4, i32 4>
+
+  // OGCG-LABEL: test_mm_shuffle_ps
+  // OGCG: shufflevector <4 x float> {{.*}}, <4 x float> {{.*}}, <4 x i32> <i32 0, i32 0, i32 4, i32 4>
+  return _mm_shuffle_ps(A, B, 0);
+}

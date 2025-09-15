@@ -532,6 +532,38 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
 }
 
 // llvm::Intrinsics accepts only LLVMContext. We need to reimplement it here.
+/// Helper function to correct integer signedness for intrinsic arguments.
+/// IIT always returns signed integers, but the actual intrinsic may expect
+/// unsigned integers based on the AST FunctionDecl parameter types.
+static mlir::Type getIntrinsicArgumentTypeFromAST(mlir::Type iitType,
+                                                  const CallExpr *E,
+                                                  unsigned argIndex,
+                                                  mlir::MLIRContext *context) {
+  // If it's not an integer type, return as-is
+  auto intTy = dyn_cast<cir::IntType>(iitType);
+  if (!intTy)
+    return iitType;
+
+  // Get the FunctionDecl from the CallExpr
+  const FunctionDecl *FD = nullptr;
+  if (const auto *DRE =
+          dyn_cast<DeclRefExpr>(E->getCallee()->IgnoreImpCasts())) {
+    FD = dyn_cast<FunctionDecl>(DRE->getDecl());
+  }
+
+  // If we have FunctionDecl and this argument exists, check its signedness
+  if (FD && argIndex < FD->getNumParams()) {
+    QualType paramType = FD->getParamDecl(argIndex)->getType();
+    if (paramType->isUnsignedIntegerType()) {
+      // Create unsigned version of the type
+      return IntType::get(context, intTy.getWidth(), /*isSigned=*/false);
+    }
+  }
+
+  // Default: keep IIT type (signed)
+  return iitType;
+}
+
 static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
                                       llvm::Intrinsic::ID id) {
   using namespace llvm::Intrinsic;
@@ -1716,8 +1748,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BIbzero like NYI");
 
   case Builtin::BIbcopy:
-  case Builtin::BI__builtin_bcopy:
-    llvm_unreachable("BIbcopy like NYI");
+  case Builtin::BI__builtin_bcopy: {
+    Address src = emitPointerWithAlignment(E->getArg(0));
+    Address dest = emitPointerWithAlignment(E->getArg(1));
+    mlir::Value sizeVal = emitScalarExpr(E->getArg(2));
+    emitNonNullArgCheck(RValue::get(src.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
+    emitNonNullArgCheck(RValue::get(dest.getPointer()), E->getArg(1)->getType(),
+                        E->getArg(1)->getExprLoc(), FD, 0);
+    builder.createMemMove(getLoc(E->getSourceRange()), dest.getPointer(),
+                          src.getPointer(), sizeVal);
+
+    return RValue::get(nullptr);
+  }
 
   case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy:
@@ -1916,12 +1959,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     cir::PtrStrideOp stackSaveSlot = cir::PtrStrideOp::create(
         builder, loc, ppTy, castBuf, builder.getSInt32(2, loc));
     cir::StoreOp::create(builder, loc, stacksave, stackSaveSlot);
-    mlir::Value setjmpCall =
-        cir::LLVMIntrinsicCallOp::create(
-            builder, loc, builder.getStringAttr("eh.sjlj.setjmp"),
-            builder.getSInt32Ty(), mlir::ValueRange{castBuf})
-            .getResult();
-    return RValue::get(setjmpCall);
+    auto op =
+        cir::EhSetjmpOp::create(builder, loc, castBuf, /*is_builtin=*/true);
+    return RValue::get(op);
   }
   case Builtin::BI__builtin_longjmp:
     llvm_unreachable("BI__builtin_longjmp NYI");
@@ -2423,7 +2463,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         llvm_unreachable("NYI setjmp on aarch64");
       llvm_unreachable("NYI setjmp on generic MSVCRT");
     }
-    break;
+    Address buf = emitPointerWithAlignment(E->getArg(0));
+    mlir::Location loc = getLoc(E->getExprLoc());
+    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+    auto op =
+        cir::EhSetjmpOp::create(builder, loc, castBuf, /*is_builtin = */ false);
+    return RValue::get(op);
   }
 
   // C++ std:: builtins.
@@ -2730,12 +2776,20 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     SmallVector<mlir::Value> args;
     for (unsigned i = 0; i < E->getNumArgs(); i++) {
-      mlir::Value arg = emitScalarOrConstFoldImmArg(iceArguments, i, E);
-      mlir::Type argType = arg.getType();
-      if (argType != intrinsicType.getInput(i))
+      mlir::Value argValue = emitScalarOrConstFoldImmArg(iceArguments, i, E);
+      // If the intrinsic arg type is different from the builtin arg type
+      // we need to do a bit cast.
+      mlir::Type argType = argValue.getType();
+      mlir::Type expectedTy = intrinsicType.getInput(i);
+
+      // Use helper to get the correct integer type based on AST signedness
+      mlir::Type correctedExpectedTy =
+          getIntrinsicArgumentTypeFromAST(expectedTy, E, i, &getMLIRContext());
+
+      if (argType != correctedExpectedTy)
         llvm_unreachable("NYI");
 
-      args.push_back(arg);
+      args.push_back(argValue);
     }
 
     auto intrinsicCall = builder.create<cir::LLVMIntrinsicCallOp>(

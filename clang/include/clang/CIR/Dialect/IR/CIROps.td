@@ -386,6 +386,24 @@ def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
+def CIR_GEPNone : I32BitEnumCaseNone<"none">;
+def CIR_GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
+def CIR_GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
+def CIR_GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
+def CIR_GEPInbounds
+    : BitEnumCaseGroup<"inbounds", [CIR_GEPInboundsFlag, CIR_GEPNusw]>;
+
+def CIR_GEPNoWrapFlags
+    : CIR_I32BitEnum<"CIR_GEPNoWrapFlags", "::cir::CIR_GEPNoWrapFlags",
+                     [CIR_GEPNone, CIR_GEPInboundsFlag, CIR_GEPNusw, CIR_GEPNuw,
+                      CIR_GEPInbounds]> {
+  let cppNamespace = "::cir";
+  let printBitEnumPrimaryGroups = 1;
+}
+
+def CIR_GEPNoWrapFlagsProp : EnumProp<CIR_GEPNoWrapFlags> {
+  let defaultValue = interfaceType#"::none";
+}
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
   Pure, AllTypesMatch<["base", "result"]>
@@ -397,20 +415,23 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 
     ```mlir
     %3 = cir.const 0 : i32
+
     %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
+
+    %5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
+
+    %6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
+
     ```
   }];
 
-  let arguments = (ins
-    CIR_PointerType:$base,
-    CIR_AnyFundamentalIntType:$stride
-  );
+  let arguments = (ins CIR_PointerType:$base, CIR_AnyFundamentalIntType:$stride,
+      CIR_GEPNoWrapFlagsProp:$noWrapFlags);
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride)) `)`
-    `,` qualified(type($result)) attr-dict
+    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
   }];
 
   let extraClassDeclaration = [{
@@ -1044,6 +1065,8 @@ def CIR_YieldOp : CIR_Op<"yield", [
 // BreakOp
 //===----------------------------------------------------------------------===//
 
+def CIR_Breakable : NativeOpTrait<"cir::Breakable">;
+
 def CIR_BreakOp : CIR_Op<"break", [Terminator]> {
   let summary = "C/C++ `break` statement equivalent";
   let description = [{
@@ -1053,6 +1076,10 @@ def CIR_BreakOp : CIR_Op<"break", [Terminator]> {
   }];
   let assemblyFormat = "attr-dict";
   let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    /// Find the parent operation corresponding to this break.
+    mlir::Operation *getBreakTarget();
+    }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -1993,7 +2020,8 @@ def CIR_CaseOp : CIR_Op<"case", [
 def CIR_SwitchOp : CIR_Op<"switch", [
   SameVariadicOperandSize,
   DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments
+  RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments,
+  CIR_Breakable
 ]> {
   let summary = "Switch operation";
   let description = [{
@@ -2251,7 +2279,7 @@ def CIR_BrCondOp : CIR_Op<"brcond", [
 //===----------------------------------------------------------------------===//
 
 class CIR_WhileOpBase<string mnemonic> : CIR_Op<mnemonic, [
-  CIR_LoopOpInterface, NoRegionArguments
+  CIR_LoopOpInterface, CIR_Breakable, NoRegionArguments
 ]> {
   defvar isWhile = !eq(mnemonic, "while");
   let summary = "C/C++ " # !if(isWhile, "while", "do-while") # " loop";
@@ -2327,7 +2355,7 @@ def CIR_DoWhileOp : CIR_WhileOpBase<"do"> {
 // ForOp
 //===----------------------------------------------------------------------===//
 
-def CIR_ForOp : CIR_Op<"for", [CIR_LoopOpInterface, NoRegionArguments]> {
+def CIR_ForOp : CIR_Op<"for", [CIR_LoopOpInterface, CIR_Breakable, NoRegionArguments]> {
   let summary = "C/C++ for loop counterpart";
   let description = [{
     Represents a C/C++ for loop. It consists of three regions:
@@ -4694,6 +4722,36 @@ def CIR_EhTypeIdOp : CIR_Op<"eh.typeid",
   let results = (outs CIR_UInt32:$type_id);
   let assemblyFormat = [{
     $type_sym attr-dict
+  }];
+}
+
+def CIR_EhSetjmpOp : CIR_Op<"eh.setjmp"> {
+  let summary = "CIR setjmp operation";
+  let description = [{
+    Saves call-site information (e.g., stack pointer, instruction
+    pointer, signal mask, and other registers) in memory at `env` for use by longjmp(). In this case,
+    setjmp() returns 0. Following a successful longjmp(), execution proceeds
+    from cir.eh.setjmp with the operation yielding a non-zero value.
+
+    The presence of the `builtin` attribute refers to the setjmp() function; the lack of the attribute refers
+    to the _setjmp() function.
+
+    Examples:
+    ```mlir
+      // Specify setjmp is builtin.
+      %0 = cir.eh.setjmp builtin %arg0 : (!cir.ptr<!cir.void>) -> !s32i
+
+      // Specify setjmp is not builtin.
+      %0 = cir.eh.setjmp %arg0 : (!cir.ptr<!cir.void>) -> !s32i
+    ```
+  }];
+  let arguments = (ins CIR_PointerType:$env, UnitAttr:$is_builtin);
+
+  let results = (outs CIR_SInt32:$res);
+
+  let assemblyFormat = [{
+      (`builtin` $is_builtin^)?
+      $env `:` functional-type($env, results) attr-dict
   }];
 }
 

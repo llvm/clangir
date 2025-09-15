@@ -13,8 +13,13 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRENUMATTR_TD
 #define CLANG_CIR_DIALECT_IR_CIRENUMATTR_TD
 
-include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "mlir/IR/EnumAttr.td"
+include "clang/CIR/Dialect/IR/CIRDialect.td"
+
+class CIR_I32BitEnum<string name, string summary, list<BitEnumCaseBase> cases>
+    : I32BitEnum<name, summary, cases> {
+  let cppNamespace = "::cir";
+}
 
 class CIR_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
     : I32EnumAttr<name, summary, cases> {

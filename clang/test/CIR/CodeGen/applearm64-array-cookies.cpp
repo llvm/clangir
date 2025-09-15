@@ -19,11 +19,11 @@ void t_constant_size_nontrivial() {
 // CHECK:    %[[#ELEMENT_SIZE:]] = cir.const #cir.int<1> : !u64i
 // CHECK:    cir.store{{.*}} %[[#ELEMENT_SIZE]], %[[#COOKIE_PTR]] : !u64i, !cir.ptr<!u64i>
 // CHECK:    %[[#SECOND_COOKIE_OFFSET:]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[#COOKIE_PTR2:]] = cir.ptr_stride(%[[#COOKIE_PTR]] : !cir.ptr<!u64i>, %[[#SECOND_COOKIE_OFFSET]] : !s32i), !cir.ptr<!u64i>
+// CHECK:    %[[#COOKIE_PTR2:]] = cir.ptr_stride %[[#COOKIE_PTR]], %[[#SECOND_COOKIE_OFFSET]] : (!cir.ptr<!u64i>, !s32i) -> !cir.ptr<!u64i>
 // CHECK:    cir.store{{.*}} %[[#NUM_ELEMENTS]], %[[#COOKIE_PTR2]] : !u64i, !cir.ptr<!u64i>
 // CHECK:    %[[#COOKIE_SIZE:]] = cir.const #cir.int<16> : !s32i
 // CHECK:    %[[#ALLOC_AS_I8:]] = cir.cast(bitcast, %[[#ALLOC_PTR]] : !cir.ptr<!void>), !cir.ptr<!u8i>
-// CHECK:    cir.ptr_stride(%[[#ALLOC_AS_I8]] : !cir.ptr<!u8i>, %[[#COOKIE_SIZE]] : !s32i), !cir.ptr<!u8i>
+// CHECK:    cir.ptr_stride %[[#ALLOC_AS_I8]], %[[#COOKIE_SIZE]] : (!cir.ptr<!u8i>, !s32i) -> !cir.ptr<!u8i>
 
 class D {
   public:
@@ -47,8 +47,8 @@ void t_constant_size_nontrivial2() {
 // CHECK:    %[[#ELEMENT_SIZE:]] = cir.const #cir.int<4> : !u64i
 // CHECK:    cir.store{{.*}} %[[#ELEMENT_SIZE]], %[[#COOKIE_PTR]] : !u64i, !cir.ptr<!u64i>
 // CHECK:    %[[#SECOND_COOKIE_OFFSET:]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[#COOKIE_PTR2:]] = cir.ptr_stride(%[[#COOKIE_PTR]] : !cir.ptr<!u64i>, %[[#SECOND_COOKIE_OFFSET]] : !s32i), !cir.ptr<!u64i>
+// CHECK:    %[[#COOKIE_PTR2:]] = cir.ptr_stride %[[#COOKIE_PTR]], %[[#SECOND_COOKIE_OFFSET]] : (!cir.ptr<!u64i>, !s32i) -> !cir.ptr<!u64i>
 // CHECK:    cir.store{{.*}} %[[#NUM_ELEMENTS]], %[[#COOKIE_PTR2]] : !u64i, !cir.ptr<!u64i>
 // CHECK:    %[[#COOKIE_SIZE:]] = cir.const #cir.int<16> : !s32i
 // CHECK:    %[[#ALLOC_AS_I8:]] = cir.cast(bitcast, %[[#ALLOC_PTR]] : !cir.ptr<!void>), !cir.ptr<!u8i>
-// CHECK:    cir.ptr_stride(%[[#ALLOC_AS_I8]] : !cir.ptr<!u8i>, %[[#COOKIE_SIZE]] : !s32i), !cir.ptr<!u8i>
+// CHECK:    cir.ptr_stride %[[#ALLOC_AS_I8]], %[[#COOKIE_SIZE]] : (!cir.ptr<!u8i>, !s32i) -> !cir.ptr<!u8i>
