@@ -332,21 +332,32 @@ public:
 
   mlir::Value
   VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
-    mlir::Value condValue = Visit(E->getCond());
     mlir::Location loc = CGF.getLoc(E->getSourceRange());
+
+    // Bind the common expression if necessary.
+    CIRGenFunction::OpaqueValueMapping binding(CGF, E);
+
+    CIRGenFunction::ConditionalEvaluation eval(CGF);
+
+    Expr *cond = E->getCond()->IgnoreParens();
+    mlir::Value condValue = CGF.evaluateExprAsBool(cond);
 
     return Builder
         .create<cir::TernaryOp>(
             loc, condValue,
             /*thenBuilder=*/
             [&](mlir::OpBuilder &b, mlir::Location loc) {
+              eval.begin(CGF);
               mlir::Value trueValue = Visit(E->getTrueExpr());
               b.create<cir::YieldOp>(loc, trueValue);
+              eval.end(CGF);
             },
             /*elseBuilder=*/
             [&](mlir::OpBuilder &b, mlir::Location loc) {
+              eval.begin(CGF);
               mlir::Value falseValue = Visit(E->getFalseExpr());
               b.create<cir::YieldOp>(loc, falseValue);
+              eval.end(CGF);
             })
         .getResult();
   }
