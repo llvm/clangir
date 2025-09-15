@@ -2079,6 +2079,53 @@ static void printSwitchFlatOpCases(OpAsmPrinter &p, cir::SwitchFlatOp op,
 // LoopOpInterface Methods
 //===----------------------------------------------------------------------===//
 
+void cir::LoopOpInterface::getLoopOpSuccessorRegions(
+    LoopOpInterface op, mlir::RegionBranchPoint point,
+    llvm::SmallVectorImpl<mlir::RegionSuccessor> &regions) {
+  // Branching from the parent goes to the entry region (condition for
+  // while-style loops, body for do-while).
+  if (point.isParent()) {
+    regions.emplace_back(&op.getEntry(), op.getEntry().getArguments());
+    return;
+  }
+
+  auto *terminator = point.getTerminatorPredecessorOrNull();
+  assert(terminator && "non-parent branch point must have a terminator");
+  mlir::Region *branchRegion = terminator->getParentRegion();
+  assert(branchRegion && "terminator must belong to a region");
+
+  mlir::Region *stepRegion = op.maybeGetStep();
+  if (!stepRegion && op.getOperation()->getNumRegions() > 2)
+    stepRegion = &op.getOperation()->getRegion(2);
+
+  // Branching from condition: go to body or exit.
+  if (&op.getCond() == branchRegion) {
+    regions.emplace_back(op.getOperation(), op->getResults());
+    regions.emplace_back(&op.getBody(), op.getBody().getArguments());
+    return;
+  }
+
+  // Branching from body: go to step (for) or condition, and optionally exit on
+  // break.
+  if (&op.getBody() == branchRegion) {
+    if (auto breakOp = mlir::dyn_cast<cir::BreakOp>(terminator))
+      if (breakOp.getBreakTarget() == op)
+        regions.emplace_back(op.getOperation(), op->getResults());
+
+    mlir::Region *afterBody = stepRegion ? stepRegion : &op.getCond();
+    regions.emplace_back(afterBody, afterBody->getArguments());
+    return;
+  }
+
+  // Branching from step: go to condition.
+  if (stepRegion == branchRegion) {
+    regions.emplace_back(&op.getCond(), op.getCond().getArguments());
+    return;
+  }
+
+  llvm_unreachable("unexpected branch origin");
+}
+
 void cir::DoWhileOp::getSuccessorRegions(
     ::mlir::RegionBranchPoint point,
     ::llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions) {
