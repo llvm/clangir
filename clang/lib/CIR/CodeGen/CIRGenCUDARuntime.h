@@ -15,6 +15,7 @@
 #ifndef LLVM_CLANG_LIB_CIR_CIRGENCUDARUNTIME_H
 #define LLVM_CLANG_LIB_CIR_CIRGENCUDARUNTIME_H
 
+#include "mlir/IR/Operation.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
@@ -45,6 +46,9 @@ public:
                                         const CUDAKernelCallExpr *expr,
                                         ReturnValueSlot retValue);
   virtual mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) = 0;
+  /// Get kernel stub by kernel handle.
+  virtual mlir::Operation *getKernelStub(mlir::Operation *handle) = 0;
+
   virtual void internalizeDeviceSideVar(const VarDecl *d,
                                         cir::GlobalLinkageKind &linkage) = 0;
   /// Returns function or variable name on device side even if the current

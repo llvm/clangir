@@ -533,9 +533,11 @@ static CIRGenCallee emitDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
       return CIRGenCallee::forBuiltin(builtinID, FD);
   }
 
-  auto CalleePtr = emitFunctionDeclPointer(CGM, GD);
+  mlir::Operation *CalleePtr = emitFunctionDeclPointer(CGM, GD);
 
-  assert(!CGM.getLangOpts().CUDA && "NYI");
+  if (CGM.getLangOpts().CUDA && !CGM.getLangOpts().CUDAIsDevice &&
+      FD->hasAttr<CUDAGlobalAttr>())
+    CalleePtr = CGM.getCUDARuntime().getKernelStub(CalleePtr);
 
   return CIRGenCallee::forDirect(CalleePtr, GD);
 }
