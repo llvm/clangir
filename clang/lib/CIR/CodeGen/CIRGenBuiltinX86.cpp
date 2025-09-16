@@ -306,13 +306,35 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     Ops.push_back(emitScalarOrConstFoldImmArg(ICEArguments, i, E));
   }
 
-  // TODO: Add isSignaling boolean once emitConstrainedFPCall implemented
+  // OG has unordered comparison as a form of optimization in addition to
+  // ordered comparison, while CIR doesn't.
+  //
+  // This means that we can't encode the comparison code of UGT (unordered
+  // greater than), at least not at the CIR level.
+  //
+  // The boolean shouldInvert compensates for this.
+  // For example: to get to the comparison code UGT, we pass in
+  // getVectorFCmpIR(OLE, shouldInvert = true) since OLE is the inverse of UGT.
+
+  // There are several ways to support this otherwise:
+  // - register extra CmpOpKind for unordered comparison types and build the
+  // translation code for
+  //    to go from CIR -> LLVM dialect. Notice we get this naturally with
+  //    shouldInvert, benefiting from existing infrastructure, albeit having to
+  //    generate an extra `not` at CIR).
+  // - Just add extra comparison code to a new VecCmpOpKind instead of
+  // cluttering CmpOpKind.
+  // - Add a boolean in VecCmpOp to indicate if it's doing unordered or ordered
+  // comparison
+  // - Just emit the intrinsics call instead of calling this helper, see how the
+  // LLVM lowering handles this.
   auto getVectorFCmpIR = [this, &Ops, &E](cir::CmpOpKind pred,
                                           bool shouldInvert, bool isSignaling) {
     assert(!cir::MissingFeatures::CGFPOptionsRAII());
     auto loc = getLoc(E->getExprLoc());
     mlir::Value cmp;
     if (builder.getIsFPConstrained())
+      // TODO: Add isSignaling boolean once emitConstrainedFPCall implemented
       assert(cir::MissingFeatures::emitConstrainedFPCall());
     else
       cmp = builder.createVecCompare(loc, pred, Ops[0], Ops[1]);
