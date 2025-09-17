@@ -75,6 +75,12 @@ public:
 
   mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) override;
 
+  mlir::Operation *getKernelStub(mlir::Operation *handle) override {
+    auto loc = KernelStubs.find(handle);
+    assert(loc != KernelStubs.end());
+    return loc->second;
+  }
+
   void internalizeDeviceSideVar(const VarDecl *d,
                                 cir::GlobalLinkageKind &linkage) override;
   /// Returns function or variable name on device side even if the current
