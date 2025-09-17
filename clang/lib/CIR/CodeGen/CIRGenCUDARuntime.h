@@ -15,7 +15,6 @@
 #ifndef LLVM_CLANG_LIB_CIR_CIRGENCUDARUNTIME_H
 #define LLVM_CLANG_LIB_CIR_CIRGENCUDARUNTIME_H
 
-#include "mlir/IR/Operation.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
