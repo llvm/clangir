@@ -227,6 +227,16 @@ public:
   void emitVTableDefinitions(CIRGenVTables &CGVT,
                              const CXXRecordDecl *RD) override;
   void emitVirtualInheritanceTables(const CXXRecordDecl *RD) override;
+
+  void setThunkLinkage(cir::FuncOp Thunk, bool ForVTable, GlobalDecl GD,
+                       bool ReturnAdjustment) override {
+    if (ForVTable && !Thunk.hasLocalLinkage())
+      Thunk.setLinkage(cir::GlobalLinkageKind::AvailableExternallyLinkage);
+    const auto *ND = cast<NamedDecl>(GD.getDecl());
+    CGM.setGVProperties(Thunk.getOperation(), ND);
+  }
+
+  bool exportThunk() override { return true; }
   mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                           QualType Ty) override;
   bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,

@@ -3065,6 +3065,7 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   // NOTE(cir): Original CodeGen checks if this is an intrinsic. In CIR we
   // represent them in dedicated ops. The correct attributes are ensured during
   // translation to LLVM. Thus, we don't need to check for them here.
+  assert(!isThunk && "isThunk NYI");
 
   if (!isIncompleteFunction) {
     setCIRFunctionAttributes(globalDecl,
@@ -3100,8 +3101,6 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     StringRef mangledName, mlir::Type ty, GlobalDecl gd, bool forVTable,
     bool dontDefer, bool isThunk, ForDefinition_t isForDefinition,
     mlir::ArrayAttr extraAttrs) {
-  assert(!isThunk && "NYI");
-
   const auto *d = gd.getDecl();
 
   // Any attempts to use a MultiVersion function should result in retrieving the

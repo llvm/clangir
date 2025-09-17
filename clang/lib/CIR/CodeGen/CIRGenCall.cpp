@@ -1296,6 +1296,14 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
                                 info, paramInfos, required);
 }
 
+const CIRGenFunctionInfo &
+CIRGenTypes::arrangeUnprototypedMustTailThunk(const CXXMethodDecl *md) {
+  assert(md->isVirtual() && "only methods have thunks");
+  CanQual<FunctionProtoType> FTP = GetFormalType(md);
+  CanQualType ArgTys[] = {DeriveThisType(md->getParent(), md)};
+  return arrangeCIRFunctionInfo(astContext.VoidTy, cir::FnInfoOpts::None,
+                                ArgTys, FTP->getExtInfo(), {}, RequiredArgs(1));
+}
 /// Figure out the rules for calling a function with the given formal type using
 /// the given arguments. The arguments are necessary because the function might
 /// be unprototyped, in which case it's target-dependent in crazy ways.

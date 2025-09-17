@@ -230,6 +230,10 @@ public:
   /// this emits virtual table tables.
   virtual void emitVirtualInheritanceTables(const CXXRecordDecl *RD) = 0;
 
+  virtual bool exportThunk() = 0;
+  virtual void setThunkLinkage(cir::FuncOp Thunk, bool ForVTable, GlobalDecl GD,
+                               bool ReturnAdjustment) = 0;
+
   virtual mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                                   QualType Ty) = 0;
   virtual CatchTypeInfo
