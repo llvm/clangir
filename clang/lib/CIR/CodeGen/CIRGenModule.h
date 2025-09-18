@@ -359,7 +359,7 @@ public:
   cir::GlobalViewAttr
   getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty = {},
                          ForDefinition_t IsForDefinition = NotForDefinition);
-
+  cir::FuncOp getAddrOfThunk(StringRef name, mlir::Type fnTy, GlobalDecl gd);
   /// Get a reference to the target of VD.
   mlir::Operation *getWeakRefReference(const ValueDecl *VD);
 

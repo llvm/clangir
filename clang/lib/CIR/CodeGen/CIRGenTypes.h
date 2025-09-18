@@ -245,6 +245,8 @@ public:
                        const clang::FunctionProtoType *type,
                        RequiredArgs required, unsigned numPrefixArgs);
 
+  const CIRGenFunctionInfo &
+  arrangeUnprototypedMustTailThunk(const CXXMethodDecl *md);
   /// C++ methods have some special rules and also have implicit parameters.
   const CIRGenFunctionInfo &
   arrangeCXXMethodDeclaration(const clang::CXXMethodDecl *MD);
