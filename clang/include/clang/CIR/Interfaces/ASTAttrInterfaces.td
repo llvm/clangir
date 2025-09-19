@@ -28,6 +28,27 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->template hasAttr<clang::InitPriorityAttr>();
         }]
+      >,
+
+      // Requires hasOwnerAttr before dereferencing
+      InterfaceMethod<"", "const clang::OwnerAttr*", "getOwnerAttr", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->template getAttr<clang::OwnerAttr>();
+        }]
+      >,
+
+      // Requires hasPointerAttr before dereferencing
+      InterfaceMethod<"", "const clang::PointerAttr*", "getPointerAttr", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->template getAttr<clang::PointerAttr>();
+        }]
+      >,
+
+      // Requires hasInitPriorityAttr before dereferencing
+      InterfaceMethod<"", "const clang::InitPriorityAttr*", "getInitPriorityAttr", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->template getAttr<clang::InitPriorityAttr>();
+        }]
       >
     ];
   }
