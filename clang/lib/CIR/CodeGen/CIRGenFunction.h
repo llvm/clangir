@@ -2068,6 +2068,9 @@ public:
                                        const CXXMethodDecl *MD,
                                        ReturnValueSlot ReturnValue);
 
+  RValue emitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
+                                ReturnValueSlot ReturnValue);
+
   RValue emitCXXPseudoDestructorExpr(const CXXPseudoDestructorExpr *expr);
 
   void emitCXXTemporary(const CXXTemporary *Temporary, QualType TempType,

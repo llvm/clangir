@@ -376,6 +376,11 @@ CIRGenFunction::emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
       /*IsArrow=*/false, E->getArg(0));
 }
 
+RValue CIRGenFunction::emitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
+                                              ReturnValueSlot ReturnValue) {
+  return CGM.getCUDARuntime().emitCUDAKernelCallExpr(*this, E, ReturnValue);
+}
+
 static void emitNullBaseClassInitialization(CIRGenFunction &CGF,
                                             Address DestPtr,
                                             const CXXRecordDecl *Base) {
