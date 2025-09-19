@@ -6149,6 +6149,10 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress", [Pure]> {
   let assemblyFormat = [{
     `(` $func `,` $label `)` `->` qualified(type($addr)) attr-dict
   }];
+
+  let extraClassDeclaration = [{
+    static int32_t tagIndex;
+  }];
 }
 
 //===----------------------------------------------------------------------===//
