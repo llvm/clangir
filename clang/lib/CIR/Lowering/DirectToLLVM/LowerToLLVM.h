@@ -158,6 +158,22 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMGetElementOpLowering
+    : public mlir::OpConversionPattern<cir::GetElementOp> {
+  mlir::DataLayout const &dataLayout;
+
+public:
+  CIRToLLVMGetElementOpLowering(const mlir::TypeConverter &typeConverter,
+                                mlir::MLIRContext *context,
+                                mlir::DataLayout const &dataLayout)
+      : OpConversionPattern(typeConverter, context), dataLayout(dataLayout) {}
+  using mlir::OpConversionPattern<cir::GetElementOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetElementOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMBaseClassAddrOpLowering
     : public mlir::OpConversionPattern<cir::BaseClassAddrOp> {
 public:
@@ -517,6 +533,11 @@ class CIRToLLVMFuncOpLowering : public mlir::OpConversionPattern<cir::FuncOp> {
   void
   lowerFuncOpenCLKernelMetadata(mlir::NamedAttribute &extraAttrsEntry) const;
 
+  mlir::LogicalResult
+  matchAndRewriteAlias(cir::FuncOp op, mlir::FlatSymbolRefAttr aliasee,
+                       mlir::Type ty, OpAdaptor adaptor,
+                       mlir::ConversionPatternRewriter &rewriter) const;
+
 public:
   using mlir::OpConversionPattern<cir::FuncOp>::OpConversionPattern;
 
@@ -622,6 +643,16 @@ private:
   lowerInitializerForConstArray(mlir::ConversionPatternRewriter &rewriter,
                                 cir::GlobalOp op, mlir::Attribute &init,
                                 bool &useInitializerRegion) const;
+
+  mlir::LogicalResult
+  lowerInitializerForConstVector(mlir::ConversionPatternRewriter &rewriter,
+                                 cir::GlobalOp op, mlir::Attribute &init,
+                                 bool &useInitializerRegion) const;
+
+  mlir::LogicalResult
+  lowerInitializerForConstComplex(mlir::ConversionPatternRewriter &rewriter,
+                                  cir::GlobalOp op, mlir::Attribute &init,
+                                  bool &useInitializerRegion) const;
 
   mlir::LogicalResult
   lowerInitializerDirect(mlir::ConversionPatternRewriter &rewriter,
@@ -1003,6 +1034,27 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMVTableGetVPtrOpLowering
+    : public mlir::OpConversionPattern<cir::VTableGetVPtrOp> {
+public:
+  using mlir::OpConversionPattern<cir::VTableGetVPtrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::VTableGetVPtrOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
+class CIRToLLVMVTableGetVirtualFnAddrOpLowering
+    : public mlir::OpConversionPattern<cir::VTableGetVirtualFnAddrOp> {
+public:
+  using mlir::OpConversionPattern<
+      cir::VTableGetVirtualFnAddrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::VTableGetVirtualFnAddrOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMStackSaveOpLowering
     : public mlir::OpConversionPattern<cir::StackSaveOp> {
 public:
@@ -1094,6 +1146,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMDeleteArrayOpLowering
+    : public mlir::OpConversionPattern<cir::DeleteArrayOp> {
+public:
+  using mlir::OpConversionPattern<cir::DeleteArrayOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::DeleteArrayOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override;
+};
+
 class CIRToLLVMIsConstantOpLowering
     : public mlir::OpConversionPattern<cir::IsConstantOp> {
 public:
@@ -1155,6 +1217,16 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(cir::EhTypeIdOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
+class CIRToLLVMEhSetjmpOpLowering
+    : public mlir::OpConversionPattern<cir::EhSetjmpOp> {
+public:
+  using mlir::OpConversionPattern<cir::EhSetjmpOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::EhSetjmpOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 

@@ -10,8 +10,8 @@ _BitInt(33) a;
 _BitInt(31) b;
 void c() {
   // CIR-LABEL: cir.func {{.*}} @c()
-  // CIR: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.int<s, 33>>, !cir.int<s, 33> tbaa(#tbaa[[BitInt33]])
-  // CIR: cir.store %{{.*}}, %{{.*}} : !cir.int<s, 31>, !cir.ptr<!cir.int<s, 31>> tbaa(#tbaa[[BitInt31]])
+  // CIR: %{{.*}} = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.int<s, 33>>, !cir.int<s, 33> tbaa(#tbaa[[BitInt33]])
+  // CIR: cir.store{{.*}} %{{.*}}, %{{.*}} : !cir.int<s, 31>, !cir.ptr<!cir.int<s, 31>> tbaa(#tbaa[[BitInt31]])
 
   // LLVM-LABEL: define {{.*}} void @c()
   // LLVM: %{{.*}} = load i33, ptr @a, align 8, !tbaa [[tbaa_tag_bitint_33:!.*]]

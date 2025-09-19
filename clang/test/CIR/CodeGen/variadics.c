@@ -11,8 +11,8 @@ typedef __builtin_va_list va_list;
 // CHECK: [[VALISTTYPE:!.+va_list.*]] = !cir.record<struct "{{.*}}__va_list
 
 int average(int count, ...) {
-// CHECK: cir.func @{{.*}}average{{.*}}(%arg0: !s32i, ...) -> !s32i
-// AMR64_CHECK: cir.func @{{.*}}average{{.*}}(%arg0: !s32i loc({{.+}}), ...) -> !s32i
+// CHECK: cir.func dso_local @{{.*}}average{{.*}}(%arg0: !s32i, ...) -> !s32i
+// AMR64_CHECK: cir.func dso_local @{{.*}}average{{.*}}(%arg0: !s32i loc({{.+}}), ...) -> !s32i
     va_list args, args_copy;
     va_start(args, count);
     // CHECK: cir.va.start %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>

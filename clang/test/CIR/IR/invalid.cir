@@ -25,7 +25,7 @@ cir.func @b0() {
 !u32i = !cir.int<u, 32>
 cir.func @if0() {
   %0 = cir.const #true
-  // expected-error@+1 {{'cir.if' op  region control flow edge from Region #0 to parent results: source has 1 operands, but target successor needs 0}}
+  // expected-error@+1 {{'cir.if' op region control flow edge from Region #0 to parent results: source has 1 operands, but target successor needs 0}}
   cir.if %0 {
     %6 = cir.const #cir.int<3> : !u32i
     cir.yield %6 : !u32i
@@ -53,7 +53,7 @@ cir.func @yield0() {
 cir.func @yieldbreak() {
   %0 = cir.const #true
   cir.if %0 {
-    cir.break // expected-error {{op must be within a loop or switch}}
+    cir.break // expected-error {{op must be within a breakable operation}}
   }
   cir.return
 }
@@ -99,7 +99,7 @@ cir.func @s1() {
 
 cir.func @badstride(%x: !cir.ptr<!cir.int<s, 32>>) {
   %idx = cir.const #cir.int<2> : !cir.int<s, 32>
-  %4 = cir.ptr_stride(%x : !cir.ptr<!cir.int<s, 32>>, %idx : !cir.int<s, 32>), !cir.ptr<!cir.float> // expected-error {{requires the same type for first operand and result}}
+  %4 = cir.ptr_stride %x, %idx : (!cir.ptr<!cir.int<s, 32>>, !cir.int<s, 32>) -> !cir.ptr<!cir.float> // expected-error {{op failed to verify that all of {base, result} have same type}}
   cir.return
 }
 
@@ -477,7 +477,7 @@ cir.func @vec_insert_non_vector() {
 cir.func @vec_ternary_non_vector1() {
   %0 = cir.const #cir.int<0> : !s32i
   %1 = cir.vec.create(%0, %0 : !s32i, !s32i) : !cir.vector<!s32i x 2>
-  %2 = cir.vec.ternary(%0, %1, %1) : !s32i, !cir.vector<!s32i x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be !cir.vector of !cir.int, but got '!cir.int<s, 32>'}}
+  %2 = cir.vec.ternary(%0, %1, %1) : !s32i, !cir.vector<!s32i x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be vector of integer type, but got '!cir.int<s, 32>'}}
   cir.return
 }
 
@@ -506,7 +506,7 @@ cir.func @vec_ternary_different_size() {
 
 cir.func @vec_ternary_not_int(%p : !cir.float) {
   %0 = cir.vec.create(%p, %p : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
-  %1 = cir.vec.ternary(%0, %0, %0) : !cir.vector<!cir.float x 2>, !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be !cir.vector of !cir.int, but got '!cir.vector<!cir.float x 2>'}}
+  %1 = cir.vec.ternary(%0, %0, %0) : !cir.vector<!cir.float x 2>, !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be vector of integer type, but got '!cir.vector<!cir.float x 2>'}}
   cir.return
 }
 
@@ -617,6 +617,11 @@ module {
 module {
   // expected-error@below {{integer value too large for the given type}}
   cir.global external @a = #cir.int<256> : !cir.int<u, 8>
+}
+
+// -----
+
+module {
   // expected-error@below {{integer value too large for the given type}}
   cir.global external @b = #cir.int<-129> : !cir.int<s, 8>
 }
@@ -690,7 +695,8 @@ module {
 
 // -----
 
-// expected-error@+1 {{invalid language keyword 'dummy'}}
+// expected-error@below {{expected ::cir::SourceLanguage to be one of: c, cxx, opencl_c}}
+// expected-error@below {{failed to parse CIR_SourceLanguageAttr parameter 'value'}}
 module attributes {cir.lang = #cir.lang<dummy>} { }
 
 // -----
@@ -721,7 +727,7 @@ module {
 module {
   // Should not memcpy with invalid length type.
   cir.func @invalid_memcpy_len(%arg0 : !cir.ptr<!cir.void>, %arg1 : !s8i) {
-    // expected-error@+1 {{'cir.libc.memcpy' op operand #2 must be primitive unsigned int, but got '!cir.int<s, 8>'}}
+    // expected-error@+1 {{'cir.libc.memcpy' op operand #2 must be fundamental unsigned integer type, but got '!cir.int<s, 8>'}}
     cir.libc.memcpy %arg1 bytes from %arg0 to %arg0 : !s8i, !cir.ptr<!cir.void> -> !cir.ptr<!cir.void>
     cir.return
   }
@@ -734,7 +740,7 @@ module {
 module {
   // Should not memcpy non-void pointers.
   cir.func @invalid_memcpy_pointer_0(%arg0 : !cir.ptr<!s8i>, %arg1 : !u32i) {
-    // expected-error@+1 {{'cir.libc.memcpy' op operand #0 must be void*, but got '!cir.ptr<!cir.int<s, 8>>'}}
+    // expected-error@+1 {{'cir.libc.memcpy' op operand #0 must be pointer to void type, but got '!cir.ptr<!cir.int<s, 8>>'}}
     cir.libc.memcpy %arg1 bytes from %arg0 to %arg0 : !u32i, !cir.ptr<!s8i> -> !cir.ptr<!s8i>
     cir.return
   }
@@ -747,7 +753,7 @@ module {
 module {
   // Should not memcpy non-void pointers.
   cir.func @invalid_memcpy_pointer_1(%arg0 : !cir.ptr<!cir.void>, %arg1 : !cir.ptr<!s8i>, %arg2 : !u32i) {
-    // expected-error@+1 {{'cir.libc.memcpy' op operand #1 must be void*, but got '!cir.ptr<!cir.int<s, 8>>'}}
+    // expected-error@+1 {{'cir.libc.memcpy' op operand #1 must be pointer to void type, but got '!cir.ptr<!cir.int<s, 8>>'}}
     cir.libc.memcpy %arg2 bytes from %arg1 to %arg0 : !u32i, !cir.ptr<!s8i> -> !cir.ptr<!cir.void>
     cir.return
   }
@@ -842,7 +848,7 @@ module {
 !s32i = !cir.int<s, 32>
 module {
   cir.func @tmp(%arg0: !cir.float) {
-    // expected-error@+1 {{operand #0 must be primitive int}}
+    // expected-error@+1 {{operand #0 must be fundamental integer type}}
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, %arg0 : !cir.float, ["tmp"]
     cir.return
   }
@@ -894,7 +900,7 @@ module {
 module {
   cir.func @invalid_base_type(%arg0 : !cir.data_member<!u32i in !struct1>) {
     %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["tmp"] {alignment = 4 : i64}
-    // expected-error@+1 {{'cir.get_runtime_member' op operand #0 must be !cir.record*}}
+    // expected-error@+1 {{'cir.get_runtime_member' op operand #0 must be pointer to record type}}
     %1 = cir.get_runtime_member %0[%arg0 : !cir.data_member<!u32i in !struct1>] : !cir.ptr<!u32i> -> !cir.ptr<!u32i>
     cir.return
   }
@@ -946,8 +952,8 @@ module {
 !u32i = !cir.int<u, 32>
 
 cir.func @clrsb_invalid_input_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.clrsb' op operand #0 must be 32-bit signed integer or 64-bit signed integer, but got '!cir.int<u, 32>'}}
-  %0 = cir.bit.clrsb(%arg0 : !u32i) : !u32i
+  // expected-error@+1 {{'cir.clrsb' op operand #0 must be signed integer type of widths 32/64, but got '!cir.int<u, 32>'}}
+  %0 = cir.clrsb %arg0 : !u32i
   cir.return
 }
 
@@ -956,9 +962,9 @@ cir.func @clrsb_invalid_input_ty(%arg0 : !u32i) -> () {
 !s32i = !cir.int<s, 32>
 !u32i = !cir.int<u, 32>
 
-cir.func @clrsb_invalid_result_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.clrsb' op result #0 must be 32-bit signed integer or 64-bit signed integer, but got '!cir.int<u, 32>'}}
-  %0 = cir.bit.clrsb(%arg0 : !s32i) : !u32i
+cir.func @clrsb_invalid_result_ty(%arg0 : !s32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<u, 32>' vs '!cir.int<s, 32>'}}
+  %0 = cir.clrsb %arg0 : !u32i
   cir.return
 }
 
@@ -967,8 +973,8 @@ cir.func @clrsb_invalid_result_ty(%arg0 : !s32i) -> () {
 !s32i = !cir.int<s, 32>
 
 cir.func @clz_invalid_input_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.clz' op operand #0 must be 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.clz(%arg0 : !s32i) zero_poison : !s32i
+  // expected-error@+1 {{'cir.clz' op operand #0 must be unsigned integer type of widths 16/32/64, but got '!cir.int<s, 32>'}}
+  %0 = cir.clz %arg0 zero_poison : !s32i
   cir.return
 }
 
@@ -977,9 +983,9 @@ cir.func @clz_invalid_input_ty(%arg0 : !s32i) -> () {
 !u32i = !cir.int<u, 32>
 !s32i = !cir.int<s, 32>
 
-cir.func @clz_invalid_result_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.clz' op result #0 must be 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.clz(%arg0 : !u32i) : !s32i
+cir.func @clz_invalid_result_ty(%arg0 : !u32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<s, 32>' vs '!cir.int<u, 32>'}}
+  %0 = cir.clz %arg0 : !s32i
   cir.return
 }
 
@@ -988,8 +994,8 @@ cir.func @clz_invalid_result_ty(%arg0 : !u32i) -> () {
 !s32i = !cir.int<s, 32>
 
 cir.func @ctz_invalid_input_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.ctz' op operand #0 must be 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.ctz(%arg0 : !s32i) zero_poison : !s32i
+  // expected-error@+1 {{'cir.ctz' op operand #0 must be unsigned integer type of widths 16/32/64, but got '!cir.int<s, 32>'}}
+  %0 = cir.ctz %arg0 zero_poison : !s32i
   cir.return
 }
 
@@ -998,9 +1004,9 @@ cir.func @ctz_invalid_input_ty(%arg0 : !s32i) -> () {
 !u32i = !cir.int<u, 32>
 !s32i = !cir.int<s, 32>
 
-cir.func @ctz_invalid_result_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.ctz' op result #0 must be 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.ctz(%arg0 : !u32i) : !s32i
+cir.func @ctz_invalid_result_ty(%arg0 : !u32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<s, 32>' vs '!cir.int<u, 32>'}}
+  %0 = cir.ctz %arg0 : !s32i
   cir.return
 }
 
@@ -1009,9 +1015,9 @@ cir.func @ctz_invalid_result_ty(%arg0 : !u32i) -> () {
 !s32i = !cir.int<s, 32>
 !u32i = !cir.int<u, 32>
 
-cir.func @ffs_invalid_input_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.ffs' op operand #0 must be 32-bit signed integer or 64-bit signed integer, but got '!cir.int<u, 32>'}}
-  %0 = cir.bit.ffs(%arg0 : !u32i) : !s32i
+cir.func @ffs_invalid_input_ty(%arg0 : !u32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<s, 32>' vs '!cir.int<u, 32>'}}
+  %0 = cir.ffs %arg0 : !s32i
   cir.return
 }
 
@@ -1020,9 +1026,9 @@ cir.func @ffs_invalid_input_ty(%arg0 : !u32i) -> () {
 !s32i = !cir.int<s, 32>
 !u32i = !cir.int<u, 32>
 
-cir.func @ffs_invalid_result_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.ffs' op result #0 must be 32-bit signed integer or 64-bit signed integer, but got '!cir.int<u, 32>'}}
-  %0 = cir.bit.ffs(%arg0 : !s32i) : !u32i
+cir.func @ffs_invalid_result_ty(%arg0 : !s32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<u, 32>' vs '!cir.int<s, 32>'}}
+  %0 = cir.ffs %arg0 : !u32i
   cir.return
 }
 
@@ -1031,8 +1037,8 @@ cir.func @ffs_invalid_result_ty(%arg0 : !s32i) -> () {
 !s32i = !cir.int<s, 32>
 
 cir.func @parity_invalid_input_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.parity' op operand #0 must be 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.parity(%arg0 : !s32i) : !s32i
+  // expected-error@+1 {{'cir.parity' op operand #0 must be unsigned integer type of widths 32/64, but got '!cir.int<s, 32>'}}
+  %0 = cir.parity %arg0 : !s32i
   cir.return
 }
 
@@ -1041,9 +1047,9 @@ cir.func @parity_invalid_input_ty(%arg0 : !s32i) -> () {
 !u32i = !cir.int<u, 32>
 !s32i = !cir.int<s, 32>
 
-cir.func @parity_invalid_result_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.parity' op result #0 must be 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.parity(%arg0 : !u32i) : !s32i
+cir.func @parity_invalid_result_ty(%arg0 : !u32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<s, 32>' vs '!cir.int<u, 32>'}}
+  %0 = cir.parity %arg0 : !s32i
   cir.return
 }
 
@@ -1052,8 +1058,8 @@ cir.func @parity_invalid_result_ty(%arg0 : !u32i) -> () {
 !s32i = !cir.int<s, 32>
 
 cir.func @popcount_invalid_input_ty(%arg0 : !s32i) -> () {
-  // expected-error@+1 {{'cir.bit.popcount' op operand #0 must be 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer, but got '!cir.int<s, 32>'}}
-  %0 = cir.bit.popcount(%arg0 : !s32i) : !s32i
+  // expected-error@+1 {{'cir.popcount' op operand #0 must be unsigned integer type of widths 16/32/64, but got '!cir.int<s, 32>'}}
+  %0 = cir.popcount %arg0 : !s32i
   cir.return
 }
 
@@ -1062,9 +1068,9 @@ cir.func @popcount_invalid_input_ty(%arg0 : !s32i) -> () {
 !u32i = !cir.int<u, 32>
 !u64i = !cir.int<u, 64>
 
-cir.func @popcount_invalid_result_ty(%arg0 : !u32i) -> () {
-  // expected-error@+1 {{'cir.bit.popcount' op requires the same type for all operands and results}}
-  %0 = cir.bit.popcount(%arg0 : !u32i) : !u64i
+cir.func @popcount_invalid_result_ty(%arg0 : !u32i) -> () {  // expected-note {{prior use here}}
+  // expected-error@+1 {{use of value '%arg0' expects different type than prior uses: '!cir.int<u, 64>' vs '!cir.int<u, 32>'}}
+  %0 = cir.popcount %arg0 : !u64i
   cir.return
 }
 
@@ -1163,7 +1169,7 @@ cir.func @no_reference_global() {
 
 // -----
 
-// expected-error@+1 {{invalid underlying type for long double}}
+// expected-error@+1 {{failed to verify 'underlying': expects !cir.double, !cir.fp80 or !cir.fp128}}
 cir.func @bad_long_double(%arg0 : !cir.long_double<!cir.float>) -> () {
   cir.return
 }
@@ -1226,28 +1232,35 @@ cir.func @bad_goto() -> () {
 // -----
 
 !u64i = !cir.int<u, 64>
-cir.func @address_space1(%p : !cir.ptr<!u64i, addrspace()>) { // expected-error {{expected keyword for addrspace kind}}
+// expected-error@below {{expected address space keyword}}
+// expected-error@below {{expected keyword for address space kind}}
+cir.func @address_space1(%p : !cir.ptr<!u64i, addrspace()>) {
   cir.return
 }
 
 // -----
 
 !u64i = !cir.int<u, 64>
-cir.func @address_space2(%p : !cir.ptr<!u64i, addrspace(target<>)>) { // expected-error {{expected integer value}}
+// expected-error@below {{expected target address space value}}
+// expected-error@below {{expected integer value}}
+cir.func @address_space2(%p : !cir.ptr<!u64i, addrspace(target<>)>) {
   cir.return
 }
 
 // -----
 
 !u64i = !cir.int<u, 64>
-cir.func @address_space3(%p : !cir.ptr<!u64i, addrspace(target)>) { // expected-error {{expected '<'}}
+// expected-error@below {{expected '<'}}
+cir.func @address_space3(%p : !cir.ptr<!u64i, addrspace(target)>) {
   cir.return
 }
 
 // -----
 
 !u64i = !cir.int<u, 64>
-cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) { // expected-error {{invalid addrspace kind keyword: foobar}}
+// expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic, target] for address space kind, got: foobar}}
+// expected-error@below {{expected address space keyword}}
+cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) {
   cir.return
 }
 
@@ -1404,7 +1417,35 @@ module {
     // expected-error@+1 {{'cir.cast' op result type address space does not match the address space of the operand}}
     %1 = cir.cast(bitcast, %0 : !cir.ptr<!s32i>), !cir.ptr<!s32i, addrspace(offload_local)>
   }
+}
 
+// -----
+
+!s16i = !cir.int<s, 16>
+!s64i = !cir.int<s, 64>
+
+module {
+  cir.func @test_bitcast_vec2scalar_diff_size() {
+    %0 = cir.const #cir.int<1> : !s16i
+    %1 = cir.vec.create(%0, %0 : !s16i, !s16i) : !cir.vector<!s16i x 2>
+    // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
+    %2 = cir.cast(bitcast, %1 : !cir.vector<!s16i x 2>), !s64i
+    cir.return
+  }
+}
+
+// -----
+
+!s32i = !cir.int<s, 32>
+!s64i = !cir.int<s, 64>
+
+module {
+  cir.func @test_bitcast_scalar2vec_diff_size() {
+    %0 = cir.const #cir.int<1> : !s64i
+    // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
+    %1 = cir.cast(bitcast, %0 : !s64i), !cir.vector<!s32i x 4>
+    cir.return
+  }
 }
 
 // -----
@@ -1433,11 +1474,27 @@ module {
     %0 = cir.alloca !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>, ["a", init] {alignment = 8 : i64}
     %1 = cir.load %0 : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
     %4 = cir.const #cir.const_vector<[#cir.int<12> : !s16i, #cir.int<12> : !s16i]> : !cir.vector<!s16i x 2>
-    // expected-error@+1 {{'cir.shift' op shift amount must have the type of the result if it is vector shift}}
+    // expected-error@+1 {{'cir.shift' op vector operands do not have the same elements sizes}}
     %5 = cir.shift(left, %1 : !cir.vector<!s32i x 2>, %4 : !cir.vector<!s16i x 2>) -> !cir.vector<!s32i x 2>
     cir.return
   }
 }
+
+// -----
+
+!s32i = !cir.int<s, 32>
+!s16i = !cir.int<s, 16>
+module {
+   cir.func @test_shift_vec2() {
+    %0 = cir.alloca !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>, ["a", init] {alignment = 8 : i64}
+    %1 = cir.load %0 : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+    %4 = cir.const #cir.const_vector<[#cir.int<12> : !s16i, #cir.int<12> : !s16i]> : !cir.vector<!s16i x 2>
+    // expected-error@+1 {{'cir.shift' op vector operands do not have the same elements sizes}}
+    %5 = cir.shift(left, %4 : !cir.vector<!s16i x 2>, %1 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
+    cir.return
+  }
+}
+
 // -----
 
 // Type of the attribute must be a CIR floating point type
@@ -1516,7 +1573,7 @@ cir.func @cast0(%arg0: !s32i, %arg1: !s32i) {
 !s32i = !cir.int<s, 32>
 // expected-error @below {{!cir.func cannot have an explicit 'void' return type}}
 // expected-error @below {{failed to parse CIR_PointerType parameter}}
-cir.global external dsolocal @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) -> !cir.void>>
+cir.global external dso_local @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) -> !cir.void>>
 
 // -----
 
@@ -1525,3 +1582,79 @@ cir.global external dsolocal @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) 
 
 // expected-error @below {{variadic `...` must be the last parameter}}
 !fty = !cir.func<(..., !s32i)>
+
+// -----
+
+// Verify that complex type does not accept arbitrary type
+
+// expected-error @below {{integer or floating point type}}
+!complex = !cir.complex<!cir.ptr<!cir.void>>
+
+// -----
+
+#false = #cir.bool<false> : !cir.bool
+#true = #cir.bool<true> : !cir.bool
+cir.func @b0() {
+  cir.scope {
+    cir.while {  // expected-error {{expected condition region to terminate with 'cir.condition'}}
+      cir.yield
+    } do {
+      cir.br ^bb1
+    ^bb1:
+      cir.return
+    }
+  }
+  cir.return
+}
+
+// -----
+
+cir.func @invalid_cond_region_terminator(%arg0 : !cir.bool) -> !cir.void {
+  cir.do { // expected-error {{op expected condition region to terminate with 'cir.condition'}}
+    cir.yield
+  } while {
+    cir.yield
+  }
+  cir.return
+}
+
+// -----
+
+cir.func @invalidConditionTerminator (%arg0 : !cir.bool) -> !cir.void {
+  cir.for : cond { // expected-error {{op expected condition region to terminate with 'cir.condition'}}
+    cir.yield
+  } body {
+    cir.yield
+  } step {
+    cir.yield
+  }
+  cir.return
+}
+
+// -----
+
+!s16i = !cir.int<s, 16>
+!s32i = !cir.int<s, 32>
+#fn_attr = #cir<extra({nothrow = #cir.nothrow, uwtable = #cir.uwtable<async>})>
+!rec_S = !cir.record<struct "S" {!s16i} #cir.record.decl.ast>
+#tbaa_scalar = #cir.tbaa_scalar<id = "short", type = !s16i>
+// expected-error @below {{invalid kind of attribute specified}}
+// expected-error @below {{failed to parse CIR_TBAAStructAttr parameter 'members'}}
+#tbaa_struct = #cir.tbaa_struct<id = "S", members = {#cir.uwtable<async>}>
+#tbaa_tag = #cir.tbaa_tag<base = #tbaa_struct, access = #tbaa_scalar, offset = 0>
+cir.global external dso_local @glob = #cir.zero : !rec_S {alignment = 2 : i64}
+cir.func dso_local @main() -> !s32i extra(#fn_attr) {
+  %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
+  %1 = cir.const #cir.int<0> : !s32i
+  %2 = cir.cast(integral, %1 : !s32i), !s16i
+  %3 = cir.get_global @glob : !cir.ptr<!rec_S>
+  %4 = cir.get_member %3[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
+  cir.store align(2) %2, %4 : !s16i, !cir.ptr<!s16i> tbaa(#tbaa_tag)
+  %5 = cir.get_global @glob : !cir.ptr<!rec_S>
+  %6 = cir.get_member %5[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
+  %7 = cir.load align(2) %6 : !cir.ptr<!s16i>, !s16i tbaa(#tbaa_tag)
+  %8 = cir.cast(integral, %7 : !s16i), !s32i
+  cir.store %8, %0 : !s32i, !cir.ptr<!s32i>
+  %9 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+  cir.return %9 : !s32i
+}

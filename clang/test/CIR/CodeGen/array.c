@@ -8,7 +8,7 @@ struct S {
 // CHECK: cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_S, #cir.zero : !rec_S, #cir.zero : !rec_S]> : !cir.array<!rec_S x 3>
 
 int a[4];
-// CHECK: cir.global external @a = #cir.zero : !cir.array<!s32i x 4> 
+// CHECK: cir.global external @a = #cir.zero : !cir.array<!s32i x 4>
 
 // Should create a pointer to a complete array.
 int (*complete_ptr_a)[4] = &a;
@@ -26,7 +26,6 @@ void useFoo(int i) {
 }
 // CHECK: @useFoo
 // CHECK: %[[#V2:]] = cir.get_global @foo : !cir.ptr<!cir.array<!s32i x 0>>
-// CHECK: %[[#V3:]] = cir.load %{{.+}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[#V4:]] = cir.cast(array_to_ptrdecay, %[[#V2]] : !cir.ptr<!cir.array<!s32i x 0>>), !cir.ptr<!s32i>
-// CHECK: %[[#V5:]] = cir.ptr_stride(%[[#V4]] : !cir.ptr<!s32i>, %[[#V3]] : !s32i), !cir.ptr<!s32i>
-// CHECK: cir.store %{{.+}}, %[[#V5]] : !s32i, !cir.ptr<!s32i>
+// CHECK: %[[#V3:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[#V4:]] = cir.get_element %[[#V2]][%[[#V3]]] : (!cir.ptr<!cir.array<!s32i x 0>>, !s32i) -> !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %{{.+}}, %[[#V4]] : !s32i, !cir.ptr<!s32i>

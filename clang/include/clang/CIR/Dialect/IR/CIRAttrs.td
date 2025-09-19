@@ -10,13 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_ATTRS
-#define MLIR_CIR_DIALECT_CIR_ATTRS
+#ifndef CLANG_CIR_DIALECT_IR_CIRATTRS_TD
+#define CLANG_CIR_DIALECT_IR_CIRATTRS_TD
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
-include "mlir/IR/EnumAttr.td"
+include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 
@@ -44,7 +45,7 @@ class CIR_TypedAttr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = [{}];
 }
 
-class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
+class CIR_UnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
     : CIR_Attr<name, attrMnemonic, traits> {
   let returnType = "bool";
   let defaultValue = "false";
@@ -53,22 +54,21 @@ class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 //===----------------------------------------------------------------------===//
-// LangAttr
+// SourceLanguageAttr
 //===----------------------------------------------------------------------===//
 
-def C : I32EnumAttrCase<"C", 1, "c">;
-def CXX : I32EnumAttrCase<"CXX", 2, "cxx">;
-def OpenCLC : I32EnumAttrCase<"OpenCLC", 3, "opencl_c">;
-
-def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
-  C, CXX, OpenCLC
+def CIR_SourceLanguage : CIR_I32EnumAttr<"SourceLanguage", "source language", [
+  I32EnumAttrCase<"C", 1, "c">,
+  I32EnumAttrCase<"CXX", 2, "cxx">,
+  I32EnumAttrCase<"OpenCLC", 3, "opencl_c">
 ]> {
-  let cppNamespace = "::cir";
+  // The enum attr class is defined in `CIR_SourceLanguageAttr` below,
+  // so that it can define extra class methods.
+  let genSpecializedAttr = 0;
 }
 
-def LangAttr : CIR_Attr<"Lang", "lang"> {
+def CIR_SourceLanguageAttr : CIR_EnumAttr<CIR_SourceLanguage, "lang"> {
   let summary = "Module source language";
-  let parameters = (ins "SourceLanguageAttr":$lang);
   let description = [{
     Represents the source language used to generate the module.
 
@@ -79,13 +79,16 @@ def LangAttr : CIR_Attr<"Lang", "lang"> {
     // Module compiled from C++.
     module attributes {cir.lang = cir.lang<cxx>} {}
     ```
+
+    Module source language attribute name is `cir.lang` is defined by
+    `getSourceLanguageAttrName` method in CIRDialect class.
   }];
-  let hasCustomAssemblyFormat = 1;
+
   let extraClassDeclaration = [{
-    bool isC() const { return getLang().getValue() == SourceLanguage::C; };
-    bool isCXX() const { return getLang().getValue() == SourceLanguage::CXX; };
+    bool isC() const { return getValue() == SourceLanguage::C; }
+    bool isCXX() const { return getValue() == SourceLanguage::CXX; }
+    bool isOpenCLC() const { return getValue() == SourceLanguage::OpenCLC; }
   }];
-  let genVerifyDecl = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -131,7 +134,7 @@ def CIR_OptInfoAttr : CIR_Attr<"OptInfo", "opt_info"> {
   let parameters = (ins "unsigned":$level, "unsigned":$size);
 
   let assemblyFormat = [{
-    `<` `level` `=` $level `,` `size` `=` $size `>`
+    `<` struct(params) `>`
   }];
   let genVerifyDecl = 1;
 }
@@ -180,29 +183,39 @@ def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
   }];
 
   let extraClassDeclaration = [{
-    unsigned getPointerSize() const { return getSizeTSize(); }
+    unsigned getPointerSize() const;
+    mlir::Type getCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUCharType(mlir::MLIRContext *ctx) const;
+    mlir::Type getIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getUIntType(mlir::MLIRContext *ctx) const;
+    mlir::Type getSizeType(mlir::MLIRContext *ctx) const;
+    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const;
+  }];
 
-    mlir::Type getCharType(mlir::MLIRContext *ctx) const {
+  let extraClassDefinition = [{
+    unsigned $cppClass::getPointerSize() const { return getSizeTSize(); }
+
+    mlir::Type $cppClass::getCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/true);
     }
 
-    mlir::Type getUCharType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUCharType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getCharSize(), /*signed=*/false);
     }
 
-    mlir::Type getIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/true);
     }
 
-    mlir::Type getUIntType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getUIntType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getIntSize(), /*signed=*/false);
     }
 
-    mlir::Type getSizeType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getSizeType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/false);
     }
 
-    mlir::Type getPtrDiffType(mlir::MLIRContext *ctx) const {
+    mlir::Type $cppClass::getPtrDiffType(mlir::MLIRContext *ctx) const {
       return cir::IntType::get(ctx, getSizeTSize(), /*signed=*/true);
     }
   }];
@@ -238,7 +251,7 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 // ZeroAttr
 //===----------------------------------------------------------------------===//
 
-def ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
+def CIR_ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
   let summary = "Attribute to represent zero initialization";
   let description = [{
     The ZeroAttr is used to indicate zero initialization on structs.
@@ -249,7 +262,7 @@ def ZeroAttr : CIR_TypedAttr<"Zero", "zero"> {
 // UndefAttr
 //===----------------------------------------------------------------------===//
 
-def UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
+def CIR_UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
   let summary = "Represent an undef constant";
   let description = [{
     The UndefAttr represents an undef constant, corresponding to LLVM's notion
@@ -261,7 +274,7 @@ def UndefAttr : CIR_TypedAttr<"Undef", "undef"> {
 // PoisonAttr
 //===----------------------------------------------------------------------===//
 
-def PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
+def CIR_PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
   let summary = "Represent a typed poison constant";
   let description = [{
     The PoisonAttr represents a typed poison constant, corresponding to LLVM's
@@ -273,7 +286,9 @@ def PoisonAttr : CIR_TypedAttr<"Poison", "poison"> {
 // ConstArrayAttr
 //===----------------------------------------------------------------------===//
 
-def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]> {
+def CIR_ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [
+  TypedAttrInterface
+]> {
   let summary = "A constant array from ArrayAttr or StringRefAttr";
   let description = [{
     An CIR array attribute is an array of literals of the specified attr types.
@@ -319,8 +334,9 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
 // ConstVectorAttr
 //===----------------------------------------------------------------------===//
 
-def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
-                               [TypedAttrInterface]> {
+def CIR_ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector", [
+  TypedAttrInterface
+]> {
   let summary = "A constant vector from ArrayAttr";
   let description = [{
     A CIR vector attribute is an array of literals of the specified attribute
@@ -350,8 +366,9 @@ def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
 // ConstRecordAttr
 //===----------------------------------------------------------------------===//
 
-def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
-                               [TypedAttrInterface]> {
+def CIR_ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record", [
+  TypedAttrInterface
+]> {
   let summary = "Represents a constant record";
   let description = [{
     Effectively supports "struct-like" constants. It's must be built from
@@ -387,73 +404,112 @@ def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
 // IntegerAttr
 //===----------------------------------------------------------------------===//
 
-def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
+def CIR_IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
   let summary = "An Attribute containing a integer value";
   let description = [{
     An integer attribute is a literal attribute that represents an integral
     value of the specified integer type.
   }];
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "llvm::APInt":$value);
+
+  let parameters = (ins
+    AttributeSelfTypeParameter<"", "cir::IntTypeInterface">:$type,
+    APIntParameter<"">:$value
+  );
+
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "const llvm::APInt &":$value), [{
-      return $_get(type.getContext(), type, value);
+      return $_get(type.getContext(),
+                   mlir::cast<cir::IntTypeInterface>(type), value);
     }]>,
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type, "int64_t":$value), [{
-      IntType intType = mlir::cast<IntType>(type);
+      auto intType = mlir::cast<cir::IntTypeInterface>(type);
       mlir::APInt apValue(intType.getWidth(), value, intType.isSigned());
       return $_get(intType.getContext(), intType, apValue);
     }]>,
   ];
+
   let extraClassDeclaration = [{
-    int64_t getSInt() const { return getValue().getSExtValue(); }
-    uint64_t getUInt() const { return getValue().getZExtValue(); }
-    bool isNullValue() const { return getValue() == 0; }
-    uint64_t getBitWidth() const { return mlir::cast<IntType>(getType()).getWidth(); }
+    int64_t getSInt() const;
+    uint64_t getUInt() const;
+    bool isNullValue() const;
+    bool isSigned() const;
+    bool isUnsigned() const;
+    uint64_t getBitWidth() const;
   }];
+
+  let extraClassDefinition = [{
+    int64_t $cppClass::getSInt() const {
+      return getValue().getSExtValue();
+    }
+
+    uint64_t $cppClass::getUInt() const {
+      return getValue().getZExtValue();
+    }
+
+    bool $cppClass::isNullValue() const {
+      return getValue() == 0;
+    }
+
+    bool $cppClass::isSigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isSigned();
+    }
+
+    bool $cppClass::isUnsigned() const {
+      return mlir::cast<IntTypeInterface>(getType()).isUnsigned();
+    }
+
+    uint64_t $cppClass::getBitWidth() const {
+      return mlir::cast<IntTypeInterface>(getType()).getWidth();
+    }
+  }];
+
+  let assemblyFormat = [{
+    `<` custom<IntLiteral>($value, ref($type)) `>`
+  }];
+
   let genVerifyDecl = 1;
-  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // FPAttr
 //===----------------------------------------------------------------------===//
 
-def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
+def CIR_FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
   let summary = "An attribute containing a floating-point value";
   let description = [{
     An fp attribute is a literal attribute that represents a floating-point
     value of the specified floating-point type. Supporting only CIR FP types.
   }];
+
   let parameters = (ins
-    AttributeSelfTypeParameter<"", "::cir::CIRFPTypeInterface">:$type,
+    AttributeSelfTypeParameter<"", "::cir::FPTypeInterface">:$type,
     APFloatParameter<"">:$value
   );
+
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "const llvm::APFloat &":$value), [{
-      return $_get(type.getContext(), mlir::cast<CIRFPTypeInterface>(type), value);
-    }]>,
-    AttrBuilder<(ins "mlir::Type":$type,
-                     "const llvm::APFloat &":$value), [{
-      return $_get($_ctxt, mlir::cast<CIRFPTypeInterface>(type), value);
-    }]>,
+      return $_get(type.getContext(), mlir::cast<FPTypeInterface>(type), value);
+    }]>
   ];
+
   let extraClassDeclaration = [{
     static FPAttr getZero(mlir::Type type);
   }];
-  let genVerifyDecl = 1;
 
   let assemblyFormat = [{
     `<` custom<FloatLiteral>($value, ref($type)) `>`
   }];
+
+  let genVerifyDecl = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // ComplexAttr
 //===----------------------------------------------------------------------===//
 
-def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
+def CIR_ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
   let summary = "An attribute that contains a constant complex value";
   let description = [{
     The `#cir.complex` attribute contains a constant value of complex number
@@ -487,7 +543,7 @@ def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
 // ConstPointerAttr
 //===----------------------------------------------------------------------===//
 
-def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
+def CIR_ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer value";
   let parameters = (ins
     AttributeSelfTypeParameter<"", "::cir::PointerType">:$type,
@@ -514,17 +570,15 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
 // CmpThreeWayInfoAttr
 //===----------------------------------------------------------------------===//
 
-def CmpOrdering_Strong : I32EnumAttrCase<"Strong", 1, "strong">;
-def CmpOrdering_Partial : I32EnumAttrCase<"Partial", 2, "partial">;
-
-def CmpOrdering : I32EnumAttr<
-  "CmpOrdering", "three-way comparison ordering kind",
-  [CmpOrdering_Strong, CmpOrdering_Partial]
-> {
-  let cppNamespace = "::cir";
+def CIR_CmpOrdering : CIR_I32EnumAttr<
+  "CmpOrdering", "three-way comparison ordering kind", [
+    I32EnumAttrCase<"Strong", 0, "strong">,
+    I32EnumAttrCase<"Partial", 1, "partial">
+]> {
+  let genSpecializedAttr = 0;
 }
 
-def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
+def CIR_CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
   let summary = "Holds information about a three-way comparison operation";
   let description = [{
     The `#cmp3way_info` attribute contains information about a three-way
@@ -540,9 +594,11 @@ def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
     or neither, respectively.
   }];
 
-  let parameters = (ins "CmpOrdering":$ordering, "int64_t":$lt, "int64_t":$eq,
-                        "int64_t":$gt,
-                        OptionalParameter<"std::optional<int64_t>">:$unordered);
+  let parameters = (ins
+    EnumParameter<CIR_CmpOrdering>:$ordering,
+    "int64_t":$lt, "int64_t":$eq, "int64_t":$gt,
+    OptionalParameter<"std::optional<int64_t>">:$unordered
+  );
 
   let builders = [
     AttrBuilder<(ins "int64_t":$lt, "int64_t":$eq, "int64_t":$gt), [{
@@ -576,8 +632,9 @@ def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
 // DataMemberAttr
 //===----------------------------------------------------------------------===//
 
-def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
-                              [TypedAttrInterface]> {
+def CIR_DataMemberAttr : CIR_Attr<"DataMember", "data_member", [
+  TypedAttrInterface
+]> {
   let summary = "Holds a constant data member pointer value";
   let parameters = (ins AttributeSelfTypeParameter<
                             "", "cir::DataMemberType">:$type,
@@ -626,7 +683,7 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
 // MethodAttr
 //===----------------------------------------------------------------------===//
 
-def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
+def CIR_MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer-to-member-function value";
   let description = [{
     A method attribute is a literal attribute that represents a constant
@@ -681,22 +738,12 @@ def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
-// SignedOverflowBehaviorAttr
-//===----------------------------------------------------------------------===//
-
-def SignedOverflowBehaviorAttr : AttrDef<CIR_Dialect, "SignedOverflowBehavior"> {
-  let mnemonic = "signed_overflow_behavior";
-  let parameters = (ins
-    "sob::SignedOverflowBehavior":$behavior
-  );
-  let hasCustomAssemblyFormat = 1;
-}
-
-//===----------------------------------------------------------------------===//
 // GlobalViewAttr
 //===----------------------------------------------------------------------===//
 
-def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]> {
+def CIR_GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [
+  TypedAttrInterface
+]> {
   let summary = "Provides constant access to a global address";
   let description = [{
     Get constant address of global `symbol` and optionally apply offsets to
@@ -779,7 +826,7 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
 // TypeInfoAttr
 //===----------------------------------------------------------------------===//
 
-def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
+def CIR_TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
   let summary = "Represents a typeinfo used for RTTI";
   let description = [{
     The typeinfo data for a given class is stored into an ArrayAttr. The
@@ -864,8 +911,7 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
 // DynamicCastInfoAttr
 //===----------------------------------------------------------------------===//
 
-def DynamicCastInfoAttr
-    : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
+def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
   let summary = "ABI specific information about a dynamic cast";
   let description = [{
     Provide ABI specific information about a dynamic cast operation.
@@ -881,11 +927,13 @@ def DynamicCastInfoAttr
     `__dynamic_cast` runtime function.
   }];
 
-  let parameters = (ins GlobalViewAttr:$srcRtti,
-                        GlobalViewAttr:$destRtti,
-                        "mlir::FlatSymbolRefAttr":$runtimeFunc,
-                        "mlir::FlatSymbolRefAttr":$badCastFunc,
-                        IntAttr:$offsetHint);
+  let parameters = (ins
+    CIR_GlobalViewAttr:$srcRtti,
+    CIR_GlobalViewAttr:$destRtti,
+    "mlir::FlatSymbolRefAttr":$runtimeFunc,
+    "mlir::FlatSymbolRefAttr":$badCastFunc,
+    CIR_IntAttr:$offsetHint
+  );
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
@@ -916,133 +964,41 @@ def DynamicCastInfoAttr
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def AS_OffloadPrivate : I32EnumAttrCase<"offload_private", 1>;
-def AS_OffloadLocal : I32EnumAttrCase<"offload_local", 2>;
-def AS_OffloadGlobal : I32EnumAttrCase<"offload_global", 3>;
-def AS_OffloadConstant : I32EnumAttrCase<"offload_constant", 4>;
-def AS_OffloadGeneric : I32EnumAttrCase<"offload_generic", 5>;
-def AS_Target : I32EnumAttrCase<"target", 6>;
-
-def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
-
-  let summary = "Address space attribute for pointer types";
-  let description = [{
-    The address space attribute is used in pointer types. It essentially
-    provides a unified model on top of `clang::LangAS`, rather than LLVM address
-    spaces.
-
-    The representation is further simplified: `LangAS::Default` is encoded as
-    a null attribute; many address spaces from different offloading languages
-    are unified as `offload_*`; etc.
-
-    The meaning of `value` parameter is defined as an extensible enum `Kind`,
-    which encodes target AS as offset to the last language AS.
-  }];
-
-  let parameters = (ins "int32_t":$value);
-
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
-
+def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
-      assert(langAS != clang::LangAS::Default &&
-        "Default address space is encoded as null attribute");
-      return $_get($_ctxt, getValueFromLangAS(langAS).value());
+      return $_get($_ctxt, cir::toCIRAddressSpace(langAS));
     }]>
   ];
 
-  let cppNamespace = "::cir";
+  let assemblyFormat = [{
+    `` custom<AddressSpaceValue>($value)
+  }];
 
-  // The following codes implement these conversions:
-  // clang::LangAS -> int32_t <-> text-form CIR
-
-  // CIR_PointerType manipulates the parse- and stringify- methods to provide
-  // simplified assembly format `custom<PointerAddrSpace>`.
-
-  list<I32EnumAttrCase> langASCases = [
-    AS_OffloadPrivate, AS_OffloadLocal, AS_OffloadGlobal, AS_OffloadConstant,
-    AS_OffloadGeneric
-  ];
-
-  I32EnumAttrCase targetASCase = AS_Target;
+  let defaultValue = "cir::AddressSpace::Default";
 
   let extraClassDeclaration = [{
-    static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
-    static constexpr int32_t kFirstTargetASValue = }]#targetASCase.value#[{;
-
     bool isLang() const;
     bool isTarget() const;
     unsigned getTargetValue() const;
-
-    /// Convert a clang LangAS to its corresponding CIR AS storage value. This
-    /// helper does not perform any language-specific mappings (e.g. determining
-    /// the default AS for offloading languages), so these must be handled in
-    /// the caller.
-    static std::optional<int32_t> getValueFromLangAS(clang::LangAS v);
-
-    /// Helper methods for the assembly format `custom<PointerAddrSpace>`.
-    static std::optional<int32_t> parseValueFromString(llvm::StringRef s);
-    static std::optional<llvm::StringRef> stringifyValue(int32_t v);
-
-    struct Kind {
-    }]#!interleave(
-      !foreach(case, langASCases,
-        "static constexpr int32_t "#case.symbol#" = "#case.value#";"
-      ), "\n"
-    )#[{
-    };
+    unsigned getAsUnsignedValue() const;
   }];
 
   let extraClassDefinition = [{
+    unsigned $cppClass::getAsUnsignedValue() const {
+      return static_cast<unsigned>(getValue());
+    }
+
     bool $cppClass::isLang() const {
-      return !isTarget();
+      return cir::isLangAddressSpace(getValue());
     }
 
     bool $cppClass::isTarget() const {
-      return getValue() >= kFirstTargetASValue;
+      return cir::isTargetAddressSpace(getValue());
     }
 
     unsigned $cppClass::getTargetValue() const {
-      assert(isTarget() && "Not a target address space");
-      return getValue() - kFirstTargetASValue;
-    }
-
-    std::optional<int32_t>
-    $cppClass::parseValueFromString(llvm::StringRef str) {
-      return llvm::StringSwitch<::std::optional<int32_t>>(str)
-        }]
-        #
-        !interleave(
-          !foreach(case, langASCases,
-            ".Case(\""#case.symbol# "\", "#case.value # ")\n"
-          ),
-          "\n"
-        )
-        #
-        [{
-        // Target address spaces are not parsed here
-        .Default(std::nullopt);
-    }
-
-    std::optional<llvm::StringRef>
-    $cppClass::stringifyValue(int32_t value) {
-      switch (value) {
-      }]
-      #
-      !interleave(
-        !foreach(case, langASCases,
-          "case "#case.value
-          # ": return \""#case.symbol # "\";" ),
-        "\n"
-      )
-      #
-      [{
-      default:
-        // Target address spaces are not processed here
-        return std::nullopt;
-      }
+      return cir::getTargetAddressSpaceValue(getValue());
     }
   }];
 }
@@ -1051,8 +1007,8 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
 // AST Wrappers
 //===----------------------------------------------------------------------===//
 
-class AST<string name, string prefix, list<Trait> traits = []>
-  : CIR_Attr<!strconcat("AST", name), !strconcat(prefix, ".ast"), traits> {
+class CIR_AST<string name, string prefix, list<Trait> traits = []>
+    : CIR_Attr<!strconcat("AST", name), !strconcat(prefix, ".ast"), traits> {
   string clang_name = !strconcat("const clang::", name, " *");
 
   let summary = !strconcat("Wraps a '", clang_name, "' AST node.");
@@ -1091,77 +1047,87 @@ class AST<string name, string prefix, list<Trait> traits = []>
   }];
 }
 
-def ASTDeclAttr : AST<"Decl", "decl", [ASTDeclInterface]>;
+def CIR_ASTDeclAttr : CIR_AST<"Decl", "decl", [ASTDeclInterface]>;
 
-def ASTFunctionDeclAttr : AST<"FunctionDecl", "function.decl",
-  [ASTFunctionDeclInterface]>;
+def CIR_ASTFunctionDeclAttr : CIR_AST<"FunctionDecl", "function.decl",[
+  ASTFunctionDeclInterface
+]>;
 
-def ASTCXXMethodDeclAttr : AST<"CXXMethodDecl", "cxxmethod.decl",
-  [ASTCXXMethodDeclInterface]>;
+def CIR_ASTCXXMethodDeclAttr : CIR_AST<"CXXMethodDecl", "cxxmethod.decl", [
+  ASTCXXMethodDeclInterface
+]>;
 
-def ASTCXXConstructorDeclAttr : AST<"CXXConstructorDecl",
-  "cxxconstructor.decl", [ASTCXXConstructorDeclInterface]>;
+def CIR_ASTCXXConstructorDeclAttr
+  : CIR_AST<"CXXConstructorDecl","cxxconstructor.decl", [
+    ASTCXXConstructorDeclInterface
+  ]>;
 
-def ASTCXXConversionDeclAttr : AST<"CXXConversionDecl",
-  "cxxconversion.decl", [ASTCXXConversionDeclInterface]>;
+def CIR_ASTCXXConversionDeclAttr
+  : CIR_AST<"CXXConversionDecl", "cxxconversion.decl", [
+    ASTCXXConversionDeclInterface
+  ]>;
 
-def ASTCXXDestructorDeclAttr : AST<"CXXDestructorDecl",
-  "cxxdestructor.decl", [ASTCXXDestructorDeclInterface]>;
+def CIR_ASTCXXDestructorDeclAttr
+  : CIR_AST<"CXXDestructorDecl", "cxxdestructor.decl", [
+    ASTCXXDestructorDeclInterface
+  ]>;
 
-def ASTVarDeclAttr : AST<"VarDecl", "var.decl",
-  [ASTVarDeclInterface]>;
+def CIR_ASTVarDeclAttr : CIR_AST<"VarDecl", "var.decl", [
+  ASTVarDeclInterface
+]>;
 
-def ASTTypeDeclAttr: AST<"TypeDecl", "type.decl",
-  [ASTTypeDeclInterface]>;
+def CIR_ASTTypeDeclAttr : CIR_AST<"TypeDecl", "type.decl", [
+  ASTTypeDeclInterface
+]>;
 
-def ASTTagDeclAttr : AST<"TagDecl", "tag.decl",
-  [ASTTagDeclInterface]>;
+def CIR_ASTTagDeclAttr : CIR_AST<"TagDecl", "tag.decl", [
+  ASTTagDeclInterface
+]>;
 
-def ASTRecordDeclAttr : AST<"RecordDecl", "record.decl",
-  [ASTRecordDeclInterface]>;
+def CIR_ASTRecordDeclAttr : CIR_AST<"RecordDecl", "record.decl", [
+  ASTRecordDeclInterface
+]>;
 
-def ASTExprAttr : AST<"Expr", "expr",
-  [ASTExprInterface]>;
+def CIR_ASTExprAttr : CIR_AST<"Expr", "expr", [
+  ASTExprInterface
+]>;
 
-def ASTCallExprAttr : AST<"CallExpr", "call.expr",
-  [ASTCallExprInterface]>;
+def CIR_ASTCallExprAttr : CIR_AST<"CallExpr", "call.expr", [
+  ASTCallExprInterface
+]>;
 
 
 //===----------------------------------------------------------------------===//
 // VisibilityAttr
 //===----------------------------------------------------------------------===//
 
-def VK_Default : I32EnumAttrCase<"Default", 1, "default">;
-def VK_Hidden : I32EnumAttrCase<"Hidden", 2, "hidden">;
-def VK_Protected : I32EnumAttrCase<"Protected", 3, "protected">;
-
-def VisibilityKind : I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
-  VK_Default, VK_Hidden, VK_Protected
+def CIR_VisibilityKind : CIR_I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"Hidden", 1, "hidden">,
+  I32EnumAttrCase<"Protected", 2, "protected">
 ]> {
-  let cppNamespace = "::cir";
+  let genSpecializedAttr = 0;
 }
 
-def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
+def CIR_VisibilityAttr : CIR_EnumAttr<CIR_VisibilityKind, "visibility"> {
   let summary = "Visibility attribute";
   let description = [{
     Visibility attributes.
   }];
-  let parameters = (ins "VisibilityKind":$value);
 
-  let assemblyFormat = [{
-    $value
-  }];
+  let cppClassName = "VisibilityAttr";
 
+  let skipDefaultBuilders = 1;
   let builders = [
-    AttrBuilder<(ins CArg<"VisibilityKind", "cir::VisibilityKind::Default">:$value), [{
+    AttrBuilder<(ins CArg<"VisibilityKind",
+                          "cir::VisibilityKind::Default">:$value), [{
       return $_get($_ctxt, value);
     }]>
   ];
 
-  let skipDefaultBuilders = 1;
-
-  // Make DefaultValuedAttr accept VisibilityKind as default value ($0).
-  let constBuilderCall = "cir::VisibilityAttr::get($_builder.getContext(), $0)";
+  let assemblyFormat = [{
+    $value
+  }];
 
   let extraClassDeclaration = [{
     bool isDefault() const { return getValue() == VisibilityKind::Default; };
@@ -1170,12 +1136,11 @@ def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
   }];
 }
 
-
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr
 //===----------------------------------------------------------------------===//
 
-def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
+def CIR_ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
   let summary = "Represents aggregated attributes for a function";
   let description = [{
     This is a wrapper of attribute dictionary that contains extra attributes of
@@ -1191,31 +1156,27 @@ def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
   ];
 
   let assemblyFormat = [{ `(` $elements `)` }];
-
-  // Printing and parsing also available in CIRDialect.cpp
 }
 
-def NoInline : I32EnumAttrCase<"NoInline", 1, "no">;
-def AlwaysInline : I32EnumAttrCase<"AlwaysInline", 2, "always">;
-def InlineHint : I32EnumAttrCase<"InlineHint", 3, "hint">;
+//===----------------------------------------------------------------------===//
+// InlineAttr
+//===----------------------------------------------------------------------===//
 
-def InlineKind : I32EnumAttr<"InlineKind", "inlineKind", [
-  NoInline, AlwaysInline, InlineHint
+def CIR_InlineKind : CIR_I32EnumAttr<"InlineKind", "inlineKind", [
+  I32EnumAttrCase<"NoInline", 1, "no">,
+  I32EnumAttrCase<"AlwaysInline", 2, "always">,
+  I32EnumAttrCase<"InlineHint", 3, "hint">
 ]> {
-  let cppNamespace = "::cir";
+  let genSpecializedAttr = 0;
 }
 
-def InlineAttr : CIR_Attr<"Inline", "inline"> {
+def CIR_InlineAttr : CIR_EnumAttr<CIR_InlineKind, "inline"> {
   let summary = "Inline attribute";
   let description = [{
     Inline attributes represents user directives.
   }];
 
-  let parameters = (ins "InlineKind":$value);
-
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
+  let cppClassName = "InlineAttr";
 
   let extraClassDeclaration = [{
     bool isNoInline() const { return getValue() == InlineKind::NoInline; };
@@ -1224,33 +1185,39 @@ def InlineAttr : CIR_Attr<"Inline", "inline"> {
   }];
 }
 
-def OptNoneAttr : CIRUnitAttr<"OptNone", "optnone"> {
+//===----------------------------------------------------------------------===//
+// Unit Function Attributes
+//===----------------------------------------------------------------------===//
+
+def CIR_OptNoneAttr : CIR_UnitAttr<"OptNone", "optnone"> {
   let storageType = [{ OptNoneAttr }];
 }
 
-def NoThrowAttr : CIRUnitAttr<"NoThrow", "nothrow"> {
+def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
   let storageType = [{ NoThrowAttr }];
 }
 
-def ConvergentAttr : CIRUnitAttr<"Convergent", "convergent"> {
+def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }
 
-def UWTableKindNone
-    : I32EnumAttrCase<"None", 0, "none">;
-def UWTableKindSync
-    : I32EnumAttrCase<"Sync", 1, "sync">;
-def UWTableKindAsync
-    : I32EnumAttrCase<"Async", 2, "async">;
+def CIR_HotAttr : CIR_UnitAttr<"Hot", "hot"> {
+  let storageType = [{ HotAttr }];
+}
 
-def UWTableKind : I32EnumAttr<"UWTableKind", "Unwind table kind", [
-  UWTableKindNone, UWTableKindSync, UWTableKindAsync
+//===----------------------------------------------------------------------===//
+// UWTableAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_UWTableKind : CIR_I32EnumAttr<"UWTableKind", "Unwind table kind", [
+  I32EnumAttrCase<"None", 0, "none">,
+  I32EnumAttrCase<"Sync", 1, "sync">,
+  I32EnumAttrCase<"Async", 2, "async">
 ]> {
-  let cppNamespace = "::cir";
   let genSpecializedAttr = 0;
 }
 
-def UWTableAttr : EnumAttr<CIR_Dialect, UWTableKind, "uwtable"> {
+def CIR_UWTableAttr : CIR_EnumAttr<CIR_UWTableKind, "uwtable"> {
   let summary = "Unwind table kind attribute";
   let description = [{
     The kind of unwind tables to generate for a function. `none` means no unwind
@@ -1261,49 +1228,142 @@ def UWTableAttr : EnumAttr<CIR_Dialect, UWTableKind, "uwtable"> {
   }];
 
   let cppClassName = "UWTableAttr";
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
 }
 
-class CIR_GlobalCtorDtor<string name, string attrMnemonic,
-                         string sum, string desc>
+class CIR_GlobalCtorDtor<string name, string attrMnemonic>
     : CIR_Attr<"Global" # name, "global_" # attrMnemonic> {
-  let summary = sum;
-  let description = desc;
-
   let parameters = (ins "mlir::StringAttr":$name, "int":$priority);
-  let assemblyFormat = [{
-    `<`
-      $name `,` $priority
-    `>`
-  }];
+
+  let skipDefaultBuilders = 1;
   let builders = [
-    AttrBuilder<(ins "llvm::StringRef":$name,
-                      CArg<"int", "65536">:$priority), [{
+    AttrBuilder<(ins
+        "llvm::StringRef":$name,
+        CArg<"int", "cir::DefaultGlobalCtorDtorPriority">:$priority), [{
       return $_get($_ctxt, mlir::StringAttr::get($_ctxt, name), priority);
     }]>,
-    AttrBuilderWithInferredContext<(ins "mlir::StringAttr":$name,
-                                        CArg<"int", "65536">:$priority), [{
+    AttrBuilderWithInferredContext<(ins
+        "mlir::StringAttr":$name,
+        CArg<"int", "cir::DefaultGlobalCtorDtorPriority">:$priority), [{
       return $_get(name.getContext(), name, priority);
     }]>
   ];
-  let extraClassDeclaration = [{
-    bool isDefaultPriority() const { return getPriority() == 65536; };
+
+  let assemblyFormat = [{
+    `<` $name `,` $priority `>`
   }];
-  let skipDefaultBuilders = 1;
+
+  let extraClassDeclaration = [{
+    bool isDefaultPriority() const {
+      return getPriority() == cir::DefaultGlobalCtorDtorPriority;
+    };
+  }];
 }
 
-def GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor",
-  "Marks a function as a global constructor",
-  "A function with this attribute executes before main()"
->;
-def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor",
-  "Marks a function as a global destructor",
-  "A function with this attribute excutes before module unloading"
->;
+def CIR_GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor"> {
+  let summary = "Marks a function as a global constructor";
+  let description = [{
+    Marks the function as a global constructor in the module's constructor list.
+    It will be executed before main() is called.
+  }];
+}
 
-def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
+def CIR_GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor"> {
+  let summary = "Marks a function as a global destructor";
+  let description = [{
+      Marks a function as a global destructor in the module dtors list.
+      The function will be executed before the module unloading.
+  }];
+}
+
+def CIR_CtorKind : CIR_I32EnumAttr<"CtorKind", "CXX Constructor Kind", [
+  I32EnumAttrCase<"Custom", 0, "custom">,
+  I32EnumAttrCase<"Default", 1, "default">,
+  I32EnumAttrCase<"Copy", 2, "copy">,
+  I32EnumAttrCase<"Move", 3, "move">,
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_CXXCtorAttr : CIR_Attr<"CXXCtor", "cxx_ctor"> {
+  let summary = "Marks a function as a CXX constructor";
+  let description = [{
+    Functions with this attribute are CXX constructors.
+    The `custom` kind is used if the constructor is a custom constructor.
+    The `default` kind is used if the constructor is a default constructor.
+    The `copy` kind is used if the constructor is a copy constructor.
+    The `move` kind is used if the constructor is a move constructor.
+  }];
+  let parameters = (ins "mlir::Type":$type,
+                        EnumParameter<CIR_CtorKind>:$ctorKind);
+
+  let assemblyFormat = [{
+    `<` $type `,` $ctorKind `>`
+  }];
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+        CArg<"CtorKind", "cir::CtorKind::Custom">:$ctorKind), [{
+      return $_get(type.getContext(), type, ctorKind);
+    }]>
+  ];
+}
+
+def CIR_CXXDtorAttr : CIR_Attr<"CXXDtor", "cxx_dtor"> {
+  let summary = "Marks a function as a CXX destructor";
+  let description = [{
+    Functions with this attribute are CXX destructors
+  }];
+  let parameters = (ins "mlir::Type":$type);
+
+  let assemblyFormat = [{
+    `<` $type `>`
+  }];
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>
+  ];
+}
+
+def CIR_AssignKind : CIR_I32EnumAttr<"AssignKind", "CXX Assignment Operator Kind", [
+  I32EnumAttrCase<"Copy", 0, "copy">,
+  I32EnumAttrCase<"Move", 1, "move">,
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_CXXAssignAttr : CIR_Attr<"CXXAssign", "cxx_assign"> {
+  let summary = "Marks a function as a CXX assignment operator";
+  let description = [{
+    Functions with this attribute are CXX assignment operators.
+    The `copy` kind is used if the assignment operator is a copy assignment operator.
+    The `move` kind is used if the assignment operator is a move assignment operator.
+  }];
+  let parameters = (ins
+    "mlir::Type":$type,
+    EnumParameter<CIR_AssignKind>:$assignKind
+  );
+
+  let assemblyFormat = [{
+    `<` $type `,` $assignKind `>`
+  }];
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+        CArg<"AssignKind">:$assignKind), [{
+      return $_get(type.getContext(), type, assignKind);
+    }]>
+  ];
+}
+
+def CIR_CXXSpecialMemberAttr : AnyAttrOf<[
+  CIR_CXXCtorAttr,
+  CIR_CXXDtorAttr,
+  CIR_CXXAssignAttr
+]>;
+
+def CIR_BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let summary = "Represents a bit field info";
   let description = [{
     Holds the next information about bitfields: name, storage type, a bitfield size
@@ -1333,7 +1393,7 @@ def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
 // AnnotationAttr
 //===----------------------------------------------------------------------===//
 
-def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
+def CIR_AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   let summary = "Annotation attribute for global variables and functions";
   let description = [{
     Represent C/C++ attribute of annotate in CIR.
@@ -1372,8 +1432,9 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
 // GlobalAnnotationValuesAttr
 //===----------------------------------------------------------------------===//
 
-def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
-                                          "global_annotations"> {
+def CIR_GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
+  "global_annotations"
+> {
   let summary = "Array of annotations, each element consists of name of"
                 "a global var or func and one of its annotations";
   let description = [{
@@ -1417,7 +1478,7 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
 // AddressPointAttr
 //===----------------------------------------------------------------------===//
 
-def AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
+def CIR_AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
   let summary = "Address point attribute";
 
   let description = [{
@@ -1448,4 +1509,4 @@ include "clang/CIR/Dialect/IR/CIRTBAAAttrs.td"
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
 include "clang/CIR/Dialect/IR/CIRCUDAAttrs.td"
 
-#endif // MLIR_CIR_DIALECT_CIR_ATTRS
+#endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD

@@ -187,14 +187,12 @@ public:
 
   /// Add an integer value of a specific type.
   void addInt(cir::IntType intTy, uint64_t value, bool isSigned = false) {
-    add(mlir::IntegerAttr::get(intTy,
-                               llvm::APInt{intTy.getWidth(), value, isSigned}));
+    llvm_unreachable("NYI");
   }
 
   /// Add a pointer of a specific type.
   void addPointer(cir::PointerType ptrTy, uint64_t value) {
-    auto val = mlir::IntegerAttr::get(
-        mlir::IntegerType::get(ptrTy.getContext(), 64), value);
+    mlir::IntegerAttr val = Builder.builder.getI64IntegerAttr(value);
     add(cir::ConstPtrAttr::get(ptrTy, val));
   }
 

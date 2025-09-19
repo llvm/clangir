@@ -1013,7 +1013,7 @@ void foo(void) {
   //      NATIVE:   cir.yield %{{.+}} : !cir.bf16
   // NATIVE-NEXT: }) : (!cir.bool) -> !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.get_global @h1 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM:   %[[#A:]] = fcmp une bfloat %{{.+}}, 0xR0000
   // NONATIVE-LLVM-NEXT:   br i1 %[[#A]], label %[[#LABEL_A:]], label %[[#LABEL_B:]]
@@ -1039,14 +1039,14 @@ void foo(void) {
 
   h0 = h1;
   //      NONATIVE: %[[#A:]] = cir.get_global @h1 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NONATIVE-NEXT: %[[#C:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @h1 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %[[#C]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile bfloat, ptr @h1, align 2
   // NONATIVE-LLVM-NEXT: store volatile bfloat %[[#A]], ptr @h0, align 2
@@ -1059,13 +1059,13 @@ void foo(void) {
   // NONATIVE-NEXT: %[[#B:]] = cir.unary(minus, %[[#A]]) : !cir.float, !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<2.000000e+00> : !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.unary(minus, %[[#A]]) : !cir.float, !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   // NONATIVE-LLVM: store volatile bfloat 0xRC000, ptr @h0, align 2
 
@@ -1073,16 +1073,16 @@ void foo(void) {
 
   h0 = f0;
   //      NONATIVE: %[[#A:]] = cir.get_global @f0 : !cir.ptr<!cir.float>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.float>, !cir.float
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.float>, !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @f0 : !cir.ptr<!cir.float>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.float>, !cir.float
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.float>, !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile float, ptr @f0, align 4
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fptrunc float %[[#A]] to bfloat
@@ -1094,16 +1094,16 @@ void foo(void) {
 
   h0 = i0;
   //      NONATIVE: %[[#A:]] = cir.get_global @i0 : !cir.ptr<!s32i>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!s32i>, !s32i
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!s32i>, !s32i
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(int_to_float, %[[#B]] : !s32i), !cir.bf16
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @i0 : !cir.ptr<!s32i>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!s32i>, !s32i
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!s32i>, !s32i
   // NATIVE-NEXT: %[[#C:]] = cir.cast(int_to_float, %[[#B]] : !s32i), !cir.bf16
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile i32, ptr @i0, align 4
   // NONATIVE-LLVM-NEXT: %[[#B:]] = sitofp i32 %[[#A]] to bfloat
@@ -1115,16 +1115,16 @@ void foo(void) {
 
   i0 = h0;
   //      NONATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @i0 : !cir.ptr<!s32i>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !s32i, !cir.ptr<!s32i>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !s32i, !cir.ptr<!s32i>
 
   //      NATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @i0 : !cir.ptr<!s32i>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !s32i, !cir.ptr<!s32i>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !s32i, !cir.ptr<!s32i>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile bfloat, ptr @h0, align 2
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fptosi bfloat %[[#A]] to i32
@@ -1139,10 +1139,10 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(add, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.binop(add, %{{.+}}, %{{.+}}) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = fpext bfloat %{{.+}} to float
@@ -1158,12 +1158,12 @@ void foo(void) {
   //      NONATIVE: %[[#D:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.binop(add, %[[#D]], %[[#C]]) : !cir.float
   // NONATIVE-NEXT: %[[#F:]] = cir.cast(floating, %[[#E]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#F]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#F]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<1.000000e+00> : !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.cast(floating, %[[#A]] : !cir.float), !cir.bf16
   //      NATIVE: %[[#C:]] = cir.binop(add, %{{.+}}, %[[#B]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fadd float %[[#A]], 1.000000e+00
@@ -1175,12 +1175,12 @@ void foo(void) {
   //      NONATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#B:]] = cir.binop(add, %[[#A]], %{{.+}}) : !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.binop(add, %[[#A]], %{{.+}}) : !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fadd float %[[#A]], %{{.+}}
@@ -1195,12 +1195,12 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(add, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(float_to_int, %[[#C]] : !cir.float), !s32i
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   // NATIVE-NEXT: %[[#B:]] = cir.binop(add, %[[#A]], %{{.+}}) : !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = sitofp i32 %{{.+}} to float
@@ -1217,11 +1217,11 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(add, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   //      NATIVE: %[[#B:]] = cir.binop(add, %{{.+}}, %[[#A]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = sitofp i32 %{{.+}} to bfloat
   // NONATIVE-LLVM-NEXT: %[[#RHS:]] = fpext bfloat %[[#A]] to float
@@ -1237,10 +1237,10 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(sub, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.binop(sub, %{{.+}}, %{{.+}}) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = fpext bfloat %{{.+}} to float
@@ -1255,12 +1255,12 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(sub, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<1.000000e+00> : !cir.double
   // NATIVE-NEXT: %[[#B:]] = cir.cast(floating, %[[#A]] : !cir.double), !cir.bf16
   //      NATIVE: %[[#C:]] = cir.binop(sub, %{{.+}}, %[[#B]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fsub float %[[#A]], 1.000000e+00
@@ -1272,12 +1272,12 @@ void foo(void) {
   //      NONATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#B:]] = cir.binop(sub, %[[#A]], %{{.+}}) : !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.binop(sub, %[[#A]], %{{.+}}) : !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fsub float %[[#A]], %{{.+}}
@@ -1292,12 +1292,12 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(sub, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(float_to_int, %[[#C]] : !cir.float), !s32i
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   // NATIVE-NEXT: %[[#B:]] = cir.binop(sub, %[[#A]], %{{.+}}) : !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = sitofp i32 %{{.+}} to float
@@ -1314,11 +1314,11 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(sub, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   //      NATIVE: %[[#B:]] = cir.binop(sub, %{{.+}}, %[[#A]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = sitofp i32 %{{.+}} to bfloat
   // NONATIVE-LLVM-NEXT: %[[#RHS:]] = fpext bfloat %[[#A]] to float
@@ -1334,10 +1334,10 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(mul, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.binop(mul, %{{.+}}, %{{.+}}) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = fpext bfloat %{{.+}} to float
@@ -1352,12 +1352,12 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(mul, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<1.000000e+00> : !cir.double
   // NATIVE-NEXT: %[[#B:]] = cir.cast(floating, %[[#A]] : !cir.double), !cir.bf16
   //      NATIVE: %[[#C:]] = cir.binop(mul, %{{.+}}, %[[#B]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fmul float %[[#A]], 1.000000e+00
@@ -1369,12 +1369,12 @@ void foo(void) {
   //      NONATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#B:]] = cir.binop(mul, %[[#A]], %{{.+}}) : !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.binop(mul, %[[#A]], %{{.+}}) : !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fmul float %[[#A]], %{{.+}}
@@ -1389,12 +1389,12 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(mul, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(float_to_int, %[[#C]] : !cir.float), !s32i
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   // NATIVE-NEXT: %[[#B:]] = cir.binop(mul, %[[#A]], %{{.+}}) : !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = sitofp i32 %{{.+}} to float
@@ -1411,11 +1411,11 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(mul, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   //      NATIVE: %[[#B:]] = cir.binop(mul, %{{.+}}, %[[#A]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = sitofp i32 %{{.+}} to bfloat
   // NONATIVE-LLVM-NEXT: %[[#RHS:]] = fpext bfloat %[[#A]] to float
@@ -1431,10 +1431,10 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(div, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.binop(div, %{{.+}}, %{{.+}}) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#A]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = fpext bfloat %{{.+}} to float
@@ -1450,12 +1450,12 @@ void foo(void) {
   //      NONATIVE: %[[#D:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.binop(div, %[[#D]], %[[#C]]) : !cir.float
   // NONATIVE-NEXT: %[[#F:]] = cir.cast(floating, %[[#E]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#F]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#F]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<1.000000e+00> : !cir.double
   // NATIVE-NEXT: %[[#B:]] = cir.cast(floating, %[[#A]] : !cir.double), !cir.bf16
   //      NATIVE: %[[#C:]] = cir.binop(div, %{{.+}}, %[[#B]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fdiv float %[[#A]], 1.000000e+00
@@ -1467,12 +1467,12 @@ void foo(void) {
   //      NONATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#B:]] = cir.binop(div, %[[#A]], %{{.+}}) : !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.binop(div, %[[#A]], %{{.+}}) : !cir.float
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.float), !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = fpext bfloat %{{.+}} to float
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fdiv float %[[#A]], %{{.+}}
@@ -1487,12 +1487,12 @@ void foo(void) {
   //      NONATIVE: %[[#B:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.float
   // NONATIVE-NEXT: %[[#C:]] = cir.binop(div, %[[#B]], %[[#A]]) : !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(float_to_int, %[[#C]] : !cir.float), !s32i
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   // NATIVE-NEXT: %[[#B:]] = cir.binop(div, %[[#A]], %{{.+}}) : !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(float_to_int, %[[#B]] : !cir.bf16), !s32i
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %{{.+}} : !s32i, !cir.ptr<!s32i>
 
   //      NONATIVE-LLVM: %[[#RHS:]] = fpext bfloat %{{.+}} to float
   //      NONATIVE-LLVM: %[[#LHS:]] = sitofp i32 %{{.+}} to float
@@ -1509,11 +1509,11 @@ void foo(void) {
   //      NONATIVE: %[[#C:]] = cir.cast(floating, %{{.+}} : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.binop(div, %[[#C]], %[[#B]]) : !cir.float
   // NONATIVE-NEXT: %[[#E:]] = cir.cast(floating, %[[#D]] : !cir.float), !cir.bf16
-  // NONATIVE-NEXT: cir.store volatile %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#E]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.bf16
   //      NATIVE: %[[#B:]] = cir.binop(div, %{{.+}}, %[[#A]]) : !cir.bf16
-  // NATIVE-NEXT: cir.store volatile %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#B]], %{{.+}} : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = sitofp i32 %{{.+}} to bfloat
   // NONATIVE-LLVM-NEXT: %[[#RHS:]] = fpext bfloat %[[#A]] to float
@@ -1526,16 +1526,16 @@ void foo(void) {
 
   h0 = d0;
   //      NONATIVE: %[[#A:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.double>, !cir.double
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.double>, !cir.double
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.double), !cir.bf16
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.double>, !cir.double
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.double>, !cir.double
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.double), !cir.bf16
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile double, ptr @d0, align 8
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fptrunc double %[[#A]] to bfloat
@@ -1547,18 +1547,18 @@ void foo(void) {
 
   h0 = (float)d0;
   //      NONATIVE: %[[#A:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.double>, !cir.double
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.double>, !cir.double
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.double), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
   // NONATIVE-NEXT: %[[#E:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %[[#E]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %[[#E]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.double>, !cir.double
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.double>, !cir.double
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.double), !cir.float
   // NATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.bf16
   // NATIVE-NEXT: %[[#E:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#D]], %[[#E]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %[[#E]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile double, ptr @d0, align 8
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fptrunc double %[[#A]] to float
@@ -1572,16 +1572,16 @@ void foo(void) {
 
   d0 = h0;
   //      NONATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.bf16), !cir.double
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.double, !cir.ptr<!cir.double>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.double, !cir.ptr<!cir.double>
 
   //      NATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.bf16), !cir.double
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.double, !cir.ptr<!cir.double>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.double, !cir.ptr<!cir.double>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile bfloat, ptr @h0, align 2
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fpext bfloat %[[#A]] to double
@@ -1593,18 +1593,18 @@ void foo(void) {
 
   d0 = (float)h0;
   //      NONATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.bf16), !cir.float
   // NONATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.double
   // NONATIVE-NEXT: %[[#E:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NONATIVE-NEXT: cir.store volatile %[[#D]], %[[#E]] : !cir.double, !cir.ptr<!cir.double>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %[[#E]] : !cir.double, !cir.ptr<!cir.double>
 
   //      NATIVE: %[[#A:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: %[[#B:]] = cir.load volatile %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
+  // NATIVE-NEXT: %[[#B:]] = cir.load volatile{{.*}}  %[[#A]] : !cir.ptr<!cir.bf16>, !cir.bf16
   // NATIVE-NEXT: %[[#C:]] = cir.cast(floating, %[[#B]] : !cir.bf16), !cir.float
   // NATIVE-NEXT: %[[#D:]] = cir.cast(floating, %[[#C]] : !cir.float), !cir.double
   // NATIVE-NEXT: %[[#E:]] = cir.get_global @d0 : !cir.ptr<!cir.double>
-  // NATIVE-NEXT: cir.store volatile %[[#D]], %[[#E]] : !cir.double, !cir.ptr<!cir.double>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#D]], %[[#E]] : !cir.double, !cir.ptr<!cir.double>
 
   //      NONATIVE-LLVM: %[[#A:]] = load volatile bfloat, ptr @h0, align 2
   // NONATIVE-LLVM-NEXT: %[[#B:]] = fpext bfloat %[[#A]] to float
@@ -1618,16 +1618,16 @@ void foo(void) {
 
   h0 = s0;
   //      NONATIVE: %[[#A:]] = cir.get_global @s0 : !cir.ptr<!s16i>
-  // NONATIVE-NEXT: %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!s16i>, !s16i
+  // NONATIVE-NEXT: %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!s16i>, !s16i
   // NONATIVE-NEXT: %[[#C:]] = cir.cast(int_to_float, %[[#B]] : !s16i), !cir.bf16
   // NONATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NONATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NONATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NATIVE: %[[#A:]] = cir.get_global @s0 : !cir.ptr<!s16i>
-  // NATIVE-NEXT: %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!s16i>, !s16i
+  // NATIVE-NEXT: %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!s16i>, !s16i
   // NATIVE-NEXT: %[[#C:]] = cir.cast(int_to_float, %[[#B]] : !s16i), !cir.bf16
   // NATIVE-NEXT: %[[#D:]] = cir.get_global @h0 : !cir.ptr<!cir.bf16>
-  // NATIVE-NEXT: cir.store volatile %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
+  // NATIVE-NEXT: cir.store volatile{{.*}} %[[#C]], %[[#D]] : !cir.bf16, !cir.ptr<!cir.bf16>
 
   //      NONATIVE-LLVM: %[[#A:]] = load i16, ptr @s0, align 2
   // NONATIVE-LLVM-NEXT: %[[#B:]] = sitofp i16 %[[#A]] to bfloat

@@ -324,9 +324,9 @@ void ItaniumCXXABI::lowerGetMethod(
     llvm_unreachable("ARM method ptr abi NYI");
 
   // Apply the adjustment to the 'this' pointer.
-  mlir::Type thisVoidPtrTy = cir::PointerType::get(
-      cir::VoidType::get(rewriter.getContext()),
-      mlir::cast<cir::PointerType>(op.getObject().getType()).getAddrSpace());
+  mlir::Type thisVoidPtrTy =
+      cir::PointerType::get(cir::VoidType::get(rewriter.getContext()),
+                            op.getObject().getType().getAddrSpace());
   mlir::Value thisVoidPtr = rewriter.create<cir::CastOp>(
       op.getLoc(), thisVoidPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
   adjustedThis = rewriter.create<cir::PtrStrideOp>(op.getLoc(), thisVoidPtrTy,
@@ -375,11 +375,9 @@ void ItaniumCXXABI::lowerGetMethod(
     // Load vtable pointer.
     // Note that vtable pointer always point to the global address space.
     auto vtablePtrTy = cir::PointerType::get(
-        rewriter.getContext(),
         cir::IntType::get(rewriter.getContext(), 8, true));
     auto vtablePtrPtrTy = cir::PointerType::get(
-        rewriter.getContext(), vtablePtrTy,
-        mlir::cast<cir::PointerType>(op.getObject().getType()).getAddrSpace());
+        vtablePtrTy, op.getObject().getType().getAddrSpace());
     auto vtablePtrPtr = rewriter.create<cir::CastOp>(
         op.getLoc(), vtablePtrPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
     mlir::Value vtablePtr = rewriter.create<cir::LoadOp>(
@@ -413,8 +411,7 @@ void ItaniumCXXABI::lowerGetMethod(
       else {
         mlir::Value vfpAddr = rewriter.create<cir::PtrStrideOp>(
             op.getLoc(), vtablePtrTy, vtablePtr, vtableOffset);
-        auto vfpPtrTy =
-            cir::PointerType::get(rewriter.getContext(), calleePtrTy);
+        auto vfpPtrTy = cir::PointerType::get(calleePtrTy);
         mlir::Value vfpPtr = rewriter.create<cir::CastOp>(
             op.getLoc(), vfpPtrTy, cir::CastKind::bitcast, vfpAddr);
         funcPtr = rewriter.create<cir::LoadOp>(

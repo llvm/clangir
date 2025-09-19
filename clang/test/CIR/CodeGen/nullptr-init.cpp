@@ -9,16 +9,16 @@ void t1() {
   int *p3 = (int*)0;
 }
 
-// CIR:      cir.func @_Z2t1v()
+// CIR:      cir.func dso_local @_Z2t1v()
 // CIR-NEXT:     %[[P1:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p1", init] {alignment = 8 : i64}
 // CIR-NEXT:     %[[P2:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p2", init] {alignment = 8 : i64}
 // CIR-NEXT:     %[[P3:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p3", init] {alignment = 8 : i64}
 // CIR-NEXT:     %[[NULLPTR1:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
-// CIR-NEXT:     cir.store %[[NULLPTR1]], %[[P1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:     cir.store{{.*}} %[[NULLPTR1]], %[[P1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:     %[[NULLPTR2:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
-// CIR-NEXT:     cir.store %[[NULLPTR2]], %[[P2]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:     cir.store{{.*}} %[[NULLPTR2]], %[[P2]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:     %[[NULLPTR3:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
-// CIR-NEXT:     cir.store %[[NULLPTR3]], %[[P3]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:     cir.store{{.*}} %[[NULLPTR3]], %[[P3]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:     cir.return
 // CIR-NEXT: }
 
@@ -45,20 +45,20 @@ int t2() {
 //       casting it to the required type, but a redundant constant seems less
 //       intrusive than a redundant bitcast.
 
-// CIR:       cir.func @_Z2t2v()
+// CIR:       cir.func dso_local @_Z2t2v()
 // CIR-NEXT:      %[[RETVAL_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR-NEXT:      %[[X:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR-NEXT:      %[[P:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["p", init] {alignment = 8 : i64}
 // CIR-NEXT:      %[[ZERO:.*]] = cir.const #cir.int<0> : !s32i
-// CIR-NEXT:      cir.store %[[ZERO]], %[[X]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:      cir.store{{.*}} %[[ZERO]], %[[X]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:      %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
-// CIR-NEXT:      cir.store %[[ONE]], %[[X]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:      cir.store{{.*}} %[[ONE]], %[[X]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:      %[[NULLPTR_EXTRA:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!void>
 // CIR-NEXT:      %[[NULLPTR:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
-// CIR-NEXT:      cir.store %[[NULLPTR]], %[[P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CIR-NEXT:      %[[X_VAL:.*]] = cir.load %[[X]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT:      cir.store %[[X_VAL]], %[[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT:      %[[RETVAL:.*]] = cir.load %[[RETVAL_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      cir.store{{.*}} %[[NULLPTR]], %[[P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:      %[[X_VAL:.*]] = cir.load{{.*}} %[[X]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      cir.store{{.*}} %[[X_VAL]], %[[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:      %[[RETVAL:.*]] = cir.load{{.*}} %[[RETVAL_ADDR]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:      cir.return %[[RETVAL]] : !s32i
 // CIR-NEXT:  }
 

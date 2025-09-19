@@ -287,7 +287,7 @@ mlir::Attribute ConstantAggregateBuilderBase::finishArray(mlir::Type eltTy) {
   if (!eltTy) {
     llvm_unreachable("NYI");
     // Uncomment this once we get a testcase.
-    // auto tAttr = elts[0].dyn_cast<mlir::TypedAttr>();
+    // auto tAttr = mlir::dyn_cast<mlir::TypedAttr>(elts[0]);
     // assert(tAttr && "expected typed attribute");
     // eltTy = tAttr.getType();
   }

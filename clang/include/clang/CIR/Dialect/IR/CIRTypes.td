@@ -14,8 +14,10 @@
 #define MLIR_CIR_DIALECT_CIR_TYPES
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIREnumAttr.td"
+include "clang/CIR/Dialect/IR/CIRTypeConstraints.td"
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
-include "clang/CIR/Interfaces/CIRFPTypeInterface.td"
+include "clang/CIR/Interfaces/CIRTypeInterfaces.td"
 include "mlir/Interfaces/DataLayoutInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/EnumAttr.td"
@@ -34,14 +36,17 @@ class CIR_Type<string name, string typeMnemonic, list<Trait> traits = [],
 // IntType
 //===----------------------------------------------------------------------===//
 
-def CIR_IntType : CIR_Type<"Int", "int",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+def CIR_IntType : CIR_Type<"Int", "int", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_IntTypeInterface>,
+]> {
   let summary = "Integer type with arbitrary precision up to a fixed limit";
   let description = [{
     CIR type that represents integer types with arbitrary precision.
 
     Those integer types that are directly available in C/C++ standard are called
-    primitive integer types. Said types are: `signed char`, `short`, `int`,
+    fundamental integer types. Said types are: `signed char`, `short`, `int`,
     `long`, `long long`, and their unsigned variations.
   }];
   let parameters = (ins "unsigned":$width, "bool":$isSigned);
@@ -55,89 +60,35 @@ def CIR_IntType : CIR_Type<"Int", "int",
     std::string getAlias() const {
       return (isSigned() ? 's' : 'u') + std::to_string(getWidth()) + 'i';
     };
-    /// Return true if this is a primitive integer type (i.e. signed or unsigned
-    /// integer types whose bit width is 8, 16, 32, or 64).
-    bool isPrimitive() const {
-      return isValidPrimitiveIntBitwidth(getWidth());
+    /// Return true if this is a fundamental integer type (i.e. signed or
+    /// unsigned integer types whose bit width is 8, 16, 32, or 64).
+    bool isFundamental() const {
+      return isFundamentalIntType(*this);
     }
-    bool isSignedPrimitive() const {
-      return isPrimitive() && isSigned();
+    bool isSignedFundamental() const {
+      return isFundamentalSIntType(*this);
+    }
+    bool isUnsignedFundamental() const {
+      return isFundamentalUIntType(*this);
     }
 
     /// Returns a minimum bitwidth of cir::IntType
     static unsigned minBitwidth() { return 1; }
     /// Returns a maximum bitwidth of cir::IntType
     static unsigned maxBitwidth() { return 128; }
-
-    /// Returns true if cir::IntType that represents a primitive integer type
-    /// can be constructed from the provided bitwidth.
-    static bool isValidPrimitiveIntBitwidth(unsigned width) {
-      return width == 8 || width == 16 || width == 32 || width == 64;
-    }
   }];
   let genVerifyDecl = 1;
 }
-
-// Constraints
-
-// Unsigned integer type of a specific width.
-class UInt<int width>
-  : Type<And<[
-        CPred<"::mlir::isa<::cir::IntType>($_self)">,
-        CPred<"::mlir::cast<::cir::IntType>($_self).isUnsigned()">,
-        CPred<"::mlir::cast<::cir::IntType>($_self).getWidth() == " # width>
-        ]>, width # "-bit unsigned integer", "::cir::IntType">,
-    BuildableType<
-      "cir::IntType::get($_builder.getContext(), "
-      # width # ", /*isSigned=*/false)"> {
-  int bitwidth = width;
-}
-
-def UInt1  : UInt<1>;
-def UInt8  : UInt<8>;
-def UInt16 : UInt<16>;
-def UInt32 : UInt<32>;
-def UInt64 : UInt<64>;
-
-// Signed integer type of a specific width.
-class SInt<int width>
-  : Type<And<[
-        CPred<"::mlir::isa<::cir::IntType>($_self)">,
-        CPred<"::mlir::cast<::cir::IntType>($_self).isSigned()">,
-        CPred<"::mlir::cast<::cir::IntType>($_self).getWidth() == " # width>
-        ]>, width # "-bit signed integer", "::cir::IntType">,
-    BuildableType<
-      "cir::IntType::get($_builder.getContext(), "
-      # width # ", /*isSigned=*/true)"> {
-  int bitwidth = width;
-}
-
-def SInt1  : SInt<1>;
-def SInt8  : SInt<8>;
-def SInt16 : SInt<16>;
-def SInt32 : SInt<32>;
-def SInt64 : SInt<64>;
-
-def PrimitiveUInt
-    : AnyTypeOf<[UInt8, UInt16, UInt32, UInt64], "primitive unsigned int",
-                "::cir::IntType">;
-def PrimitiveSInt
-    : AnyTypeOf<[SInt8, SInt16, SInt32, SInt64], "primitive signed int",
-                "::cir::IntType">;
-def PrimitiveInt
-    : AnyTypeOf<[UInt8, UInt16, UInt32, UInt64, SInt8, SInt16, SInt32, SInt64],
-                "primitive int", "::cir::IntType">;
 
 //===----------------------------------------------------------------------===//
 // FloatType
 //===----------------------------------------------------------------------===//
 
-class CIR_FloatType<string name, string mnemonic>
-    : CIR_Type<name, mnemonic,
-          [
-            DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
-            DeclareTypeInterfaceMethods<CIRFPTypeInterface>,
-          ]> {}
+class CIR_FloatType<string name, string mnemonic> : CIR_Type<name, mnemonic, [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_FPTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
+]>;
 
 def CIR_Single : CIR_FloatType<"Single", "float"> {
   let summary = "CIR single-precision float type";
@@ -151,7 +102,7 @@ def CIR_Double : CIR_FloatType<"Double", "double"> {
   let summary = "CIR double-precision float type";
   let description = [{
     Floating-point type that represents the `double` type in C/C++. Its
-    underlying floating-point format is the IEEE-754 binar64 format.
+    underlying floating-point format is the IEEE-754 binary64 format.
   }];
 }
 
@@ -190,108 +141,156 @@ def CIR_LongDouble : CIR_FloatType<"LongDouble", "long_double"> {
 
     The underlying floating-point format of a long double value depends on the
     implementation. The `underlying` parameter specifies the CIR floating-point
-    type that corresponds to this format. For now, it can only be either
-    `!cir.double` or `!cir.fp80`.
+    type that corresponds to this format.
   }];
 
-  let parameters = (ins "mlir::Type":$underlying);
+  let parameters = (ins AnyTypeOf<[CIR_Double, CIR_FP80, CIR_FP128],
+    "expects !cir.double, !cir.fp80 or !cir.fp128">:$underlying);
 
   let assemblyFormat = [{
     `<` $underlying `>`
   }];
-
-  let genVerifyDecl = 1;
 }
-
-// Constraints
-
-def CIR_AnyFloat: AnyTypeOf<[CIR_Single, CIR_Double, CIR_FP80, CIR_FP128, CIR_LongDouble,
-    CIR_FP16, CIR_BFloat16]>;
-def CIR_AnyIntOrFloat: AnyTypeOf<[CIR_AnyFloat, CIR_IntType]>;
 
 //===----------------------------------------------------------------------===//
 // ComplexType
 //===----------------------------------------------------------------------===//
 
-def CIR_ComplexType : CIR_Type<"Complex", "complex",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
-
+def CIR_ComplexType : CIR_Type<"Complex", "complex", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
+]> {
   let summary = "CIR complex type";
   let description = [{
     CIR type that represents a C complex number. `cir.complex` models the C type
     `T _Complex`.
 
-    The parameter `elementTy` gives the type of the real and imaginary part of
-    the complex number. `elementTy` must be either a CIR integer type or a CIR
+    The type models complex values, per C99 6.2.5p11. It supports the C99
+    complex float types as well as the GCC integer complex extensions.
+
+    The parameter `elementType` gives the type of the real and imaginary part of
+    the complex number. `elementType` must be either a CIR integer type or a CIR
     floating-point type.
   }];
 
-  let parameters = (ins "mlir::Type":$elementTy);
+  let parameters = (ins CIR_AnyIntOrFloatType:$elementType);
 
   let builders = [
-    TypeBuilderWithInferredContext<(ins "mlir::Type":$elementTy), [{
-      return $_get(elementTy.getContext(), elementTy);
+    TypeBuilderWithInferredContext<(ins "mlir::Type":$elementType), [{
+      return $_get(elementType.getContext(), elementType);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $elementTy `>`
+    `<` $elementType `>`
   }];
 
-  let genVerifyDecl = 1;
+  let extraClassDeclaration = [{
+    bool isFloatingPointComplex() const {
+      return isAnyFloatingPointType(getElementType());
+    }
+
+    bool isIntegerComplex() const {
+      return mlir::isa<cir::IntType>(getElementType());
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//
 // PointerType
 //===----------------------------------------------------------------------===//
 
-def CIR_PointerType : CIR_Type<"Pointer", "ptr",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
-
+def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
+]> {
   let summary = "CIR pointer type";
   let description = [{
-    `CIR.ptr` is a type returned by any op generating a pointer in C++.
+    The `!cir.ptr` type is a typed pointer type. It is used to represent
+    pointers to objects in C/C++. The type of the pointed-to object is given by
+    the `pointee` parameter. The `addrSpace` parameter is an optional address
+    space attribute that specifies the address space of the pointer. If not
+    specified, the pointer is assumed to be in the default address space.
+
+    The `!cir.ptr` type can point to any type, including fundamental types,
+    records, arrays, vectors, functions, and other pointers. It can also point
+    to incomplete types, such as incomplete records.
+
+    Note: Data-member pointers and method pointers are represented by
+    `!cir.data_member` and `!cir.method` types, respectively not by
+    `!cir.ptr` type.
+
+    Examples:
+
+    ```mlir
+    !cir.ptr<!cir.int<u, 8>>
+    !cir.ptr<!cir.float>
+    !cir.ptr<!cir.record<struct "MyStruct">>
+    !cir.ptr<!cir.record<struct "MyStruct">, addrspace(offload_private)>
+    !cir.ptr<!cir.int<u, 8>, addrspace(target<1>)>
+    ```
   }];
 
   let parameters = (ins
     "mlir::Type":$pointee,
-    // FIXME(cir): Currently unable to directly use AddressSpaceAttr because of
-    // cyclic dep. Workaround with the top type and verifier.
-    OptionalParameter<"mlir::Attribute">:$addrSpace
+    CIR_DefaultValuedEnumParameter<
+      CIR_AddressSpace,
+      "cir::AddressSpace::Default"
+    >:$addrSpace
   );
 
+  let skipDefaultBuilders = 1;
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
-      return $_get(pointee.getContext(), pointee, addrSpace);
+      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+        return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
-      return $_get($_ctxt, pointee, addrSpace);
+      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+        return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
 
   let assemblyFormat = [{
-    `<` $pointee ( `,` `addrspace` `(`
-      custom<PointerAddrSpace>($addrSpace)^
-    `)` )? `>`
+    `<`
+      $pointee
+      ( `,` `addrspace` `(` custom<AddressSpaceValue>($addrSpace)^ `)` )?
+    `>`
   }];
 
-  let genVerifyDecl = 1;
-
-  let skipDefaultBuilders = 1;
-
   let extraClassDeclaration = [{
+    template <typename ...Types>
+    bool isPtrTo() const {
+      return mlir::isa< Types... >(getPointee());
+    }
+
     bool isVoidPtr() const {
-      return mlir::isa<cir::VoidType>(getPointee());
+      return isPtrTo<cir::VoidType>();
+    }
+
+    template <typename ...Types>
+    bool isPtrToPtrTo() const {
+      if (auto ptrType = mlir::dyn_cast<cir::PointerType>(getPointee()))
+        return ptrType.isPtrTo<Types...>();
+      return false;
+    }
+
+    bool isPtrTo(mlir::Type type) const {
+      return getPointee() == type;
+    }
+
+    bool isPtrToPtrTo(mlir::Type type) const {
+      if (auto ptrType = mlir::dyn_cast<cir::PointerType>(getPointee()))
+        return ptrType.isPtrTo(type);
+      return false;
     }
   }];
 }
 
 //===----------------------------------------------------------------------===//
-// DataMemberType
+// CIR_DataMemberType
 //===----------------------------------------------------------------------===//
 
 def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
@@ -299,7 +298,7 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 
   let summary = "CIR type that represents pointer-to-data-member type in C++";
   let description = [{
-    `cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+    `cir.data_member` models the pointer-to-data-member type in C++. Values of
     this type are essentially offsets of the pointed-to member within one of
     its containing record.
   }];
@@ -321,17 +320,44 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 }
 
 //===----------------------------------------------------------------------===//
-// BoolType
-//
-// An alternative here is to represent bool as mlir::i1, but let's be more
-// generic.
-//
+// CIR_VPtrType
 //===----------------------------------------------------------------------===//
 
-def CIR_BoolType :
-    CIR_Type<"Bool", "bool",
-             [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+def CIR_VPtrType : CIR_Type<"VPtr", "vptr", [
+  DeclareTypeInterfaceMethods<DataLayoutTypeInterface>
+]> {
 
+  let summary = "CIR type that is used for the vptr member of C++ objects";
+  let description = [{
+    `cir.vptr` is a special type used as the type for the vptr member of a C++
+    object. This avoids using arbitrary pointer types to declare vptr values
+    and allows stronger type-based checking for operations that use or provide
+    access to the vptr.
+
+    This type will be the element type of the 'vptr' member of structures that
+    require a vtable pointer. A pointer to this type is returned by the
+    `cir.vtable.address_point` and `cir.vtable.get_vptr` operations, and this
+    pointer may be passed to the `cir.vtable.get_virtual_fn_addr` operation to
+    get the address of a virtual function pointer.
+
+    The pointer may also be cast to other pointer types in order to perform
+    pointer arithmetic based on information encoded in the AST layout to get
+    the offset from a pointer to a dynamic object to the base object pointer,
+    the base object offset value from the vtable, or the type information
+    entry for an object.
+    TODO: We should have special operations to do that too.
+  }];
+}
+
+
+//===----------------------------------------------------------------------===//
+// BoolType
+//===----------------------------------------------------------------------===//
+
+def CIR_BoolType : CIR_Type<"Bool", "bool", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
+]> {
   let summary = "CIR bool type";
   let description = [{
     `cir.bool` represent's C++ bool type.
@@ -342,26 +368,33 @@ def CIR_BoolType :
 // ArrayType
 //===----------------------------------------------------------------------===//
 
-def CIR_ArrayType : CIR_Type<"Array", "array",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
-
+def CIR_ArrayType : CIR_Type<"Array", "array", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface, ["isSized"]>,
+]> {
   let summary = "CIR array type";
   let description = [{
     `CIR.array` represents C/C++ constant arrays.
   }];
 
-  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+  let parameters = (ins "mlir::Type":$elementType, "uint64_t":$size);
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
-      "mlir::Type":$eltType, "uint64_t":$size
+      "mlir::Type":$elementType, "uint64_t":$size
     ), [{
-        return $_get(eltType.getContext(), eltType, size);
+        return $_get(elementType.getContext(), elementType, size);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $eltType `x` $size `>`
+    `<` $elementType `x` $size `>`
+  }];
+
+  let extraClassDefinition = [{
+    bool $cppClass::isSized() const {
+      return ::cir::isSized(getElementType());
+    }
   }];
 }
 
@@ -369,28 +402,58 @@ def CIR_ArrayType : CIR_Type<"Array", "array",
 // VectorType (fixed size)
 //===----------------------------------------------------------------------===//
 
-def CIR_VectorType : CIR_Type<"Vector", "vector",
-    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+def CIR_VectorType : CIR_Type<"Vector", "vector", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface, ["isSized"]>,
+]> {
 
   let summary = "CIR vector type";
   let description = [{
-    `cir.vector' represents fixed-size vector types.  The parameters are the
-    element type and the number of elements.
+    The `!cir.vector` type represents a fixed-size, one-dimensional vector.
+    It takes two parameters: the element type and the number of elements.
+
+    Syntax:
+
+    ```mlir
+    vector-type ::= !cir.vector<element-type x size>
+    element-type ::= float-type | integer-type | pointer-type
+    ```
+
+    The `element-type` must be a scalar CIR type. Zero-sized vectors are not
+    allowed. The `size` must be a positive integer.
+
+    Examples:
+
+    ```mlir
+    !cir.vector<!cir.int<u, 8> x 4>
+    !cir.vector<!cir.float x 2>
+    ```
   }];
 
-  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+  let parameters = (ins
+    CIR_VectorElementType:$elementType,
+    "uint64_t":$size
+  );
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
-      "mlir::Type":$eltType, "uint64_t":$size
+      "mlir::Type":$elementType, "uint64_t":$size
     ), [{
-        return $_get(eltType.getContext(), eltType, size);
+        return $_get(elementType.getContext(), elementType, size);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $eltType `x` $size `>`
+    `<` $elementType `x` $size `>`
   }];
+
+  let extraClassDefinition = [{
+    bool $cppClass::isSized() const {
+      return ::cir::isSized(getElementType());
+    }
+  }];
+
+  let genVerifyDecl = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -530,127 +593,17 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
   }];
 }
 
-// Constraints
-
-// Pointer to void
-def VoidPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::VoidType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "void*">,
-    BuildableType<
-      "cir::PointerType::get($_builder.getContext(),"
-      "cir::VoidType::get($_builder.getContext()))"> {
-}
-
-// Pointer to a primitive int, float or double
-def PrimitiveIntOrFPPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType, ::cir::SingleType,"
-            "::cir::DoubleType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "{int,void}*"> {
-}
-
-def ComplexPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ComplexType>("
-        "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.complex*"> {
-}
-
-// Pointer to record
-def RecordPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::RecordType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">
-    ]>, "!cir.record*"> {
-}
-
-// Pointer to exception info
-def ExceptionPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ExceptionInfoType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">
-    ]>, "!cir.eh_info*">,
-    BuildableType<
-      "cir::PointerType::get($_builder.getContext(),"
-      "cir::ExceptionInfoType::get($_builder.getContext()))"> {
-}
-
-// Vector of integral type
-def IntegerVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
-      CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())"
-            ".isPrimitive()">
-    ]>, "!cir.vector of !cir.int"> {
-}
-
-// Vector of signed integral type
-def SignedIntegerVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
-      CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())"
-            ".isSignedPrimitive()">
-    ]>, "!cir.vector of !cir.int"> {
-}
-
-// Vector of Float type
-def FPVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::SingleType, ::cir::DoubleType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
-    ]>, "!cir.vector of !cir.fp"> {
-}
-
-// Constraints
-def CIR_AnyIntOrVecOfInt: AnyTypeOf<[CIR_IntType, IntegerVector]>;
-def CIR_AnySignedIntOrVecOfSignedInt: AnyTypeOf<
-                                        [PrimitiveSInt, SignedIntegerVector]>;
-def CIR_AnyFloatOrVecOfFloat: AnyTypeOf<[CIR_AnyFloat, FPVector]>;
-
-// Pointer to Arrays
-def ArrayPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ArrayType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.ptr<!cir.array>"> {
-}
-
-// Pointer to functions
-def FuncPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::FuncType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.ptr<!cir.func>"> {
-}
-
 //===----------------------------------------------------------------------===//
 // RecordType
 //
 // The base type for all RecordDecls.
 //===----------------------------------------------------------------------===//
 
-def CIR_RecordType : CIR_Type<"Record", "record",
-    [
-      DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
-      MutableType,
-    ]> {
+def CIR_RecordType : CIR_Type<"Record", "record", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+    DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>,
+    MutableType,
+]> {
   let summary = "CIR record type";
   let description = [{
     Each unique clang::RecordDecl is mapped to a `cir.record` and any object in
@@ -717,7 +670,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       CArg<"ASTRecordDeclInterface", "{}">:$ast
     ), [{
       return $_get($_ctxt, members, name, /*complete=*/true, packed, padded,
-                       kind, ast);    
+                       kind, ast);
     }]>,
 
     // Create an identified and incomplete record type.
@@ -728,7 +681,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       return $_get($_ctxt, /*members=*/llvm::ArrayRef<Type>{}, name,
                          /*complete=*/false, /*packed=*/false,
                          /*padded=*/false, kind,
-                         /*ast=*/ASTRecordDeclInterface{});    
+                         /*ast=*/ASTRecordDeclInterface{});
     }]>,
 
     // Create an anonymous record type (always complete).
@@ -805,8 +758,8 @@ def CIRRecordType : Type<
 def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
-  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloat, CIR_FP16, CIR_BFloat16,
-  CIR_ComplexType
+  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType,
+  CIR_VPtrType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

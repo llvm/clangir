@@ -23,7 +23,7 @@ struct clang::CIRGen::CGCoroData {
   // What is the current await expression kind and how many
   // await/yield expressions were encountered so far.
   // These are used to generate pretty labels for await expressions in LLVM IR.
-  cir::AwaitKind CurrentAwaitKind = cir::AwaitKind::init;
+  cir::AwaitKind CurrentAwaitKind = cir::AwaitKind::Init;
 
   // Stores the __builtin_coro_id emitted in the function so that we can supply
   // it as the first argument to other builtins.
@@ -169,12 +169,11 @@ cir::CallOp CIRGenFunction::emitCoroIDBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
+    fnOp = CGM.createCIRBuiltinFunction(
         loc, CGM.builtinCoroId,
         cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy}, int32Ty),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -191,11 +190,10 @@ cir::CallOp CIRGenFunction::emitCoroAllocBuiltinCall(mlir::Location loc) {
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(loc, CGM.builtinCoroAlloc,
-                                 cir::FuncType::get({int32Ty}, boolTy),
-                                 /*FD=*/nullptr);
+    fnOp = CGM.createCIRBuiltinFunction(loc, CGM.builtinCoroAlloc,
+                                        cir::FuncType::get({int32Ty}, boolTy),
+                                        /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -211,12 +209,11 @@ CIRGenFunction::emitCoroBeginBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
+    fnOp = CGM.createCIRBuiltinFunction(
         loc, CGM.builtinCoroBegin,
         cir::FuncType::get({int32Ty, VoidPtrTy}, VoidPtrTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -232,12 +229,11 @@ cir::CallOp CIRGenFunction::emitCoroEndBuiltinCall(mlir::Location loc,
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp =
-        CGM.createCIRFunction(loc, CGM.builtinCoroEnd,
-                              cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
-                              /*FD=*/nullptr);
+    fnOp = CGM.createCIRBuiltinFunction(
+        loc, CGM.builtinCoroEnd,
+        cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
+        /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
     fnOp = cast<cir::FuncOp>(builtin);
 
@@ -252,7 +248,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
 
   auto Fn = dyn_cast<cir::FuncOp>(CurFn);
   assert(Fn && "other callables NYI");
-  Fn.setCoroutineAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  Fn.setCoroutine(true);
   auto coroId = emitCoroIDBuiltinCall(openCurlyLoc, nullPtrCst);
   createCoroData(*this, CurCoro, coroId);
 
@@ -287,7 +283,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
           .getResult();
 
   // Handle allocation failure if 'ReturnStmtOnAllocFailure' was provided.
-  if (auto *RetOnAllocFailure = S.getReturnStmtOnAllocFailure())
+  if (S.getReturnStmtOnAllocFailure())
     llvm_unreachable("NYI");
 
   {
@@ -337,11 +333,11 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
     }
 
     // FIXME(cir): EHStack.pushCleanup<CallCoroEnd>(EHCleanup);
-    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::init;
+    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::Init;
     if (emitStmt(S.getInitSuspendStmt(), /*useCurrentScope=*/true).failed())
       return mlir::failure();
 
-    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::user;
+    CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::User;
 
     // FIXME(cir): wrap emitBodyAndFallthrough with try/catch bits.
     if (S.getExceptionHandler())
@@ -360,7 +356,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
     const bool CanFallthrough = currLexScope->hasCoreturn();
     const bool HasCoreturns = CurCoro.Data->CoreturnCount > 0;
     if (CanFallthrough || HasCoreturns) {
-      CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::final;
+      CurCoro.Data->CurrentAwaitKind = cir::AwaitKind::Final;
       {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPoint(CurCoro.Data->FinalSuspendInsPoint);
@@ -453,7 +449,7 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
         // function is marked as 'noexcept', we avoid generating this additional
         // IR.
         CXXTryStmt *TryStmt = nullptr;
-        if (Coro.ExceptionHandler && Kind == cir::AwaitKind::init &&
+        if (Coro.ExceptionHandler && Kind == cir::AwaitKind::Init &&
             memberCallExpressionCanThrow(S.getResumeExpr())) {
           llvm_unreachable("NYI");
         }
@@ -539,7 +535,7 @@ RValue CIRGenFunction::emitCoawaitExpr(const CoawaitExpr &E,
 RValue CIRGenFunction::emitCoyieldExpr(const CoyieldExpr &E,
                                        AggValueSlot aggSlot,
                                        bool ignoreResult) {
-  return emitSuspendExpr(*this, E, cir::AwaitKind::yield, aggSlot,
+  return emitSuspendExpr(*this, E, cir::AwaitKind::Yield, aggSlot,
                          ignoreResult);
 }
 

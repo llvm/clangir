@@ -17,10 +17,10 @@ typedef struct {
 } S;
 
 void foo(S *s) {
-  // CIR-LABEL: cir.func @foo
+  // CIR-LABEL: cir.func dso_local @foo
   // CIR: %[[C1:.*]] = cir.const #cir.int<1> : !s32i loc(#loc6)
-  // CIR: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
-  // CIR: cir.store %[[C1]], %{{.*}} : !s32i, !cir.ptr<!s32i> tbaa(#tbaa[[CHAR]])
+  // CIR: %{{.*}} = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
+  // CIR: cir.store{{.*}} %[[C1]], %{{.*}} : !s32i, !cir.ptr<!s32i> tbaa(#tbaa[[CHAR]])
 
   // LLVM-LABEL: void @foo
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa ![[TBAA_TAG:.*]]

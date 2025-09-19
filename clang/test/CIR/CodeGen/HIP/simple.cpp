@@ -15,12 +15,12 @@
 
 
 __host__ void host_fn(int *a, int *b, int *c) {}
-// CIR-HOST: cir.func @_Z7host_fnPiS_S_
-// CIR-DEVICE-NOT: cir.func @_Z7host_fnPiS_S_
+// CIR-HOST: cir.func dso_local @_Z7host_fnPiS_S_
+// CIR-DEVICE-NOT: cir.func dso_local @_Z7host_fnPiS_S_
 
 __device__ void device_fn(int* a, double b, float c) {}
-// CIR-HOST-NOT: cir.func @_Z9device_fnPidf
-// CIR-DEVICE: cir.func @_Z9device_fnPidf
+// CIR-HOST-NOT: cir.func dso_local @_Z9device_fnPidf
+// CIR-DEVICE: cir.func dso_local @_Z9device_fnPidf
 
 __global__ void global_fn(int a) {}
 // CIR-DEVICE: @_Z9global_fni

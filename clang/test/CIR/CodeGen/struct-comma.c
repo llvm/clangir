@@ -8,7 +8,7 @@ void a(struct AA* b) {*b = (r(), x);}
 // CHECK-LABEL: @a
 // CHECK: %[[ADDR:.*]] = cir.alloca {{.*}} ["b"
 // CHECK: cir.store {{.*}}, %[[ADDR]]
-// CHECK: %[[LOAD:.*]] = cir.load deref %[[ADDR]]
+// CHECK: %[[LOAD:.*]] = cir.load deref{{.*}} %[[ADDR]]
 // CHECK: cir.call @r
 // CHECK: %[[GADDR:.*]] = cir.get_global @x
 // CHECK: cir.copy %[[GADDR]] to %[[LOAD]]

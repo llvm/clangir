@@ -27,9 +27,9 @@ void bar() __attribute__((annotate("withargfunc", "os", 22))) {
 // BEFORE: cir.global external @tile = #cir.int<7> : !s32i
 // BEFORE-SAME: #cir.annotation<name = "cir.aie.device.tile", args = [42 : i8]>]
 
-// BEFORE: cir.func @_Z3fooi(%arg0: !s32i) [#cir.annotation<name = "noargfunc", args = []>,
+// BEFORE: cir.func dso_local @_Z3fooi(%arg0: !s32i) [#cir.annotation<name = "noargfunc", args = []>,
 // BEFORE-SAME: #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]
-// BEFORE: cir.func @_Z3barv() [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]
+// BEFORE: cir.func dso_local @_Z3barv() [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]
 
 
 // AFTER: module {{.*}}attribute-annotate-multiple.cpp" attributes
@@ -57,9 +57,9 @@ void bar() __attribute__((annotate("withargfunc", "os", 22))) {
 // LLVM: @.str.4.annotation = private unnamed_addr constant [10 x i8] c"noargfunc\00", section "llvm.metadata"
 // LLVM: @.str.5.annotation = private unnamed_addr constant [12 x i8] c"withargfunc\00", section "llvm.metadata"
 // LLVM: @.str.1.annotation.arg = private unnamed_addr constant [3 x i8] c"os\00", align 1
-// LLVM: @.args.2.annotation = private unnamed_addr constant { ptr, i32 } 
+// LLVM: @.args.2.annotation = private unnamed_addr constant { ptr, i32 }
 // LLVM-SAME: { ptr @.str.1.annotation.arg, i32 23 }, section "llvm.metadata"
-// LLVM: @.args.3.annotation = private unnamed_addr constant { ptr, i32 } 
+// LLVM: @.args.3.annotation = private unnamed_addr constant { ptr, i32 }
 // LLVM-SAME: { ptr @.str.1.annotation.arg, i32 22 }, section "llvm.metadata"
 
 // LLVM: @llvm.global.annotations = appending global [7 x { ptr, ptr, ptr, i32, ptr }]

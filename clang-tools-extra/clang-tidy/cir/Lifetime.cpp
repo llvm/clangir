@@ -96,7 +96,7 @@ void Lifetime::setupAndRunClangIRLifetimeChecker(ASTContext &astCtx) {
         llvm_unreachable("How should we workaround this?");
         return clangLoc;
       }
-      if (auto FE = fileMgr.getFile(loc.getFilename())) {
+      if (auto FE = fileMgr.getOptionalFileRef(loc.getFilename())) {
         return clangSrcMgr.translateFileLineCol(*FE, loc.getLine(),
                                                 loc.getColumn());
       }

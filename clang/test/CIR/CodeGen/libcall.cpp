@@ -39,15 +39,15 @@ void t(const char* fmt, ...) {
   consume_message(message);
 }
 
-// CHECK: cir.func @_Z15consume_messagePKc(%arg0: !cir.ptr<!s8i>
+// CHECK: cir.func dso_local @_Z15consume_messagePKc(%arg0: !cir.ptr<!s8i>
 // CHECK:   %0 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["m", init] {alignment = 8 : i64}
 
-// CHECK:   %3 = cir.load %0 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+// CHECK:   %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
 // CHECK:   %4 = cir.objsize(%3 : <!s8i>, max) -> !u64i
 // CHECK:   %5 = cir.call @_ZL6strlenPKcU17pass_object_size0(%3, %4) : (!cir.ptr<!s8i>, !u64i) -> !u64i
 
 // CHECK: cir.func private @__vsnprintf_chk
-// CHECK: cir.func internal private @_ZL9vsnprintfPcU17pass_object_size1iPKcP13__va_list_tag
+// CHECK: cir.func internal private dso_local @_ZL9vsnprintfPcU17pass_object_size1iPKcP13__va_list_tag
 
 // Implicit size parameter in arg %1
 //
@@ -57,7 +57,7 @@ void t(const char* fmt, ...) {
 
 // CHECK: cir.store %arg1, %1 : !u64i, !cir.ptr<!u64i>
 
-// CHECK: %10 = cir.load %1 : !cir.ptr<!u64i>, !u64i
-// CHECK: %11 = cir.load %3 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-// CHECK: %12 = cir.load %4 : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
+// CHECK: %10 = cir.load{{.*}} %1 : !cir.ptr<!u64i>, !u64i
+// CHECK: %11 = cir.load{{.*}} %3 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+// CHECK: %12 = cir.load{{.*}} %4 : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
 // CHECK: %13 = cir.call @__vsnprintf_chk(%6, %8, %9, %10, %11, %12)

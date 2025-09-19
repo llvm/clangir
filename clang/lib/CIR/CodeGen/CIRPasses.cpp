@@ -28,7 +28,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
-    bool enableCIRSimplify, bool flattenCIR, bool emitCore,
+    bool enableCIRSimplify, bool flattenCIR, bool throughMLIR,
     bool enableCallConvLowering, bool enableMem2Reg) {
 
   llvm::TimeTraceScope scope("CIR To CIR Passes");
@@ -81,7 +81,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (enableMem2Reg)
     pm.addPass(mlir::createMem2Reg());
 
-  if (emitCore)
+  if (throughMLIR)
     pm.addPass(mlir::createSCFPreparePass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we

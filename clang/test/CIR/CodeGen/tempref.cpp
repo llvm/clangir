@@ -6,13 +6,13 @@
 struct A { ~A(); };
 A &&a = dynamic_cast<A&&>(A{});
 
-//      CHECK: cir.func private @_ZN1AD1Ev(!cir.ptr<!rec_A>) extra(#fn_attr)
+//      CHECK: cir.func private @_ZN1AD1Ev(!cir.ptr<!rec_A>) special_member<#cir.cxx_dtor<!rec_A>> extra(#fn_attr)
 // CHECK-NEXT: cir.global external @a = #cir.ptr<null> : !cir.ptr<!rec_A> {alignment = 8 : i64, ast = #cir.var.decl.ast}
 // CHECK-NEXT: cir.func internal private @__cxx_global_var_init() {
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     %[[SEVEN:[0-9]+]] = cir.get_global @a : !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK-NEXT:     %[[EIGHT:[0-9]+]] = cir.get_global @_ZGR1a_ : !cir.ptr<!rec_A>
-// CHECK-NEXT:     cir.store %[[EIGHT]], %[[SEVEN]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
+// CHECK-NEXT:     cir.store{{.*}} %[[EIGHT]], %[[SEVEN]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
@@ -23,7 +23,7 @@ A &&a = dynamic_cast<A&&>(A{});
 
 //      LLVM: @_ZGR1a_ = internal global %struct.A undef
 // LLVM-DAG: @a = global ptr null, align 8
-// LLVM-DAG: @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init, ptr null }]
+// LLVM-DAG: @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cxx_global_var_init, ptr null }]
 
 // LLVM-DAG: declare {{.*}} void @_ZN1AD1Ev(ptr)
 

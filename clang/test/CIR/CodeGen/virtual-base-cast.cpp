@@ -16,11 +16,19 @@ D* x;
 
 A* a() { return x; }
 // CIR-LABEL: @_Z1av()
+
+// This uses the vtable to get the offset to the base object. The offset from
+// the vptr to the base object offset in the vtable is a compile-time constant.
+// CIR: %[[X_ADDR:.*]] = cir.get_global @x : !cir.ptr<!cir.ptr<!rec_D>>
+// CIR: %[[X:.*]] = cir.load{{.*}} %[[X_ADDR]]
+// CIR: %[[X_VPTR_ADDR:.*]] = cir.vtable.get_vptr %[[X]] : !cir.ptr<!rec_D> -> !cir.ptr<!cir.vptr>
+// CIR: %[[X_VPTR_BASE:.*]] = cir.load{{.*}} %[[X_VPTR_ADDR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR: %[[X_BASE_I8PTR:.*]] = cir.cast(bitcast, %[[X_VPTR_BASE]] : !cir.vptr), !cir.ptr<!u8i>
 // CIR:  %[[OFFSET_OFFSET:.*]] = cir.const #cir.int<-32> : !s64i
-// CIR:  %[[OFFSET_PTR:.*]] = cir.ptr_stride(%4 : !cir.ptr<!u8i>, %[[OFFSET_OFFSET]] : !s64i), !cir.ptr<!u8i>
+// CIR:  %[[OFFSET_PTR:.*]] = cir.ptr_stride %[[X_BASE_I8PTR]], %[[OFFSET_OFFSET]] : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:  %[[OFFSET_PTR_CAST:.*]] = cir.cast(bitcast, %[[OFFSET_PTR]] : !cir.ptr<!u8i>), !cir.ptr<!s64i>
-// CIR:  %[[OFFSET:.*]] = cir.load %[[OFFSET_PTR_CAST]] : !cir.ptr<!s64i>, !s64i
-// CIR:  %[[VBASE_ADDR:.*]] = cir.ptr_stride({{.*}} : !cir.ptr<!u8i>, %[[OFFSET]] : !s64i), !cir.ptr<!u8i>
+// CIR:  %[[OFFSET:.*]] = cir.load{{.*}} %[[OFFSET_PTR_CAST]] : !cir.ptr<!s64i>, !s64i
+// CIR:  %[[VBASE_ADDR:.*]] = cir.ptr_stride {{.*}}, %[[OFFSET]] : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:  cir.cast(bitcast, %[[VBASE_ADDR]] : !cir.ptr<!u8i>), !cir.ptr<!rec_D>
 
 // FIXME: this version should include null check.
@@ -41,7 +49,7 @@ F* y;
 
 BB* d() { return y; }
 // CIR-LABEL: @_Z1dv
-// CIR: %[[OFFSET:.*]] = cir.load {{.*}} : !cir.ptr<!s64i>, !s64i
+// CIR: %[[OFFSET:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s64i>, !s64i
 // CIR: %[[ADJUST:.*]] = cir.const #cir.int<16> : !s64i
 // CIR: cir.binop(add, %[[OFFSET]], %[[ADJUST]]) : !s64i
 

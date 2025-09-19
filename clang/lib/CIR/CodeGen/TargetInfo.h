@@ -25,6 +25,16 @@
 
 namespace clang::CIRGen {
 
+/// isEmptyFieldForLayout - Return true if the field is "empty", that is,
+/// either a zero-width bit-field or an isEmptyRecordForLayout.
+bool isEmptyFieldForLayout(const ASTContext &Context, const FieldDecl *FD);
+
+/// isEmptyRecordForLayout - Return true if a structure contains only empty
+/// base classes (per  isEmptyRecordForLayout) and fields (per
+/// isEmptyFieldForLayout). Note, C++ record fields are considered empty
+/// if the [[no_unique_address]] attribute would have made them empty.
+bool isEmptyRecordForLayout(const ASTContext &Context, QualType T);
+
 class CIRGenFunction;
 class CIRGenModule;
 class CIRGenBuilderTy;
@@ -91,10 +101,8 @@ public:
                                                  const clang::VarDecl *D) const;
 
   /// Get the CIR address space for alloca.
-  virtual cir::AddressSpaceAttr getCIRAllocaAddressSpace() const {
-    // Return the null attribute, which means the target does not care about the
-    // alloca address space.
-    return {};
+  virtual cir::AddressSpace getCIRAllocaAddressSpace() const {
+    return cir::AddressSpace::Default;
   }
 
   /// Perform address space cast of an expression of pointer type.
@@ -104,8 +112,8 @@ public:
   /// \param DestTy is the destination pointer type.
   /// \param IsNonNull is the flag indicating \p V is known to be non null.
   virtual mlir::Value performAddrSpaceCast(CIRGenFunction &CGF, mlir::Value V,
-                                           cir::AddressSpaceAttr SrcAddr,
-                                           cir::AddressSpaceAttr DestAddr,
+                                           cir::AddressSpace SrcAddr,
+                                           cir::AddressSpace DestAddr,
                                            mlir::Type DestTy,
                                            bool IsNonNull = false) const;
 
@@ -143,8 +151,6 @@ createAArch64TargetCIRGenInfo(CIRGenTypes &CGT, cir::AArch64ABIKind Kind);
 
 std::unique_ptr<TargetCIRGenInfo>
 createX86_64TargetCIRGenInfo(CIRGenTypes &CGT, cir::X86AVXABILevel AVXLevel);
-
-void computeSPIRKernelABIInfo(CIRGenModule &CGM, CIRGenFunctionInfo &FI);
 
 std::unique_ptr<TargetCIRGenInfo> createSPIRVTargetCIRGenInfo(CIRGenTypes &CGT);
 

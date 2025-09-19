@@ -55,7 +55,6 @@ mlir::Type CIRGenVTables::getVTableComponentType() {
 
 mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
   SmallVector<mlir::Type, 4> tys;
-  mlir::MLIRContext *mlirContext = CGM.getBuilder().getContext();
   auto componentType = getVTableComponentType();
   for (unsigned i = 0, e = layout.getNumVTables(); i != e; ++i)
     tys.push_back(cir::ArrayType::get(componentType, layout.getVTableSize(i)));
@@ -138,11 +137,10 @@ void CIRGenModule::emitDeferredVTables() {
 #endif
 
   for (const CXXRecordDecl *RD : DeferredVTables)
-    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD)) {
+    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD))
       VTables.GenerateClassData(RD);
-    } else if (shouldOpportunisticallyEmitVTables()) {
-      llvm_unreachable("NYI");
-    }
+    else if (shouldOpportunisticallyEmitVTables())
+      opportunisticVTables.push_back(RD);
 
   assert(savedSize == DeferredVTables.size() &&
          "deferred extra vtables during vtable emission?");

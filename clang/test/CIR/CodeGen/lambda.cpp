@@ -15,9 +15,9 @@ void fn() {
 //      CHECK-DAG: !rec_anon2E8 = !cir.record<class "anon.8" {!cir.ptr<!rec_A>}>
 //  CHECK-DAG: module
 
-//      CHECK: cir.func lambda internal private @_ZZ2fnvENK3$_0clEv{{.*}}) extra
+//      CHECK: cir.func lambda internal private dso_local @_ZZ2fnvENK3$_0clEv{{.*}}) extra
 
-//      CHECK:   cir.func @_Z2fnv()
+//      CHECK:   cir.func dso_local @_Z2fnv()
 // CHECK-NEXT:     %0 = cir.alloca !rec_anon2E0, !cir.ptr<!rec_anon2E0>, ["a"]
 //      CHECK:   cir.call @_ZZ2fnvENK3$_0clEv
 
@@ -41,19 +41,19 @@ void l0() {
   a();
 }
 
-// CHECK: cir.func lambda internal private @_ZZ2l0vENK3$_0clEv({{.*}}) extra
+// CHECK: cir.func lambda internal private dso_local @_ZZ2l0vENK3$_0clEv({{.*}}) extra
 
 // CHECK: %0 = cir.alloca !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>, ["this", init] {alignment = 8 : i64}
-// CHECK: cir.store %arg0, %0 : !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>
-// CHECK: %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_anon2E2>>, !cir.ptr<!rec_anon2E2>
+// CHECK: cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>
+// CHECK: %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_anon2E2>>, !cir.ptr<!rec_anon2E2>
 // CHECK: %2 = cir.get_member %1[0] {name = "i"} : !cir.ptr<!rec_anon2E2> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %3 = cir.load %2 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %4 = cir.load %3 : !cir.ptr<!s32i>, !s32i
+// CHECK: %3 = cir.load{{.*}} %2 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %4 = cir.load{{.*}} %3 : !cir.ptr<!s32i>, !s32i
 // CHECK: %5 = cir.const #cir.int<1> : !s32i
 // CHECK: %6 = cir.binop(add, %4, %5) nsw : !s32i
 // CHECK: %7 = cir.get_member %1[0] {name = "i"} : !cir.ptr<!rec_anon2E2> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %8 = cir.load %7 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: cir.store %6, %8 : !s32i, !cir.ptr<!s32i>
+// CHECK: %8 = cir.load{{.*}} %7 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %6, %8 : !s32i, !cir.ptr<!s32i>
 
 // CHECK-LABEL: _Z2l0v
 
@@ -98,10 +98,10 @@ auto g() {
 // CHECK: %0 = cir.alloca !rec_anon2E3, !cir.ptr<!rec_anon2E3>, ["__retval"] {alignment = 8 : i64}
 // CHECK: %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CHECK: %2 = cir.const #cir.int<12> : !s32i
-// CHECK: cir.store %2, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK: %3 = cir.get_member %0[0] {name = "i"} : !cir.ptr<!rec_anon2E3> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: cir.store %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %4 = cir.load %0 : !cir.ptr<!rec_anon2E3>, !rec_anon2E3
+// CHECK: cir.store{{.*}} %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CHECK: %4 = cir.load{{.*}} %0 : !cir.ptr<!rec_anon2E3>, !rec_anon2E3
 // CHECK: cir.return %4 : !rec_anon2E3
 
 // LLVM-LABEL: @_Z1gv()
@@ -127,10 +127,10 @@ auto g2() {
 // CHECK-NEXT: %0 = cir.alloca !rec_anon2E4, !cir.ptr<!rec_anon2E4>, ["__retval", init] {alignment = 8 : i64}
 // CHECK-NEXT: %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CHECK-NEXT: %2 = cir.const #cir.int<12> : !s32i
-// CHECK-NEXT: cir.store %2, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT: cir.store{{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT: %3 = cir.get_member %0[0] {name = "i"} : !cir.ptr<!rec_anon2E4> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK-NEXT: cir.store %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK-NEXT: %4 = cir.load %0 : !cir.ptr<!rec_anon2E4>, !rec_anon2E4
+// CHECK-NEXT: cir.store{{.*}} %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CHECK-NEXT: %4 = cir.load{{.*}} %0 : !cir.ptr<!rec_anon2E4>, !rec_anon2E4
 // CHECK-NEXT: cir.return %4 : !rec_anon2E4
 
 // LLVM-LABEL: @_Z2g2v()
@@ -151,11 +151,11 @@ int f() {
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     %2 = cir.alloca !rec_anon2E4, !cir.ptr<!rec_anon2E4>, ["ref.tmp0"] {alignment = 8 : i64}
 // CHECK-NEXT:     %3 = cir.call @_Z2g2v() : () -> !rec_anon2E4
-// CHECK-NEXT:     cir.store %3, %2 : !rec_anon2E4, !cir.ptr<!rec_anon2E4>
+// CHECK-NEXT:     cir.store{{.*}} %3, %2 : !rec_anon2E4, !cir.ptr<!rec_anon2E4>
 // CHECK-NEXT:     %4 = cir.call @_ZZ2g2vENK3$_0clEv(%2) : (!cir.ptr<!rec_anon2E4>) -> !s32i
-// CHECK-NEXT:     cir.store %4, %0 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:     cir.store{{.*}} %4, %0 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:   }
-// CHECK-NEXT:   %1 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:   %1 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:   cir.return %1 : !s32i
 // CHECK-NEXT: }
 
@@ -197,13 +197,13 @@ int g3() {
 }
 
 // lambda operator()
-// CHECK: cir.func lambda internal private @_ZZ2g3vENK3$_0clERKi{{.*}}!s32i extra
+// CHECK: cir.func lambda internal private dso_local @_ZZ2g3vENK3$_0clERKi{{.*}}!s32i extra
 
 // lambda __invoke()
-// CHECK:   cir.func internal private @_ZZ2g3vEN3$_08__invokeERKi
+// CHECK:   cir.func internal private dso_local @_ZZ2g3vEN3$_08__invokeERKi
 
 // lambda operator int (*)(int const&)()
-// CHECK:   cir.func internal private @_ZZ2g3vENK3$_0cvPFiRKiEEv
+// CHECK:   cir.func internal private dso_local @_ZZ2g3vENK3$_0cvPFiRKiEEv
 
 // CHECK-LABEL: @_Z2g3v()
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
@@ -219,12 +219,12 @@ int g3() {
 // CHECK:     }
 
 // 2. Load ptr to `__invoke()`.
-// CHECK:     cir.store %3, %1 : !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>
+// CHECK:     cir.store{{.*}} %3, %1 : !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>
 // CHECK:     %4 = cir.scope {
 // CHECK:       %7 = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp1", init] {alignment = 4 : i64}
-// CHECK:       %8 = cir.load %1 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>
+// CHECK:       %8 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>
 // CHECK:       %9 = cir.const #cir.int<3> : !s32i
-// CHECK:       cir.store %9, %7 : !s32i, !cir.ptr<!s32i>
+// CHECK:       cir.store{{.*}} %9, %7 : !s32i, !cir.ptr<!s32i>
 
 // 3. Call `__invoke()`, which effectively executes `operator()`.
 // CHECK:       %10 = cir.call %8(%7) : (!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>, !cir.ptr<!s32i>) -> !s32i
@@ -236,7 +236,7 @@ int g3() {
 // lambda operator()
 // LLVM-LABEL: _ZZ2g3vENK3$_0clERKi
 // FIXME: argument attributes should be emitted
-// COM: LLVM-SAME: (ptr noundef nonnull align 1 dereferenceable(1) {{%.*}}, 
+// COM: LLVM-SAME: (ptr noundef nonnull align 1 dereferenceable(1) {{%.*}},
 // COM: LLVM-SAME: ptr noundef nonnull align 4 dereferenceable(4){{%.*}}) #0 align 2
 
 // lambda __invoke()
@@ -303,13 +303,13 @@ struct A {
 // CHECK-SAME: ([[ARG:%.*]]: !cir.ptr<!rec_anon2E7>
 // CHECK: [[ARG_ADDR:%.*]] = cir.alloca !cir.ptr<!rec_anon2E7>, !cir.ptr<!cir.ptr<!rec_anon2E7>>, ["this", init] {alignment = 8 : i64}
 // CHECK: [[RETVAL_ADDR:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
-// CHECK: cir.store [[ARG]], [[ARG_ADDR]] : !cir.ptr<!rec_anon2E7>, !cir.ptr<!cir.ptr<!rec_anon2E7>>
-// CHECK: [[CLS_ANNO7:%.*]] = cir.load [[ARG_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E7>>, !cir.ptr<!rec_anon2E7>
+// CHECK: cir.store{{.*}} [[ARG]], [[ARG_ADDR]] : !cir.ptr<!rec_anon2E7>, !cir.ptr<!cir.ptr<!rec_anon2E7>>
+// CHECK: [[CLS_ANNO7:%.*]] = cir.load{{.*}} [[ARG_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E7>>, !cir.ptr<!rec_anon2E7>
 // CHECK: [[STRUCT_A:%.*]] = cir.get_member [[CLS_ANNO7]][0] {name = "this"} : !cir.ptr<!rec_anon2E7> -> !cir.ptr<!rec_A>
 // CHECK: [[a:%.*]] = cir.get_member [[STRUCT_A]][0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i> loc(#loc70)
-// CHECK: [[TMP0:%.*]] = cir.load [[a]] : !cir.ptr<!s32i>, !s32i
-// CHECK: cir.store [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CHECK: [[RET_VAL:%.*]] = cir.load [[RETVAL_ADDR]] : !cir.ptr<!s32i>,
+// CHECK: [[TMP0:%.*]] = cir.load{{.*}} [[a]] : !cir.ptr<!s32i>, !s32i
+// CHECK: cir.store{{.*}} [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
+// CHECK: [[RET_VAL:%.*]] = cir.load{{.*}} [[RETVAL_ADDR]] : !cir.ptr<!s32i>,
 // CHECK: cir.return [[RET_VAL]] : !s32i
 
 // LLVM-LABEL: @_ZZN1A3fooEvENKUlvE_clEv
@@ -339,14 +339,14 @@ struct A {
 // CHECK-SAME: ([[ARG2:%.*]]: !cir.ptr<!rec_anon2E8>
 // CHECK: [[ARG2_ADDR:%.*]] = cir.alloca !cir.ptr<!rec_anon2E8>, !cir.ptr<!cir.ptr<!rec_anon2E8>>, ["this", init] {alignment = 8 : i64}
 // CHECK: [[RETVAL_ADDR:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
-// CHECK: cir.store [[ARG2]], [[ARG2_ADDR]] : !cir.ptr<!rec_anon2E8>, !cir.ptr<!cir.ptr<!rec_anon2E8>>
-// CHECK: [[CLS_ANNO8:%.*]] = cir.load [[ARG2_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E8>>, !cir.ptr<!rec_anon2E8>
+// CHECK: cir.store{{.*}} [[ARG2]], [[ARG2_ADDR]] : !cir.ptr<!rec_anon2E8>, !cir.ptr<!cir.ptr<!rec_anon2E8>>
+// CHECK: [[CLS_ANNO8:%.*]] = cir.load{{.*}} [[ARG2_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E8>>, !cir.ptr<!rec_anon2E8>
 // CHECK: [[STRUCT_A_PTR:%.*]] = cir.get_member [[CLS_ANNO8]][0] {name = "this"} : !cir.ptr<!rec_anon2E8> -> !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK: [[STRUCT_A:%.*]] = cir.load [[STRUCT_A_PTR]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK: [[STRUCT_A:%.*]] = cir.load{{.*}} [[STRUCT_A_PTR]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK: [[a:%.*]] = cir.get_member [[STRUCT_A]][0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i> loc(#loc70)
-// CHECK: [[TMP0:%.*]] = cir.load [[a]] : !cir.ptr<!s32i>, !s32i
-// CHECK: cir.store [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CHECK: [[RET_VAL:%.*]] = cir.load [[RETVAL_ADDR]] : !cir.ptr<!s32i>
+// CHECK: [[TMP0:%.*]] = cir.load{{.*}} [[a]] : !cir.ptr<!s32i>, !s32i
+// CHECK: cir.store{{.*}} [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
+// CHECK: [[RET_VAL:%.*]] = cir.load{{.*}} [[RETVAL_ADDR]] : !cir.ptr<!s32i>
 // CHECK: cir.return [[RET_VAL]] : !s32i
 
 // LLVM-LABEL: _ZZN1A3barEvENKUlvE_clEv

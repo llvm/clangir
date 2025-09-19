@@ -24,19 +24,19 @@ int extract_a(Data* d) {
     return d->a;
 }
 
-// CIR: cir.func {{@.*foo.*}}(%arg0: !cir.ptr<!rec_Data>
+// CIR: cir.func dso_local {{@.*foo.*}}(%arg0: !cir.ptr<!rec_Data>
 // CIR:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_Data>, !cir.ptr<!cir.ptr<!rec_Data>>, ["d", init]
 // CIR:   [[TMP1:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CIR:   [[TMP2:%.*]] = cir.alloca !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, ["f", init]
-// CIR:   cir.store %arg0, [[TMP0]] : !cir.ptr<!rec_Data>, !cir.ptr<!cir.ptr<!rec_Data>>
+// CIR:   cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_Data>, !cir.ptr<!cir.ptr<!rec_Data>>
 // CIR:   [[TMP3:%.*]] = cir.const #cir.ptr<null> : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
-// CIR:   cir.store [[TMP3]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
+// CIR:   cir.store{{.*}} [[TMP3]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
 // CIR:   [[TMP4:%.*]] = cir.get_global {{@.*extract_a.*}} : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
-// CIR:   cir.store [[TMP4]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
-// CIR:   [[TMP5:%.*]] = cir.load [[TMP2]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
-// CIR:   [[TMP6:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
+// CIR:   cir.store{{.*}} [[TMP4]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
+// CIR:   [[TMP5:%.*]] = cir.load{{.*}} [[TMP2]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
+// CIR:   [[TMP6:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
 // CIR:   [[TMP7:%.*]] = cir.call [[TMP5]]([[TMP6]]) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!rec_Data>) -> !s32i
-// CIR:   cir.store [[TMP7]], [[TMP1]] : !s32i, !cir.ptr<!s32i>
+// CIR:   cir.store{{.*}} [[TMP7]], [[TMP1]] : !s32i, !cir.ptr<!s32i>
 
 // LLVM: define dso_local i32 {{@.*foo.*}}(ptr %0)
 // LLVM:   [[TMP1:%.*]] = alloca ptr, i64 1
@@ -56,7 +56,7 @@ int foo(Data* d) {
 }
 
 // CIR:  cir.func private {{@.*test.*}}() -> !cir.ptr<!cir.func<()>>
-// CIR:  cir.func {{@.*bar.*}}()
+// CIR:  cir.func dso_local {{@.*bar.*}}()
 // CIR:    [[RET:%.*]] = cir.call {{@.*test.*}}() : () -> !cir.ptr<!cir.func<()>>
 // CIR:    cir.call [[RET]]() : (!cir.ptr<!cir.func<()>>) -> ()
 // CIR:    cir.return

@@ -49,7 +49,7 @@ void m() {
   yolm3 q3;
 }
 
-// CHECK:   cir.func @_Z1mv()
+// CHECK:   cir.func dso_local @_Z1mv()
 // CHECK:   cir.alloca !rec_yolm, !cir.ptr<!rec_yolm>, ["q"] {alignment = 4 : i64}
 // CHECK:   cir.alloca !rec_yolm2, !cir.ptr<!rec_yolm2>, ["q2"] {alignment = 8 : i64}
 // CHECK:   cir.alloca !rec_yolm3, !cir.ptr<!rec_yolm3>, ["q3"] {alignment = 4 : i64}
@@ -57,22 +57,22 @@ void m() {
 void shouldGenerateUnionAccess(union U u) {
   u.b = true;
   // CHECK: %[[#BASE:]] = cir.get_member %0[0] {name = "b"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.bool>
-  // CHECK: cir.store %{{.+}}, %[[#BASE]] : !cir.bool, !cir.ptr<!cir.bool>
+  // CHECK: cir.store{{.*}} %{{.+}}, %[[#BASE]] : !cir.bool, !cir.ptr<!cir.bool>
   u.b;
   // CHECK: cir.get_member %0[0] {name = "b"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.bool>
   u.i = 1;
   // CHECK: %[[#BASE:]] = cir.get_member %0[2] {name = "i"} : !cir.ptr<!rec_U> -> !cir.ptr<!s32i>
-  // CHECK: cir.store %{{.+}}, %[[#BASE]] : !s32i, !cir.ptr<!s32i>
+  // CHECK: cir.store{{.*}} %{{.+}}, %[[#BASE]] : !s32i, !cir.ptr<!s32i>
   u.i;
   // CHECK: %[[#BASE:]] = cir.get_member %0[2] {name = "i"} : !cir.ptr<!rec_U> -> !cir.ptr<!s32i>
   u.f = 0.1F;
   // CHECK: %[[#BASE:]] = cir.get_member %0[3] {name = "f"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.float>
-  // CHECK: cir.store %{{.+}}, %[[#BASE]] : !cir.float, !cir.ptr<!cir.float>
+  // CHECK: cir.store{{.*}} %{{.+}}, %[[#BASE]] : !cir.float, !cir.ptr<!cir.float>
   u.f;
   // CHECK: %[[#BASE:]] = cir.get_member %0[3] {name = "f"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.float>
   u.d = 0.1;
   // CHECK: %[[#BASE:]] = cir.get_member %0[4] {name = "d"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.double>
-  // CHECK: cir.store %{{.+}}, %[[#BASE]] : !cir.double, !cir.ptr<!cir.double>
+  // CHECK: cir.store{{.*}} %{{.+}}, %[[#BASE]] : !cir.double, !cir.ptr<!cir.double>
   u.d;
   // CHECK: %[[#BASE:]] = cir.get_member %0[4] {name = "d"} : !cir.ptr<!rec_U> -> !cir.ptr<!cir.double>
 }
@@ -87,5 +87,5 @@ void noCrushOnDifferentSizes() {
   // CHECK:  %[[#TMP0:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 4 : i64}
   // CHECK:  %[[#TMP1:]] = cir.cast(bitcast, %[[#TMP0]] : !cir.ptr<!rec_A>), !cir.ptr<!rec_anon_struct>
   // CHECK:  %[[#TMP2:]] = cir.const #cir.zero : !rec_anon_struct
-  // CHECK:  cir.store %[[#TMP2]], %[[#TMP1]] : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
+  // CHECK:  cir.store{{.*}} %[[#TMP2]], %[[#TMP1]] : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
 }

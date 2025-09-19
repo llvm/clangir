@@ -57,13 +57,13 @@ void empty6(int x) {
 }
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a"] 
-// CHECK: [[TMP1:%.*]] = cir.load %0 : !cir.ptr<!u32i>, !u32i
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} %0 : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [%3 : !u32i],
 // CHECK:       in_out = [],
 // CHECK:       {"addl $$42, $1" "=r,r,~{dirflag},~{fpsr},~{flags}"}) -> !s32i
-// CHECK: cir.store [[TMP2]], [[TMP0]] : !s32i, !cir.ptr<!s32i> loc(#loc42)
+// CHECK: cir.store{{.*}} [[TMP2]], [[TMP0]] : !s32i, !cir.ptr<!s32i> loc(#loc42)
 unsigned add1(unsigned int x) {
   int a;
   __asm__("addl $42, %[val]"
@@ -75,14 +75,14 @@ unsigned add1(unsigned int x) {
 }
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init] {alignment = 4 : i64}
-// CHECK: cir.store %arg0, [[TMP0]] : !u32i, !cir.ptr<!u32i>
-// CHECK: [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!u32i>, !u32i
+// CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !u32i, !cir.ptr<!u32i>
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [],
 // CHECK:       in_out = [%2 : !u32i],
 // CHECK:       {"addl $$42, $0" "=r,0,~{dirflag},~{fpsr},~{flags}"}) -> !u32i
-// CHECK: cir.store [[TMP2]], [[TMP0]] : !u32i, !cir.ptr<!u32i>
+// CHECK: cir.store{{.*}} [[TMP2]], [[TMP0]] : !u32i, !cir.ptr<!u32i>
 unsigned add2(unsigned int x) {
   __asm__("addl $42, %[val]"
       : [val] "+r" (x)
@@ -92,13 +92,13 @@ unsigned add2(unsigned int x) {
 
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init]
-// CHECK: [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!u32i>, !u32i
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [],
 // CHECK:       in_out = [%2 : !u32i],
 // CHECK:       {"addl $$42, $0  \0A\09          subl $$1, $0    \0A\09          imul $$2, $0" "=r,0,~{dirflag},~{fpsr},~{flags}"}) -> !u32i
-// CHECK: cir.store [[TMP2]], [[TMP0]]  : !u32i, !cir.ptr<!u32i>
+// CHECK: cir.store{{.*}} [[TMP2]], [[TMP0]]  : !u32i, !cir.ptr<!u32i>
 unsigned add3(unsigned int x) { // ((42 + x) - 1) * 2
   __asm__("addl $42, %[val]  \n\t\
           subl $1, %[val]    \n\t\
@@ -109,8 +109,8 @@ unsigned add3(unsigned int x) { // ((42 + x) - 1) * 2
 }
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init] 
-// CHECK: cir.store %arg0, [[TMP0]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: [[TMP1:%.*]] = cir.load deref [[TMP0]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CHECK: [[TMP1:%.*]] = cir.load deref{{.*}}  [[TMP0]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: cir.asm(x86_att, 
 // CHECK:       out = [%1 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:       in = [],
@@ -125,16 +125,16 @@ void add4(int *x) {
 // CHECK: [[TMP0:%.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["x", init]
 // CHECK: [[TMP1:%.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["y", init]
 // CHECK: [[TMP2:%.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["r"]
-// CHECK: cir.store %arg0, [[TMP0]] : !cir.float, !cir.ptr<!cir.float>
-// CHECK: cir.store %arg1, [[TMP1]] : !cir.float, !cir.ptr<!cir.float>
-// CHECK: [[TMP3:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.float>, !cir.float
-// CHECK: [[TMP4:%.*]] = cir.load [[TMP1]] : !cir.ptr<!cir.float>, !cir.float
+// CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !cir.float, !cir.ptr<!cir.float>
+// CHECK: cir.store{{.*}} %arg1, [[TMP1]] : !cir.float, !cir.ptr<!cir.float>
+// CHECK: [[TMP3:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.float>, !cir.float
+// CHECK: [[TMP4:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!cir.float>, !cir.float
 // CHECK: [[TMP5:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [%4 : !cir.float, %5 : !cir.float],
 // CHECK:       in_out = [],
 // CHECK:       {"flds $1; flds $2; faddp" "=&{st},imr,imr,~{dirflag},~{fpsr},~{flags}"}) -> !cir.float
-// CHECK: cir.store [[TMP5]], [[TMP2]] : !cir.float, !cir.ptr<!cir.float>
+// CHECK: cir.store{{.*}} [[TMP5]], [[TMP2]] : !cir.float, !cir.ptr<!cir.float>
 float add5(float x, float y) {
    float r;
   __asm__("flds %[x]; flds %[y]; faddp"

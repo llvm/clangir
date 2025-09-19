@@ -12,7 +12,7 @@ end:
   b = b + 2;
 }
 
-// CHECK:   cir.func @_Z2g0i
+// CHECK:   cir.func dso_local @_Z2g0i
 // CHECK-NEXT  %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
 // CHECK-NEXT  %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init] {alignment = 4 : i64}
 // CHECK-NEXT  cir.store %arg0, %0 : !s32i, !cir.ptr<!s32i>
@@ -40,7 +40,7 @@ end:
 }
 
 // Make sure alloca for "y" shows up in the entry block
-// CHECK: cir.func @_Z2g1i(%arg0: !s32i
+// CHECK: cir.func dso_local @_Z2g1i(%arg0: !s32i
 // CHECK-NEXT: %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
 // CHECK-NEXT: %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK-NEXT: %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init] {alignment = 4 : i64}
@@ -58,7 +58,7 @@ end:
 // Make sure (1) we don't get dangling unused cleanup blocks
 //           (2) generated returns consider the function type
 
-// CHECK: cir.func @_Z2g2v() -> !s32i
+// CHECK: cir.func dso_local @_Z2g2v() -> !s32i
 
 // CHECK:     cir.br ^bb2
 // CHECK-NEXT:   ^bb1:  // no predecessors
@@ -76,7 +76,7 @@ int shouldNotGenBranchRet(int x) {
 err:
   return -1;
 }
-// NOFLAT:  cir.func @_Z21shouldNotGenBranchReti
+// NOFLAT:  cir.func dso_local @_Z21shouldNotGenBranchReti
 // NOFLAT:    cir.if %8 {
 // NOFLAT:      cir.goto "err"
 // NOFLAT:    }
@@ -93,12 +93,12 @@ int shouldGenBranch(int x) {
 err:
   return -1;
 }
-// NOFLAT:  cir.func @_Z15shouldGenBranchi
+// NOFLAT:  cir.func dso_local @_Z15shouldGenBranchi
 // NOFLAT:    cir.if %9 {
 // NOFLAT:      cir.goto "err"
 // NOFLAT:    }
 // NOFLAT:    cir.br ^bb1
-// NOFLAT:  ^bb1:  
+// NOFLAT:  ^bb1:
 // NOFLAT:    cir.label "err"
 
 void severalLabelsInARow(int a) {
@@ -110,7 +110,7 @@ end1:
 end2:
   b = b + 2;
 }
-// NOFLAT:  cir.func @_Z19severalLabelsInARowi
+// NOFLAT:  cir.func dso_local @_Z19severalLabelsInARowi
 // NOFLAT:  ^bb[[#BLK1:]]:
 // NOFLAT:    cir.label "end1"
 // NOFLAT:    cir.br ^bb[[#BLK2:]]
@@ -124,7 +124,7 @@ void severalGotosInARow(int a) {
 end:
   b = b + 2;
 }
-// NOFLAT:  cir.func @_Z18severalGotosInARowi
+// NOFLAT:  cir.func dso_local @_Z18severalGotosInARowi
 // NOFLAT:    cir.goto "end"
 // NOFLAT:  ^bb[[#BLK1:]]:
 // NOFLAT:    cir.goto "end"
@@ -136,7 +136,7 @@ void labelWithoutMatch() {
 end:
   return;
 }
-// NOFLAT:  cir.func @_Z17labelWithoutMatchv()
+// NOFLAT:  cir.func dso_local @_Z17labelWithoutMatchv()
 // NOFLAT:    cir.label "end"
 // NOFLAT:    cir.return
 // NOFLAT:  }
@@ -147,7 +147,7 @@ int jumpIntoLoop(int* ar) {
   if (ar)
     goto label;
   return -1;
-  
+
   while (ar) {
   label:
     ++ar;
@@ -156,7 +156,7 @@ int jumpIntoLoop(int* ar) {
   return 0;
 }
 
-// CHECK:  cir.func @_Z12jumpIntoLoopPi
+// CHECK:  cir.func dso_local @_Z12jumpIntoLoopPi
 // CHECK:    cir.brcond {{.*}} ^bb[[#BLK2:]], ^bb[[#BLK3:]]
 // CHECK:  ^bb[[#BLK2]]:
 // CHECK:    cir.br ^bb[[#BODY:]]
@@ -174,7 +174,7 @@ int jumpIntoLoop(int* ar) {
 // CHECK:    cir.brcond {{.*}} ^bb[[#BLK8:]], ^bb[[#EXIT:]]
 // CHECK:  ^bb[[#BLK8]]:
 // CHECK:    cir.br ^bb[[#BODY]]
-// CHECK:  ^bb[[#BODY]]: 
+// CHECK:  ^bb[[#BODY]]:
 // CHECK:    cir.br ^bb[[#COND]]
 // CHECK:  ^bb[[#EXIT]]:
 // CHECK:    cir.br ^bb[[#BLK7:]]
@@ -196,10 +196,10 @@ err:
       goto err;
     ++ar;
   }
-  
+
   return 0;
 }
-// CHECK:  cir.func @_Z12jumpFromLoopPi
+// CHECK:  cir.func dso_local @_Z12jumpFromLoopPi
 // CHECK:    cir.brcond {{.*}} ^bb[[#RETURN1:]], ^bb[[#BLK3:]]
 // CHECK:  ^bb[[#RETURN1]]:
 // CHECK:    cir.return
@@ -209,7 +209,7 @@ err:
 // CHECK:    cir.br ^bb[[#BLK5:]]
 // CHECK:  ^bb[[#BLK5]]:
 // CHECK:    cir.br ^bb[[#COND:]]
-// CHECK:  ^bb[[#COND]]: 
+// CHECK:  ^bb[[#COND]]:
 // CHECK:    cir.brcond {{.*}} ^bb[[#BODY:]], ^bb[[#EXIT:]]
 // CHECK:  ^bb[[#BODY]]:
 // CHECK:    cir.br ^bb[[#IF42:]]
@@ -224,12 +224,12 @@ err:
 // CHECK:  ^bb[[#EXIT]]:
 // CHECK:    cir.br ^bb[[#RETURN2:]]
 // CHECK:  ^bb[[#RETURN2]]:
-// CHECK:    cir.return 
+// CHECK:    cir.return
 // CHECK:  }
-  
+
 
 void flatLoopWithNoTerminatorInFront(int* ptr) {
-  
+
   if (ptr)
     goto loop;
 
@@ -244,17 +244,17 @@ void flatLoopWithNoTerminatorInFront(int* ptr) {
   ;
 }
 
-// CHECK:  cir.func @_Z31flatLoopWithNoTerminatorInFrontPi
+// CHECK:  cir.func dso_local @_Z31flatLoopWithNoTerminatorInFrontPi
 // CHECK:    cir.brcond {{.*}} ^bb[[#BLK2:]], ^bb[[#BLK3:]]
 // CHECK:  ^bb[[#BLK2]]:
 // CHECK:    cir.br ^bb[[#LABEL_LOOP:]]
 // CHECK:  ^bb[[#BLK3]]:
-// CHECK:    cir.br ^bb[[#BLK4:]] 
+// CHECK:    cir.br ^bb[[#BLK4:]]
 // CHECK:  ^bb[[#BLK4]]:
 // CHECK:    cir.br ^bb[[#BLK5:]]
 // CHECK:  ^bb[[#BLK5]]:
 // CHECK:    cir.br ^bb[[#BODY:]]
-// CHECK:  ^bb[[#COND]]: 
+// CHECK:  ^bb[[#COND]]:
 // CHECK:    cir.brcond {{.*}} ^bb[[#BODY]], ^bb[[#EXIT:]]
 // CHECK:  ^bb[[#BODY]]:
 // CHECK:    cir.br ^bb[[#BLK8:]]
@@ -282,13 +282,13 @@ struct S get();
 void bar(struct S);
 
 void foo() {
-  { 
-    label:      
+  {
+    label:
       bar(get());
-  }   
+  }
 }
 
-// NOFLAT: cir.func @_Z3foov()
+// NOFLAT: cir.func dso_local @_Z3foov()
 // NOFLAT:   cir.scope {
 // NOFLAT:     cir.label "label"
 // NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0"]
@@ -305,7 +305,7 @@ extern "C" void multiple_non_case(int v) {
   }
 }
 
-// NOFLAT: cir.func @multiple_non_case
+// NOFLAT: cir.func dso_local @multiple_non_case
 // NOFLAT: cir.switch
 // NOFLAT: cir.case(default, []) {
 // NOFLAT: cir.call @action1()
@@ -328,7 +328,7 @@ extern "C" void case_follow_label(int v) {
   }
 }
 
-// NOFLAT: cir.func @case_follow_label
+// NOFLAT: cir.func dso_local @case_follow_label
 // NOFLAT: cir.switch
 // NOFLAT: cir.case(equal, [#cir.int<1> : !s32i]) {
 // NOFLAT: cir.label "label"
@@ -352,7 +352,7 @@ extern "C" void default_follow_label(int v) {
   }
 }
 
-// NOFLAT: cir.func @default_follow_label
+// NOFLAT: cir.func dso_local @default_follow_label
 // NOFLAT: cir.switch
 // NOFLAT: cir.case(anyof, [#cir.int<1> : !s32i, #cir.int<2> : !s32i]) {
 // NOFLAT: cir.call @action1()

@@ -9,22 +9,22 @@ u16 bswap_u16(u16 x) {
   return __builtin_bswap16(x);
 }
 
-// CHECK: cir.func @_Z9bswap_u16t
-// CHECK:   %{{.+}} = cir.bswap(%{{.+}} : !u16i) : !u16i
+// CHECK: cir.func dso_local @_Z9bswap_u16t
+// CHECK:   %{{.+}} = cir.byte_swap %{{.+}} : !u16i
 // CHECK: }
 
 u32 bswap_u32(u32 x) {
   return __builtin_bswap32(x);
 }
 
-// CHECK: cir.func @_Z9bswap_u32j
-// CHECK:   %{{.+}} = cir.bswap(%{{.+}} : !u32i) : !u32i
+// CHECK: cir.func dso_local @_Z9bswap_u32j
+// CHECK:   %{{.+}} = cir.byte_swap %{{.+}} : !u32i
 // CHECK: }
 
 u64 bswap_u64(u64 x) {
   return __builtin_bswap64(x);
 }
 
-// CHECK: cir.func @_Z9bswap_u64y
-// CHECK:   %{{.+}} = cir.bswap(%{{.+}} : !u64i) : !u64i
+// CHECK: cir.func dso_local @_Z9bswap_u64y
+// CHECK:   %{{.+}} = cir.byte_swap %{{.+}} : !u64i
 // CHECK: }

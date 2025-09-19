@@ -30,6 +30,8 @@ if(CLANG_ENABLE_CIR)
   include_directories(${CMAKE_BINARY_DIR}/tools/mlir/include)
 endif()
 
+set(deps)
+
 if(CLANG_ENABLE_STATIC_ANALYZER)
   list(APPEND link_libs
     clangStaticAnalyzerFrontend

@@ -1,6 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
-// XFAIL: *
 
 // LLVM: %struct.S1 = type { [3200 x double], [3200 x double] }
 // LLVM: %struct.S2 = type { [10 x ptr] }
@@ -8,14 +7,15 @@
 // LLVM: %struct.S4 = type { i32, i32, i32 }
 // LLVM: %union.U1 = type { [2000 x i32] }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: @s1 = global %struct.S1 zeroinitializer, align 8
-// LLVM: @b1 = global ptr getelementptr inbounds (%struct.S1, ptr @s1, i32 0, i32 1), align 8
+// LLVM: @b1 = global ptr getelementptr inbounds nuw (i8, ptr @s1, i64 25600), align 8
 // LLVM: @s2 = global %struct.S2 zeroinitializer, align 8
 // LLVM: @b2 = global ptr @s2, align 8
 // LLVM: @s3 = global %struct.S3 zeroinitializer, align 4
-// LLVM: @b3 = global ptr getelementptr inbounds (%struct.S3, ptr @s3, i32 0, i32 2), align 8
+// LLVM: @b3 = global ptr getelementptr inbounds nuw (i8, ptr @s3, i64 16000), align 8
 // LLVM: @s4 = global %struct.S4 zeroinitializer, align 4
-// LLVM: @b4 = global ptr getelementptr inbounds (%struct.S4, ptr @s4, i32 0, i32 2), align 8
+// LLVM: @b4 = global ptr getelementptr inbounds nuw (i8, ptr @s4, i64 8), align 8
 // LLVM: @u1 = global %union.U1 zeroinitializer, align 4
 // LLVM: @b5 = global ptr @u1, align 8
 

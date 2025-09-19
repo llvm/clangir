@@ -14,5 +14,5 @@ void test() {
 // CHECK-NOT: cir.func linkonce_odr @_ZN6StringC2EPKc
 // CHECK-NOT: cir.func linkonce_odr @_ZN6StringC1EPKc
 
-// CHECK: cir.func @_Z4testv()
+// CHECK: cir.func dso_local @_Z4testv()
 // CHECK:   cir.call @_ZN6StringC1Ev(%0) : (!cir.ptr<!rec_String>) -> ()

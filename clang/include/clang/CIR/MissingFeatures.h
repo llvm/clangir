@@ -74,6 +74,7 @@ struct MissingFeatures {
   // GNU vectors are done, but other kinds of vectors haven't been implemented.
   static bool scalableVectors() { return false; }
   static bool vectorConstants() { return false; }
+  static bool vectorToX86AmxCasting() { return false; }
 
   // Address space related
   static bool addressSpace() { return false; }
@@ -239,7 +240,6 @@ struct MissingFeatures {
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
-  static bool tryMarkNoThrow() { return false; }
   static bool indirectBranch() { return false; }
   static bool escapedLocals() { return false; }
   static bool deferredReplacements() { return false; }
@@ -251,6 +251,7 @@ struct MissingFeatures {
   static bool createLaunderInvariantGroup() { return false; }
   static bool hipModuleCtor() { return false; }
   static bool checkMacOSXTriple() { return false; }
+  static bool getSemanticInterposition() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }

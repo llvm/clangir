@@ -28,10 +28,32 @@ void t() {
 // FIXME: we should explicitly model std::move here since it will
 // be useful at least for the lifetime checker.
 
-// CHECK: cir.func @_Z1tv()
+// CHECK: cir.func dso_local @_Z1tv()
 // CHECK:   %[[#Addr:]] = cir.alloca ![[StdString]], {{.*}} ["ref.tmp0"]
 // CHECK:   %[[#RValStr:]] = cir.call @_Z6getstrv() : () -> ![[StdString]]
-// CHECK:   cir.store %[[#RValStr]], %[[#Addr]]
+// CHECK:   cir.store{{.*}} %[[#RValStr]], %[[#Addr]]
 // CHECK:   cir.call @_Z7emplaceOSt6string(%[[#Addr]])
 // CHECK:   cir.return
 // CHECK: }
+
+struct S {
+  S() = default;
+  S(S&&) = default;
+
+  int val;
+};
+
+// CHECK-LABEL:   cir.func {{.*}} @_ZN1SC1EOS_
+// CHECK-SAME:      special_member<#cir.cxx_ctor<!rec_S, move>>
+
+void test_ctor() {
+// CHECK-LABEL:   cir.func {{.*}} @_Z9test_ctorv()
+// CHECK:           %[[VAR_A:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
+// CHECK:           %[[VAR_B:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
+// CHECK:           cir.call @_ZN1SC1EOS_(%[[VAR_B]], %[[VAR_A]]) : (!cir.ptr<!rec_S>, !cir.ptr<!rec_S>) -> ()
+// CHECK:           cir.return
+// CHECK:         }
+
+  S a;
+  S b(std::move(a));
+}

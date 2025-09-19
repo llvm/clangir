@@ -212,7 +212,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
       loc, valist, IsFPR ? "vr_top" : "gr_top", regTopIndex);
   auto regTop = builder.create<cir::LoadOp>(loc, regTopP);
   auto i8Ty = mlir::IntegerType::get(builder.getContext(), 8);
-  auto i8PtrTy = cir::PointerType::get(builder.getContext(), i8Ty);
+  auto i8PtrTy = cir::PointerType::get(i8Ty);
   auto castRegTop = builder.createBitcast(regTop, i8PtrTy);
   auto resAsInt8P = builder.create<cir::PtrStrideOp>(loc, castRegTop.getType(),
                                                      castRegTop, regOffs);
@@ -334,7 +334,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   contBlock->addArgument(onStackPtr.getType(), loc);
   auto resP = contBlock->getArgument(0);
   cir_cconv_assert(mlir::isa<cir::PointerType>(resP.getType()));
-  auto opResPTy = cir::PointerType::get(builder.getContext(), opResTy);
+  auto opResPTy = cir::PointerType::get(opResTy);
   auto castResP = builder.createBitcast(resP, opResPTy);
   auto res = builder.create<cir::LoadOp>(loc, castResP);
   // there would be another level of ptr dereference if indirect arg passing

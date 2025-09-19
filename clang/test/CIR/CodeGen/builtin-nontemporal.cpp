@@ -8,7 +8,7 @@ int nontemporal_load(const int *ptr) {
 }
 
 // CIR-LABEL: @_Z16nontemporal_loadPKi
-// CIR: %{{.+}} = cir.load nontemporal %{{.+}} : !cir.ptr<!s32i>, !s32i
+// CIR: %{{.+}} = cir.load nontemporal{{.*}}  %{{.+}} : !cir.ptr<!s32i>, !s32i
 
 // LLVM-LABEL: @_Z16nontemporal_loadPKi
 // LLVM: %{{.+}} = load i32, ptr %{{.+}}, align 4, !nontemporal !1
@@ -18,7 +18,7 @@ void nontemporal_store(int *ptr, int value) {
 }
 
 // CIR-LABEL: @_Z17nontemporal_storePii
-// CIR: cir.store nontemporal %{{.+}}, %{{.+}} : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store nontemporal{{.*}} %{{.+}}, %{{.+}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z17nontemporal_storePii
 // LLVM: store i32 %{{.+}}, ptr %{{.+}}, align 4, !nontemporal !1

@@ -12,7 +12,7 @@ void c() {
   e(d);
 }
 
-// CIR: cir.func no_proto @c()
+// CIR: cir.func no_proto dso_local @c()
 // CIR: [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, %{{[0-9]+}} : !u64i, ["vla"] {alignment = 16 : i64}
 // CIR: [[TMP1:%.*]] = cir.cast(bitcast, [[TMP0]] : !cir.ptr<!s32i>), !cir.ptr<!void>
 // CIR-NEXT: [[TMP2:%.*]] = cir.objsize([[TMP1]] : <!void>, max) -> !u64i

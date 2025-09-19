@@ -8,5 +8,5 @@ void foo() {
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !s32i
 // CHECK: [[TMP1:%.*]] = cir.const #cir.int<42>
-// CHECK: cir.store [[TMP1]], [[TMP0]]
+// CHECK: cir.store{{.*}} [[TMP1]], [[TMP0]]
 // CHECK: cir.call @_Z3barRKi([[TMP0]])

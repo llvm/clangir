@@ -18,6 +18,10 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
+namespace clang {
+class CUDAKernelCallExpr;
+}
+
 namespace clang::CIRGen {
 
 class CIRGenFunction;

@@ -13,13 +13,15 @@ double d(int a, int b) {
 // CIR-NEXT:   %[[ADDR:.*]] = cir.alloc.exception 8
 // CIR-NEXT:   %[[STR:.*]] = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 28>>
 // CIR-NEXT:   %[[STR_ADD:.*]] = cir.cast(array_to_ptrdecay, %[[STR]] : !cir.ptr<!cir.array<!s8i x 28>>), !cir.ptr<!s8i>
-// CIR-NEXT:   cir.store %[[STR_ADD]], %[[ADDR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
+// CIR-NEXT:   cir.store{{.*}} %[[STR_ADD]], %[[ADDR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR-NEXT:   cir.throw %[[ADDR]] : !cir.ptr<!cir.ptr<!s8i>>, @_ZTIPKc
 // CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:  // no predecessors
+// CIR-NEXT:   cir.yield
 // CIR-NEXT: }
 
 // LLVM: %[[ADDR:.*]] = call ptr @__cxa_allocate_exception(i64 8)
-// LLVM: store ptr @.str, ptr %[[ADDR]], align 8
+// LLVM: store ptr @.str, ptr %[[ADDR]], align 16
 // LLVM: call void @__cxa_throw(ptr %[[ADDR]], ptr @_ZTIPKc, ptr null)
 // LLVM: unreachable
 
@@ -40,7 +42,7 @@ void refoo1() {
 // CIR-LABEL: @_Z6refoo1v()
 // CIR:   %[[V0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init] {alignment = 4 : i64}
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
-// CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:   cir.store{{.*}} %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
 // CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
@@ -51,9 +53,9 @@ void refoo1() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
-// CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
 // CIR:   }
@@ -111,16 +113,16 @@ void refoo2() {
 // CIR-LABEL: @_Z6refoo2v()
 // CIR:   %[[V0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init] {alignment = 4 : i64}
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
-// CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:   cir.store{{.*}} %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
 // CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
 // CIR:       cir.scope {
 // CIR:         %[[V3:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CIR:         %[[V4:.*]] = cir.const #cir.int<0> : !s32i
-// CIR:         cir.store %[[V4]], %[[V3]] : !s32i, !cir.ptr<!s32i>
+// CIR:         cir.store{{.*}} %[[V4]], %[[V3]] : !s32i, !cir.ptr<!s32i>
 // CIR:         cir.for : cond {
-// CIR:           %[[V5:.*]] = cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
+// CIR:           %[[V5:.*]] = cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 // CIR:           %[[V6:.*]] = cir.const #cir.int<5> : !s32i
 // CIR:           %[[V7:.*]] = cir.cmp(lt, %[[V5]], %[[V6]]) : !s32i, !cir.bool
 // CIR:           cir.condition(%[[V7]])
@@ -135,9 +137,9 @@ void refoo2() {
 // CIR:           }
 // CIR:           cir.yield
 // CIR:         } step {
-// CIR:           %[[V5:.*]] = cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
+// CIR:           %[[V5:.*]] = cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 // CIR:           %[[V6:.*]] = cir.unary(inc, %[[V5]]) nsw : !s32i, !s32i
-// CIR:           cir.store %[[V6]], %[[V3]] : !s32i, !cir.ptr<!s32i>
+// CIR:           cir.store{{.*}} %[[V6]], %[[V3]] : !s32i, !cir.ptr<!s32i>
 // CIR:           cir.yield
 // CIR:         }
 // CIR:       }
@@ -145,9 +147,9 @@ void refoo2() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
-// CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
 // CIR:   }
@@ -216,7 +218,7 @@ void refoo3() {
 // CIR-LABEL: @_Z6refoo3v()
 // CIR:   %[[V0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init] {alignment = 4 : i64}
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
-// CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:   cir.store{{.*}} %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
 // CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
@@ -227,9 +229,9 @@ void refoo3() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
-// CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
 // CIR:   }
@@ -293,3 +295,140 @@ void refoo4() {
 // LLVM: invoke void @__cxa_rethrow
 // LLVM: unreachable
 // LLVM: invoke void @_ZN1SC2Ev
+
+void statements() {
+  throw 0;
+  123 + 456;
+}
+
+// CIR:      cir.func dso_local @_Z10statementsv()
+// CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
+// CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:
+// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
+// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
+// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
+// CIR-NEXT:   cir.return
+// CIR-NEXT: }
+
+// LLVM: call void @__cxa_throw
+// LLVM: unreachable
+
+void paren_expr() { (throw 0, 123 + 456); }
+
+// CIR:       cir.func dso_local @_Z10paren_exprv()
+// CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
+// CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:
+// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
+// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
+// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
+// CIR-NEXT:   cir.return
+// CIR-NEXT: }
+
+// LLVM: call void @__cxa_throw
+// LLVM: unreachable
+
+int ternary_throw1(bool condition, int x) {
+  return condition ? throw x : x;
+}
+
+// CIR:     cir.func dso_local @_Z14ternary_throw1bi(%arg0: !cir.bool
+// CIR-NEXT:   %[[V0:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["condition", init] {alignment = 1 : i64}
+// CIR-NEXT:   %[[V1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
+// CIR-NEXT:   %[[V2:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
+// CIR-NEXT:   %[[V3:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
+// CIR-NEXT:   %[[V4:.*]] = cir.const #false
+// CIR-NEXT:   %[[V5:.*]] = cir.const #true
+// CIR-NEXT:   cir.store %arg0, %[[V0]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR-NEXT:   cir.store %arg1, %[[V1]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V6:.*]] = cir.load align(1) %[[V0]] : !cir.ptr<!cir.bool>, !cir.bool
+// CIR-NEXT:   cir.store align(1) %[[V4]], %[[V3]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR-NEXT:   %[[V7:.*]] = cir.ternary(%[[V6]], true {
+// CIR-NEXT:     %[[V9:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
+// CIR-NEXT:     cir.store align(1) %[[V5]], %[[V3]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR-NEXT:     %[[V10:.*]] = cir.load align(4) %[[V1]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:     cir.store align(16) %[[V10]], %[[V9]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:     cir.throw %[[V9]] : !cir.ptr<!s32i>, @_ZTIi
+// CIR-NEXT:     cir.unreachable
+// CIR-NEXT:   ^bb1:  // no predecessors
+// CIR-NEXT:     %[[V11:.*]] = cir.const #cir.int<0> : !s32i loc(#loc173)
+// CIR-NEXT:     cir.yield %[[V11]] : !s32i
+// CIR-NEXT:   }, false {
+// CIR-NEXT:     %[[V9:.*]] = cir.load align(4) %[[V1]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:     cir.yield %[[V9]] : !s32i
+// CIR-NEXT:   }) : (!cir.bool) -> !s32i
+// CIR-NEXT:   cir.store %[[V7]], %[[V2]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V8:.*]] = cir.load %[[V2]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:   cir.return %[[V8]] : !s32i
+// CIR-NEXT: }
+
+// LLVM: @_Z14ternary_throw1bi
+// LLVM:   %[[V3:.*]] = alloca i8, i64 1, align 1
+// LLVM:   %[[V4:.*]] = alloca i32, i64 1, align 4
+// LLVM:   %[[V5:.*]] = alloca i32, i64 1, align 4
+// LLVM:   %[[V6:.*]] = alloca i8, i64 1, align 1
+// LLVM:   %[[V7:.*]] = zext i1 %[[V0:.*]] to i8
+// LLVM:   store i8 %[[V7]], ptr %[[V3]], align 1
+// LLVM:   store i32 %[[V1:.*]], ptr %[[V4]], align 4
+// LLVM:   %[[V8:.*]] = load i8, ptr %[[V3]], align 1
+// LLVM:   %[[V9:.*]] = trunc i8 %[[V8]] to i1
+// LLVM:   store i8 0, ptr %[[V6]], align 1
+// LLVM:   br i1 %[[V9]], label %[[B10:.*]], label %[[B14:.*]]
+// LLVM: [[B10]]:
+// LLVM:   %[[V11:.*]] = call ptr @__cxa_allocate_exception(i64 4)
+// LLVM:   store i8 1, ptr %[[V6]], align 1
+// LLVM:   %[[V12:.*]] = load i32, ptr %[[V4]], align 4
+// LLVM:   store i32 %[[V12]], ptr %[[V11]], align 16
+// LLVM:   call void @__cxa_throw(ptr %[[V11]], ptr @_ZTIi, ptr null)
+// LLVM:   unreachable
+// LLVM: [[B13]]:
+// LLVM:   br label %[[B16:.*]]
+// LLVM: [[B14]]:
+// LLVM:   %[[V15:.*]] = load i32, ptr %[[V4]], align 4
+// LLVM:   br label %[[B16]]
+// LLVM: [[B16]]:
+// LLVM:   %[[V17:.*]] = phi i32 [ 0, %[[V13]] ], [ %[[V15]], %[[V14]] ]
+// LLVM:   store i32 %[[V17]], ptr %[[V5]], align 4
+// LLVM:   %[[V18:.*]] = load i32, ptr %[[V5]], align 4
+// LLVM:   ret i32 %[[V18]]
+
+int ternary_throw2(bool condition, int x) {
+  return condition ? x : throw x;
+}
+
+// LLVM: @_Z14ternary_throw2bi
+// LLVM:   %[[V3:.*]] = alloca i8, i64 1, align 1
+// LLVM:   %[[V4:.*]] = alloca i32, i64 1, align 4
+// LLVM:   %[[V5:.*]] = alloca i32, i64 1, align 4
+// LLVM:   %[[V6:.*]] = alloca i8, i64 1, align 1
+// LLVM:   %[[V7:.*]] = zext i1 %[[V0:.*]] to i8
+// LLVM:   store i8 %[[V7]], ptr %[[V3]], align 1
+// LLVM:   store i32 %[[V1]], ptr %[[V4]], align 4
+// LLVM:   %[[V8:.*]] = load i8, ptr %[[V3]], align 1
+// LLVM:   %[[V9:.*]] = trunc i8 %[[V8]] to i1
+// LLVM:   store i8 0, ptr %[[V6]], align 1
+// LLVM:   br i1 %[[V9]], label %[[B10:.*]], label %[[B12:.*]]
+// LLVM: [[B10]]:
+// LLVM:   %[[V11:.*]] = load i32, ptr %[[V4]], align 4
+// LLVM:   br label %[[B16:.*]]
+// LLVM: [[B12]]:
+// LLVM:   %[[V13:.*]] = call ptr @__cxa_allocate_exception(i64 4)
+// LLVM:   store i8 1, ptr %[[V6]], align 1
+// LLVM:   %[[V14:.*]] = load i32, ptr %[[V4]], align 4
+// LLVM:   store i32 %[[V14]], ptr %[[V13]], align 16
+// LLVM:   call void @__cxa_throw(ptr %[[V13]], ptr @_ZTIi, ptr null)
+// LLVM:   unreachable
+// LLVM: [[B15:.*]]:
+// LLVM:   br label %[[B16:.*]]
+// LLVM: [[B16]]:
+// LLVM:   %[[V17:.*]] = phi i32 [ 0, %[[V15]] ], [ %[[V11]], %[[V10]] ]
+// LLVM:   store i32 %[[V17]], ptr %[[V5]], align 4
+// LLVM:   %[[V18:.*]] = load i32, ptr %[[V5]], align 4
+// LLVM:   ret i32 %[[V18]]

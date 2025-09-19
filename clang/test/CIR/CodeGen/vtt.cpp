@@ -2,7 +2,6 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir -emit-llvm -fno-clangir-call-conv-lowering %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll  %s
-// XFAIL: *
 
 class A {
 public:
@@ -39,9 +38,9 @@ int f() {
 
 // Class A constructor
 // CIR: cir.func linkonce_odr @_ZN1AC2Ev(%arg0: !cir.ptr<!rec_A>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1A, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_A>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1A, address_point = <index = 0, offset = 2>) : !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{.*}} : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR: }
 
 // Vtable of Class D
@@ -52,21 +51,24 @@ int f() {
 // Class B constructor
 // CIR: cir.func linkonce_odr @_ZN1BC2Ev(%arg0: !cir.ptr<!rec_B>
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 0 -> !cir.ptr<!cir.ptr<!void>>
-// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_B>), !cir.ptr<!cir.ptr<!void>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
-// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_B>), !cir.ptr<!cir.ptr<!u8i>>
-// CIR:   %{{[0-9]+}} = cir.load %{{[0-9]+}} : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{.*}} : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vptr), !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.const #cir.int<-24> : !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!s64i>
-// CIR:   %{{[0-9]+}} = cir.load %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_B>), !cir.ptr<!cir.ptr<!void>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_B> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR: }
 
 // LLVM-LABEL: @_ZN1BC2Ev
@@ -76,71 +78,76 @@ int f() {
 // LLVM:   %[[VTT:.*]] = load ptr, ptr %[[VTT_ADDR]], align 8
 // LLVM:   %[[V:.*]] = load ptr, ptr %[[VTT]], align 8
 // LLVM:   store ptr %[[V]], ptr %[[THIS]], align 8
-// LLVM:   getelementptr inbounds i8, ptr %[[VTT]], i32 1
+// LLVM:   getelementptr inbounds ptr, ptr %[[VTT]], i32 1
 // LLVM:   ret void
 // LLVM: }
 
 // Class C constructor
 // CIR: cir.func linkonce_odr @_ZN1CC2Ev(%arg0: !cir.ptr<!rec_C>
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 0 -> !cir.ptr<!cir.ptr<!void>>
-// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_C>), !cir.ptr<!cir.ptr<!void>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
-// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_C>), !cir.ptr<!cir.ptr<!u8i>>
-// CIR:   %{{[0-9]+}} = cir.load %{{[0-9]+}} : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vptr), !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.const #cir.int<-24> : !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!s64i>
-// CIR:   %{{[0-9]+}} = cir.load %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
-// CIR:   %{{[0-9]+}} = cir.ptr_stride(%{{[0-9]+}} : !cir.ptr<!u8i>, %{{[0-9]+}} : !s64i), !cir.ptr<!u8i>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_C>), !cir.ptr<!cir.ptr<!void>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// CIR:   %{{[0-9]+}} = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s64i>, !s64i
+// CIR:   %{{[0-9]+}} = cir.ptr_stride %{{[0-9]+}}, %{{[0-9]+}} : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
+// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!u8i>), !cir.ptr<!rec_C>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR: }
 
 // Class D constructor
 // CIR: cir.func linkonce_odr @_ZN1DC1Ev(%arg0: !cir.ptr<!rec_D>
 // CIR:   %{{[0-9]+}} = cir.alloca !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>, ["this", init] {alignment = 8 : i64}
-// CIR:   cir.store %arg0, %{{[0-9]+}} : !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>
-// CIR:   %[[D_PTR:.*]] = cir.load %0 : !cir.ptr<!cir.ptr<!rec_D>>, !cir.ptr<!rec_D>
-// CIR:   %[[A_PTR:.*]] = cir.base_class_addr(%[[D_PTR]] : !cir.ptr<!rec_D> nonnull) [40] -> !cir.ptr<!rec_A>
+// CIR:   cir.store{{.*}} %arg0, %{{[0-9]+}} : !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>
+// CIR:   %[[D_PTR:.*]] = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_D>>, !cir.ptr<!rec_D>
+// CIR:   %[[A_PTR:.*]] = cir.base_class_addr %[[D_PTR]] : !cir.ptr<!rec_D> nonnull [40] -> !cir.ptr<!rec_A>
 // CIR:   cir.call @_ZN1AC2Ev(%[[A_PTR]]) : (!cir.ptr<!rec_A>) -> ()
 
-// CIR:   %[[B_PTR:.*]] = cir.base_class_addr(%[[D_PTR]] : !cir.ptr<!rec_D> nonnull) [0] -> !cir.ptr<!rec_B>
+// CIR:   %[[B_PTR:.*]] = cir.base_class_addr %[[D_PTR]] : !cir.ptr<!rec_D> nonnull [0] -> !cir.ptr<!rec_B>
 // CIR:   %[[VTT_D_TO_B:.*]] = cir.vtt.address_point @_ZTT1D, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
 // CIR:   cir.call @_ZN1BC2Ev(%[[B_PTR]], %[[VTT_D_TO_B]]) : (!cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!void>>) -> ()
 
-// CIR:   %[[C_PTR:.*]] = cir.base_class_addr(%1 : !cir.ptr<!rec_D> nonnull) [16] -> !cir.ptr<!rec_C>
+// CIR:   %[[C_PTR:.*]] = cir.base_class_addr %1 : !cir.ptr<!rec_D> nonnull [16] -> !cir.ptr<!rec_C>
 // CIR:   %[[VTT_D_TO_C:.*]] = cir.vtt.address_point @_ZTT1D, offset = 3 -> !cir.ptr<!cir.ptr<!void>>
 // CIR:   cir.call @_ZN1CC2Ev(%[[C_PTR]], %[[VTT_D_TO_C]]) : (!cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!void>>) -> ()
 
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, vtable_index = 0, address_point_index = 3) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_D>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, vtable_index = 2, address_point_index = 3) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, address_point = <index = 0, offset = 3>) : !cir.vptr
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_D> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, address_point = <index = 2, offset = 3>) : !cir.vptr
 
-// CIR:   %{{[0-9]+}} = cir.base_class_addr(%{{[0-9]+}} : !cir.ptr<!rec_D> nonnull) [40] -> !cir.ptr<!rec_A>
-// CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_A>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, vtable_index = 1, address_point_index = 3) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.base_class_addr %{{[0-9]+}} : !cir.ptr<!rec_D> nonnull [40] -> !cir.ptr<!rec_A>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1D, address_point = <index = 1, offset = 3>) : !cir.vptr
 
-// CIR:   cir.base_class_addr(%{{[0-9]+}} : !cir.ptr<!rec_D> nonnull) [16] -> !cir.ptr<!rec_C>
-// CIR:   cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_C>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
+// CIR:   cir.base_class_addr %{{[0-9]+}} : !cir.ptr<!rec_D> nonnull [16] -> !cir.ptr<!rec_C>
+// CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_C> -> !cir.ptr<!cir.vptr>
+// CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
 // CIR:   cir.return
 // CIR: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM-LABEL: @_ZN1DC1Ev
 // LLVM:   %2 = alloca ptr, i64 1, align 8
 // LLVM:   store ptr %0, ptr %2, align 8
 // LLVM:   %[[THIS:.*]] = load ptr, ptr %2, align 8
 // LLVM:   %[[BASE_A:.*]] = getelementptr i8, ptr %[[THIS]], i32 40
 // LLVM:   call void @_ZN1AC2Ev(ptr %[[BASE_A]])
-// LLVM:   call void @_ZN1BC2Ev(ptr %[[THIS]], ptr getelementptr inbounds ([7 x ptr], ptr @_ZTT1D, i32 0, i32 1))
+// LLVM:   call void @_ZN1BC2Ev(ptr %[[THIS]], ptr getelementptr inbounds nuw (i8, ptr @_ZTT1D, i64 8))
 // LLVM:   %[[BASE_C:.*]] = getelementptr i8, ptr %[[THIS]], i32 16
-// LLVM:   call void @_ZN1CC2Ev(ptr %[[BASE_C]], ptr getelementptr inbounds ([7 x ptr], ptr @_ZTT1D, i32 0, i32 3))
+// LLVM:   call void @_ZN1CC2Ev(ptr %[[BASE_C]], ptr getelementptr inbounds nuw (i8, ptr @_ZTT1D, i64 24))
 // LLVM:   ret void
 // LLVM: }
 
@@ -165,14 +172,14 @@ namespace other {
   }
 }
 
-// CIR-LABEL:   cir.func @_ZN5other1BD1Ev(
+// CIR-LABEL:   cir.func dso_local @_ZN5other1BD1Ev(
 // CIR-SAME:                               %[[VAL_0:.*]]: !cir.ptr<!rec_other3A3AB>
 // CIR:           %[[VAL_1:.*]] = cir.alloca !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>, ["this", init] {alignment = 8 : i64}
-// CIR:           cir.store %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>
-// CIR:           %[[VAL_2:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<!rec_other3A3AB>>, !cir.ptr<!rec_other3A3AB>
+// CIR:           cir.store{{.*}} %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>
+// CIR:           %[[VAL_2:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.ptr<!rec_other3A3AB>>, !cir.ptr<!rec_other3A3AB>
 // CIR:           %[[VAL_3:.*]] = cir.vtt.address_point @_ZTTN5other1BE, offset = 0 -> !cir.ptr<!cir.ptr<!void>>
 // CIR:           cir.call @_ZN5other1BD2Ev(%[[VAL_2]], %[[VAL_3]]) : (!cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!void>>) -> ()
-// CIR:           %[[VAL_4:.*]] = cir.base_class_addr(%[[VAL_2]] : !cir.ptr<!rec_other3A3AB> nonnull) [0] -> !cir.ptr<!rec_other3A3AA>
+// CIR:           %[[VAL_4:.*]] = cir.base_class_addr %[[VAL_2]] : !cir.ptr<!rec_other3A3AB> nonnull [0] -> !cir.ptr<!rec_other3A3AA>
 // CIR:           cir.call @_ZN5other1AD2Ev(%[[VAL_4]]) : (!cir.ptr<!rec_other3A3AA>) -> ()
 // CIR:           cir.return
 // CIR:         }

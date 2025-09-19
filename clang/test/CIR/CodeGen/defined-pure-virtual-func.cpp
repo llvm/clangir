@@ -26,7 +26,7 @@ void C::pure() {}
 // CHECK-SAME: #cir.global_view<@__cxa_pure_virtual> : !cir.ptr<!u8i>]>
 
 // The base object destructor should be emitted as normal.
-// CHECK-LABEL: cir.func @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>
 // CHECK-NEXT:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
@@ -34,7 +34,7 @@ void C::pure() {}
 // CHECK-NEXT:  }
 
 // The complete object destructor should trap.
-// CHECK-LABEL: cir.func @_ZN1CD1Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN1CD1Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>
 // CHECK-NEXT:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
@@ -42,7 +42,7 @@ void C::pure() {}
 // CHECK-NEXT:  }
 
 // The deleting destructor should trap.
-// CHECK-LABEL: cir.func @_ZN1CD0Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN1CD0Ev(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>
 // CHECK-NEXT:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>
@@ -50,7 +50,7 @@ void C::pure() {}
 // CHECK-NEXT:  }
 
 // C::pure should be emitted as normal.
-// CHECK-LABEL: cir.func @_ZN1C4pureEv(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN1C4pureEv(%arg0: !cir.ptr<!rec_C> loc({{[^)]+}})) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>
 // CHECK-NEXT:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C>>, !cir.ptr<!rec_C>

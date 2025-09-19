@@ -99,11 +99,11 @@ int local_scoped_const() {
 //      CIR:    cir.scope {
 // CIR-NEXT:      %[[#x_slot:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init, const]
 // CIR-NEXT:      %[[#init:]] = cir.call @_Z11produce_intv() : () -> !s32i
-// CIR-NEXT:      cir.store %[[#init]], %[[#x_slot]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:      cir.store{{.*}} %[[#init]], %[[#x_slot]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:      cir.call @_Z8blackboxRKi(%[[#x_slot]]) : (!cir.ptr<!s32i>) -> ()
-// CIR-NEXT:      %[[#x_reload:]] = cir.load %[[#x_slot]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT:      cir.store %[[#x_reload]], %[[#ret_slot:]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT:      %[[#ret:]] = cir.load %[[#ret_slot]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      %[[#x_reload:]] = cir.load{{.*}} %[[#x_slot]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      cir.store{{.*}} %[[#x_reload]], %[[#ret_slot:]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:      %[[#ret:]] = cir.load{{.*}} %[[#ret_slot]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:      cir.return %[[#ret]] : !s32i
 // CIR-NEXT:    }
 //      CIR:  }
@@ -131,9 +131,9 @@ void local_const_in_loop() {
 // CIR-NEXT:        cir.scope {
 // CIR-NEXT:          %[[#x_slot:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init, const]
 // CIR-NEXT:          %[[#init:]] = cir.call @_Z11produce_intv() : () -> !s32i
-// CIR-NEXT:          cir.store %[[#init]], %[[#x_slot]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:          cir.store{{.*}} %[[#init]], %[[#x_slot]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:          cir.call @_Z8blackboxRKi(%[[#x_slot]]) : (!cir.ptr<!s32i>) -> ()
-// CIR-NEXT:          %[[#x_reload:]] = cir.load %[[#x_slot]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:          %[[#x_reload:]] = cir.load{{.*}} %[[#x_slot]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:          cir.call @_Z7consumei(%[[#x_reload]]) : (!s32i) -> ()
 // CIR-NEXT:        }
 // CIR-NEXT:        cir.yield

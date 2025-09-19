@@ -69,7 +69,7 @@ private:
 
   mlir::Type convert(mlir::Type t) {
     if (auto fTy = getFuncPointerTy(t))
-      return PointerType::get(rewriter.getContext(), convert(fTy));
+      return cir::PointerType::get(convert(fTy));
     return t;
   }
 
@@ -82,7 +82,7 @@ private:
   }
 
   void rewriteGetGlobalOp(GetGlobalOp op) {
-    auto resTy = op.getResult().getType();
+    auto resTy = op.getType();
     if (isFuncPointerTy(resTy)) {
       rewriter.setInsertionPoint(op);
       auto newOp = rewriter.replaceOpWithNewOp<GetGlobalOp>(op, convert(resTy),

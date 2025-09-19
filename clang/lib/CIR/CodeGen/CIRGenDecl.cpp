@@ -22,6 +22,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -330,11 +331,10 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
     // out of it while trying to build the expression, mark it as such.
     auto addr = lv.getAddress().getPointer();
     assert(addr && "Should have an address");
-    auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(addr.getDefiningOp());
+    auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
     assert(allocaOp && "Address should come straight out of the alloca");
 
-    if (!allocaOp.use_empty())
-      allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    allocaOp.setInit(!allocaOp.use_empty());
     return;
   }
 
@@ -377,7 +377,7 @@ void CIRGenFunction::emitAutoVarCleanups(const AutoVarEmission &emission) {
     assert(0 && "not implemented");
 
   // Handle the cleanup attribute.
-  if (const CleanupAttr *CA = D.getAttr<CleanupAttr>())
+  if (D.getAttr<CleanupAttr>())
     assert(0 && "not implemented");
 
   // TODO: handle block variable
@@ -436,9 +436,9 @@ static std::string getStaticDeclName(CIRGenModule &CGM, const VarDecl &D) {
     DC = cast<DeclContext>(CD->getNonClosureContext());
   if (const auto *FD = dyn_cast<FunctionDecl>(DC))
     ContextName = std::string(CGM.getMangledName(FD));
-  else if (const auto *BD = dyn_cast<BlockDecl>(DC))
+  else if (isa<BlockDecl>(DC))
     llvm_unreachable("block decl context for static var is NYI");
-  else if (const auto *OMD = dyn_cast<ObjCMethodDecl>(DC))
+  else if (isa<ObjCMethodDecl>(DC))
     llvm_unreachable("ObjC decl context for static var is NYI");
   else
     llvm_unreachable("Unknown context for static var decl");
@@ -470,8 +470,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  cir::AddressSpaceAttr AS =
-      builder.getAddrSpaceAttr(getGlobalVarAddressSpace(&D));
+  cir::AddressSpace AS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
@@ -520,9 +519,9 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   }
 
   GlobalDecl GD;
-  if (const auto *CD = dyn_cast<CXXConstructorDecl>(DC))
+  if (isa<CXXConstructorDecl>(DC))
     llvm_unreachable("C++ constructors static var context is NYI");
-  else if (const auto *DD = dyn_cast<CXXDestructorDecl>(DC))
+  else if (isa<CXXDestructorDecl>(DC))
     llvm_unreachable("C++ destructors static var context is NYI");
   else if (const auto *FD = dyn_cast<FunctionDecl>(DC))
     GD = GlobalDecl(FD);
@@ -586,7 +585,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
     GVAddr.getAddr().setType(
-        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpaceAttr()));
+        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpace()));
   }
 
   bool NeedsDtor =
@@ -617,7 +616,7 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   // TODO(cir): we should have a way to represent global ops as values without
   // having to emit a get global op. Sometimes these emissions are not used.
   auto addr = getBuilder().createGetGlobal(globalOp);
-  auto getAddrOp = mlir::cast<cir::GetGlobalOp>(addr.getDefiningOp());
+  auto getAddrOp = addr.getDefiningOp<cir::GetGlobalOp>();
 
   CharUnits alignment = getContext().getDeclAlign(&D);
 
@@ -652,16 +651,16 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   if (D.hasAttr<AnnotateAttr>())
     llvm_unreachable("Global annotations are NYI");
 
-  if (auto *SA = D.getAttr<PragmaClangBSSSectionAttr>())
+  if (D.getAttr<PragmaClangBSSSectionAttr>())
     llvm_unreachable("CIR global BSS section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangDataSectionAttr>())
+  if (D.getAttr<PragmaClangDataSectionAttr>())
     llvm_unreachable("CIR global Data section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangRodataSectionAttr>())
+  if (D.getAttr<PragmaClangRodataSectionAttr>())
     llvm_unreachable("CIR global Rodata section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangRelroSectionAttr>())
+  if (D.getAttr<PragmaClangRelroSectionAttr>())
     llvm_unreachable("CIR global Relro section attribute is NYI");
 
-  if (const SectionAttr *SA = D.getAttr<SectionAttr>())
+  if (D.getAttr<SectionAttr>())
     llvm_unreachable("CIR global object file section attribute is NYI");
 
   if (D.hasAttr<RetainAttr>())
@@ -678,8 +677,13 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   //
   // FIXME: It is really dangerous to store this in the map; if anyone
   // RAUW's the GV uses of this constant will be invalid.
+  //
+  // Since in CIR the address materialization is done over cir.get_global
+  // and that's already updated, but for unions the type might be different,
+  // we need to cast to the expected type.
   auto castedAddr = builder.createBitcast(getAddrOp.getAddr(), expectedType);
-  LocalDeclMap.find(&D)->second = Address(castedAddr, elemTy, alignment);
+  auto actualElemTy = llvm::cast<cir::PointerType>(castedAddr.getType()).getPointee();
+  LocalDeclMap.find(&D)->second = Address(castedAddr, actualElemTy, alignment);
   CGM.setStaticLocalDeclAddress(&D, var);
 
   assert(!cir::MissingFeatures::reportGlobalToASan());
@@ -749,7 +753,7 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
     AggValueSlot::Overlap_t Overlap = AggValueSlot::MayOverlap;
     if (isa<VarDecl>(D))
       Overlap = AggValueSlot::DoesNotOverlap;
-    else if (auto *FD = dyn_cast<FieldDecl>(D))
+    else if (isa<FieldDecl>(D))
       assert(false && "Field decl NYI");
     else
       assert(false && "Only VarDecl implemented so far");
@@ -767,7 +771,10 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   switch (D.getKind()) {
   case Decl::ImplicitConceptSpecialization:
   case Decl::HLSLBuffer:
+  case Decl::HLSLRootSignature:
   case Decl::TopLevelStmt:
+  case Decl::OpenACCDeclare:
+  case Decl::OpenACCRoutine:
     llvm_unreachable("NYI");
   case Decl::BuiltinTemplate:
   case Decl::TranslationUnit:
@@ -826,11 +833,11 @@ void CIRGenFunction::emitDecl(const Decl &D) {
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Record:    // struct/union/class X;
   case Decl::CXXRecord: // struct/union/class X; [C++]
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       llvm_unreachable("NYI");
     return;
   case Decl::Enum: // enum X;
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       llvm_unreachable("NYI");
     return;
   case Decl::Function:     // void X();
@@ -881,7 +888,7 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   case Decl::Typedef:     // typedef int X;
   case Decl::TypeAlias: { // using X = int; [C++0x]
     QualType Ty = cast<TypedefNameDecl>(D).getUnderlyingType();
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       assert(!cir::MissingFeatures::generateDebugInfo());
     if (Ty->isVariablyModifiedType())
       emitVariablyModifiedType(Ty);
@@ -1147,13 +1154,16 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   bool checkZeroLength = true;
 
   // But if the array length is constant, we can suppress that.
-  auto constantCount = dyn_cast<cir::ConstantOp>(length.getDefiningOp());
-  if (constantCount) {
-    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
-    // ...and if it's constant zero, we can just skip the entire thing.
-    if (constIntAttr && constIntAttr.getUInt() == 0)
-      return;
-    checkZeroLength = false;
+  if (auto constantCount = length.getDefiningOp<cir::ConstantOp>()) {
+    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
+      // ...and if it's constant zero, we can just skip the entire thing.
+      if (constIntAttr.getUInt() == 0)
+        return;
+      checkZeroLength = false;
+    }
+
+    if (constantCount.use_empty())
+      constantCount.erase();
   } else {
     llvm_unreachable("NYI");
   }
@@ -1162,8 +1172,6 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   mlir::Value end; // Use this for future non-constant counts.
   emitArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
                    useEHCleanupForArray);
-  if (constantCount.use_empty())
-    constantCount.erase();
 }
 
 CIRGenFunction::Destroyer *

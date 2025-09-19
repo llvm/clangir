@@ -10,9 +10,9 @@ struct Delegating {
 // arguments.
 Delegating::Delegating() : Delegating(0) {}
 
-// CHECK-LABEL: cir.func @_ZN10DelegatingC2Ev(%arg0: !cir.ptr<!rec_Delegating> {{.*}}) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN10DelegatingC2Ev(%arg0: !cir.ptr<!rec_Delegating> {{.*}}) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_Delegating>, !cir.ptr<!cir.ptr<!rec_Delegating>>, ["this", init] {alignment = 8 : i64}
-// CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_Delegating>, !cir.ptr<!cir.ptr<!rec_Delegating>>
+// CHECK-NEXT:    cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_Delegating>, !cir.ptr<!cir.ptr<!rec_Delegating>>
 // CHECK-NEXT:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_Delegating>>, !cir.ptr<!rec_Delegating>
 // CHECK-NEXT:    %2 = cir.const #cir.int<0> : !s32i
 // CHECK-NEXT:    cir.call @_ZN10DelegatingC2Ei(%1, %2) : (!cir.ptr<!rec_Delegating>, !s32i) -> ()
@@ -30,14 +30,14 @@ struct DelegatingWithZeroing {
 // call to it in a lowering pass.
 DelegatingWithZeroing::DelegatingWithZeroing(int) : DelegatingWithZeroing() {}
 
-// CHECK-LABEL: cir.func @_ZN21DelegatingWithZeroingC2Ei(%arg0: !cir.ptr<!rec_DelegatingWithZeroing> {{.*}}, %arg1: !s32i {{.*}}) {{.*}} {
+// CHECK-LABEL: cir.func dso_local @_ZN21DelegatingWithZeroingC2Ei(%arg0: !cir.ptr<!rec_DelegatingWithZeroing> {{.*}}, %arg1: !s32i {{.*}}) {{.*}} {
 // CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!rec_DelegatingWithZeroing>, !cir.ptr<!cir.ptr<!rec_DelegatingWithZeroing>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:    %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["", init] {alignment = 4 : i64}
-// CHECK-NEXT:    cir.store %arg0, %0 : !cir.ptr<!rec_DelegatingWithZeroing>, !cir.ptr<!cir.ptr<!rec_DelegatingWithZeroing>>
-// CHECK-NEXT:    cir.store %arg1, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:    cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_DelegatingWithZeroing>, !cir.ptr<!cir.ptr<!rec_DelegatingWithZeroing>>
+// CHECK-NEXT:    cir.store{{.*}} %arg1, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_DelegatingWithZeroing>>, !cir.ptr<!rec_DelegatingWithZeroing>
 // CHECK-NEXT:    %3 = cir.const #cir.zero : !rec_DelegatingWithZeroing
-// CHECK-NEXT:    cir.store %3, %2 : !rec_DelegatingWithZeroing, !cir.ptr<!rec_DelegatingWithZeroing>
+// CHECK-NEXT:    cir.store{{.*}} %3, %2 : !rec_DelegatingWithZeroing, !cir.ptr<!rec_DelegatingWithZeroing>
 // CHECK-NEXT:    cir.call @_ZN21DelegatingWithZeroingC2Ev(%2) : (!cir.ptr<!rec_DelegatingWithZeroing>) -> () extra(#fn_attr{{[0-9]*}})
 // CHECK-NEXT:    cir.return
 // CHECK-NEXT:  }

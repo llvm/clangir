@@ -4,8 +4,8 @@
 // RUN_DISABLED: FileCheck --input-file=%t.flat.cir --check-prefix=CIR_LLVM %s
 double division(int a, int b);
 
-// CIR: cir.func @_Z2tcv()
-// CIR_FLAT: cir.func @_Z2tcv()
+// CIR: cir.func dso_local @_Z2tcv()
+// CIR_FLAT: cir.func dso_local @_Z2tcv()
 unsigned long long tc() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -60,7 +60,7 @@ unsigned long long tc() {
   return z;
 }
 
-// CIR_FLAT: cir.func @_Z3tc2v
+// CIR_FLAT: cir.func dso_local @_Z3tc2v
 unsigned long long tc2() {
   int x = 50, y = 3;
   unsigned long long z;
@@ -89,7 +89,7 @@ unsigned long long tc2() {
   return z;
 }
 
-// CIR_FLAT: cir.func @_Z3tc3v
+// CIR_FLAT: cir.func dso_local @_Z3tc3v
 unsigned long long tc3() {
   int x = 50, y = 3;
   unsigned long long z;

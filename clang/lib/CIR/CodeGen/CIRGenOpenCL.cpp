@@ -188,7 +188,7 @@ void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
 
 void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
                                         cir::FuncOp Fn) {
-  if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
+  if (!(FD->hasAttr<DeviceKernelAttr>() && DeviceKernelAttr::isOpenCLSpelling(FD->getAttr<DeviceKernelAttr>())) && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
   CGM.genKernelArgMetadata(Fn, FD, this);
@@ -211,18 +211,24 @@ void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
   }
 
   if (const WorkGroupSizeHintAttr *A = FD->getAttr<WorkGroupSizeHintAttr>()) {
+    auto Eval = [&](Expr *E) {
+      return E->EvaluateKnownConstInt(FD->getASTContext()).getExtValue();
+    };
     workGroupSizeHintAttr = builder.getI32ArrayAttr({
-        static_cast<int32_t>(A->getXDim()),
-        static_cast<int32_t>(A->getYDim()),
-        static_cast<int32_t>(A->getZDim()),
+        static_cast<int32_t>(Eval(A->getXDim())),
+        static_cast<int32_t>(Eval(A->getYDim())),
+        static_cast<int32_t>(Eval(A->getZDim())),
     });
   }
 
   if (const ReqdWorkGroupSizeAttr *A = FD->getAttr<ReqdWorkGroupSizeAttr>()) {
+    auto Eval = [&](Expr *E) {
+      return E->EvaluateKnownConstInt(FD->getASTContext()).getExtValue();
+    };
     reqdWorkGroupSizeAttr = builder.getI32ArrayAttr({
-        static_cast<int32_t>(A->getXDim()),
-        static_cast<int32_t>(A->getYDim()),
-        static_cast<int32_t>(A->getZDim()),
+        static_cast<int32_t>(Eval(A->getXDim())),
+        static_cast<int32_t>(Eval(A->getYDim())),
+        static_cast<int32_t>(Eval(A->getZDim())),
     });
   }
 

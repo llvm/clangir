@@ -19,15 +19,15 @@
 // CIR-NONE-NOT: #cir.uwtable
 
 // CIR-SYNC-DAG: module {{.*}} attributes {{{.*}}cir.uwtable = #cir.uwtable<sync>
-// CIR-SYNC-DAG:   cir.func @_Z1fv() extra(#[[f_attr:.*]])
-// CIR-SYNC-DAG:   cir.func @_Z1gv() extra(#[[g_attr:.*]])
+// CIR-SYNC-DAG:   cir.func dso_local @_Z1fv() extra(#[[f_attr:.*]])
+// CIR-SYNC-DAG:   cir.func dso_local @_Z1gv() extra(#[[g_attr:.*]])
 // CIR-SYNC-DAG: #[[f_attr]] = #cir<extra({{{.*}}uwtable = #cir.uwtable<sync>
 // CIR-SYNC-DAG: #[[g_attr]] =
 // CIR-SYNC-NOT:   #cir.uwtable
 
 // CIR-ASYNC-DAG: module {{.*}} attributes {{{.*}}cir.uwtable = #cir.uwtable<async>
-// CIR-ASYNC-DAG:   cir.func @_Z1fv() extra(#[[f_attr:.*]])
-// CIR-ASYNC-DAG:   cir.func @_Z1gv() extra(#[[g_attr:.*]])
+// CIR-ASYNC-DAG:   cir.func dso_local @_Z1fv() extra(#[[f_attr:.*]])
+// CIR-ASYNC-DAG:   cir.func dso_local @_Z1gv() extra(#[[g_attr:.*]])
 // CIR-ASYNC-DAG: #[[f_attr]] = #cir<extra({{{.*}}uwtable = #cir.uwtable<async>
 // CIR-ASYNC-DAG: #[[g_attr]] =
 // CIR-ASYNC-NOT:   #cir.uwtable

@@ -6,20 +6,12 @@
 #include "CIRGenTypes.h"
 
 #include "clang/Basic/TargetInfo.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Target/x86.h"
 
 using namespace clang;
 using namespace clang::CIRGen;
-
-static bool testIfIsVoidTy(QualType Ty) {
-  const auto *BT = Ty->getAs<BuiltinType>();
-  if (!BT)
-    return false;
-
-  BuiltinType::Kind k = BT->getKind();
-  return k == BuiltinType::Void;
-}
 
 static bool isAggregateTypeForABI(QualType T) {
   return !CIRGenFunction::hasScalarEvaluationKind(T) ||
@@ -31,6 +23,42 @@ static bool isAggregateTypeForABI(QualType T) {
 static QualType useFirstFieldIfTransparentUnion(QualType Ty) {
   assert(!Ty->getAsUnionType() && "NYI");
   return Ty;
+}
+
+bool clang::CIRGen::isEmptyRecordForLayout(const ASTContext &Context,
+                                           QualType T) {
+  const RecordType *RT = T->getAs<RecordType>();
+  if (!RT)
+    return false;
+
+  const RecordDecl *RD = RT->getDecl();
+
+  // If this is a C++ record, check the bases first.
+  if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
+    if (CXXRD->isDynamicClass())
+      return false;
+
+    for (const auto &I : CXXRD->bases())
+      if (!isEmptyRecordForLayout(Context, I.getType()))
+        return false;
+  }
+
+  for (const auto *I : RD->fields())
+    if (!isEmptyFieldForLayout(Context, I))
+      return false;
+
+  return true;
+}
+
+bool clang::CIRGen::isEmptyFieldForLayout(const ASTContext &Context,
+                                          const FieldDecl *FD) {
+  if (FD->isZeroLengthBitField())
+    return true;
+
+  if (FD->isUnnamedBitField())
+    return false;
+
+  return isEmptyRecordForLayout(Context, FD->getType());
 }
 
 namespace {
@@ -53,10 +81,10 @@ public:
       llvm_unreachable("NYI");
 
     // Treat an enum type as its underlying type.
-    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+    if (RetTy->getAs<EnumType>())
       llvm_unreachable("NYI");
 
-    if (const auto *EIT = RetTy->getAs<BitIntType>())
+    if (RetTy->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(RetTy)
@@ -72,21 +100,14 @@ public:
     }
 
     // Treat an enum type as its underlying type.
-    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+    if (Ty->getAs<EnumType>())
       llvm_unreachable("NYI");
 
-    if (const auto *EIT = Ty->getAs<BitIntType>())
+    if (Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(Ty) ? cir::ABIArgInfo::getExtend(Ty)
                                               : cir::ABIArgInfo::getDirect());
-  }
-
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    if (!getCXXABI().classifyReturnType(FI))
-      FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
-    for (auto &I : FI.arguments())
-      I.info = classifyArgumentType(I.type);
   }
 };
 } // namespace
@@ -117,27 +138,6 @@ private:
   cir::ABIArgInfo classifyReturnType(QualType RetTy, bool IsVariadic) const;
   cir::ABIArgInfo classifyArgumentType(QualType RetTy, bool IsVariadic,
                                        unsigned CallingConvention) const;
-
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    // Top leevl CIR has unlimited arguments and return types. Lowering for ABI
-    // specific concerns should happen during a lowering phase. Assume
-    // everything is direct for now.
-    for (CIRGenFunctionInfo::arg_iterator it = FI.arg_begin(),
-                                          ie = FI.arg_end();
-         it != ie; ++it) {
-      if (testIfIsVoidTy(it->type))
-        it->info = cir::ABIArgInfo::getIgnore();
-      else
-        it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-    }
-    auto RetTy = FI.getReturnType();
-    if (testIfIsVoidTy(RetTy))
-      FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-    else
-      FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(RetTy));
-
-    return;
-  }
 };
 
 class AArch64TargetCIRGenInfo : public TargetCIRGenInfo {
@@ -177,8 +177,6 @@ public:
   // , AVXLevel(AVXLevel)
   // , Has64BitPointers(CGT.getDataLayout().getPointeSize(0) == 8)
   {}
-
-  virtual void computeInfo(CIRGenFunctionInfo &FI) const override;
 
   /// classify - Determine the x86_64 register classes in which the given type T
   /// should be passed.
@@ -255,24 +253,6 @@ public:
 class SPIRVABIInfo : public CommonSPIRABIInfo {
 public:
   SPIRVABIInfo(CIRGenTypes &CGT) : CommonSPIRABIInfo(CGT) {}
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    // The logic is same as in DefaultABIInfo with an exception on the kernel
-    // arguments handling.
-    cir::CallingConv CC = FI.getCallingConvention();
-
-    bool cxxabiHit = getCXXABI().classifyReturnType(FI);
-    assert(!cxxabiHit && "C++ ABI not considered");
-
-    FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
-
-    for (auto &I : FI.arguments()) {
-      if (CC == cir::CallingConv::SpirKernel) {
-        I.info = classifyKernelArgumentType(I.type);
-      } else {
-        I.info = classifyArgumentType(I.type);
-      }
-    }
-  }
 
 private:
   cir::ABIArgInfo classifyKernelArgumentType(QualType Ty) const {
@@ -280,27 +260,14 @@ private:
     return classifyArgumentType(Ty);
   }
 };
-} // namespace
-
-void clang::CIRGen::computeSPIRKernelABIInfo(CIRGenModule &CGM,
-                                             CIRGenFunctionInfo &FI) {
-  if (CGM.getTarget().getTriple().isSPIRV())
-    SPIRVABIInfo(CGM.getTypes()).computeInfo(FI);
-  else
-    CommonSPIRABIInfo(CGM.getTypes()).computeInfo(FI);
-}
-
-namespace {
 
 class CommonSPIRTargetCIRGenInfo : public TargetCIRGenInfo {
 public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
-    return cir::AddressSpaceAttr::get(
-        &getABIInfo().CGT.getMLIRContext(),
-        cir::AddressSpaceAttr::Kind::offload_private);
+  cir::AddressSpace getCIRAllocaAddressSpace() const override {
+    return cir::AddressSpace::OffloadPrivate;
   }
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {
@@ -337,8 +304,6 @@ public:
 
   cir::ABIArgInfo classifyReturnType(QualType retTy) const;
   cir::ABIArgInfo classifyArgumentType(QualType ty) const;
-
-  void computeInfo(CIRGenFunctionInfo &fnInfo) const override;
 };
 
 class NVPTXTargetCIRGenInfo : public TargetCIRGenInfo {
@@ -357,7 +322,7 @@ public:
   }
   void setTargetAttributes(const clang::Decl *decl, mlir::Operation *global,
                            CIRGenModule &cgm) const override {
-    if (const auto *vd = clang::dyn_cast_or_null<clang::VarDecl>(decl)) {
+    if (clang::isa_and_nonnull<clang::VarDecl>(decl)) {
       assert(!cir::MissingFeatures::emitNVVMMetadata());
       return;
     }
@@ -402,8 +367,6 @@ public:
 
   cir::ABIArgInfo classifyReturnType(QualType retTy) const;
   cir::ABIArgInfo classifyArgumentType(QualType ty) const;
-
-  void computeInfo(CIRGenFunctionInfo &fnInfo) const override;
 };
 
 class AMDGPUTargetCIRGenInfo : public TargetCIRGenInfo {
@@ -440,7 +403,7 @@ cir::VectorType
 ABIInfo::getOptimalVectorMemoryType(cir::VectorType T,
                                     const clang::LangOptions &Opt) const {
   if (T.getSize() == 3 && !Opt.PreserveVec3Type) {
-    return cir::VectorType::get(T.getEltType(), 4);
+    return cir::VectorType::get(T.getElementType(), 4);
   }
   return T;
 }
@@ -450,24 +413,6 @@ clang::ASTContext &ABIInfo::getContext() const { return CGT.getContext(); }
 cir::ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
                                                  unsigned freeIntRegs) const {
   assert(false && "NYI");
-}
-
-void X86_64ABIInfo::computeInfo(CIRGenFunctionInfo &FI) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = FI.arg_begin(), ie = FI.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto RetTy = FI.getReturnType();
-  if (testIfIsVoidTy(RetTy))
-    FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(RetTy));
 }
 
 /// GetINTEGERTypeAtOffset - The ABI specifies that a value should be passed in
@@ -570,25 +515,6 @@ cir::ABIArgInfo NVPTXABIInfo::classifyArgumentType(QualType ty) const {
   llvm_unreachable("not yet implemented");
 }
 
-void NVPTXABIInfo::computeInfo(CIRGenFunctionInfo &fnInfo) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = fnInfo.arg_begin(),
-                                        ie = fnInfo.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto retTy = fnInfo.getReturnType();
-  if (testIfIsVoidTy(retTy))
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(retTy));
-}
-
 // Skeleton only. Implement when used in TargetLower stage.
 cir::ABIArgInfo AMDGPUABIInfo::classifyReturnType(QualType retTy) const {
   llvm_unreachable("not yet implemented");
@@ -596,25 +522,6 @@ cir::ABIArgInfo AMDGPUABIInfo::classifyReturnType(QualType retTy) const {
 
 cir::ABIArgInfo AMDGPUABIInfo::classifyArgumentType(QualType ty) const {
   llvm_unreachable("not yet implemented");
-}
-
-void AMDGPUABIInfo::computeInfo(CIRGenFunctionInfo &fnInfo) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = fnInfo.arg_begin(),
-                                        ie = fnInfo.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto retTy = fnInfo.getReturnType();
-  if (testIfIsVoidTy(retTy))
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(retTy));
 }
 
 ABIInfo::~ABIInfo() {}
@@ -755,8 +662,8 @@ TargetCIRGenInfo::getGlobalVarAddressSpace(CIRGenModule &CGM,
 }
 
 mlir::Value TargetCIRGenInfo::performAddrSpaceCast(
-    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpaceAttr SrcAddr,
-    cir::AddressSpaceAttr DestAddr, mlir::Type DestTy, bool IsNonNull) const {
+    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpace SrcAddr,
+    cir::AddressSpace DestAddr, mlir::Type DestTy, bool IsNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
   if (auto globalOp = Src.getDefiningOp<cir::GlobalOp>())

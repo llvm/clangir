@@ -6,13 +6,13 @@ unsigned id0() {
   return ++a;
 }
 
-// CHECK: cir.func @_Z3id0v() -> !u32i
+// CHECK: cir.func dso_local @_Z3id0v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
+// CHECK: %[[#BEFORE_A:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(inc, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#AFTER_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#RET]]
 
 
 unsigned id1() {
@@ -20,36 +20,36 @@ unsigned id1() {
   return --a;
 }
 
-// CHECK: cir.func @_Z3id1v() -> !u32i
+// CHECK: cir.func dso_local @_Z3id1v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
+// CHECK: %[[#BEFORE_A:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(dec, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#AFTER_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#RET]]
 
 unsigned id2() {
   unsigned a = 1;
   return a++;
 }
 
-// CHECK: cir.func @_Z3id2v() -> !u32i
+// CHECK: cir.func dso_local @_Z3id2v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
+// CHECK: %[[#BEFORE_A:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(inc, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#BEFORE_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#BEFORE_A]], %[[#RET]]
 
 unsigned id3() {
   unsigned a = 1;
   return a--;
 }
 
-// CHECK: cir.func @_Z3id3v() -> !u32i
+// CHECK: cir.func dso_local @_Z3id3v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
+// CHECK: %[[#BEFORE_A:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(dec, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#BEFORE_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#BEFORE_A]], %[[#RET]]

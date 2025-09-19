@@ -31,9 +31,9 @@ int test_scalar_pointer(int*** p3) {
     int t = *p1;
 
     // CIR-POINTER-TBAA-LABEL: _Z19test_scalar_pointerPPPi
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!s32i>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!s32i>>> tbaa(#tbaa[[p3_INT]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!s32i>>>, !cir.ptr<!cir.ptr<!s32i>> tbaa(#tbaa[[p2_INT]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i> tbaa(#tbaa[[p1_INT]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!s32i>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!s32i>>> tbaa(#tbaa[[p3_INT]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!s32i>>>, !cir.ptr<!cir.ptr<!s32i>> tbaa(#tbaa[[p2_INT]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i> tbaa(#tbaa[[p1_INT]])
 
     // LLVM-LABEL: _Z19test_scalar_pointerPPPi
     // LLVM: %[[p2:.*]] = load ptr, ptr %{{.*}}, align 8, !tbaa ![[TBAA_ANY_PTR:.*]]
@@ -59,9 +59,9 @@ int test_struct_pointer(A*** p3, int A::***m3) {
     p1 = *p2;
 
     // CIR-POINTER-TBAA-LABEL: _Z19test_struct_pointerPPP1APPMS_i
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>> tbaa(#tbaa[[p3_STRUCT_A]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>, !cir.ptr<!cir.ptr<!rec_A>> tbaa(#tbaa[[p2_STRUCT_A]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A> tbaa(#tbaa[[p1_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>> tbaa(#tbaa[[p3_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>, !cir.ptr<!cir.ptr<!rec_A>> tbaa(#tbaa[[p2_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A> tbaa(#tbaa[[p1_STRUCT_A]])
 
     // LLVM-LABEL: _Z19test_struct_pointerPPP1APPMS_i
     // LLVM: %[[p2:.*]] = load ptr, ptr %{{.*}}, align 8, !tbaa ![[TBAA_ANY_PTR]]
@@ -78,10 +78,10 @@ int test_struct_pointer(A*** p3, int A::***m3) {
 void test_member_pointer(A& a, int A::***m3, int val) {
 
     // CIR-LABEL: _Z19test_member_pointerR1APPMS_ii
-    // CIR: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
+    // CIR: %{{.*}} = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
 
     // CIR-POINTER-TBAA-LABEL: _Z19test_member_pointerR1APPMS_ii
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
 
     // LLVM-LABEL: _Z19test_member_pointerR1APPMS_ii
     // LLVM: %[[m2:.*]] = load ptr, ptr %{{.*}}, align 8, !tbaa ![[TBAA_ANY_PTR:.*]]

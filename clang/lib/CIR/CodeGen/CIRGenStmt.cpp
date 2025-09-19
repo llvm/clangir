@@ -36,9 +36,9 @@ Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
   for (auto *CurStmt : S.body()) {
     if (getLast && ExprResult == CurStmt) {
       while (!isa<Expr>(ExprResult)) {
-        if (const auto *LS = dyn_cast<LabelStmt>(ExprResult))
+        if (isa<LabelStmt>(ExprResult))
           llvm_unreachable("labels are NYI");
-        else if (const auto *AS = dyn_cast<AttributedStmt>(ExprResult))
+        else if (isa<AttributedStmt>(ExprResult))
           llvm_unreachable("statement attributes are NYI");
         else
           llvm_unreachable("Unknown value statement");
@@ -106,6 +106,9 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
 
   switch (S->getStmtClass()) {
   case Stmt::OMPScopeDirectiveClass:
+  case Stmt::OMPStripeDirectiveClass:
+  case Stmt::OpenACCCacheConstructClass:
+  case Stmt::OpenACCAtomicConstructClass:
     llvm_unreachable("NYI");
   case Stmt::OMPErrorDirectiveClass:
   case Stmt::NoStmtClass:

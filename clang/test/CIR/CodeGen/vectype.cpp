@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o - | FileCheck %s
 
 typedef int vi4 __attribute__((vector_size(16)));
+typedef unsigned int uvi4 __attribute__((vector_size(16)));
 typedef double vd2 __attribute__((vector_size(16)));
 typedef long long vll2 __attribute__((vector_size(16)));
 typedef unsigned short vus2 __attribute__((vector_size(4)));
@@ -13,6 +14,11 @@ vd2 b;
 
 vll2 c;
 // CHECK: cir.global external @[[VEC_C:.*]] = #cir.zero : !cir.vector<!s64i x 2>
+
+vi4 d = { 1, 2, 3, 4 };
+
+// CHECK: cir.global external @[[VEC_D:.*]] = #cir.const_vector<[#cir.int<1> : !s32i, #cir.int<2> :
+// CHECK-SAME: !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i]> : !cir.vector<!s32i x 4>
 
 void vector_int_test(int x, unsigned short usx) {
 
@@ -46,21 +52,21 @@ void vector_int_test(int x, unsigned short usx) {
 
   // Insert element
   a[x] = x;
-  // CHECK: %[[#LOADEDVI:]] = cir.load %[[#STORAGEVI:]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CHECK: %[[#LOADEDVI:]] = cir.load{{.*}} %[[#STORAGEVI:]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CHECK: %[[#UPDATEDVI:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOADEDVI]][%{{[0-9]+}} : !s32i] : !cir.vector<!s32i x 4>
-  // CHECK: cir.store %[[#UPDATEDVI]], %[[#STORAGEVI]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CHECK: cir.store{{.*}} %[[#UPDATEDVI]], %[[#STORAGEVI]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
 
   // Compound assignment
   a[x] += a[0];
-  // CHECK: %[[#LOADCA1:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CHECK: %[[#LOADCA1:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CHECK: %[[#RHSCA:]] = cir.vec.extract %[[#LOADCA1]][%{{[0-9]+}} : !s32i] : !cir.vector<!s32i x 4>
-  // CHECK: %[[#LOADCAIDX2:]] = cir.load %{{[0-9]+}} : !cir.ptr<!s32i>, !s32i
-  // CHECK: %[[#LOADCAVEC3:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CHECK: %[[#LOADCAIDX2:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!s32i>, !s32i
+  // CHECK: %[[#LOADCAVEC3:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CHECK: %[[#LHSCA:]] = cir.vec.extract %[[#LOADCAVEC3]][%[[#LOADCAIDX2]] : !s32i] : !cir.vector<!s32i x 4>
   // CHECK: %[[#SUMCA:]] = cir.binop(add, %[[#LHSCA]], %[[#RHSCA]]) nsw : !s32i
-  // CHECK: %[[#LOADCAVEC4:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CHECK: %[[#LOADCAVEC4:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CHECK: %[[#RESULTCAVEC:]] = cir.vec.insert %[[#SUMCA]], %[[#LOADCAVEC4]][%[[#LOADCAIDX2]] : !s32i] : !cir.vector<!s32i x 4>
-  // CHECK: cir.store %[[#RESULTCAVEC]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CHECK: cir.store{{.*}} %[[#RESULTCAVEC]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
 
   // Binary arithmetic operations
   vi4 d = a + b;
@@ -114,19 +120,31 @@ void vector_int_test(int x, unsigned short usx) {
 
   // Shifts
   vi4 w = a << b;
-  // CHECK: %{{[0-9]+}} = cir.shift(left, {{%.*}} : !cir.vector<!s32i x 4>, 
+  // CHECK: %{{[0-9]+}} = cir.shift(left, {{%.*}} : !cir.vector<!s32i x 4>,
   // CHECK-SAME: {{%.*}} : !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
   vi4 y = a >> b;
-  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!s32i x 4>, 
+  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!s32i x 4>,
   // CHECK-SAME: {{%.*}} : !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
 
-  vus2 z = { usx, usx };  
+  vus2 z = { usx, usx };
   // CHECK: %{{[0-9]+}} = cir.vec.create(%{{[0-9]+}}, %{{[0-9]+}} : !u16i, !u16i) : !cir.vector<!u16i x 2>
   vus2 zamt = { 3, 4 };
   // CHECK: %{{[0-9]+}} = cir.const #cir.const_vector<[#cir.int<3> : !u16i, #cir.int<4> : !u16i]> : !cir.vector<!u16i x 2>
   vus2 zzz = z >> zamt;
-  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!u16i x 2>, 
-  // CHECK-SAME: {{%.*}} : !cir.vector<!u16i x 2>) -> !cir.vector<!u16i x 2> 
+  // CHECK: %{{[0-9]+}} = cir.shift(right, {{%.*}} : !cir.vector<!u16i x 2>,
+  // CHECK-SAME: {{%.*}} : !cir.vector<!u16i x 2>) -> !cir.vector<!u16i x 2>
+
+  // Vector to scalar conversion
+  unsigned int zi = (unsigned int)z;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!u16i x 2>), !u32i
+
+  // Scalar to vector conversion
+  vus2 zz = (vus2)zi;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !u32i), !cir.vector<!u16i x 2>
+
+  // Vector to vector conversion
+  vll2 aaa = (vll2)a;
+  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!s32i x 4>), !cir.vector<!s64i x 2>
 }
 
 void vector_double_test(int x, double y) {
@@ -155,9 +173,9 @@ void vector_double_test(int x, double y) {
 
   // Insert element
   a[x] = y;
-  // CHECK: %[[#LOADEDVF:]] = cir.load %[[#STORAGEVF:]] : !cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.double x 2>
+  // CHECK: %[[#LOADEDVF:]] = cir.load{{.*}} %[[#STORAGEVF:]] : !cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.double x 2>
   // CHECK: %[[#UPDATEDVF:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOADEDVF]][%{{[0-9]+}} : !s32i] : !cir.vector<!cir.double x 2>
-  // CHECK: cir.store %[[#UPDATEDVF]], %[[#STORAGEVF]] : !cir.vector<!cir.double x 2>, !cir.ptr<!cir.vector<!cir.double x 2>>
+  // CHECK: cir.store{{.*}} %[[#UPDATEDVF]], %[[#STORAGEVF]] : !cir.vector<!cir.double x 2>, !cir.ptr<!cir.vector<!cir.double x 2>>
 
   // Binary arithmetic operations
   vd2 d = a + b;
@@ -192,4 +210,14 @@ void vector_double_test(int x, double y) {
   // __builtin_convertvector
   vus2 w = __builtin_convertvector(a, vus2);
   // CHECK: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!u16i x 2>
+}
+
+void vector_integers_shifts_test() {
+  vi4 a = {1, 2, 3, 4};
+  uvi4 b = {5u, 6u, 7u, 8u};
+
+  vi4 shl = a << b;
+  // CHECK:  %{{[0-9]+}} = cir.shift(left, %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!u32i x 4>) -> !cir.vector<!s32i x 4>
+  uvi4 shr = b >> a;
+  // CHECK: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
 }

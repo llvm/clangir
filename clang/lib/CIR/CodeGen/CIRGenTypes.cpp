@@ -30,7 +30,7 @@ CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
   switch (CC) {
   case CC_C:
     return cir::CallingConv::C;
-  case CC_OpenCLKernel:
+  case CC_DeviceKernel:
     return CGM.getTargetCIRGenInfo().getOpenCLKernelCallingConv();
   case CC_SpirFunction:
     return cir::CallingConv::SpirFunction;
@@ -62,7 +62,6 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
   PrintingPolicy policy = recordDecl->getASTContext().getPrintingPolicy();
   policy.SuppressInlineNamespace = false;
   policy.AlwaysIncludeTypeForTemplateArgument = true;
-  policy.PrintCanonicalTypes = true;
   policy.SuppressTagKeyword = true;
 
   if (recordDecl->getIdentifier()) {
@@ -373,6 +372,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 
   case Type::Builtin: {
@@ -646,7 +646,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     // int X[] -> [0 x int], unless the element type is not sized.  If it is
     // unsized (e.g. an incomplete record) just use [0 x i8].
     ResultType = convertTypeForMem(A->getElementType());
-    if (!Builder.isSized(ResultType)) {
+    if (!cir::isSized(ResultType)) {
       SkippedLayout = true;
       ResultType = Builder.getUInt8Ty();
     }
@@ -659,7 +659,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
     // FIXME: In LLVM, "lower arrays of undefined struct type to arrays of
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
-    assert(Builder.isSized(EltTy) && "not implemented");
+    assert(cir::isSized(EltTy) && "not implemented");
     ResultType = cir::ArrayType::get(EltTy, A->getSize().getZExtValue());
     break;
   }
@@ -713,7 +713,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
     auto memberTy = convertType(MPT->getPointeeType());
     auto clsTy =
-        mlir::cast<cir::RecordType>(convertType(QualType(MPT->getClass(), 0)));
+        mlir::cast<cir::RecordType>(convertType(QualType(MPT->getQualifier()->getAsType(), 0)));
     if (MPT->isMemberDataPointer())
       ResultType = cir::DataMemberType::get(memberTy, clsTy);
     else {
@@ -784,28 +784,6 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCIRFunctionInfo(
   (void)inserted;
   assert(inserted && "Recursively being processed?");
 
-  // Compute ABI information.
-  if (CC == cir::CallingConv::SpirKernel) {
-    // Force target independent argument handling for the host visible
-    // kernel functions.
-    computeSPIRKernelABIInfo(CGM, *FI);
-  } else if (info.getCC() == CC_Swift || info.getCC() == CC_SwiftAsync) {
-    llvm_unreachable("Swift NYI");
-  } else {
-    getABIInfo().computeInfo(*FI);
-  }
-
-  // Loop over all of the computed argument and return value info. If any of
-  // them are direct or extend without a specified coerce type, specify the
-  // default now.
-  cir::ABIArgInfo &retInfo = FI->getReturnInfo();
-  if (retInfo.canHaveCoerceToType() && retInfo.getCoerceToType() == nullptr)
-    retInfo.setCoerceToType(convertType(FI->getReturnType()));
-
-  for (auto &I : FI->arguments())
-    if (I.info.canHaveCoerceToType() && I.info.getCoerceToType() == nullptr)
-      I.info.setCoerceToType(convertType(I.type));
-
   bool erased = FunctionsBeingProcessed.erase(FI);
   (void)erased;
   assert(erased && "Not in set?");
@@ -832,14 +810,14 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
   // from the cache. This allows function types and other things that may be
   // derived from the enum to be recomputed.
   if (const auto *ED = dyn_cast<EnumDecl>(TD)) {
-    // Only flush the cache if we've actually already converted this type.
-    if (TypeCache.count(ED->getTypeForDecl())) {
-      // Okay, we formed some types based on this.  We speculated that the enum
-      // would be lowered to i32, so we only need to flush the cache if this
-      // didn't happen.
-      if (!convertType(ED->getIntegerType()).isInteger(32))
-        TypeCache.clear();
-    }
+    // Classic codegen clears the type cache if it contains an entry for this
+    // enum type that doesn't use i32 as the underlying type, but I can't find
+    // a test case that meets that condition. C++ doesn't allow forward
+    // declaration of enums, and C doesn't allow an incomplete forward
+    // declaration with a non-default type.
+    assert(
+        !TypeCache.count(ED->getTypeForDecl()) ||
+        (convertType(ED->getIntegerType()) == TypeCache[ED->getTypeForDecl()]));
     // If necessary, provide the full definition of a type only used with a
     // declaration so far.
     assert(!cir::MissingFeatures::generateDebugInfo());

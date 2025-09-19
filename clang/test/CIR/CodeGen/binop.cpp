@@ -31,7 +31,7 @@ void b1(bool a, bool b) {
 }
 
 // CHECK: cir.ternary(%3, true
-// CHECK-NEXT: %7 = cir.load %1
+// CHECK-NEXT: %7 = cir.load{{.*}} %1
 // CHECK-NEXT: cir.yield %7
 // CHECK-NEXT: false {
 // CHECK-NEXT: cir.const #false
@@ -41,7 +41,7 @@ void b1(bool a, bool b) {
 // CHECK-NEXT: cir.const #true
 // CHECK-NEXT: cir.yield
 // CHECK-NEXT: false {
-// CHECK-NEXT: %7 = cir.load %1
+// CHECK-NEXT: %7 = cir.load{{.*}} %1
 // CHECK-NEXT: cir.yield
 
 void b2(bool a) {
@@ -54,13 +54,13 @@ void b2(bool a) {
 // CHECK: %0 = cir.alloca {{.*}} ["a", init]
 // CHECK: %1 = cir.alloca {{.*}} ["x", init]
 // CHECK: %2 = cir.const #false
-// CHECK-NEXT: cir.store %2, %1
-// CHECK-NEXT: %3 = cir.load %0
-// CHECK-NEXT: cir.store %3, %1
-// CHECK-NEXT: %4 = cir.load %0
-// CHECK-NEXT: cir.store %4, %1
+// CHECK-NEXT: cir.store{{.*}} %2, %1
+// CHECK-NEXT: %3 = cir.load{{.*}} %0
+// CHECK-NEXT: cir.store{{.*}} %3, %1
+// CHECK-NEXT: %4 = cir.load{{.*}} %0
+// CHECK-NEXT: cir.store{{.*}} %4, %1
 // CHECK-NEXT: %5 = cir.const #true
-// CHECK-NEXT: cir.store %5, %1
+// CHECK-NEXT: cir.store{{.*}} %5, %1
 
 void b3(int a, int b, int c, int d) {
   bool x = (a == b) && (c == d);
@@ -72,12 +72,12 @@ void b3(int a, int b, int c, int d) {
 // CHECK-NEXT: %2 = cir.alloca {{.*}} ["c", init]
 // CHECK-NEXT: %3 = cir.alloca {{.*}} ["d", init]
 // CHECK-NEXT: %4 = cir.alloca {{.*}} ["x", init]
-// CHECK: %5 = cir.load %0
-// CHECK-NEXT: %6 = cir.load %1
+// CHECK: %5 = cir.load{{.*}} %0
+// CHECK-NEXT: %6 = cir.load{{.*}} %1
 // CHECK-NEXT: %7 = cir.cmp(eq, %5, %6)
 // CHECK-NEXT: cir.ternary(%7, true
-// CHECK-NEXT: %13 = cir.load %2
-// CHECK-NEXT: %14 = cir.load %3
+// CHECK-NEXT: %13 = cir.load{{.*}} %2
+// CHECK-NEXT: %14 = cir.load{{.*}} %3
 // CHECK-NEXT: %15 = cir.cmp(eq, %13, %14)
 // CHECK-NEXT: cir.yield %15
 // CHECK-NEXT: }, false {

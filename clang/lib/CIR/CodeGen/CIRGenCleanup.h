@@ -124,7 +124,7 @@ public:
     // Traditional LLVM codegen also checks for `!block->use_empty()`, but
     // in CIRGen the block content is not important, just used as a way to
     // signal `hasEHBranches`.
-    if (mlir::Block *block = getCachedEHDispatchBlock())
+    if ([[maybe_unused]] mlir::Block *block = getCachedEHDispatchBlock())
       return true;
     return false;
   }

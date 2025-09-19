@@ -14,6 +14,7 @@
 #include "mlir/IR/Region.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
@@ -79,9 +80,9 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
 struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   using OpRewritePattern<SwitchOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(SwitchOp op, PatternRewriter &rewriter) const final {
-    if (!(op.getBody().empty() ||
-                   isa<YieldOp>(op.getBody().front().front())))
+  LogicalResult matchAndRewrite(SwitchOp op,
+                                PatternRewriter &rewriter) const final {
+    if (!(op.getBody().empty() || isa<YieldOp>(op.getBody().front().front())))
       return failure();
 
     rewriter.eraseOp(op);
@@ -92,7 +93,8 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
 struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
   using OpRewritePattern<TryOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(TryOp op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(TryOp op,
+                                PatternRewriter &rewriter) const final {
     // FIXME: also check all catch regions are empty
     // return success(op.getTryRegion().hasOneBlock());
     return mlir::failure();
@@ -116,7 +118,8 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
 struct SimplifyCallOp : public OpRewritePattern<CallOp> {
   using OpRewritePattern<CallOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(CallOp op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(CallOp op,
+                                PatternRewriter &rewriter) const final {
     // Applicable to cir.call exception ... clean { cir.yield }
     mlir::Region *r = &op.getCleanup();
     if (r->empty() || !r->hasOneBlock())
@@ -133,6 +136,77 @@ struct SimplifyCallOp : public OpRewritePattern<CallOp> {
     rewriter.eraseOp(&b->back());
     rewriter.eraseBlock(b);
     return success();
+  }
+};
+
+struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
+  using OpRewritePattern<PtrStrideOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(PtrStrideOp op,
+                                PatternRewriter &rewriter) const override {
+    mlir::Value base = op.getBase(), index = op.getStride();
+    if (auto castOp = base.getDefiningOp<cir::CastOp>()) {
+      // REWRITE ptr_stride(cast array_to_ptrdecay %base), %index)
+      //      => get_element %base[%index]
+      if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
+        return mlir::failure();
+
+      base = castOp.getOperand();
+
+    } else if (auto getElemOp = base.getDefiningOp<cir::GetElementOp>()) {
+      // REWRITE ptr_stride(get_element %base[%index]), %stride)
+      //      => get_element %base[%index + %stride]
+      auto elemIndex = getElemOp.getIndex();
+      if (elemIndex.getType() != index.getType())
+        return mlir::failure();
+
+      base = getElemOp.getBase();
+      index = rewriter.create<cir::BinOp>(op->getLoc(), cir::BinOpKind::Add,
+                                          elemIndex, index);
+
+    } else {
+      return mlir::failure();
+    }
+    rewriter.replaceOpWithNewOp<cir::GetElementOp>(op, op.getType(), base,
+                                                   index);
+    return mlir::success();
+  }
+};
+
+struct SimplifyCastOp : public OpRewritePattern<cir::CastOp> {
+  using OpRewritePattern<cir::CastOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(cir::CastOp op,
+                                PatternRewriter &rewriter) const override {
+    if (op.getKind() != cir::CastKind::array_to_ptrdecay)
+      return mlir::failure();
+
+    auto elemTy = cast<cir::PointerType>(op.getType()).getPointee();
+    for (auto *user : op->getUsers()) {
+      if (auto loadOp = dyn_cast<cir::LoadOp>(user)) {
+        if (elemTy != loadOp.getType())
+          return mlir::failure();
+      } else if (auto storeOp = dyn_cast<cir::StoreOp>(user)) {
+        if (storeOp.getAddr() != op.getResult() ||
+            elemTy != storeOp.getValue().getType())
+          return mlir::failure();
+      } else if (isa<cir::GetMemberOp>(user)) {
+        continue;
+      } else {
+        return mlir::failure();
+      }
+    }
+
+    // REWRITE cast array_to_ptrdecay %base
+    //      => get_element %base[0]
+    auto *context = elemTy.getContext();
+    CIRDataLayout dataLayout(op->getParentOfType<ModuleOp>());
+    auto intType = cast<cir::IntType>(dataLayout.getIntType(context));
+    auto zeroAttr = rewriter.getAttr<cir::IntAttr>(
+        intType, llvm::APInt(intType.getWidth(), 0));
+    auto index = rewriter.create<cir::ConstantOp>(op->getLoc(), zeroAttr);
+
+    rewriter.replaceOpWithNewOp<cir::GetElementOp>(op, op.getType(),
+                                                   op.getOperand(), index);
+    return mlir::success();
   }
 };
 
@@ -161,7 +235,9 @@ void populateCIRCanonicalizePatterns(RewritePatternSet &patterns) {
     RemoveEmptyScope,
     RemoveEmptySwitch,
     RemoveTrivialTry,
-    SimplifyCallOp
+    SimplifyCallOp,
+    SimplifyPtrStrideOp,
+    SimplifyCastOp
   >(patterns.getContext());
   // clang-format on
 }
@@ -174,10 +250,12 @@ void CIRCanonicalizePass::runOnOperation() {
   // Collect operations to apply patterns.
   llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
-    // CastOp and UnaryOp are here to perform a manual `fold` in
+    // CastOp, UnaryOp and VecExtractOp are here to perform a manual `fold` in
     // applyOpPatternsGreedily.
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp, SelectOp,
-            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp>(op))
+            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp, VecCmpOp,
+            VecCreateOp, VecExtractOp, VecShuffleOp, VecShuffleDynamicOp,
+            VecTernaryOp, PtrStrideOp>(op))
       ops.push_back(op);
   });
 

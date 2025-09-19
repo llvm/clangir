@@ -14,16 +14,16 @@ void f() {
   !E();
 }
 
-//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
+//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) special_member<#cir.cxx_ctor<!rec_E, default>> extra(#fn_attr)
 // CIR-NEXT: cir.func private @_ZN1EntEv(!cir.ptr<!rec_E>) -> !rec_E
-// CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
-// CIR-NEXT: cir.func @_Z1fv() extra(#fn_attr1) {
+// CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!rec_E>) special_member<#cir.cxx_dtor<!rec_E>> extra(#fn_attr)
+// CIR-NEXT: cir.func dso_local @_Z1fv() extra(#fn_attr1) {
 // CIR-NEXT:   cir.scope {
 // CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
 // CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0"] {alignment = 1 : i64}
 // CIR-NEXT:     cir.call @_ZN1EC1Ev(%1) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!rec_E>) -> !rec_E
-// CIR-NEXT:     cir.store %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
+// CIR-NEXT:     cir.store{{.*}} %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
 // CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[TWO]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:   }
@@ -37,7 +37,7 @@ void f() {
 // CIR_EH:     cir.call @_ZN1ED1Ev
 // CIR_EH:     cir.yield
 // CIR_EH:   }
-// CIR_EH:   cir.store %[[RVAL]], %[[AGG_TMP]]
+// CIR_EH:   cir.store{{.*}} %[[RVAL]], %[[AGG_TMP]]
 // CIR_EH:   cir.yield
 // CIR_EH: } catch [#cir.unwind {
 
@@ -49,4 +49,3 @@ const int &r = (const int&)n;
 
 //      LLVM: @_ZGR1r_ = internal constant i32 1234, align 4
 // LLVM-NEXT: @r = constant ptr @_ZGR1r_, align 8
-

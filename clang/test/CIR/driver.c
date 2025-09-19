@@ -25,11 +25,12 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR_MACOS
 // RUN: %clang -target arm64-apple-macosx12.0.0 -fclangir -S -emit-llvm %s -o %t3.ll
 // RUN: FileCheck --input-file=%t3.ll %s -check-prefix=LLVM_MACOS
+// RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -c %s -o %t.o
 
 void foo(void) {}
 
 //      CIR: module {{.*}} {
-// CIR-NEXT:   cir.func @foo()
+// CIR-NEXT:   cir.func dso_local @foo()
 // CIR-NEXT:     cir.return
 // CIR-NEXT:   }
 // CIR-NEXT: }

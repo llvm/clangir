@@ -17,9 +17,8 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   auto arrayTy = ::mlir::dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
 
   if (arrayTy) {
-    auto addrSpace = ::mlir::cast_if_present<cir::AddressSpaceAttr>(
-        arrayPtrTy.getAddrSpace());
-    cir::PointerType flatPtrTy = getPointerTo(arrayTy.getEltType(), addrSpace);
+    cir::PointerType flatPtrTy =
+        getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
     return create<cir::CastOp>(loc, flatPtrTy, cir::CastKind::array_to_ptrdecay,
                                arrayPtr);
   }
@@ -29,11 +28,48 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   return arrayPtr;
 }
 
-mlir::Value CIRGenBuilderTy::getArrayElement(mlir::Location arrayLocBegin,
+mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
+                                               mlir::Location loc,
+                                               mlir::Value index) {
+  // Get the array index type.
+  auto arrayIndexWidth = ti.getTypeWidth(clang::TargetInfo::IntType::SignedInt);
+  mlir::Type arrayIndexType = getSIntNTy(arrayIndexWidth);
+
+  // If this is a boolean, zero-extend it to the array index type.
+  if (auto boolTy = mlir::dyn_cast<cir::BoolType>(index.getType()))
+    return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::bool_to_int,
+                               index);
+
+  // If this an integer, ensure that it is at least as width as the array index
+  // type.
+  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType())) {
+    if (intTy.getWidth() < arrayIndexWidth)
+      return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::integral,
+                                 index);
+  }
+
+  return index;
+}
+
+mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
+                                             mlir::Location arrayLocBegin,
                                              mlir::Location arrayLocEnd,
                                              mlir::Value arrayPtr,
                                              mlir::Type eltTy, mlir::Value idx,
                                              bool shouldDecay) {
+  auto arrayPtrTy = mlir::dyn_cast<cir::PointerType>(arrayPtr.getType());
+  assert(arrayPtrTy && "expected pointer type");
+
+  // If the array pointer is not decayed, emit a GetElementOp.
+  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
+  if (shouldDecay && arrayTy && arrayTy == eltTy) {
+    auto eltPtrTy =
+        getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
+    return create<cir::GetElementOp>(arrayLocEnd, eltPtrTy, arrayPtr,
+                                     promoteArrayIndex(ti, arrayLocBegin, idx));
+  }
+
+  // If we don't have sufficient type information, emit a PtrStrideOp.
   mlir::Value basePtr = arrayPtr;
   if (shouldDecay)
     basePtr = maybeBuildArrayDecay(arrayLocBegin, arrayPtr, eltTy);
@@ -81,8 +117,8 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
   };
 
   if (auto ArrayTy = mlir::dyn_cast<cir::ArrayType>(Ty)) {
-    int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getEltType());
-    SubType = ArrayTy.getEltType();
+    int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getElementType());
+    SubType = ArrayTy.getElementType();
     const auto [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
     Indices.push_back(Index);
     Offset = NewOffset;
@@ -95,7 +131,11 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
       unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
       if (RecordTy.getPacked())
         AlignMask = 0;
-      Pos = (Pos + AlignMask) & ~AlignMask;
+      // Union's fields have the same offset, so no need to change Pos here,
+      // we just need to find EltSize that is greater then the required offset.
+      // The same is true for the similar union type check below
+      if (!RecordTy.isUnion())
+        Pos = (Pos + AlignMask) & ~AlignMask;
       assert(Offset >= 0);
       if (Offset < Pos + EltSize) {
         Indices.push_back(I);
@@ -103,7 +143,9 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
         Offset -= Pos;
         break;
       }
-      Pos += EltSize;
+      // No need to update Pos here, see the comment above.
+      if (!RecordTy.isUnion())
+        Pos += EltSize;
     }
   } else {
     llvm_unreachable("unexpected type");
@@ -121,10 +163,15 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
   for (int64_t idx : indexes) {
     if (auto sTy = dyn_cast<cir::RecordType>(typ)) {
       offset += sTy.getElementOffset(layout.layout, idx);
+      // Align the offset to the type alignment. This is needed for getting
+      // paddings correctly.
+      const llvm::Align tyAlign = llvm::Align(
+          sTy.getPacked() ? 1 : layout.layout.getTypeABIAlignment(typ));
+      offset = llvm::alignTo(offset, tyAlign);
       assert(idx < (int64_t)sTy.getMembers().size());
       typ = sTy.getMembers()[idx];
     } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
-      typ = arTy.getEltType();
+      typ = arTy.getElementType();
       offset += layout.getTypeAllocSize(typ) * idx;
     } else {
       llvm_unreachable("NYI");

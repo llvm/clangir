@@ -9,25 +9,73 @@ typedef struct {
   long b;
 } T;
 
+// Test array initialization with different elements.
+typedef struct {
+     long a0;
+     int a1;
+} Inner;
+typedef struct {
+     int b0;
+     Inner b1[1];
+} Outer;
+Outer outers[2] = {
+    {1, {0, 1} },
+    {1, {0, 0} }
+};
+// CIR:  cir.global{{.*}} @outers =
+// CIR-SAME: #cir.const_record<{
+// CIR-SAME:   #cir.const_record<{
+// CIR-SAME:     #cir.int<1> : !s32i,
+// CIR-SAME:     #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>,
+// CIR-SAME:     #cir.const_array<[
+// CIR-SAME:       #cir.const_record<{#cir.int<0> : !s64i,
+// CIR-SAME:                          #cir.int<1> : !s32i,
+// CIR-SAME:                          #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>
+// CIR-SAME:       }> : !rec_anon_struct
+// CIR-SAME:     ]> : !cir.array<!rec_anon_struct x 1>
+// CIR-SAME:   }> : !rec_anon_struct2,
+// CIR-SAME:   #cir.const_record<{#cir.int<1> : !s32i,
+// CIR-SAME:                      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 4>,
+// CIR-SAME:                      #cir.zero : !cir.array<!rec_Inner x 1>
+// CIR-SAME:   }> : !rec_anon_struct1
+// CIR-SAME: }> : !rec_anon_struct3
+// LLVM: @outers = {{.*}}global
+// LLVM-SAME: {
+// LLVM-SAME:   { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] },
+// LLVM-SAME:   { i32, [4 x i8], [1 x %struct.Inner] }
+// LLVM-SAME: }
+// LLVM-SAME: {
+// LLVM-SAME:   { i32, [4 x i8], [1 x { i64, i32, [4 x i8] }] }
+// LLVM-SAME:    { i32 1, [4 x i8] zeroinitializer, [1 x { i64, i32, [4 x i8] }] [{ i64, i32, [4 x i8] } { i64 0, i32 1, [4 x i8] zeroinitializer }] },
+// LLVM-SAME:   { i32, [4 x i8], [1 x %struct.Inner] }
+// LLVM-SAME:    { i32 1, [4 x i8] zeroinitializer, [1 x %struct.Inner] zeroinitializer }
+// LLVM-SAME: }
+
 void buz(int x) {
-  T arr[] = { {0, x}, {0, 0} };
+  T arr[] = { {x, x}, {0, 0} };
 }
-// CIR: cir.func @buz
+// CIR: cir.func dso_local @buz
 // CIR-NEXT: [[X_ALLOCA:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR-NEXT: [[ARR:%.*]] = cir.alloca !cir.array<!rec_T x 2>, !cir.ptr<!cir.array<!rec_T x 2>>, ["arr", init] {alignment = 16 : i64}
-// CIR-NEXT: cir.store %arg0, [[X_ALLOCA]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: [[ARR_INIT:%.*]] = cir.const #cir.zero : !cir.array<!rec_T x 2>
-// CIR-NEXT: cir.store [[ARR_INIT]], [[ARR]] : !cir.array<!rec_T x 2>, !cir.ptr<!cir.array<!rec_T x 2>>
-// CIR-NEXT: [[FI_EL:%.*]] = cir.cast(array_to_ptrdecay, [[ARR]] : !cir.ptr<!cir.array<!rec_T x 2>>), !cir.ptr<!rec_T>
+// CIR-NEXT: cir.store{{.*}} %arg0, [[X_ALLOCA]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT: [[FI_EL:%.*]] = cir.get_element [[ARR]][[[ZERO]]] : (!cir.ptr<!cir.array<!rec_T x 2>>, !s32i) -> !cir.ptr<!rec_T>
 // CIR-NEXT: [[A_STORAGE0:%.*]] = cir.get_member [[FI_EL]][0] {name = "a"} : !cir.ptr<!rec_T> -> !cir.ptr<!s32i>
+// CIR-NEXT: [[XA_VAL:%.*]] = cir.load{{.*}} [[X_ALLOCA]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: cir.store{{.*}} [[XA_VAL]], [[A_STORAGE0]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[B_STORAGE0:%.*]] = cir.get_member [[FI_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
-// CIR-NEXT: [[X_VAL:%.*]] = cir.load [[X_ALLOCA]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: [[X_CASTED:%.*]] = cir.cast(integral, [[X_VAL]] : !s32i), !s64i
-// CIR-NEXT: cir.store [[X_CASTED]], [[B_STORAGE0]] : !s64i, !cir.ptr<!s64i>
+// CIR-NEXT: [[XB_VAL:%.*]] = cir.load{{.*}} [[X_ALLOCA]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: [[XB_CASTED:%.*]] = cir.cast(integral, [[XB_VAL]] : !s32i), !s64i
+// CIR-NEXT: cir.store{{.*}} [[XB_CASTED]], [[B_STORAGE0]] : !s64i, !cir.ptr<!s64i>
 // CIR-NEXT: [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR-NEXT: [[SE_EL:%.*]] = cir.ptr_stride([[FI_EL]] : !cir.ptr<!rec_T>, [[ONE]] : !s64i), !cir.ptr<!rec_T>
+// CIR-NEXT: [[SE_EL:%.*]] = cir.get_element [[ARR]][[[ONE]]] : (!cir.ptr<!cir.array<!rec_T x 2>>, !s64i) -> !cir.ptr<!rec_T>
 // CIR-NEXT: [[A_STORAGE1:%.*]] = cir.get_member [[SE_EL]][0] {name = "a"} : !cir.ptr<!rec_T> -> !cir.ptr<!s32i>
+// CIR-NEXT: [[A1_ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT: cir.store{{.*}} [[A1_ZERO]], [[A_STORAGE1]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[B_STORAGE1:%.*]] = cir.get_member [[SE_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
+// CIR-NEXT: [[B1_ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT: [[B1_CASTED:%.*]] = cir.cast(integral, [[B1_ZERO]] : !s32i), !s64i
+// CIR-NEXT: cir.store{{.*}} [[B1_CASTED]], [[B_STORAGE1]] : !s64i, !cir.ptr<!s64i>
 // CIR-NEXT: cir.return
 
 void foo() {
@@ -41,49 +89,51 @@ void foo() {
 void bar(int a, int b, int c) {
   int arr[] = {a,b,c};
 }
-// CIR: cir.func @bar
+// CIR: cir.func dso_local @bar
 // CIR:      [[ARR:%.*]] = cir.alloca !cir.array<!s32i x 3>, !cir.ptr<!cir.array<!s32i x 3>>, ["arr", init] {alignment = 4 : i64}
-// CIR-NEXT: cir.store %arg0, [[A:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: cir.store %arg1, [[B:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: cir.store %arg2, [[C:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: [[FI_EL:%.*]] = cir.cast(array_to_ptrdecay, [[ARR]] : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
-// CIR-NEXT: [[LOAD_A:%.*]] = cir.load [[A]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: cir.store [[LOAD_A]], [[FI_EL]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: cir.store{{.*}} %arg0, [[A:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: cir.store{{.*}} %arg1, [[B:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: cir.store{{.*}} %arg2, [[C:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT: [[ELEM0:%.*]] = cir.get_element [[ARR]][[[ZERO]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
+// CIR-NEXT: [[LOAD_A:%.*]] = cir.load{{.*}} [[A]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: cir.store{{.*}} [[LOAD_A]], [[ELEM0]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR-NEXT: [[SE_EL:%.*]] = cir.ptr_stride(%4 : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
-// CIR-NEXT: [[LOAD_B:%.*]] = cir.load [[B]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: cir.store [[LOAD_B]], [[SE_EL]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: [[ELEM1:%.*]] = cir.get_element [[ARR]][[[ONE]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
+// CIR-NEXT: [[LOAD_B:%.*]] = cir.load{{.*}} [[B]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: cir.store{{.*}} [[LOAD_B]], [[ELEM1]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[TWO:%.*]] = cir.const #cir.int<2> : !s64i
-// CIR-NEXT: [[TH_EL:%.*]] = cir.ptr_stride(%4 : !cir.ptr<!s32i>, [[TWO]] : !s64i), !cir.ptr<!s32i>
-// CIR-NEXT: [[LOAD_C:%.*]] = cir.load [[C]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: cir.store [[LOAD_C]], [[TH_EL]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT: [[ELEM2:%.*]] = cir.get_element [[ARR]][[[TWO]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
+// CIR-NEXT: [[LOAD_C:%.*]] = cir.load{{.*}} [[C]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: cir.store{{.*}} [[LOAD_C]], [[ELEM2]] : !s32i, !cir.ptr<!s32i>
 
 void zero_init(int x) {
   int arr[3] = {x};
 }
-// CIR:  cir.func @zero_init
+// CIR:  cir.func dso_local @zero_init
 // CIR:    [[VAR_ALLOC:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
-// CIR:    %1 = cir.alloca !cir.array<!s32i x 3>, !cir.ptr<!cir.array<!s32i x 3>>, ["arr", init] {alignment = 4 : i64}
+// CIR:    [[ARR:%.*]] = cir.alloca !cir.array<!s32i x 3>, !cir.ptr<!cir.array<!s32i x 3>>, ["arr", init] {alignment = 4 : i64}
 // CIR:    [[TEMP:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["arrayinit.temp", init] {alignment = 8 : i64}
-// CIR:    cir.store %arg0, [[VAR_ALLOC]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[BEGIN:%.*]] = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
-// CIR:    [[VAR:%.*]] = cir.load [[VAR_ALLOC]] : !cir.ptr<!s32i>, !s32i
-// CIR:    cir.store [[VAR]], [[BEGIN]] : !s32i, !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} %arg0, [[VAR_ALLOC]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR:    [[BEGIN:%.*]] = cir.get_element [[ARR]][[[ZERO]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
+// CIR:    [[VAR:%.*]] = cir.load{{.*}} [[VAR_ALLOC]] : !cir.ptr<!s32i>, !s32i
+// CIR:    cir.store{{.*}} [[VAR]], [[BEGIN]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:    [[ZERO_INIT_START:%.*]] = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
-// CIR:    cir.store [[ZERO_INIT_START]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR:    [[ZERO_INIT_START:%.*]] = cir.get_element [[ARR]][[[ONE]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} [[ZERO_INIT_START]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:    [[SIZE:%.*]] = cir.const #cir.int<3> : !s64i
-// CIR:    [[END:%.*]] = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[SIZE]] : !s64i), !cir.ptr<!s32i>
+// CIR:    [[END:%.*]] = cir.get_element [[ARR]][[[SIZE]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CIR:    cir.do {
-// CIR:      [[CUR:%.*]] = cir.load [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CIR:      [[CUR:%.*]] = cir.load{{.*}} [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR:      [[FILLER:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR:      cir.store [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
+// CIR:      cir.store{{.*}} [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
 // CIR:      [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:      [[NEXT:%.*]] = cir.ptr_stride([[CUR]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
-// CIR:      cir.store [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR:      [[NEXT:%.*]] = cir.ptr_stride [[CUR]], [[ONE]] : (!cir.ptr<!s32i>, !s64i) -> !cir.ptr<!s32i>
+// CIR:      cir.store{{.*}} [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:      cir.yield
 // CIR:    } while {
-// CIR:      [[CUR:%.*]] = cir.load [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CIR:      [[CUR:%.*]] = cir.load{{.*}} [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR:      [[CMP:%.*]] = cir.cmp(ne, [[CUR]], [[END]]) : !cir.ptr<!s32i>, !cir.bool
 // CIR:      cir.condition([[CMP]])
 // CIR:    }
@@ -93,42 +143,44 @@ void aggr_init() {
   int g = 5;
   int g_arr[5] = {1, 2, 3, g};
 }
-// CIR-LABEL:  cir.func no_proto @aggr_init
+// CIR-LABEL:  cir.func no_proto dso_local @aggr_init
 // CIR:    [[VAR_ALLOC:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["g", init] {alignment = 4 : i64}
 // CIR:    %1 = cir.alloca !cir.array<!s32i x 5>, !cir.ptr<!cir.array<!s32i x 5>>, ["g_arr", init] {alignment = 16 : i64}
 // CIR:    [[TEMP:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["arrayinit.temp", init] {alignment = 8 : i64}
 // CIR:    %3 = cir.const #cir.int<5> : !s32i
-// CIR:    cir.store %3, [[VAR_ALLOC]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[BEGIN:%.*]] = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 5>>), !cir.ptr<!s32i>
-// CIR:    %5 = cir.const #cir.int<1> : !s32i
-// CIR:    cir.store %5, [[BEGIN]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:    %7 = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
-// CIR:    %8 = cir.const #cir.int<2> : !s32i
-// CIR:    cir.store %8, %7 : !s32i, !cir.ptr<!s32i>
-// CIR:    [[TWO:%.*]] = cir.const #cir.int<2> : !s64i
-// CIR:    %10 = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[TWO]] : !s64i), !cir.ptr<!s32i>
-// CIR:    %11 = cir.const #cir.int<3> : !s32i
-// CIR:    cir.store %11, %10 : !s32i, !cir.ptr<!s32i>
-// CIR:    [[THREE:%.*]] = cir.const #cir.int<3> : !s64i
-// CIR:    %13 = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[THREE]] : !s64i), !cir.ptr<!s32i>
-// CIR:    [[VAR:%.*]] = cir.load [[VAR_ALLOC]] : !cir.ptr<!s32i>, !s32i
-// CIR:    cir.store [[VAR]], %13 : !s32i, !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} %3, [[VAR_ALLOC]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[OFFSET0:%.*]] = cir.const #cir.int<0> : !s32i
+// CIR:    [[BEGIN:%.*]] = cir.get_element %1[[[OFFSET0]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s32i) -> !cir.ptr<!s32i>
+// CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
+// CIR:    cir.store{{.*}} [[ONE]], [[BEGIN]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[OFFSET1:%.*]] = cir.const #cir.int<1> : !s64i
+// CIR:    [[ELEM1:%.*]] = cir.get_element %1[[[OFFSET1]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s64i) -> !cir.ptr<!s32i>
+// CIR:    [[TWO:%.*]] = cir.const #cir.int<2> : !s32i
+// CIR:    cir.store{{.*}} [[TWO]], [[ELEM1]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[OFFSET2:%.*]] = cir.const #cir.int<2> : !s64i
+// CIR:    [[ELEM2:%.*]] = cir.get_element %1[[[OFFSET2]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s64i) -> !cir.ptr<!s32i>
+// CIR:    [[THREE:%.*]] = cir.const #cir.int<3> : !s32i
+// CIR:    cir.store{{.*}} [[THREE]], [[ELEM2]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[OFFSET3:%.*]] = cir.const #cir.int<3> : !s64i
+// CIR:    [[ELEM3:%.*]] = cir.get_element %1[[[OFFSET3]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s64i) -> !cir.ptr<!s32i>
+// CIR:    [[VAR:%.*]] = cir.load{{.*}} [[VAR_ALLOC]] : !cir.ptr<!s32i>, !s32i
+// CIR:    cir.store{{.*}} [[VAR]], [[ELEM3]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[ONE_VAR:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:    %16 = cir.ptr_stride(%13 : !cir.ptr<!s32i>, [[ONE_VAR]] : !s64i), !cir.ptr<!s32i>
-// CIR:    cir.store %16, [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR:    [[OFFSET4:%.*]] = cir.binop(add, [[OFFSET3]], [[ONE_VAR]]) : !s64i
+// CIR:    [[LAST:%.*]] = cir.get_element %1[[[OFFSET4]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s64i) -> !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} [[LAST]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:    [[SIZE:%.*]] = cir.const #cir.int<5> : !s64i
-// CIR:    [[END:%.*]] = cir.ptr_stride([[BEGIN]] : !cir.ptr<!s32i>, [[SIZE]] : !s64i), !cir.ptr<!s32i>
+// CIR:    [[END:%.*]] = cir.get_element %1[[[SIZE]]] : (!cir.ptr<!cir.array<!s32i x 5>>, !s64i) -> !cir.ptr<!s32i>
 // CIR:    cir.do {
-// CIR:      [[CUR:%.*]] = cir.load [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CIR:      [[CUR:%.*]] = cir.load{{.*}} [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR:      [[FILLER:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR:      cir.store [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
+// CIR:      cir.store{{.*}} [[FILLER]], [[CUR]] : !s32i, !cir.ptr<!s32i>
 // CIR:      [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR:      [[NEXT:%.*]] = cir.ptr_stride([[CUR]] : !cir.ptr<!s32i>, [[ONE]] : !s64i), !cir.ptr<!s32i>
-// CIR:      cir.store [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR:      [[NEXT:%.*]] = cir.ptr_stride [[CUR]], [[ONE]] : (!cir.ptr<!s32i>, !s64i) -> !cir.ptr<!s32i>
+// CIR:      cir.store{{.*}} [[NEXT]], [[TEMP]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR:      cir.yield
 // CIR:    } while {
-// CIR:      [[CUR:%.*]] = cir.load [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CIR:      [[CUR:%.*]] = cir.load{{.*}} [[TEMP]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR:      [[CMP:%.*]] = cir.cmp(ne, [[CUR]], [[END]]) : !cir.ptr<!s32i>, !cir.bool
 // CIR:      cir.condition([[CMP]])
 // CIR:    }
@@ -139,18 +191,18 @@ void aggr_init() {
 // LLVM:   %2 = alloca [5 x i32], i64 1, align 16
 // LLVM:   [[TEMP:%.*]] = alloca ptr, i64 1, align 8
 // LLVM:   store i32 5, ptr [[VAR_ALLOC]], align 4
-// LLVM:   [[BEGIN:%.*]] = getelementptr i32, ptr %2, i32 0
+// LLVM:   [[BEGIN:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 0
 // LLVM:   store i32 1, ptr [[BEGIN]], align 4
-// LLVM:   [[ONE:%.*]] = getelementptr i32, ptr [[BEGIN]], i64 1
+// LLVM:   [[ONE:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 1
 // LLVM:   store i32 2, ptr [[ONE]], align 4
-// LLVM:   [[TWO:%.*]] = getelementptr i32, ptr [[BEGIN]], i64 2
+// LLVM:   [[TWO:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 2
 // LLVM:   store i32 3, ptr [[TWO]], align 4
-// LLVM:   [[THREE:%.*]] = getelementptr i32, ptr [[BEGIN]], i64 3
+// LLVM:   [[THREE:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 3
 // LLVM:   [[VAR:%.*]] = load i32, ptr [[VAR_ALLOC]], align 4
 // LLVM:   store i32 [[VAR]], ptr [[THREE]], align 4
-// LLVM:   %9 = getelementptr i32, ptr [[THREE]], i64 1
-// LLVM:   store ptr %9, ptr [[TEMP]], align 8
-// LLVM:   [[END:%.*]] = getelementptr i32, ptr [[BEGIN]], i64 5
+// LLVM:   [[LAST:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 4
+// LLVM:   store ptr [[LAST]], ptr [[TEMP]], align 8
+// LLVM:   [[END:%.*]] = getelementptr [5 x i32], ptr %2, i32 0, i64 5
 // LLVM:   br label %14
 //
 // LLVM: 11:                                               ; preds = %14

@@ -7,7 +7,7 @@ void f1(__builtin_va_list c) {
   { __builtin_va_arg(c, void *); }
 }
 
-// BEFORE: cir.func @f1(%arg0: !rec___va_list) attributes
+// BEFORE: cir.func dso_local @f1(%arg0: !rec___va_list) attributes
 // BEFORE: [[VAR_LIST:%.*]] = cir.alloca !rec___va_list, !cir.ptr<!rec___va_list>, ["c", init] {alignment = 8 : i64}
 // BEFORE: cir.store %arg0, [[VAR_LIST]] : !rec___va_list, !cir.ptr<!rec___va_list>
 // BEFORE: cir.scope {
@@ -15,7 +15,7 @@ void f1(__builtin_va_list c) {
 // BEFORE-NEXT: }
 // BEFORE-NEXT: cir.return
 
-// AFTER: cir.func @f1(%arg0: !rec___va_list) attributes
+// AFTER: cir.func dso_local @f1(%arg0: !rec___va_list) attributes
 // AFTER: [[VARLIST:%.*]] = cir.alloca !rec___va_list, !cir.ptr<!rec___va_list>, ["c", init] {alignment = 8 : i64}
 // AFTER: cir.store %arg0, [[VARLIST]] : !rec___va_list, !cir.ptr<!rec___va_list>
 // AFTER: cir.scope {
@@ -39,7 +39,7 @@ void f1(__builtin_va_list c) {
 // AFTER-NEXT: [[GR_TOP_P:%.*]] = cir.get_member [[VARLIST]][1] {name = "gr_top"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: [[GR_TOP:%.*]] = cir.load [[GR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[TMP2:%.*]] = cir.cast(bitcast, [[GR_TOP]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<i8>, [[GR_OFFS]] : !s32i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride [[TMP2]], [[GR_OFFS]] : (!cir.ptr<i8>, !s32i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<i8>), !cir.ptr<!void>
 // AFTER-NEXT: cir.br [[BB_END:\^bb.*]]([[IN_REG_OUTPUT]] : !cir.ptr<!void>)
 
@@ -49,7 +49,7 @@ void f1(__builtin_va_list c) {
 // AFTER-NEXT: [[STACK_V:%.*]] = cir.load [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[EIGHT_IN_PTR_ARITH:%.*]]  = cir.const #cir.int<8> : !u64i
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride [[TMP4]], [[EIGHT_IN_PTR_ARITH]] : (!cir.ptr<i8>, !u64i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
 // AFTER-NEXT: cir.store [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)

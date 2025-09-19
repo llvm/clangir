@@ -2,7 +2,6 @@
 // RUN: FileCheck --input-file=%t.cir -check-prefix=CIR %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu %s -fclangir -emit-llvm -o %t.ll
 // RUN: FileCheck --input-file=%t.ll -check-prefix=LLVM %s
-// XFAIL: *
 
 char buffer[32] = "This is a largely unused buffer";
 
@@ -14,14 +13,13 @@ char buffer[32] = "This is a largely unused buffer";
 // CIR:  %[[VAL_2:.*]] = cir.cast(array_to_ptrdecay, %[[VAL_1]] : !cir.ptr<!cir.array<!s8i x 32>>), !cir.ptr<!s8i>
 // CIR:  %[[VAL_3:.*]] = cir.cast(bitcast, %[[VAL_2]] : !cir.ptr<!s8i>), !cir.ptr<!void>
 // CIR:  %[[VAL_4:.*]] = cir.get_global @buffer : !cir.ptr<!cir.array<!s8i x 32>>
-// CIR:  %[[VAL_5:.*]] = cir.cast(array_to_ptrdecay, %[[VAL_4]] : !cir.ptr<!cir.array<!s8i x 32>>), !cir.ptr<!s8i>
 // CIR:  %[[VAL_6:.*]] = cir.const #cir.int<32> : !s32i
-// CIR:  %[[VAL_7:.*]] = cir.ptr_stride(%[[VAL_5]] : !cir.ptr<!s8i>, %[[VAL_6]] : !s32i), !cir.ptr<!s8i>
+// CIR:  %[[VAL_7:.*]] = cir.get_element %[[VAL_4]][%[[VAL_6]]] : (!cir.ptr<!cir.array<!s8i x 32>>, !s32i) -> !cir.ptr<!s8i>
 // CIR:  %[[VAL_8:.*]] = cir.cast(bitcast, %[[VAL_7]] : !cir.ptr<!s8i>), !cir.ptr<!void>
 // CIR:  cir.clear_cache %[[VAL_3]] : !cir.ptr<!void>, %[[VAL_8]],
 
 // LLVM-LABEL: main
-// LLVM:  call void @llvm.clear_cache(ptr @buffer, ptr getelementptr (i8, ptr @buffer, i64 32))
+// LLVM:  call void @llvm.clear_cache(ptr @buffer, ptr getelementptr inbounds nuw (i8, ptr @buffer, i64 32))
 
 int main(void) {
   __builtin___clear_cache(buffer, buffer+32);

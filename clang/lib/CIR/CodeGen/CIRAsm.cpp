@@ -122,7 +122,8 @@ static void collectClobbers(const CIRGenFunction &cgf, const AsmStmt &S,
 
   // Clobbers
   for (unsigned i = 0, e = S.getNumClobbers(); i != e; i++) {
-    StringRef clobber = S.getClobber(i);
+    std::string clobberStr = S.getClobber(i);
+    StringRef clobber{clobberStr};
     if (clobber == "memory")
       readOnly = readNone = false;
     else if (clobber == "unwind") {
@@ -519,20 +520,6 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
       InOutArgs.push_back(Arg);
     }
   } // iterate over output operands
-
-  // If this is a Microsoft-style asm blob, store the return registers (EAX:EDX)
-  // to the return value slot. Only do this when returning in registers.
-  if (isa<MSAsmStmt>(&S)) {
-    const cir::ABIArgInfo &RetAI = CurFnInfo->getReturnInfo();
-    if (RetAI.isDirect() || RetAI.isExtend()) {
-      // Make a fake lvalue for the return value slot.
-      LValue ReturnSlot = makeAddrLValue(ReturnValue, FnRetTy);
-      CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
-          *this, ReturnSlot, Constraints, ResultRegTypes, ResultTruncRegTypes,
-          ResultRegDests, AsmString, S.getNumOutputs());
-      SawAsmBlock = true;
-    }
-  }
 
   for (unsigned i = 0, e = S.getNumInputs(); i != e; i++) {
     const Expr *InputExpr = S.getInputExpr(i);

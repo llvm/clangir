@@ -581,6 +581,67 @@ void add_assign() {
 
 // CHECK: }
 
+void add_assign_float16() {
+  _Float16 _Complex a;
+  _Float16 _Complex b;
+  a += b;
+}
+
+//   CLANG: @add_assign_float16
+// CPPLANG: @_Z18add_assign_float16v
+
+// CIRGRN: %{{.*}} = cir.binop(add, %{{.*}}, %{{.*}}) : !cir.complex<!cir.f16>
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.complex<!cir.f16>, !cir.ptr<!cir.complex<!cir.f16>>, ["a"]
+// CIR: %[[B_ADDR:.*]] = cir.alloca !cir.complex<!cir.f16>, !cir.ptr<!cir.complex<!cir.f16>>, ["b"]
+// CIR: %[[TMP_B:.*]] = cir.load{{.*}} %[[B_ADDR]] : !cir.ptr<!cir.complex<!cir.f16>>, !cir.complex<!cir.f16>
+// CIR: %[[B_REAL:.*]] = cir.complex.real %[[TMP_B]] : !cir.complex<!cir.f16> -> !cir.f16
+// CIR: %[[B_IMAG:.*]] = cir.complex.imag %[[TMP_B]] : !cir.complex<!cir.f16> -> !cir.f16
+// CIR: %[[B_REAL_F32:.*]] = cir.cast(floating, %[[B_REAL]] : !cir.f16), !cir.float
+// CIR: %[[B_IMAG_F32:.*]] = cir.cast(floating, %[[B_IMAG]] : !cir.f16), !cir.float
+// CIR: %[[B_F32_COMPLEX:.*]] = cir.complex.create %[[B_REAL_F32]], %[[B_IMAG_F32]] : !cir.float -> !cir.complex<!cir.float>
+// CIR: %[[TMP_A:.*]] = cir.load{{.*}} %[[A_ADDR]] : !cir.ptr<!cir.complex<!cir.f16>>, !cir.complex<!cir.f16>
+// CIR: %[[A_REAL:.*]] = cir.complex.real %[[TMP_A]] : !cir.complex<!cir.f16> -> !cir.f16
+// CIR: %[[A_IMAG:.*]] = cir.complex.imag %[[TMP_A]] : !cir.complex<!cir.f16> -> !cir.f16
+// CIR: %[[A_REAL_F32:.*]] = cir.cast(floating, %[[A_REAL]] : !cir.f16), !cir.float
+// CIR: %[[A_IMAG_F32:.*]] = cir.cast(floating, %[[A_IMAG]] : !cir.f16), !cir.float
+// CIR: %[[A_F32_COMPLEX:.*]] = cir.complex.create %[[A_REAL_F32]], %[[A_IMAG_F32]] : !cir.float -> !cir.complex<!cir.float>
+// CIR: %[[A_F32_REAL:.*]] = cir.complex.real %[[A_F32_COMPLEX]] : !cir.complex<!cir.float> -> !cir.float
+// CIR: %[[A_F32_IMAG:.*]] = cir.complex.imag %[[A_F32_COMPLEX]] : !cir.complex<!cir.float> -> !cir.float
+// CIR: %[[B_F32_REAL:.*]] = cir.complex.real %[[B_F32_COMPLEX]] : !cir.complex<!cir.float> -> !cir.float
+// CIR: %[[B_F32_IMAG:.*]] = cir.complex.imag %[[B_F32_COMPLEX]] : !cir.complex<!cir.float> -> !cir.float
+// CIR: %[[ADD_REAL:.*]] = cir.binop(add, %[[A_F32_REAL]], %[[B_F32_REAL]]) : !cir.float
+// CIR: %[[ADD_IMAG:.*]] = cir.binop(add, %[[A_F32_IMAG]], %[[B_F32_IMAG]]) : !cir.float
+// CIR: %[[RESULT:.*]] = cir.complex.create %[[ADD_REAL]], %[[ADD_IMAG]] : !cir.float -> !cir.complex<!cir.float>
+
+// LLVM: %[[A_ADDR:.*]] = alloca { half, half }, i64 1, align 2
+// LLVM: %[[B_ADDR:.*]] = alloca { half, half }, i64 1, align 2
+// LLVM: %[[TMP_B:.*]] = load { half, half }, ptr %[[B_ADDR]], align 2
+// LLVM: %[[B_REAL:.*]] = extractvalue { half, half } %[[TMP_B]], 0
+// LLVM: %[[B_IMAG:.*]] = extractvalue { half, half } %[[TMP_B]], 1
+// LLVM: %[[B_REAL_F32:.*]] = fpext half %[[B_REAL]] to float
+// LLVM: %[[B_IMAG_F32:.*]] = fpext half %[[B_IMAG]] to float
+// LLVM: %[[TMP_B_COMPLEX_F32:.*]] = insertvalue { float, float } {{.*}}, float %[[B_REAL_F32]], 0
+// LLVM: %[[B_COMPLEX_F32:.*]] = insertvalue { float, float } %[[TMP_B_COMPLEX_F32]], float %[[B_IMAG_F32]], 1
+// LLVM: %[[TMP_A:.*]] = load { half, half }, ptr %[[A_ADDR]], align 2
+// LLVM: %[[A_REAL:.*]] = extractvalue { half, half } %[[TMP_A]], 0
+// LLVM: %[[A_IMAG:.*]] = extractvalue { half, half } %[[TMP_A]], 1
+// LLVM: %[[A_REAL_F32:.*]] = fpext half %[[A_REAL]] to float
+// LLVM: %[[A_IMAG_F32:.*]] = fpext half %[[A_IMAG]] to float
+// LLVM: %[[TMP_A_COMPLEX_F32:.*]] = insertvalue { float, float } {{.*}}, float %[[A_REAL_F32]], 0
+// LLVM: %[[A_COMPLEX_F32:.*]] = insertvalue { float, float } %[[TMP_A_COMPLEX_F32]], float %[[A_IMAG_F32]], 1
+// LLVM: %[[RESULT_REAL_F32:.*]] = fadd float %[[A_REAL_F32]], %[[B_REAL_F32]]
+// LLVM: %[[RESULT_IMAG_F32:.*]] = fadd float %[[A_IMAG_F32]], %[[B_IMAG_F32]]
+// LLVM: %[[TMP_RESULT:.*]] = insertvalue { float, float } {{.*}}, float %[[RESULT_REAL_F32]], 0
+// LLVM: %[[RESULT:.*]] = insertvalue { float, float } %[[TMP_RESULT]], float %[[RESULT_IMAG_F32]], 1
+// LLVM: %[[RESULT_REAL_F16:.*]] = fptrunc float %[[RESULT_REAL_F32]] to half
+// LLVM: %[[RESULT_IMAG_F16:.*]] = fptrunc float %[[RESULT_IMAG_F32]] to half
+// LLVM: %[[TMP_RESULT_F16:.*]] = insertvalue { half, half } {{.*}}, half %[[RESULT_REAL_F16]], 0
+// LLVM: %[[RESULT_F16:.*]] = insertvalue { half, half } %[[TMP_RESULT_F16]], half %[[RESULT_IMAG_F16]], 1
+// LLVM: store { half, half } %[[RESULT_F16]], ptr %[[A_ADDR]], align 2
+
+// CHECK: }
+
 void sub_assign() {
   cd1 -= cd2;
   ci1 -= ci2;

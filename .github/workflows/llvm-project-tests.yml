@@ -14,7 +14,7 @@ on:
         required: false
       os_list:
         required: false
-        default: '["ubuntu-24.04", "windows-2019", "macOS-13"]'
+        default: '["ubuntu-24.04", "windows-2022", "macOS-13"]'
       python_version:
         required: false
         type: string
@@ -39,23 +39,12 @@ on:
         type: string
         # Use windows-2019 due to:
         # https://developercommunity.visualstudio.com/t/Prev-Issue---with-__assume-isnan-/1597317
-        # Use ubuntu-22.04 rather than ubuntu-24.04 to match the ubuntu
-        # version in the CI container. Without this, setup-python tries
-        # to install a python version linked against a newer version of glibc.
-        # TODO(boomanaiden154): Bump the Ubuntu version once the version in the
-        # container is bumped.
-        default: '["ubuntu-22.04", "windows-2019", "macOS-13"]'
+        default: '["ubuntu-24.04", "windows-2022", "macOS-13"]'
 
       python_version:
         required: false
         type: string
         default: '3.11'
-
-      # Optional reference to the branch being checked out.
-      # Uses the current branch if not specified.
-      repo_ref:
-        required: false
-        type: string
 
 concurrency:
   # Skip intermediate builds: always.
@@ -70,7 +59,7 @@ jobs:
     name: Lit Tests
     runs-on: ${{ matrix.os }}
     container:
-      image: ${{(startsWith(matrix.os, 'ubuntu') && 'ghcr.io/llvm/ci-ubuntu-22.04:latest') || null}}
+      image: ${{(startsWith(matrix.os, 'ubuntu') && 'ghcr.io/llvm/ci-ubuntu-24.04:latest') || null}}
       volumes:
         - /mnt/:/mnt/
     strategy:
@@ -99,7 +88,6 @@ jobs:
       # clean: false.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ inputs.repo_ref || github.ref }}
           fetch-depth: 250
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17

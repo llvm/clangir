@@ -439,7 +439,7 @@ private:
           return Field;
       }
       return nullptr;
-    } else if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(S)) {
+    } else if (isa<CXXMemberCallExpr>(S)) {
       // We want to represent all calls explicitly for analysis purposes.
       return nullptr;
     } else if (CallExpr *CE = dyn_cast<CallExpr>(S)) {
@@ -795,10 +795,10 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   }
 
   // Apply the offsets.
-  Address VTableField = LoadCXXThisAddress();
+  Address ClassAddr = LoadCXXThisAddress();
   if (!NonVirtualOffset.isZero() || VirtualOffset) {
-    VTableField = ApplyNonVirtualAndVirtualOffset(
-        loc, *this, VTableField, NonVirtualOffset, VirtualOffset,
+    ClassAddr = ApplyNonVirtualAndVirtualOffset(
+        loc, *this, ClassAddr, NonVirtualOffset, VirtualOffset,
         Vptr.VTableClass, Vptr.NearestVBase, BaseValueTy);
   }
 
@@ -807,8 +807,9 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   // vtable field is derived from `this` pointer, therefore they should be in
   // the same addr space.
   assert(!cir::MissingFeatures::addressSpace());
-  VTableField = builder.createElementBitCast(loc, VTableField,
-                                             VTableAddressPoint.getType());
+  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
+      loc, builder.getPtrToVPtrType(), ClassAddr.getPointer());
+  Address VTableField = Address(VTablePtr, ClassAddr.getAlignment());
   auto storeOp = builder.createStore(loc, VTableAddressPoint, VTableField);
   TBAAAccessInfo TBAAInfo =
       CGM.getTBAAVTablePtrAccessInfo(VTableAddressPoint.getType());
@@ -1015,11 +1016,6 @@ void CIRGenFunction::emitForwardingCallToLambda(
       callOperator->getType()->castAs<FunctionProtoType>();
   QualType resultType = FPT->getReturnType();
   ReturnValueSlot returnSlot;
-  if (!resultType->isVoidType() &&
-      calleeFnInfo.getReturnInfo().getKind() == cir::ABIArgInfo::Indirect &&
-      !hasScalarEvaluationKind(calleeFnInfo.getReturnType())) {
-    llvm_unreachable("NYI");
-  }
 
   // We don't need to separately arrange the call arguments because
   // the call can't be variadic anyway --- it's impossible to forward
@@ -1709,10 +1705,12 @@ void CIRGenFunction::emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD,
 }
 
 mlir::Value CIRGenFunction::getVTablePtr(mlir::Location Loc, Address This,
-                                         mlir::Type VTableTy,
                                          const CXXRecordDecl *RD) {
-  Address VTablePtrSrc = builder.createElementBitCast(Loc, This, VTableTy);
-  auto VTable = builder.createLoad(Loc, VTablePtrSrc);
+  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
+      Loc, builder.getPtrToVPtrType(), This.getPointer());
+  Address VTablePtrAddr = Address(VTablePtr, This.getAlignment());
+
+  auto VTable = builder.createLoad(Loc, VTablePtrAddr);
   assert(!cir::MissingFeatures::tbaa());
 
   if (CGM.getCodeGenOpts().OptimizationLevel > 0 &&
@@ -1736,7 +1734,7 @@ Address CIRGenFunction::emitCXXMemberDataPointerAddress(
   CharUnits memberAlign =
       CGM.getNaturalTypeAlignment(memberType, baseInfo, tbaaInfo);
   memberAlign = CGM.getDynamicOffsetAlignment(
-      base.getAlignment(), memberPtrType->getClass()->getAsCXXRecordDecl(),
+      base.getAlignment(), memberPtrType->getMostRecentCXXRecordDecl(),
       memberAlign);
 
   return Address(op, convertTypeForMem(memberPtrType->getPointeeType()),
@@ -1838,20 +1836,23 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
   // llvm::BranchInst *zeroCheckBranch = nullptr;
 
   // Optimize for a constant count.
-  auto constantCount = dyn_cast<cir::ConstantOp>(numElements.getDefiningOp());
-  if (constantCount) {
-    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
-    // Just skip out if the constant count is zero.
-    if (constIntAttr && constIntAttr.getUInt() == 0)
-      return;
-    // Otherwise, emit the check.
+  if (auto constantCount = numElements.getDefiningOp<cir::ConstantOp>()) {
+    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
+      // Just skip out if the constant count is zero.
+      if (constIntAttr.getUInt() == 0)
+        return;
+      // Otherwise, emit the check.
+    }
+
+    if (constantCount.use_empty())
+      constantCount.erase();
   } else {
     llvm_unreachable("NYI");
   }
 
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayBase.getElementType());
   assert(arrayTy && "expected array type");
-  auto elementType = arrayTy.getEltType();
+  auto elementType = arrayTy.getElementType();
   auto ptrToElmType = builder.getPointerTo(elementType);
 
   // Tradional LLVM codegen emits a loop here.
@@ -1907,9 +1908,6 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
           builder.create<cir::YieldOp>(loc);
         });
   }
-
-  if (constantCount.use_empty())
-    constantCount.erase();
 }
 
 static bool canEmitDelegateCallArgs(CIRGenFunction &CGF,

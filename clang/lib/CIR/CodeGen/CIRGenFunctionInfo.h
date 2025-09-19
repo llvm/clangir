@@ -16,18 +16,12 @@
 #define LLVM_CLANG_CIR_CIRGENFUNCTIONINFO_H
 
 #include "clang/AST/CanonicalType.h"
-#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/TrailingObjects.h"
 
 namespace clang::CIRGen {
-
-struct CIRGenFunctionInfoArgInfo {
-  clang::CanQualType type;
-  cir::ABIArgInfo info;
-};
 
 /// A class for recording the number of arguments that a function signature
 /// requires.
@@ -81,10 +75,9 @@ public:
 class CIRGenFunctionInfo final
     : public llvm::FoldingSetNode,
       private llvm::TrailingObjects<
-          CIRGenFunctionInfo, CIRGenFunctionInfoArgInfo,
+          CIRGenFunctionInfo, clang::CanQualType,
           clang::FunctionProtoType::ExtParameterInfo> {
 
-  typedef CIRGenFunctionInfoArgInfo ArgInfo;
   typedef clang::FunctionProtoType::ExtParameterInfo ExtParameterInfo;
 
   /// The cir::CallingConv to use for this function (as specified by the user).
@@ -135,9 +128,13 @@ class CIRGenFunctionInfo final
 
   unsigned NumArgs;
 
-  ArgInfo *getArgsBuffer() { return getTrailingObjects<ArgInfo>(); }
+  clang::CanQualType *getArgTypes() {
+    return getTrailingObjects<clang::CanQualType>();
+  }
 
-  const ArgInfo *getArgsBuffer() const { return getTrailingObjects<ArgInfo>(); }
+  const clang::CanQualType *getArgTypes() const {
+    return getTrailingObjects<clang::CanQualType>();
+  }
 
   ExtParameterInfo *getExtParameterInfosBuffer() {
     return getTrailingObjects<ExtParameterInfo>();
@@ -162,15 +159,15 @@ public:
   // Friending class TrailingObjects is apparantly not good enough for MSVC, so
   // these have to be public.
   friend class TrailingObjects;
-  size_t numTrailingObjects(OverloadToken<ArgInfo>) const {
+  size_t numTrailingObjects(OverloadToken<clang::CanQualType>) const {
     return NumArgs + 1;
   }
   size_t numTrailingObjects(OverloadToken<ExtParameterInfo>) const {
     return (HasExtParameterInfos ? NumArgs : 0);
   }
 
-  using const_arg_iterator = const ArgInfo *;
-  using arg_iterator = ArgInfo *;
+  using const_arg_iterator = const clang::CanQualType *;
+  using arg_iterator = clang::CanQualType *;
 
   static void Profile(llvm::FoldingSetNodeID &ID, bool InstanceMethod,
                       bool ChainCall, const clang::FunctionType::ExtInfo &info,
@@ -221,20 +218,29 @@ public:
     }
     getReturnType().Profile(ID);
     for (const auto &I : arguments())
-      I.type.Profile(ID);
+      I.Profile(ID);
   }
 
-  llvm::MutableArrayRef<ArgInfo> arguments() {
-    return llvm::MutableArrayRef<ArgInfo>(arg_begin(), NumArgs);
+  llvm::MutableArrayRef<clang::CanQualType> arguments() {
+    return llvm::MutableArrayRef<clang::CanQualType>(arg_begin(), NumArgs);
   }
-  llvm::ArrayRef<ArgInfo> arguments() const {
-    return llvm::ArrayRef<ArgInfo>(arg_begin(), NumArgs);
+  llvm::ArrayRef<clang::CanQualType> arguments() const {
+    return llvm::ArrayRef<clang::CanQualType>(arg_begin(), NumArgs);
   }
 
-  const_arg_iterator arg_begin() const { return getArgsBuffer() + 1; }
-  const_arg_iterator arg_end() const { return getArgsBuffer() + 1 + NumArgs; }
-  arg_iterator arg_begin() { return getArgsBuffer() + 1; }
-  arg_iterator arg_end() { return getArgsBuffer() + 1 + NumArgs; }
+  llvm::MutableArrayRef<clang::CanQualType> requiredArguments() {
+    return llvm::MutableArrayRef<clang::CanQualType>(arg_begin(),
+                                                     getNumRequiredArgs());
+  }
+  llvm::ArrayRef<clang::CanQualType> requiredArguments() const {
+    return llvm::ArrayRef<clang::CanQualType>(arg_begin(),
+                                              getNumRequiredArgs());
+  }
+
+  const_arg_iterator arg_begin() const { return getArgTypes() + 1; }
+  const_arg_iterator arg_end() const { return getArgTypes() + 1 + NumArgs; }
+  arg_iterator arg_begin() { return getArgTypes() + 1; }
+  arg_iterator arg_end() { return getArgTypes() + 1 + NumArgs; }
 
   unsigned arg_size() const { return NumArgs; }
 
@@ -260,12 +266,7 @@ public:
     return EffectiveCallingConvention;
   }
 
-  clang::CanQualType getReturnType() const { return getArgsBuffer()[0].type; }
-
-  cir::ABIArgInfo &getReturnInfo() { return getArgsBuffer()[0].info; }
-  const cir::ABIArgInfo &getReturnInfo() const {
-    return getArgsBuffer()[0].info;
-  }
+  clang::CanQualType getReturnType() const { return getArgTypes()[0]; }
 
   bool isChainCall() const { return ChainCall; }
 

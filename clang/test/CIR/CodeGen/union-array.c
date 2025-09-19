@@ -26,6 +26,7 @@ static U1 g = {5};
 // LLVM: @g = internal global { i32 } { i32 5 }
 // FIXME: LLVM output should be: @g = internal global %union.U { i32 5 }
 
+// LLVM: @g2 = global ptr getelementptr inbounds nuw (i8, ptr @g1, i64 24)
 
 void foo() { U arr[2] = {{.b = {1, 2}}, {.a = {1}}}; }
 
@@ -35,5 +36,24 @@ void foo() { U arr[2] = {{.b = {1, 2}}, {.a = {1}}}; }
 void bar(void) {
   int *x[2] = { &g.f0, &g.f0 };
 }
-// CIR: cir.global "private" internal dsolocal @g = #cir.const_record<{#cir.int<5> : !s32i}> : !rec_anon_struct
+// CIR: cir.global "private" internal dso_local @g = #cir.const_record<{#cir.int<5> : !s32i}> : !rec_anon_struct
 // CIR: cir.const #cir.const_array<[#cir.global_view<@g> : !cir.ptr<!s32i>, #cir.global_view<@g> : !cir.ptr<!s32i>]> : !cir.array<!cir.ptr<!s32i> x 2>
+
+typedef struct {
+    long s0;
+    int  s1;
+} S_3;
+
+typedef union {
+   int  f0;
+   S_3 f1;
+} U2;
+
+
+static U2 g1[3] = {{0x42},{0x42},{0x42}};
+int* g2 = &g1[1].f1.s1;
+// CIR: cir.global external @g2 = #cir.global_view<@g1, [1, 1, 4]> : !cir.ptr<!s32i>
+
+void baz(void) {
+  (*g2) = 4;
+}

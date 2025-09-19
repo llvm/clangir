@@ -30,63 +30,12 @@
 #include "clang/CIR/Dialect/IR/CIROpsDialect.h.inc"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIROpsStructs.h.inc"
+#include "clang/CIR/Dialect/IR/CIRTraits.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
-
-namespace mlir {
-namespace OpTrait {
-
-namespace impl {
-// These functions are out-of-line implementations of the methods in the
-// corresponding trait classes.  This avoids them being template
-// instantiated/duplicated.
-LogicalResult verifySameFirstOperandAndResultType(Operation *op);
-LogicalResult verifySameSecondOperandAndResultType(Operation *op);
-LogicalResult verifySameFirstSecondOperandAndResultType(Operation *op);
-} // namespace impl
-
-/// This class provides verification for ops that are known to have the same
-/// first operand and result type.
-///
-template <typename ConcreteType>
-class SameFirstOperandAndResultType
-    : public TraitBase<ConcreteType, SameFirstOperandAndResultType> {
-public:
-  static llvm::LogicalResult verifyTrait(Operation *op) {
-    return impl::verifySameFirstOperandAndResultType(op);
-  }
-};
-
-/// This class provides verification for ops that are known to have the same
-/// second operand and result type.
-///
-template <typename ConcreteType>
-class SameSecondOperandAndResultType
-    : public TraitBase<ConcreteType, SameSecondOperandAndResultType> {
-public:
-  static llvm::LogicalResult verifyTrait(Operation *op) {
-    return impl::verifySameSecondOperandAndResultType(op);
-  }
-};
-
-/// This class provides verification for ops that are known to have the same
-/// first, second operand and result type.
-///
-template <typename ConcreteType>
-class SameFirstSecondOperandAndResultType
-    : public TraitBase<ConcreteType, SameFirstSecondOperandAndResultType> {
-public:
-  static llvm::LogicalResult verifyTrait(Operation *op) {
-    return impl::verifySameFirstSecondOperandAndResultType(op);
-  }
-};
-
-} // namespace OpTrait
-
-} // namespace mlir
 
 namespace cir {
 void buildTerminatedBody(mlir::OpBuilder &builder, mlir::Location loc);

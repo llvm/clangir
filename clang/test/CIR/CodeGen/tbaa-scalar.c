@@ -18,18 +18,18 @@
 // CIR: #tbaa[[LONG_LONG:.*]] = #cir.tbaa_scalar<id = "long long", type = !s64i>
 
 void test_int_and_float(int *a, float *b) {
-  // CIR-LABEL: cir.func @test_int_and_float
+  // CIR-LABEL: cir.func dso_local @test_int_and_float
   // CIR: cir.scope
-  // CIR: %[[TMP1:.*]] = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-  // CIR: %[[TMP2:.*]] = cir.load %[[TMP1]] : !cir.ptr<!s32i>, !s32i tbaa(#tbaa[[INT]])
+  // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s32i>, !s32i tbaa(#tbaa[[INT]])
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
-  // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
+  // CIR: %[[TMP3:.*]] = cir.load deref{{.*}} %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
-  // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
+  // CIR: %[[TMP4:.*]] = cir.load deref{{.*}} %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
 
   // LLVM-LABEL: void @test_int_and_float
   // LLVM: %[[ARG_a:.*]] = load i32, ptr %{{.*}}, align 4, !tbaa ![[TBAA_INT:.*]]
@@ -45,18 +45,18 @@ void test_int_and_float(int *a, float *b) {
 }
 
 void test_long_and_double(long *a, double *b) {
-  // CIR-LABEL: cir.func @test_long_and_double
+  // CIR-LABEL: cir.func dso_local @test_long_and_double
   // CIR: cir.scope
-  // CIR: %[[TMP1:.*]] = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
-  // CIR: %[[TMP2:.*]] = cir.load %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG]])
+  // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
+  // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG]])
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
-  // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
+  // CIR: %[[TMP3:.*]] = cir.load deref{{.*}} %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
-  // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
+  // CIR: %[[TMP4:.*]] = cir.load deref{{.*}} %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
 
   // LLVM-LABEL: void @test_long_and_double
   // LLVM: %[[ARG_a:.*]] = load i64, ptr %{{.*}}, align 8, !tbaa ![[TBAA_LONG:.*]]
@@ -71,18 +71,18 @@ void test_long_and_double(long *a, double *b) {
   }
 }
 void test_long_long_and_long_double(long long *a, long double *b) {
-  // CIR-LABEL: cir.func @test_long_long_and_long_double
+  // CIR-LABEL: cir.func dso_local @test_long_long_and_long_double
   // CIR: cir.scope
-  // CIR: %[[TMP1:.*]] = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
-  // CIR: %[[TMP2:.*]] = cir.load %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG_LONG]])
+  // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
+  // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s64i>, !s64i tbaa(#tbaa[[LONG_LONG]])
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
-  // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
+  // CIR: %[[TMP3:.*]] = cir.load deref{{.*}} %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
-  // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
+  // CIR: %[[TMP4:.*]] = cir.load deref{{.*}} %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
 
   // LLVM-LABEL: void @test_long_long_and_long_double
   // LLVM: %[[ARG_a:.*]] = load i64, ptr %{{.*}}, align 8, !tbaa ![[TBAA_LONG_LONG:.*]]
@@ -98,20 +98,20 @@ void test_long_long_and_long_double(long long *a, long double *b) {
 }
 
 void test_char(char *a, char* b) {
-  // CIR-LABEL: cir.func @test_char
+  // CIR-LABEL: cir.func dso_local @test_char
   // CIR: cir.scope
-  // CIR: %[[TMP1:.*]] = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-  // CIR: %[[TMP2:.*]] = cir.load %[[TMP1]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[CHAR]])
+  // CIR: %[[TMP1:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+  // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[CHAR]])
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.int<98> : !s32i
   // CIR: %[[C2_CHAR:.*]] = cir.cast(integral, %[[C2]] : !s32i), !s8i
-  // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-  // CIR: cir.store %[[C2_CHAR]], %[[TMP3]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
+  // CIR: %[[TMP3:.*]] = cir.load deref{{.*}} %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+  // CIR: cir.store{{.*}} %[[C2_CHAR]], %[[TMP3]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.int<0> : !s32i
   // CIR: %[[C3_CHAR:.*]] = cir.cast(integral, %[[C3]] : !s32i), !s8i
-  // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-  // CIR: cir.store %[[C3_CHAR]], %[[TMP4]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
+  // CIR: %[[TMP4:.*]] = cir.load deref{{.*}} %[[ARG_b]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+  // CIR: cir.store{{.*}} %[[C3_CHAR]], %[[TMP4]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
 
 
   // LLVM-LABEL: void @test_char

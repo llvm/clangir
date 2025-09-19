@@ -161,7 +161,7 @@ bool IdiomRecognizerPass::raiseIteratorBeginEnd(CallOp call) {
     return false;
 
   // First argument is the container "this" pointer.
-  auto thisPtr = dyn_cast<PointerType>(call.getOperand(0).getType());
+  auto thisPtr = mlir::dyn_cast<cir::PointerType>(call.getOperand(0).getType());
   if (!thisPtr || !isIteratorInStdContainter(thisPtr.getPointee()))
     return false;
 

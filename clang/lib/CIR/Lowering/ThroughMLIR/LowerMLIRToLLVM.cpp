@@ -24,6 +24,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Passes.h"
 
 using namespace cir;
@@ -62,6 +63,17 @@ void ConvertMLIRToLLVMPass::runOnOperation() {
   populateFuncToLLVMConversionPatterns(typeConverter, patterns);
 
   auto module = getOperation();
+
+  // Lower the module attributes to LLVM equivalents.
+  if (auto tripleAttr = module->getAttr(cir::CIRDialect::getTripleAttrName()))
+    module->setAttr(mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
+                    tripleAttr);
+
+  // Strip the CIR attributes.
+  module->removeAttr(cir::CIRDialect::getSOBAttrName());
+  module->removeAttr(cir::CIRDialect::getSourceLanguageAttrName());
+  module->removeAttr(cir::CIRDialect::getTripleAttrName());
+
   if (failed(applyFullConversion(module, target, std::move(patterns))))
     signalPassFailure();
 }

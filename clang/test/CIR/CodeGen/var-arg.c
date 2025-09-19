@@ -14,25 +14,25 @@ int f1(int n, ...) {
 }
 
 // BEFORE: !rec___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
-// BEFORE:  cir.func @f1(%arg0: !s32i, ...) -> !s32i
+// BEFORE:  cir.func dso_local @f1(%arg0: !s32i, ...) -> !s32i
 // BEFORE:  [[RETP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // BEFORE:  [[RESP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["res", init]
 // BEFORE:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
 // BEFORE:  [[TMP0:%.*]] = cir.va.arg [[VARLIST]] : (!cir.ptr<!rec___va_list>) -> !s32i
-// BEFORE:  cir.store [[TMP0]], [[RESP]] : !s32i, !cir.ptr<!s32i>
+// BEFORE:  cir.store{{.*}} [[TMP0]], [[RESP]] : !s32i, !cir.ptr<!s32i>
 // BEFORE:  cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
-// BEFORE:  [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!s32i>, !s32i
-// BEFORE:   cir.store [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
-// BEFORE:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!s32i>, !s32i
+// BEFORE:  [[RES:%.*]] = cir.load{{.*}} [[RESP]] : !cir.ptr<!s32i>, !s32i
+// BEFORE:   cir.store{{.*}} [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
+// BEFORE:  [[RETV:%.*]] = cir.load{{.*}} [[RETP]] : !cir.ptr<!s32i>, !s32i
 // BEFORE:   cir.return [[RETV]] : !s32i
 
 // AFTER: !rec___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
-// AFTER:  cir.func @f1(%arg0: !s32i, ...) -> !s32i
+// AFTER:  cir.func dso_local @f1(%arg0: !s32i, ...) -> !s32i
 // AFTER:  [[RETP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // AFTER:  [[RESP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["res", init]
 // AFTER:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
 // AFTER:  [[GR_OFFS_P:%.*]] = cir.get_member [[VARLIST]][3] {name = "gr_offs"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!s32i>
-// AFTER:  [[GR_OFFS:%.*]] = cir.load [[GR_OFFS_P]] : !cir.ptr<!s32i>, !s32i
+// AFTER:  [[GR_OFFS:%.*]] = cir.load{{.*}} [[GR_OFFS_P]] : !cir.ptr<!s32i>, !s32i
 // AFTER:  [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
 // AFTER:  [[CMP0:%.*]] = cir.cmp(ge, [[GR_OFFS]], [[ZERO]]) : !s32i, !cir.bool
 // AFTER-NEXT:  cir.brcond [[CMP0]] [[BB_ON_STACK:\^bb.*]], [[BB_MAY_REG:\^bb.*]]
@@ -41,28 +41,28 @@ int f1(int n, ...) {
 // AFTER: [[BB_MAY_REG]]:
 // AFTER-NEXT: [[EIGHT:%.*]] = cir.const #cir.int<8> : !s32i
 // AFTER-NEXT: [[NEW_REG_OFFS:%.*]] = cir.binop(add, [[GR_OFFS]], [[EIGHT]]) : !s32i
-// AFTER-NEXT: cir.store [[NEW_REG_OFFS]], [[GR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_REG_OFFS]], [[GR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
 // AFTER-NEXT: [[CMP1:%.*]] = cir.cmp(le, [[NEW_REG_OFFS]], [[ZERO]]) : !s32i, !cir.bool
 // AFTER-NEXT: cir.brcond [[CMP1]] [[BB_IN_REG:\^bb.*]], [[BB_ON_STACK]]
 
 // arg is passed in register.
 // AFTER: [[BB_IN_REG]]:
 // AFTER-NEXT: [[GR_TOP_P:%.*]] = cir.get_member [[VARLIST]][1] {name = "gr_top"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
-// AFTER-NEXT: [[GR_TOP:%.*]] = cir.load [[GR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// AFTER-NEXT: [[GR_TOP:%.*]] = cir.load{{.*}} [[GR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[TMP2:%.*]] = cir.cast(bitcast, [[GR_TOP]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<i8>, [[GR_OFFS]] : !s32i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride [[TMP2]], [[GR_OFFS]] : (!cir.ptr<i8>, !s32i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<i8>), !cir.ptr<!void>
 // AFTER-NEXT: cir.br [[BB_END:\^bb.*]]([[IN_REG_OUTPUT]] : !cir.ptr<!void>)
 
 // arg is passed in stack.
 // AFTER: [[BB_ON_STACK]]:
 // AFTER-NEXT: [[STACK_P:%.*]] = cir.get_member [[VARLIST]][0] {name = "stack"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
-// AFTER-NEXT: [[STACK_V:%.*]] = cir.load [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// AFTER-NEXT: [[STACK_V:%.*]] = cir.load{{.*}} [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[EIGHT_IN_PTR_ARITH:%.*]]  = cir.const #cir.int<8> : !u64i
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
-// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride [[TMP4]], [[EIGHT_IN_PTR_ARITH]] : (!cir.ptr<i8>, !u64i) -> !cir.ptr<i8>
 // AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
-// AFTER-NEXT: cir.store [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)
 
 // This BB is where different path converges. BLK_ARG is the arg addr which
@@ -71,12 +71,12 @@ int f1(int n, ...) {
 // Or from ON_STACK block which means arg is passed in from caller's stack area.
 // AFTER-NEXT: [[BB_END]]([[BLK_ARG:%.*]]: !cir.ptr<!void>):  // 2 preds: [[BB_IN_REG]], [[BB_ON_STACK]]
 // AFTER-NEXT:  [[TMP0:%.*]] = cir.cast(bitcast, [[BLK_ARG]] : !cir.ptr<!void>), !cir.ptr<!s32i>
-// AFTER-NEXT:  [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!s32i>, !s32i
-// AFTER:   cir.store [[TMP1]], [[RESP]] : !s32i, !cir.ptr<!s32i>
+// AFTER-NEXT:  [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!s32i>, !s32i
+// AFTER:   cir.store{{.*}} [[TMP1]], [[RESP]] : !s32i, !cir.ptr<!s32i>
 // AFTER:   cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
-// AFTER:   [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!s32i>, !s32i
-// AFTER:   cir.store [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
-// AFTER:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!s32i>, !s32i
+// AFTER:   [[RES:%.*]] = cir.load{{.*}} [[RESP]] : !cir.ptr<!s32i>, !s32i
+// AFTER:   cir.store{{.*}} [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
+// AFTER:  [[RETV:%.*]] = cir.load{{.*}} [[RETP]] : !cir.ptr<!s32i>, !s32i
 // AFTER:   cir.return [[RETV]] : !s32i
 
 // LLVM: %struct.__va_list = type { ptr, ptr, ptr, i32, i32 }

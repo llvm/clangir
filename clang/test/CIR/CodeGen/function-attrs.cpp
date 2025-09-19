@@ -29,9 +29,9 @@ int s3(int a, int b) {
 // CIR: #fn_attr2 = #cir<extra({inline = #cir.inline<always>, nothrow = #cir.nothrow})>
 
 // CIR:   cir.func linkonce_odr @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
-// CIR:   cir.func @_Z2s1ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr1)
-// CIR:   cir.func @_Z2s2ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr2)
-// CIR:   cir.func @_Z2s3ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} {
+// CIR:   cir.func dso_local @_Z2s1ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr1)
+// CIR:   cir.func dso_local @_Z2s2ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr2)
+// CIR:   cir.func dso_local @_Z2s3ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} {
 
 // LLVM: define dso_local i32 @_Z2s1ii(i32 %0, i32 %1) {{.*}} #[[#ATTR1:]]
 // LLVM: define dso_local i32 @_Z2s2ii(i32 %0, i32 %1) {{.*}} #[[#ATTR2:]]

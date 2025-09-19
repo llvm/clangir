@@ -47,8 +47,9 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   assert(!required.allowsOptionalArgs() ||
          required.getNumRequiredArgs() <= argTypes.size());
 
-  void *buffer = operator new(totalSizeToAlloc<ArgInfo, ExtParameterInfo>(
-      argTypes.size() + 1, paramInfos.size()));
+  void *buffer = operator new(
+      totalSizeToAlloc<clang::CanQualType, ExtParameterInfo>(
+          argTypes.size() + 1, paramInfos.size()));
 
   CIRGenFunctionInfo *FI = new (buffer) CIRGenFunctionInfo();
   FI->CallingConvention = cirCC;
@@ -68,125 +69,14 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   FI->ArgRecordAlign = 0;
   FI->NumArgs = argTypes.size();
   FI->HasExtParameterInfos = !paramInfos.empty();
-  FI->getArgsBuffer()[0].type = resultType;
+  FI->getArgTypes()[0] = resultType;
   for (unsigned i = 0; i < argTypes.size(); ++i)
-    FI->getArgsBuffer()[i + 1].type = argTypes[i];
+    FI->getArgTypes()[i + 1] = argTypes[i];
   for (unsigned i = 0; i < paramInfos.size(); ++i)
     FI->getExtParameterInfosBuffer()[i] = paramInfos[i];
 
   return FI;
 }
-
-namespace {
-
-/// Encapsulates information about the way function arguments from
-/// CIRGenFunctionInfo should be passed to actual CIR function.
-class ClangToCIRArgMapping {
-  static const unsigned InvalidIndex = ~0U;
-  unsigned InallocaArgNo;
-  unsigned SRetArgNo;
-  unsigned TotalCIRArgs;
-
-  /// Arguments of CIR function corresponding to single Clang argument.
-  struct CIRArgs {
-    unsigned PaddingArgIndex = 0;
-    // Argument is expanded to CIR arguments at positions
-    // [FirstArgIndex, FirstArgIndex + NumberOfArgs).
-    unsigned FirstArgIndex = 0;
-    unsigned NumberOfArgs = 0;
-
-    CIRArgs()
-        : PaddingArgIndex(InvalidIndex), FirstArgIndex(InvalidIndex),
-          NumberOfArgs(0) {}
-  };
-
-  SmallVector<CIRArgs, 8> ArgInfo;
-
-public:
-  ClangToCIRArgMapping(const ASTContext &astContext,
-                       const CIRGenFunctionInfo &FI,
-                       bool OnlyRequiredArgs = false)
-      : InallocaArgNo(InvalidIndex), SRetArgNo(InvalidIndex), TotalCIRArgs(0),
-        ArgInfo(OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
-    construct(astContext, FI, OnlyRequiredArgs);
-  }
-
-  bool hasSRetArg() const { return SRetArgNo != InvalidIndex; }
-
-  bool hasInallocaArg() const { return InallocaArgNo != InvalidIndex; }
-
-  unsigned totalCIRArgs() const { return TotalCIRArgs; }
-
-  bool hasPaddingArg(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return ArgInfo[ArgNo].PaddingArgIndex != InvalidIndex;
-  }
-
-  /// Returns index of first CIR argument corresponding to ArgNo, and their
-  /// quantity.
-  std::pair<unsigned, unsigned> getCIRArgs(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return std::make_pair(ArgInfo[ArgNo].FirstArgIndex,
-                          ArgInfo[ArgNo].NumberOfArgs);
-  }
-
-private:
-  void construct(const ASTContext &astContext, const CIRGenFunctionInfo &FI,
-                 bool OnlyRequiredArgs);
-};
-
-void ClangToCIRArgMapping::construct(const ASTContext &astContext,
-                                     const CIRGenFunctionInfo &FI,
-                                     bool OnlyRequiredArgs) {
-  unsigned CIRArgNo = 0;
-  bool SwapThisWithSRet = false;
-  const cir::ABIArgInfo &RetAI = FI.getReturnInfo();
-
-  assert(RetAI.getKind() != cir::ABIArgInfo::Indirect && "NYI");
-
-  unsigned ArgNo = 0;
-  unsigned NumArgs = OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size();
-  for (CIRGenFunctionInfo::const_arg_iterator I = FI.arg_begin();
-       ArgNo < NumArgs; ++I, ++ArgNo) {
-    assert(I != FI.arg_end());
-    const cir::ABIArgInfo &AI = I->info;
-    // Collect data about CIR arguments corresponding to Clang argument ArgNo.
-    auto &CIRArgs = ArgInfo[ArgNo];
-
-    assert(!AI.getPaddingType() && "NYI");
-
-    switch (AI.getKind()) {
-    default:
-      llvm_unreachable("NYI");
-    case cir::ABIArgInfo::Extend:
-    case cir::ABIArgInfo::Direct: {
-      // Postpone splitting structs into elements since this makes it way
-      // more complicated for analysis to obtain information on the original
-      // arguments.
-      //
-      // TODO(cir): a LLVM lowering prepare pass should break this down into
-      // the appropriated pieces.
-      assert(!cir::MissingFeatures::constructABIArgDirectExtend());
-      CIRArgs.NumberOfArgs = 1;
-      break;
-    }
-    }
-
-    if (CIRArgs.NumberOfArgs > 0) {
-      CIRArgs.FirstArgIndex = CIRArgNo;
-      CIRArgNo += CIRArgs.NumberOfArgs;
-    }
-
-    assert(!SwapThisWithSRet && "NYI");
-  }
-  assert(ArgNo == ArgInfo.size());
-
-  assert(!FI.usesInAlloca() && "NYI");
-
-  TotalCIRArgs = CIRArgNo;
-}
-
-} // namespace
 
 static bool hasInAllocaArgs(CIRGenModule &CGM, CallingConv ExplicitCC,
                             ArrayRef<QualType> ArgTypes) {
@@ -206,56 +96,13 @@ cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
   (void)Inserted;
   assert(Inserted && "Recursively being processed?");
 
-  mlir::Type resultType = nullptr;
-  const cir::ABIArgInfo &retAI = FI.getReturnInfo();
-  switch (retAI.getKind()) {
-  case cir::ABIArgInfo::Ignore:
-    // TODO(CIR): This should probably be the None type from the builtin
-    // dialect.
-    resultType = nullptr;
-    break;
-
-  case cir::ABIArgInfo::Extend:
-  case cir::ABIArgInfo::Direct:
-    resultType = retAI.getCoerceToType();
-    break;
-
-  default:
-    assert(false && "NYI");
-  }
-
-  ClangToCIRArgMapping CIRFunctionArgs(getContext(), FI, true);
-  SmallVector<mlir::Type, 8> ArgTypes(CIRFunctionArgs.totalCIRArgs());
-
-  assert(!CIRFunctionArgs.hasSRetArg() && "NYI");
-  assert(!CIRFunctionArgs.hasInallocaArg() && "NYI");
+  mlir::Type resultType = convertType(FI.getReturnType());
+  SmallVector<mlir::Type, 8> ArgTypes;
+  ArgTypes.reserve(FI.getNumRequiredArgs());
 
   // Add in all of the required arguments.
-  unsigned ArgNo = 0;
-  CIRGenFunctionInfo::const_arg_iterator it = FI.arg_begin(),
-                                         ie = it + FI.getNumRequiredArgs();
-
-  for (; it != ie; ++it, ++ArgNo) {
-    const auto &ArgInfo = it->info;
-
-    assert(!CIRFunctionArgs.hasPaddingArg(ArgNo) && "NYI");
-
-    unsigned FirstCIRArg, NumCIRArgs;
-    std::tie(FirstCIRArg, NumCIRArgs) = CIRFunctionArgs.getCIRArgs(ArgNo);
-
-    switch (ArgInfo.getKind()) {
-    default:
-      llvm_unreachable("NYI");
-    case cir::ABIArgInfo::Extend:
-    case cir::ABIArgInfo::Direct: {
-      mlir::Type argType = ArgInfo.getCoerceToType();
-      // TODO: handle the test against llvm::RecordType from codegen
-      assert(NumCIRArgs == 1);
-      ArgTypes[FirstCIRArg] = argType;
-      break;
-    }
-    }
-  }
+  for (const clang::CanQualType &argType : FI.requiredArguments())
+    ArgTypes.push_back(convertType(argType));
 
   bool Erased = FunctionsBeingProcessed.erase(&FI);
   (void)Erased;
@@ -304,14 +151,6 @@ void CIRGenFunction::emitAggregateStore(mlir::Value Val, Address Dest,
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointAfter(Val.getDefiningOp());
   builder.createStore(*currSrcLoc, Val, Dest);
-}
-
-static Address emitAddressAtOffset(CIRGenFunction &CGF, Address addr,
-                                   const cir::ABIArgInfo &info) {
-  if (unsigned offset = info.getDirectOffset()) {
-    llvm_unreachable("NYI");
-  }
-  return addr;
 }
 
 static void AddAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
@@ -435,7 +274,7 @@ void CIRGenModule::constructAttributeList(
       // TODO(cir): add alloc size attr.
     }
 
-    if (TargetDecl->hasAttr<OpenCLKernelAttr>()) {
+    if (TargetDecl->hasAttr<DeviceKernelAttr>() && DeviceKernelAttr::isOpenCLSpelling(TargetDecl->getAttr<DeviceKernelAttr>())) {
       auto cirKernelAttr = cir::OpenCLKernelAttr::get(&getMLIRContext());
       funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
 
@@ -542,6 +381,7 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
           callLoc, directFuncOp, CIRCallArgs, callingConv, sideEffect);
     }
     callOpWithExceptions->setAttr("extra_attrs", extraFnAttrs);
+    CGF.mayThrow = true;
 
     CGF.callWithExceptionCtx = callOpWithExceptions;
     auto *invokeDest = CGF.getInvokeDest(tryOp);
@@ -593,8 +433,6 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   // Handle struct-return functions by passing a pointer to the location that we
   // would like to return info.
   QualType RetTy = CallInfo.getReturnType();
-  const auto &RetAI = CallInfo.getReturnInfo();
-
   cir::FuncType CIRFuncTy = getTypes().GetFunctionType(CallInfo);
 
   const Decl *TargetDecl = Callee.getAbstractInfo().getCalleeDecl().getDecl();
@@ -629,63 +467,32 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   Address ArgMemory = Address::invalid();
   assert(!CallInfo.getArgRecord() && "NYI");
 
-  ClangToCIRArgMapping CIRFunctionArgs(CGM.getASTContext(), CallInfo);
-  SmallVector<mlir::Value, 16> CIRCallArgs(CIRFunctionArgs.totalCIRArgs());
+  SmallVector<mlir::Value, 16> CIRCallArgs;
+  CIRCallArgs.reserve(CallArgs.size());
 
-  // If the call returns a temporary with struct return, create a temporary
-  // alloca to hold the result, unless one is given to us.
-  assert(!RetAI.isIndirect() && !RetAI.isInAlloca() &&
-         !RetAI.isCoerceAndExpand() && "NYI");
-
-  // When passing arguments using temporary allocas, we need to add the
-  // appropriate lifetime markers. This vector keeps track of all the lifetime
-  // markers that need to be ended right after the call.
-  assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers() && "NYI");
-
-  // Translate all of the arguments as necessary to match the CIR lowering.
-  assert(CallInfo.arg_size() == CallArgs.size() &&
-         "Mismatch between function signature & arguments.");
   unsigned ArgNo = 0;
-  CIRGenFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
+  CIRGenFunctionInfo::const_arg_iterator type_it = CallInfo.arg_begin();
   for (CallArgList::const_iterator I = CallArgs.begin(), E = CallArgs.end();
-       I != E; ++I, ++info_it, ++ArgNo) {
-    const cir::ABIArgInfo &ArgInfo = info_it->info;
+       I != E; ++I, ++type_it, ++ArgNo) {
 
-    // Insert a padding argument to ensure proper alignment.
-    assert(!CIRFunctionArgs.hasPaddingArg(ArgNo) && "Padding args NYI");
+    mlir::Type argType = convertType(*type_it);
+    if (!mlir::isa<cir::RecordType>(argType)) {
+      mlir::Value V;
+      assert(!I->isAggregate() && "Aggregate NYI");
+      V = I->getKnownRValue().getScalarVal();
 
-    unsigned FirstCIRArg, NumCIRArgs;
-    std::tie(FirstCIRArg, NumCIRArgs) = CIRFunctionArgs.getCIRArgs(ArgNo);
+      // We might have to widen integers, but we should never truncate.
+      if (argType != V.getType() && mlir::isa<cir::IntType>(V.getType()))
+        llvm_unreachable("NYI");
 
-    switch (ArgInfo.getKind()) {
-    case cir::ABIArgInfo::Direct: {
-      if (!mlir::isa<cir::RecordType>(ArgInfo.getCoerceToType()) &&
-          ArgInfo.getCoerceToType() == convertType(info_it->type) &&
-          ArgInfo.getDirectOffset() == 0) {
-        assert(NumCIRArgs == 1);
-        mlir::Value V;
-        assert(!I->isAggregate() && "Aggregate NYI");
-        V = I->getKnownRValue().getScalarVal();
+      // If the argument doesn't match, perform a bitcast to coerce it. This
+      // can happen due to trivial type mismatches.
+      if (ArgNo < CIRFuncTy.getNumInputs() &&
+          V.getType() != CIRFuncTy.getInput(ArgNo))
+        V = builder.createBitcast(V, CIRFuncTy.getInput(ArgNo));
 
-        assert(CallInfo.getExtParameterInfo(ArgNo).getABI() !=
-                   ParameterABI::SwiftErrorResult &&
-               "swift NYI");
-
-        // We might have to widen integers, but we should never truncate.
-        if (ArgInfo.getCoerceToType() != V.getType() &&
-            mlir::isa<cir::IntType>(V.getType()))
-          llvm_unreachable("NYI");
-
-        // If the argument doesn't match, perform a bitcast to coerce it. This
-        // can happen due to trivial type mismatches.
-        if (FirstCIRArg < CIRFuncTy.getNumInputs() &&
-            V.getType() != CIRFuncTy.getInput(FirstCIRArg))
-          V = builder.createBitcast(V, CIRFuncTy.getInput(FirstCIRArg));
-
-        CIRCallArgs[FirstCIRArg] = V;
-        break;
-      }
-
+      CIRCallArgs.push_back(V);
+    } else {
       // FIXME: Avoid the conversion through memory if possible.
       Address Src = Address::invalid();
       if (!I->isAggregate()) {
@@ -695,53 +502,40 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
                              : I->getKnownRValue().getAggregateAddress();
       }
 
-      // If the value is offset in memory, apply the offset now.
-      Src = emitAddressAtOffset(*this, Src, ArgInfo);
-
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      auto STy = dyn_cast<cir::RecordType>(ArgInfo.getCoerceToType());
-      if (STy && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
-        auto SrcTy = Src.getElementType();
-        // FIXME(cir): get proper location for each argument.
-        auto argLoc = loc;
+      auto STy = cast<cir::RecordType>(argType);
+      auto SrcTy = Src.getElementType();
+      // FIXME(cir): get proper location for each argument.
+      auto argLoc = loc;
 
-        // If the source type is smaller than the destination type of the
-        // coerce-to logic, copy the source value into a temp alloca the size
-        // of the destination type to allow loading all of it. The bits past
-        // the source value are left undef.
-        // FIXME(cir): add data layout info and compare sizes instead of
-        // matching the types.
-        //
-        // uint64_t SrcSize = CGM.getDataLayout().getTypeAllocSize(SrcTy);
-        // uint64_t DstSize = CGM.getDataLayout().getTypeAllocSize(STy);
-        // if (SrcSize < DstSize) {
-        if (SrcTy != STy)
-          llvm_unreachable("NYI");
-        else {
-          // FIXME(cir): this currently only runs when the types are different,
-          // but should be when alloc sizes are different, fix this as soon as
-          // datalayout gets introduced.
-          Src = builder.createElementBitCast(argLoc, Src, STy);
-        }
-
-        // assert(NumCIRArgs == STy.getMembers().size());
-        // In LLVMGen: Still only pass the struct without any gaps but mark it
-        // as such somehow.
-        //
-        // In CIRGen: Emit a load from the "whole" struct,
-        // which shall be broken later by some lowering step into multiple
-        // loads.
-        assert(NumCIRArgs == 1 && "dont break up arguments here!");
-        CIRCallArgs[FirstCIRArg] = builder.createLoad(argLoc, Src);
-      } else {
+      // If the source type is smaller than the destination type of the
+      // coerce-to logic, copy the source value into a temp alloca the size
+      // of the destination type to allow loading all of it. The bits past
+      // the source value are left undef.
+      // FIXME(cir): add data layout info and compare sizes instead of
+      // matching the types.
+      //
+      // uint64_t SrcSize = CGM.getDataLayout().getTypeAllocSize(SrcTy);
+      // uint64_t DstSize = CGM.getDataLayout().getTypeAllocSize(STy);
+      // if (SrcSize < DstSize) {
+      if (SrcTy != STy)
         llvm_unreachable("NYI");
+      else {
+        // FIXME(cir): this currently only runs when the types are different,
+        // but should be when alloc sizes are different, fix this as soon as
+        // datalayout gets introduced.
+        Src = builder.createElementBitCast(argLoc, Src, STy);
       }
 
-      break;
-    }
-    default:
-      assert(false && "Only Direct support so far");
+      // assert(NumCIRArgs == STy.getMembers().size());
+      // In LLVMGen: Still only pass the struct without any gaps but mark it
+      // as such somehow.
+      //
+      // In CIRGen: Emit a load from the "whole" struct,
+      // which shall be broken later by some lowering step into multiple
+      // loads.
+      CIRCallArgs.push_back(builder.createLoad(argLoc, Src));
     }
   }
 
@@ -890,66 +684,52 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
   // Extract the return value.
   RValue ret = [&] {
-    switch (RetAI.getKind()) {
-    case cir::ABIArgInfo::Direct: {
-      mlir::Type RetCIRTy = convertType(RetTy);
-      if (RetAI.getCoerceToType() == RetCIRTy && RetAI.getDirectOffset() == 0) {
-        switch (getEvaluationKind(RetTy)) {
-        case cir::TEK_Aggregate: {
-          Address DestPtr = ReturnValue.getValue();
-          bool DestIsVolatile = ReturnValue.isVolatile();
-
-          if (!DestPtr.isValid()) {
-            DestPtr = CreateMemTemp(RetTy, callLoc, getCounterAggTmpAsString());
-            DestIsVolatile = false;
-          }
-
-          auto Results = theCall->getOpResults();
-          assert(Results.size() <= 1 && "multiple returns NYI");
-
-          SourceLocRAIIObject Loc{*this, callLoc};
-          emitAggregateStore(Results[0], DestPtr, DestIsVolatile);
-          return RValue::getAggregate(DestPtr);
-        }
-        case cir::TEK_Scalar: {
-          // If the argument doesn't match, perform a bitcast to coerce it. This
-          // can happen due to trivial type mismatches.
-          auto Results = theCall->getOpResults();
-          assert(Results.size() <= 1 && "multiple returns NYI");
-          assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
-
-          mlir::Region *region = builder.getBlock()->getParent();
-          if (region != theCall->getParentRegion()) {
-            Address DestPtr = ReturnValue.getValue();
-
-            if (!DestPtr.isValid())
-              DestPtr = CreateMemTemp(RetTy, callLoc, "tmp.try.call.res");
-
-            return getRValueThroughMemory(callLoc, builder, Results[0],
-                                          DestPtr);
-          }
-
-          return RValue::get(Results[0]);
-        }
-        default:
-          llvm_unreachable("NYI");
-        }
-      } else {
-        llvm_unreachable("No other forms implemented yet.");
-      }
-    }
-
-    case cir::ABIArgInfo::Ignore:
-      // If we are ignoring an argument that had a result, make sure to
-      // construct the appropriate return value for our caller.
+    mlir::Type RetCIRTy = convertType(RetTy);
+    if (isa<cir::VoidType>(RetCIRTy))
       return GetUndefRValue(RetTy);
+    switch (getEvaluationKind(RetTy)) {
+    case cir::TEK_Aggregate: {
+      Address DestPtr = ReturnValue.getValue();
+      bool DestIsVolatile = ReturnValue.isVolatile();
 
-    default:
-      llvm_unreachable("NYI");
+      if (!DestPtr.isValid()) {
+        DestPtr = CreateMemTemp(RetTy, callLoc, getCounterAggTmpAsString());
+        DestIsVolatile = false;
+      }
+
+      auto Results = theCall->getOpResults();
+      assert(Results.size() <= 1 && "multiple returns NYI");
+
+      SourceLocRAIIObject Loc{*this, callLoc};
+      emitAggregateStore(Results[0], DestPtr, DestIsVolatile);
+      return RValue::getAggregate(DestPtr);
     }
+    case cir::TEK_Scalar: {
+      // If the argument doesn't match, perform a bitcast to coerce it. This
+      // can happen due to trivial type mismatches.
+      auto Results = theCall->getOpResults();
+      assert(Results.size() <= 1 && "multiple returns NYI");
+      assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
 
-    llvm_unreachable("NYI");
-    return RValue{};
+      mlir::Region *region = builder.getBlock()->getParent();
+      if (region != theCall->getParentRegion()) {
+        Address DestPtr = ReturnValue.getValue();
+
+        if (!DestPtr.isValid())
+          DestPtr = CreateMemTemp(RetTy, callLoc, "tmp.try.call.res");
+
+        return getRValueThroughMemory(callLoc, builder, Results[0], DestPtr);
+      }
+
+      return RValue::get(Results[0]);
+    }
+    case cir::TEK_Complex: {
+      mlir::ResultRange results = theCall->getOpResults();
+      assert(!results.empty() &&
+             "Expected at least one result for complex rvalue");
+      return RValue::getComplex(results[0]);
+    }
+    }
   }();
 
   // TODO: implement assumed_aligned
@@ -1202,7 +982,7 @@ static void appendParameterTypes(
   for (unsigned I = 0, E = FPT->getNumParams(); I != E; ++I) {
     prefix.push_back(FPT->getParamType(I));
     if (ExtInfos[I].hasPassObjectSize())
-      prefix.push_back(CGT.getContext().getSizeType());
+      prefix.push_back(CGT.getContext().getCanonicalType(CGT.getContext().getSizeType()));
   }
 
   addExtParameterInfosForCall(paramInfos, FPT.getTypePtr(), PrefixSize,
@@ -1311,8 +1091,8 @@ CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
   // When translating an unprototyped function type, always use a
   // variadic type.
   return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
-                                cir::FnInfoOpts::None, std::nullopt,
-                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+                                cir::FnInfoOpts::None, {}, FTNP->getExtInfo(),
+                                {}, RequiredArgs(0));
 }
 
 const CIRGenFunctionInfo &
@@ -1380,8 +1160,7 @@ bool CIRGenModule::MayDropFunctionReturn(const ASTContext &astContext,
                                          QualType ReturnType) {
   // We can't just disard the return value for a record type with a complex
   // destructor or a non-trivially copyable type.
-  if (const RecordType *RT =
-          ReturnType.getCanonicalType()->getAs<RecordType>()) {
+  if (ReturnType.getCanonicalType()->getAs<RecordType>()) {
     llvm_unreachable("NYI");
   }
 
@@ -1595,7 +1374,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   // type.
   if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(),
-                                  cir::FnInfoOpts::None, std::nullopt,
+                                  cir::FnInfoOpts::None, {},
                                   noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 
