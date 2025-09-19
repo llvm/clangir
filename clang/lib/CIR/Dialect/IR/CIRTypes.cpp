@@ -589,8 +589,8 @@ uint64_t RecordType::getElementOffset(const ::mlir::DataLayout &dataLayout,
   // offset we are calculating.
   const llvm::Align tyAlign = llvm::Align(
       getPacked() ? 1 : dataLayout.getTypeABIAlignment(members[idx]));
-  offset = llvm::alignTo(offset, tyAlign);
 
+  offset = llvm::alignTo(offset, tyAlign);
   return offset;
 }
 
@@ -781,8 +781,8 @@ LongDoubleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                 mlir::DataLayoutEntryListRef params) const {
-  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying()).getABIAlignment(
-      dataLayout, params);
+  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
+      .getABIAlignment(dataLayout, params);
 }
 
 //===----------------------------------------------------------------------===//

@@ -1,0 +1,25 @@
+// RUN: cir-opt %s -cir-to-mlir -o %t.mlir
+// RUN: FileCheck --input-file=%t.mlir %s
+
+!s32i = !cir.int<s, 32>
+!u8i = !cir.int<u, 8>
+!u32i = !cir.int<u, 32>
+!ty_S = !cir.record<struct "S" {!u8i, !s32i}>
+
+module {
+  cir.func @test() {
+    %1 = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["x"] {alignment = 8 : i64}
+    %3 = cir.get_member %1[0] {name = "c"} : !cir.ptr<!ty_S> -> !cir.ptr<!u8i>
+    %5 = cir.get_member %1[1] {name = "i"} : !cir.ptr<!ty_S> -> !cir.ptr<!s32i>
+    cir.return
+  }
+
+  // CHECK: func.func @test() {
+  // CHECK:   %[[alloca:[a-z0-9]+]] = memref.alloca() {alignment = 8 : i64} : memref<8xi8>
+  // CHECK:   %[[zero:[a-z0-9]+]] = arith.constant 0 : index
+  // CHECK:   memref.view %[[alloca]][%[[zero]]][] : memref<8xi8> to memref<i8>
+  // CHECK:   %[[four:[a-z0-9]+]] = arith.constant 4 : index
+  // CHECK:   %view_0 = memref.view %[[alloca]][%[[four]]][] : memref<8xi8> to memref<i32>
+  // CHECK:   return
+  // CHECK: }
+}
