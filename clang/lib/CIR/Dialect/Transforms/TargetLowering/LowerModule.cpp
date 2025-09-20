@@ -232,6 +232,12 @@ llvm::LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp,
 // TODO: not to create it every time
 std::unique_ptr<LowerModule>
 createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
+  // If the triple is not present, e.g. CIR modules parsed from text, we
+  // cannot init LowerModule properly.
+  assert(!cir::MissingFeatures::makeTripleAlwaysPresent());
+  if (!module->hasAttr(cir::CIRDialect::getTripleAttrName()))
+    return nullptr;
+
   // Fetch target information.
   llvm::Triple triple(mlir::cast<mlir::StringAttr>(
                           module->getAttr(cir::CIRDialect::getTripleAttrName()))
