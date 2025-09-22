@@ -3789,11 +3789,6 @@ LogicalResult cir::TypeInfoAttr::verify(
   if (cir::ConstRecordAttr::verify(emitError, type, typeinfoData).failed())
     return failure();
 
-  for (auto &member : typeinfoData) {
-    if (llvm::isa<GlobalViewAttr, IntAttr>(member))
-      continue;
-    return emitError() << "expected GlobalViewAttr or IntAttr attribute";
-  }
   return success();
 }
 
