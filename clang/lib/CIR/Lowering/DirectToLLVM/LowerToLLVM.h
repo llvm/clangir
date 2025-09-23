@@ -98,7 +98,7 @@ void populateCIRToLLVMConversionPatterns(
     llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
     llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
     llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap,
-    LLVMBlockAddressInfo &blockAddInfo);
+    LLVMBlockAddressInfo &blockAddrInfo);
 
 std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module);
 
@@ -1379,14 +1379,14 @@ public:
 
 class CIRToLLVMLabelOpLowering
     : public mlir::OpConversionPattern<cir::LabelOp> {
-  LLVMBlockAddressInfo &blockInfoAdd;
+  LLVMBlockAddressInfo &blockInfoAddr;
 
 public:
   CIRToLLVMLabelOpLowering(const mlir::TypeConverter &typeConverter,
                            mlir::MLIRContext *context,
-                           LLVMBlockAddressInfo &blockInfoAdd)
+                           LLVMBlockAddressInfo &blockInfoAddr)
       : OpConversionPattern<cir::LabelOp>(typeConverter, context),
-        blockInfoAdd(blockInfoAdd) {}
+        blockInfoAddr(blockInfoAddr) {}
   using mlir::OpConversionPattern<cir::LabelOp>::OpConversionPattern;
 
   mlir::LogicalResult
@@ -1396,14 +1396,14 @@ public:
 
 class CIRToLLVMBlockAddressOpLowering
     : public mlir::OpConversionPattern<cir::BlockAddressOp> {
-  LLVMBlockAddressInfo &blockInfoAdd;
+  LLVMBlockAddressInfo &blockInfoAddr;
 
 public:
   CIRToLLVMBlockAddressOpLowering(const mlir::TypeConverter &typeConverter,
                                   mlir::MLIRContext *context,
-                                  LLVMBlockAddressInfo &blockInfoAdd)
+                                  LLVMBlockAddressInfo &blockInfoAddr)
       : OpConversionPattern<cir::BlockAddressOp>(typeConverter, context),
-        blockInfoAdd(blockInfoAdd) {}
+        blockInfoAddr(blockInfoAddr) {}
   using mlir::OpConversionPattern<cir::BlockAddressOp>::OpConversionPattern;
 
   mlir::LogicalResult

@@ -1488,7 +1488,7 @@ struct ConvertCIRToLLVMPass
       llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
       llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap);
 
-  void resolveBlockAddressOp(LLVMBlockAddressInfo &blockInfoAdd);
+  void resolveBlockAddressOp(LLVMBlockAddressInfo &blockInfoAddr);
 
   void processCIRAttrs(mlir::ModuleOp moduleOp);
 
@@ -4510,13 +4510,14 @@ mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
     rewriter.setInsertionPointToEnd(block);
     mlir::LLVM::BrOp::create(rewriter, op.getLoc(), newBlock);
   }
-  auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, blockInfoAdd.getTagIndex());
+  auto tagAttr =
+      mlir::LLVM::BlockTagAttr::get(ctx, blockInfoAddr.getTagIndex());
   rewriter.setInsertionPoint(op);
 
   auto blockTagOp =
       mlir::LLVM::BlockTagOp::create(rewriter, op->getLoc(), tagAttr);
   auto func = op->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-  blockInfoAdd.mapBlockTag(func.getSymName(), op.getLabel(), blockTagOp);
+  blockInfoAddr.mapBlockTag(func.getSymName(), op.getLabel(), blockTagOp);
   rewriter.eraseOp(op);
 
   return mlir::success();
@@ -4528,14 +4529,13 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   mlir::MLIRContext *ctx = rewriter.getContext();
 
   mlir::LLVM::BlockTagOp matchLabel =
-      blockInfoAdd.lookupBlockTag(op.getFunc(), op.getLabel());
+      blockInfoAddr.lookupBlockTag(op.getFunc(), op.getLabel());
   mlir::LLVM::BlockTagAttr tagAttr;
   if (!matchLabel)
     // If the BlockTagOp has not been emitted yet, use the maximum uint32_t
     // value as a placeholder. This will later be replaced with the correct
     // tag index during `resolveBlockAddressOp`.
-    tagAttr = mlir::LLVM::BlockTagAttr::get(
-        ctx, std::numeric_limits<uint32_t>::max());
+    tagAttr = {};
   else
     tagAttr = matchLabel.getTag();
 
@@ -4545,7 +4545,7 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   auto newOp = mlir::LLVM::BlockAddressOp::create(
       rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
   if (!matchLabel)
-    blockInfoAdd.addUnresolvedBlockAddress(newOp, op.getFunc(), op.getLabel());
+    blockInfoAddr.addUnresolvedBlockAddress(newOp, op.getFunc(), op.getLabel());
   rewriter.replaceOp(op, newOp);
   return mlir::success();
 }
@@ -4556,15 +4556,15 @@ void populateCIRToLLVMConversionPatterns(
     llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
     llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
     llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap,
-    LLVMBlockAddressInfo &blockAddInfo) {
+    LLVMBlockAddressInfo &blockAddrInfo) {
   patterns.add<CIRToLLVMReturnOpLowering>(patterns.getContext());
   patterns.add<CIRToLLVMAllocaOpLowering>(converter, dataLayout,
                                           stringGlobalsMap, argStringGlobalsMap,
                                           argsVarMap, patterns.getContext());
   patterns.add<CIRToLLVMBlockAddressOpLowering>(
-      converter, patterns.getContext(), blockAddInfo);
+      converter, patterns.getContext(), blockAddrInfo);
   patterns.add<CIRToLLVMLabelOpLowering>(converter, patterns.getContext(),
-                                         blockAddInfo);
+                                         blockAddrInfo);
   patterns.add<
       // clang-format off
       CIRToLLVMCastOpLowering,
@@ -5050,14 +5050,14 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar(
 }
 
 void ConvertCIRToLLVMPass::resolveBlockAddressOp(
-    LLVMBlockAddressInfo &blockInfoAdd) {
+    LLVMBlockAddressInfo &blockInfoAddr) {
 
   mlir::ModuleOp module = getOperation();
   mlir::OpBuilder opBuilder(module.getContext());
   for (auto &[blockAddOp, blockInfo] :
-       blockInfoAdd.getUnresolvedBlockAddress()) {
+       blockInfoAddr.getUnresolvedBlockAddress()) {
     mlir::LLVM::BlockTagOp resolvedLabel =
-        blockInfoAdd.lookupBlockTag(blockInfo.first, blockInfo.second);
+        blockInfoAddr.lookupBlockTag(blockInfo.first, blockInfo.second);
     assert(resolvedLabel && "expected BlockTagOp to already be emitted");
     auto fnSym =
         mlir::FlatSymbolRefAttr::get(module.getContext(), blockInfo.first);
@@ -5065,7 +5065,7 @@ void ConvertCIRToLLVMPass::resolveBlockAddressOp(
         opBuilder.getContext(), fnSym, resolvedLabel.getTagAttr());
     blockAddOp.setBlockAddrAttr(blkAddTag);
   }
-  blockInfoAdd.clearUnresolvedMap();
+  blockInfoAddr.clearUnresolvedMap();
 }
 
 void ConvertCIRToLLVMPass::processCIRAttrs(mlir::ModuleOp module) {
@@ -5103,10 +5103,10 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   /// Maps labels to their corresponding `BlockTagOp` and keeps bookkeeping
   /// of unresolved `BlockAddressOp`s until they are matched with the
   /// corresponding `BlockTagOp` in `resolveBlockAddressOp`.
-  LLVMBlockAddressInfo blockInfoAdd;
+  LLVMBlockAddressInfo blockInfoAddr;
   populateCIRToLLVMConversionPatterns(
       patterns, converter, dataLayout, lowerModule.get(), stringGlobalsMap,
-      argStringGlobalsMap, argsVarMap, blockInfoAdd);
+      argStringGlobalsMap, argsVarMap, blockInfoAddr);
 
   mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
 
@@ -5161,7 +5161,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                                             dtorAttr.getPriority());
                     });
   buildGlobalAnnotationsVar(stringGlobalsMap, argStringGlobalsMap, argsVarMap);
-  resolveBlockAddressOp(blockInfoAdd);
+  resolveBlockAddressOp(blockInfoAddr);
   processCIRAttrs(module);
 }
 
