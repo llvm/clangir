@@ -1,7 +1,5 @@
 ---
-title: CIR Dialect
-nav_order: 3
-has_children: true
+sort : 2
 ---
 
 # CIR Dialect

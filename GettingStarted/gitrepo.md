@@ -1,6 +1,5 @@
 ---
-parent: Getting started
-nav_order: 1
+sort : 1
 ---
 
 # Cloning repo

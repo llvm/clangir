@@ -1,6 +1,5 @@
 ---
-parent: Getting started
-nav_order: 4
+sort : 4
 ---
 
 # How to contribute

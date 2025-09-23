@@ -1,6 +1,5 @@
 ---
-parent: CIR Dialect
-nav_order: 3
+sort : 3
 ---
 
 # Attributes

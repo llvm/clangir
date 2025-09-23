@@ -1,4 +1,4 @@
-theme: just-the-docs
+remote_theme: clearpathrobotics/jekyll-rtd-theme
 title: ClangIR
 description: A new high-level IR for clang.
 

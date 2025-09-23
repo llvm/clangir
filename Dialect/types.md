@@ -1,6 +1,5 @@
 ---
-parent: CIR Dialect
-nav_order: 2
+sort : 2
 ---
 
 # Types

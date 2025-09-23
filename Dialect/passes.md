@@ -1,6 +1,5 @@
 ---
-parent: CIR Dialect
-nav_order: 4
+sort : 4
 ---
 
 # Passes
