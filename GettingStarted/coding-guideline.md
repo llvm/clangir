@@ -1,5 +1,6 @@
 ---
-sort : 5
+parent: Getting started
+nav_order: 5
 ---
 
 # Coding Guideline

@@ -1,5 +1,6 @@
 ---
-sort : 1
+parent: Development
+nav_order: 1
 ---
 # Project Motivation
 

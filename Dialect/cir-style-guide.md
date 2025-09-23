@@ -1,5 +1,6 @@
 ---
-sort : 5
+parent: CIR Dialect
+nav_order: 5
 ---
 
 # ASM Style Guide

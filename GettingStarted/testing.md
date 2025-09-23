@@ -1,5 +1,6 @@
 ---
-sort : 3
+parent: Getting started
+nav_order: 3
 ---
 
 # Testing

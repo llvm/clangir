@@ -1,5 +1,6 @@
 ---
-sort : 6
+parent: Getting started
+nav_order: 6
 ---
 
 # Examples
