@@ -4503,7 +4503,8 @@ mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::MLIRContext *ctx = rewriter.getContext();
   mlir::Block *block = op->getBlock();
-  // A BlockTagOp cannot reside in the entry block.
+  // A BlockTagOp cannot reside in the entry block. The address of the entry
+  // block cannot be taken
   if (block->isEntryBlock()) {
     mlir::Block *newBlock =
         rewriter.splitBlock(op->getBlock(), mlir::Block::iterator(op));
@@ -4532,9 +4533,9 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
       blockInfoAddr.lookupBlockTag(op.getFunc(), op.getLabel());
   mlir::LLVM::BlockTagAttr tagAttr;
   if (!matchLabel)
-    // If the BlockTagOp has not been emitted yet, use the maximum uint32_t
-    // value as a placeholder. This will later be replaced with the correct
-    // tag index during `resolveBlockAddressOp`.
+    // If the BlockTagOp has not been emitted yet, use  a placeholder.
+    // This will later be replaced with the correct tag index during
+    // `resolveBlockAddressOp`.
     tagAttr = {};
   else
     tagAttr = matchLabel.getTag();
