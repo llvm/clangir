@@ -905,10 +905,9 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     ctorRegion.getBlocks().clear();
     dtorRegion.getBlocks().clear();
 
-    // Add a function call to the variable initialization function.
-    assert(!hasAttr<clang::InitPriorityAttr>(
-               mlir::cast<ASTDeclInterface>(*op.getAst())) &&
-           "custom initialization priority NYI");
+    auto astDecl = mlir::cast<ASTDeclInterface>(*op.getAst());
+    if (astDecl.hasInitPriorityAttr())
+      f.setGlobalCtorPriority(astDecl.getInitPriorityAttr()->getPriority());
     dynamicInitializers.push_back(f);
   }
 
@@ -955,8 +954,9 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   for (auto &f : dynamicInitializers) {
     // TODO: handle globals with a user-specified initialzation priority.
     // TODO: handle defaule priority more nicely.
-    globalCtorList.emplace_back(f.getName(),
-                                cir::DefaultGlobalCtorDtorPriority);
+    globalCtorList.emplace_back(
+        f.getName(),
+        f.getGlobalCtorPriority().value_or(cir::DefaultGlobalCtorDtorPriority));
   }
 
   SmallString<256> fnName;
