@@ -1,5 +1,6 @@
 ---
-sort : 2
+parent: Development
+nav_order: 2
 ---
 # ClangIR in practice
 

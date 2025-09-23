@@ -1,5 +1,6 @@
 ---
-sort : 1
+parent: CIR Dialect
+nav_order: 1
 ---
 
 # Operations
