@@ -1,5 +1,6 @@
 ---
-sort : 2
+parent: Getting started
+nav_order: 2
 ---
 
 # Build and install

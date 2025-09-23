@@ -1,3 +1,7 @@
+---
+nav_exclude: true
+---
+
 # ClangIR (CIR)
 
 ClangIR is a high-level representation in Clang that reflects aspects of the C/C++
