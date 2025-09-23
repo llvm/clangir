@@ -17,4 +17,4 @@ public:
 
 // CIR-LABEL: cir.func internal private @__cxx_global_var_init() global_ctor(101)  {
 // LLVM-LABEL: define internal void @__cxx_global_var_init() {
-// OGCG-LABEL: define internal void @_GLOBAL__I_000101() #0 section ".text.startup" {
+// OGCG-LABEL: define internal void @_GLOBAL__I_000101() {{.*}} section ".text.startup" {
