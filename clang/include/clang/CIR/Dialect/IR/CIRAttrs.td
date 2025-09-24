@@ -1507,7 +1507,7 @@ def CIR_AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
 }
 
 //===----------------------------------------------------------------------===//
-// AddressPointAttr
+// CIR_BlockAddrInfoAttr
 //===----------------------------------------------------------------------===//
 
 def CIR_BlockAddrInfoAttr : CIR_Attr<"BlockAddrInfo", "block_addr_info"> {
