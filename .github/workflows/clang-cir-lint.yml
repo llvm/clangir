@@ -1,0 +1,91 @@
+name: Clang CIR clang-tidy linting
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'clang/lib/CIR/FrontendAction/**'
+      - '.github/workflows/clang-cir-lint.yml'
+  pull_request:
+    branches:
+      - main
+      - 'users/**'
+    paths:
+      - 'clang/lib/CIR/FrontendAction/**'
+      - '.github/workflows/clang-cir-lint.yml'
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  code_linter:
+    if: github.repository_owner == 'llvm'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fetch LLVM sources
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 2
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+        with:
+          separator: ","
+          skip_initial_fetch: true
+          base_sha: 'HEAD~1'
+          sha: 'HEAD'
+      
+      - name: Listed files
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+      - name: Install clang-tidy
+        uses: aminya/setup-cpp@17c11551771948abc5752bbf3183482567c7caf0 # v1.1.1
+        with:
+          clang-tidy: 20.1.8
+
+      - name: Setup Python env
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Configure and CodeGen
+        run: |
+          cmake -G Ninja \
+                -B build \
+                -S llvm \
+                -DLLVM_ENABLE_ASSERTIONS=OFF \
+                -DLLVM_ENABLE_PROJECTS="clang;mlir" \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DLLVM_INCLUDE_TESTS=OFF \
+                -DCLANG_INCLUDE_TESTS=OFF \
+                -DMLIR_INCLUDE_TESTS=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DLLVM_TARGETS_TO_BUILD=host \
+                -DCLANG_ENABLE_CIR=ON
+
+          ninja -C build $(ninja -C build -t targets all | grep IncGen | sed 's/:.*//') clang-tablegen-targets
+
+      - name: Run run-clang-tidy
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          ./clang-tools-extra/clang-tidy/tool/run-clang-tidy.py \
+                -p build "$CHANGED_FILES" \
+                -checks="-*,readability-identifier-naming" \
+                -warnings-as-errors="-*,readability-identifier-naming" \
+                -j $(nproc)
