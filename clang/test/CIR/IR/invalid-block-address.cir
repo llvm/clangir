@@ -4,18 +4,18 @@
 
 // expected-error@+1 {{expects an existing label target in the referenced function}}
 cir.func @bad_block_address() -> () {
-    %0 = cir.blockaddress(@bad_block_address, "label") -> !cir.ptr<!void>
+    %0 = cir.blockaddress <@bad_block_address, "label"> -> !cir.ptr<!void>
     cir.br ^bb1
   ^bb1:
-    cir.label "wrong_label"
+    cir.label <@bad_block_address, "wrong_label">
     cir.return
 }
 
 // expected-error@+1 {{blockaddress references a different function}}
 cir.func @bad_block_func() -> () {
-    %0 = cir.blockaddress(@mismatch_func, "label") -> !cir.ptr<!void>
+    %0 = cir.blockaddress <@mismatch_func, "label"> -> !cir.ptr<!void>
     cir.br ^bb1
   ^bb1:
-    cir.label "label"
+    cir.label <@bad_block_func, "label">
     cir.return
 }

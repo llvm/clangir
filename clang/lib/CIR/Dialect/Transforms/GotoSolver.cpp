@@ -29,11 +29,11 @@ static void process(cir::FuncOp func) {
 
   func.getBody().walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
-      labels.try_emplace(lab.getLabel(), lab->getBlock());
+      labels.try_emplace(lab.getLabel().getLabel(), lab->getBlock());
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.push_back(goTo);
     } else if (auto blockAddr = dyn_cast<cir::BlockAddressOp>(op)) {
-      blockAddrLabel.insert(blockAddr.getLabel());
+      blockAddrLabel.insert(blockAddr.getBlockAddrInfo().getLabel());
     }
   });
 

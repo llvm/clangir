@@ -4518,7 +4518,9 @@ mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
   auto blockTagOp =
       mlir::LLVM::BlockTagOp::create(rewriter, op->getLoc(), tagAttr);
   auto func = op->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-  blockInfoAddr.mapBlockTag(func.getSymName(), op.getLabel(), blockTagOp);
+  auto blockInfoAttr = cir::BlockAddrInfoAttr::get(ctx, func.getSymName(),
+                                                   op.getLabel().getLabel());
+  blockInfoAddr.mapBlockTag(blockInfoAttr, blockTagOp);
   rewriter.eraseOp(op);
 
   return mlir::success();
@@ -4530,7 +4532,7 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   mlir::MLIRContext *ctx = rewriter.getContext();
 
   mlir::LLVM::BlockTagOp matchLabel =
-      blockInfoAddr.lookupBlockTag(op.getFunc(), op.getLabel());
+      blockInfoAddr.lookupBlockTag(op.getBlockAddrInfoAttr());
   mlir::LLVM::BlockTagAttr tagAttr;
   if (!matchLabel)
     // If the BlockTagOp has not been emitted yet, use  a placeholder.
@@ -4540,13 +4542,13 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   else
     tagAttr = matchLabel.getTag();
 
-  auto blkAddr = mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(),
-                                                   op.getFuncAttr(), tagAttr);
+  auto blkAddr = mlir::LLVM::BlockAddressAttr::get(
+      rewriter.getContext(), op.getBlockAddrInfoAttr().getFunc(), tagAttr);
   rewriter.setInsertionPoint(op);
   auto newOp = mlir::LLVM::BlockAddressOp::create(
       rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
   if (!matchLabel)
-    blockInfoAddr.addUnresolvedBlockAddress(newOp, op.getFunc(), op.getLabel());
+    blockInfoAddr.addUnresolvedBlockAddress(newOp, op.getBlockAddrInfoAttr());
   rewriter.replaceOp(op, newOp);
   return mlir::success();
 }
@@ -5058,10 +5060,9 @@ void ConvertCIRToLLVMPass::resolveBlockAddressOp(
   for (auto &[blockAddOp, blockInfo] :
        blockInfoAddr.getUnresolvedBlockAddress()) {
     mlir::LLVM::BlockTagOp resolvedLabel =
-        blockInfoAddr.lookupBlockTag(blockInfo.first, blockInfo.second);
+        blockInfoAddr.lookupBlockTag(blockInfo);
     assert(resolvedLabel && "expected BlockTagOp to already be emitted");
-    auto fnSym =
-        mlir::FlatSymbolRefAttr::get(module.getContext(), blockInfo.first);
+    auto fnSym = blockInfo.getFunc();
     auto blkAddTag = mlir::LLVM::BlockAddressAttr::get(
         opBuilder.getContext(), fnSym, resolvedLabel.getTagAttr());
     blockAddOp.setBlockAddrAttr(blkAddTag);

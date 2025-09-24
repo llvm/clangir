@@ -23,7 +23,7 @@ module {
     %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
     cir.return %3 : !s32i
   ^bb2:
-    cir.label "err"
+    cir.label <@gotoFromIf, "err">
     %4 = cir.const #cir.int<1> : !s32i
     %5 = cir.unary(minus, %4) : !s32i, !s32i
     cir.store %5, %1 : !s32i, !cir.ptr<!s32i>

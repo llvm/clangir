@@ -1225,7 +1225,7 @@ module {
 cir.func @bad_goto() -> () {
   cir.goto "somewhere"
 ^bb1:
-  cir.label "label"
+  cir.label <@bad_goto, "label">
   cir.return
 }
 
