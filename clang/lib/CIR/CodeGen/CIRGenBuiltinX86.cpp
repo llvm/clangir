@@ -1740,7 +1740,8 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     llvm_unreachable("cmpneqps NYI");
   case X86::BI__builtin_ia32_cmpnltps:
   case X86::BI__builtin_ia32_cmpnltpd:
-    llvm_unreachable("cmpnltps NYI");
+    return getVectorFCmpIR(cir::CmpOpKind::lt, /*shouldInvert=*/true,
+                           /*isSignaling=*/true);
   case X86::BI__builtin_ia32_cmpnleps:
   case X86::BI__builtin_ia32_cmpnlepd:
     return getVectorFCmpIR(cir::CmpOpKind::le, /*shouldInvert=*/true,
