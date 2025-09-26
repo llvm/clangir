@@ -7,7 +7,7 @@ cir.func @bad_block_address() -> () {
     %0 = cir.blockaddress <@bad_block_address, "label"> -> !cir.ptr<!void>
     cir.br ^bb1
   ^bb1:
-    cir.label <@bad_block_address, "wrong_label">
+    cir.label "wrong_label"
     cir.return
 }
 
@@ -16,6 +16,6 @@ cir.func @bad_block_func() -> () {
     %0 = cir.blockaddress <@mismatch_func, "label"> -> !cir.ptr<!void>
     cir.br ^bb1
   ^bb1:
-    cir.label <@bad_block_func, "label">
+    cir.label "label"
     cir.return
 }

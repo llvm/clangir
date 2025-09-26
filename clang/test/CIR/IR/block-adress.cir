@@ -7,14 +7,14 @@ module {
     %0 = cir.blockaddress <@block_address, "label"> -> !cir.ptr<!void>
     cir.br ^bb1
   ^bb1:
-    cir.label <@block_address, "label">
+    cir.label "label"
     cir.return
   }
 // CHECK: cir.func @block_address
 // CHECK: %0 = cir.blockaddress <@block_address, "label"> -> !cir.ptr<!void>
 // CHECK:   cir.br ^bb1
 // CHECK: ^bb1:
-// CHECK:   cir.label <@block_address, "label">
+// CHECK:   cir.label "label"
 // CHECK:   cir.return
 
 cir.func @block_address_inside_scope() -> () {
@@ -23,12 +23,12 @@ cir.func @block_address_inside_scope() -> () {
   }
   cir.br ^bb1
 ^bb1:
-  cir.label <@block_address_inside_scope, "label">
+  cir.label "label"
   cir.return
 }
 // CHECK: cir.func @block_address_inside_scope
 // CHECK: cir.scope
 // CHECK:  %0 = cir.blockaddress <@block_address_inside_scope, "label"> -> !cir.ptr<!void>
-// CHECK:  cir.label <@block_address_inside_scope, "label">
+// CHECK:  cir.label "label"
 // CHECK: cir.return
 }

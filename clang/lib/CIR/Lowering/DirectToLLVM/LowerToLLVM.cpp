@@ -4518,8 +4518,8 @@ mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
   auto blockTagOp =
       mlir::LLVM::BlockTagOp::create(rewriter, op->getLoc(), tagAttr);
   auto func = op->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-  auto blockInfoAttr = cir::BlockAddrInfoAttr::get(ctx, func.getSymName(),
-                                                   op.getLabel().getLabel());
+  auto blockInfoAttr =
+      cir::BlockAddrInfoAttr::get(ctx, func.getSymName(), op.getLabel());
   blockInfoAddr.mapBlockTag(blockInfoAttr, blockTagOp);
   rewriter.eraseOp(op);
 

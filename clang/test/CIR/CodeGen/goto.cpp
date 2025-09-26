@@ -84,7 +84,7 @@ err:
 // NOFLAT:    %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
 // NOFLAT:    cir.return %3 : !s32i
 // NOFLAT:  ^bb2:  // no predecessors
-// NOFLAT:    cir.label <@_Z21shouldNotGenBranchReti, "err">
+// NOFLAT:    cir.label "err"
 
 int shouldGenBranch(int x) {
   if (x > 5)
@@ -99,7 +99,7 @@ err:
 // NOFLAT:    }
 // NOFLAT:    cir.br ^bb1
 // NOFLAT:  ^bb1:
-// NOFLAT:    cir.label <@_Z15shouldGenBranchi, "err">
+// NOFLAT:    cir.label "err"
 
 void severalLabelsInARow(int a) {
   int b = a;
@@ -112,10 +112,10 @@ end2:
 }
 // NOFLAT:  cir.func dso_local @_Z19severalLabelsInARowi
 // NOFLAT:  ^bb[[#BLK1:]]:
-// NOFLAT:    cir.label <@_Z19severalLabelsInARowi, "end1">
+// NOFLAT:    cir.label "end1"
 // NOFLAT:    cir.br ^bb[[#BLK2:]]
 // NOFLAT:  ^bb[[#BLK2]]:
-// NOFLAT:    cir.label <@_Z19severalLabelsInARowi, "end2">
+// NOFLAT:    cir.label "end2"
 
 void severalGotosInARow(int a) {
   int b = a;
@@ -129,7 +129,7 @@ end:
 // NOFLAT:  ^bb[[#BLK1:]]:
 // NOFLAT:    cir.goto "end"
 // NOFLAT:  ^bb[[#BLK2:]]:
-// NOFLAT:    cir.label <@_Z18severalGotosInARowi, "end">
+// NOFLAT:    cir.label "end"
 
 
 void labelWithoutMatch() {
@@ -137,7 +137,7 @@ end:
   return;
 }
 // NOFLAT:  cir.func dso_local @_Z17labelWithoutMatchv()
-// NOFLAT:    cir.label <@_Z17labelWithoutMatchv, "end">
+// NOFLAT:    cir.label "end"
 // NOFLAT:    cir.return
 // NOFLAT:  }
 
@@ -290,7 +290,7 @@ void foo() {
 
 // NOFLAT: cir.func dso_local @_Z3foov()
 // NOFLAT:   cir.scope {
-// NOFLAT:     cir.label <@_Z3foov, "label">
+// NOFLAT:     cir.label "label"
 // NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0"]
 
 extern "C" void action1();
@@ -331,7 +331,7 @@ extern "C" void case_follow_label(int v) {
 // NOFLAT: cir.func dso_local @case_follow_label
 // NOFLAT: cir.switch
 // NOFLAT: cir.case(equal, [#cir.int<1> : !s32i]) {
-// NOFLAT: cir.label <@case_follow_label, "label">
+// NOFLAT: cir.label "label"
 // NOFLAT: cir.case(equal, [#cir.int<2> : !s32i]) {
 // NOFLAT: cir.call @action1()
 // NOFLAT: cir.break
@@ -357,7 +357,7 @@ extern "C" void default_follow_label(int v) {
 // NOFLAT: cir.case(anyof, [#cir.int<1> : !s32i, #cir.int<2> : !s32i]) {
 // NOFLAT: cir.call @action1()
 // NOFLAT: cir.break
-// NOFLAT: cir.label <@default_follow_label, "label">
+// NOFLAT: cir.label "label"
 // NOFLAT: cir.case(default, []) {
 // NOFLAT: cir.call @action2()
 // NOFLAT: cir.goto "label"

@@ -16,7 +16,7 @@ A:
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.br ^bb1
 // CIR:  ^bb1:  // pred: ^bb0
-// CIR:    cir.label <@A, "A">
+// CIR:    cir.label "A"
 // CIR:    cir.return
 //
 // LLVM: define dso_local void @A()
@@ -41,7 +41,7 @@ B:
 }
 
 // CIR:  cir.func dso_local @B()
-// CIR:    cir.label <@B, "B">
+// CIR:    cir.label "B"
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
 // CIR:    [[BLOCK:%.*]] = cir.blockaddress <@B, "B"> -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
@@ -80,10 +80,10 @@ B:
 // CIR:  ^bb1:  // 2 preds: ^bb2, ^bb3
 // CIR:    cir.return
 // CIR:  ^bb2:  // pred: ^bb0
-// CIR:    cir.label <@C, "A">
+// CIR:    cir.label "A"
 // CIR:    cir.br ^bb1
 // CIR:  ^bb3:  // no predecessors
-// CIR:    cir.label <@C, "B">
+// CIR:    cir.label "B"
 // CIR:    cir.br ^bb1
 
 // LLVM: define dso_local void @C(i32 %0)
@@ -128,7 +128,7 @@ A:
 // CIR:    cir.store align(8) %[[BLK2]], %[[PTR2]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.br ^bb1
 // CIR:  ^bb1:  // pred: ^bb0
-// CIR:    cir.label <@D, "A">
+// CIR:    cir.label "A"
 // CIR:    %[[BLK3:.*]] = cir.blockaddress <@D, "A"> -> !cir.ptr<!void>
 // CIR:    cir.store align(8) %[[BLK3]], %[[PTR3]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.return

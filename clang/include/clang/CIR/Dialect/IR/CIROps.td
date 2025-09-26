@@ -5897,7 +5897,7 @@ def CIR_LabelOp : CIR_Op<"label", [AlwaysSpeculatable]> {
   let description = [{
     An identifier which may be referred by cir.goto operation
   }];
-  let arguments = (ins CIR_BlockAddrInfoAttr:$label);
+  let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
   let hasVerifier = 1;
 }

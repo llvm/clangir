@@ -2935,7 +2935,7 @@ LogicalResult cir::FuncOp::verify() {
   bool invalidBlockAddress = false;
   getOperation()->walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
-      labels.insert(lab.getLabel().getLabel());
+      labels.insert(lab.getLabel());
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.insert(goTo.getLabel());
     } else if (auto blkAdd = dyn_cast<cir::BlockAddressOp>(op)) {
