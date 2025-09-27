@@ -569,9 +569,9 @@ uint64_t RecordType::getElementOffset(const ::mlir::DataLayout &dataLayout,
   assert(idx < getNumElements());
   auto members = getMembers();
 
-  unsigned offset = 0;
+  unsigned offset = 0, recordSize = 0;
 
-  for (unsigned i = 0, e = idx; i != e; ++i) {
+  for (unsigned i = 0, e = idx; i != e + 1; ++i) {
     auto ty = members[i];
 
     // This matches LLVM since it uses the ABI instead of preferred alignment.
@@ -579,10 +579,12 @@ uint64_t RecordType::getElementOffset(const ::mlir::DataLayout &dataLayout,
         llvm::Align(getPacked() ? 1 : dataLayout.getTypeABIAlignment(ty));
 
     // Add padding if necessary to align the data element properly.
-    offset = llvm::alignTo(offset, tyAlign);
+    recordSize = llvm::alignTo(recordSize, tyAlign);
+    if (i == idx)
+      offset = recordSize;
 
     // Consume space for this data item
-    offset += dataLayout.getTypeSize(ty);
+    recordSize += dataLayout.getTypeSize(ty);
   }
 
   // Account for padding, if necessary, for the alignment of the field whose
@@ -781,8 +783,8 @@ LongDoubleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                 mlir::DataLayoutEntryListRef params) const {
-  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying()).getABIAlignment(
-      dataLayout, params);
+  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
+      .getABIAlignment(dataLayout, params);
 }
 
 //===----------------------------------------------------------------------===//
