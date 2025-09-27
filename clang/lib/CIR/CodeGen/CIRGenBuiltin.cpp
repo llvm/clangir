@@ -1963,8 +1963,16 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         cir::EhSetjmpOp::create(builder, loc, castBuf, /*is_builtin=*/true);
     return RValue::get(op);
   }
-  case Builtin::BI__builtin_longjmp:
-    llvm_unreachable("BI__builtin_longjmp NYI");
+  case Builtin::BI__builtin_longjmp: {
+    Address buf = emitPointerWithAlignment(E->getArg(0));
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
+    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
+    cir::EhLongjmpOp::create(builder, loc, castBuf);
+    builder.create<cir::UnreachableOp>(loc);
+    return RValue::get(nullptr);
+  }
   case Builtin::BI__builtin_launder: {
     const clang::Expr *arg = E->getArg(0);
     clang::QualType argTy = arg->getType()->getPointeeType();
