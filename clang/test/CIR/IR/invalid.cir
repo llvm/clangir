@@ -107,14 +107,14 @@ cir.func @badstride(%x: !cir.ptr<!cir.int<s, 32>>) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast0(%arg0: !u32i) {
-  %1 = cir.cast(int_to_bool, %arg0 : !u32i), !u32i // expected-error {{requires !cir.bool type for result}}
+  %1 = cir.cast int_to_bool %arg0 : !u32i -> !u32i // expected-error {{requires !cir.bool type for result}}
   cir.return
 }
 
 // -----
 
 cir.func @cast1(%arg1: !cir.float) {
-  %1 = cir.cast(int_to_bool, %arg1 : !cir.float), !cir.bool // expected-error {{requires !cir.int type for source}}
+  %1 = cir.cast int_to_bool %arg1 : !cir.float -> !cir.bool // expected-error {{requires !cir.int type for source}}
   cir.return
 }
 
@@ -122,7 +122,7 @@ cir.func @cast1(%arg1: !cir.float) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast2(%p: !cir.ptr<!u32i>) {
-  %2 = cir.cast(array_to_ptrdecay, %p : !cir.ptr<!u32i>), !cir.ptr<!u32i> // expected-error {{requires !cir.array pointee}}
+  %2 = cir.cast array_to_ptrdecay %p : !cir.ptr<!u32i> -> !cir.ptr<!u32i> // expected-error {{requires !cir.array pointee}}
   cir.return
 }
 
@@ -131,7 +131,7 @@ cir.func @cast2(%p: !cir.ptr<!u32i>) {
 !u32i = !cir.int<u, 32>
 cir.func @cast3(%p: !cir.ptr<!u32i>) {
   %0 = cir.alloca !cir.array<!u32i x 10>, !cir.ptr<!cir.array<!u32i x 10>>, ["x", init]
-  %2 = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<!u32i x 10>>), !cir.ptr<!cir.float> // expected-error {{requires same type for array element and pointee result}}
+  %2 = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<!u32i x 10>> -> !cir.ptr<!cir.float> // expected-error {{requires same type for array element and pointee result}}
   cir.return
 }
 
@@ -139,21 +139,21 @@ cir.func @cast3(%p: !cir.ptr<!u32i>) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast4(%p: !cir.ptr<!u32i>) {
-  %2 = cir.cast(bitcast, %p : !cir.ptr<!u32i>), !u32i // expected-error {{requires !cir.ptr or !cir.vector type for source and result}}
+  %2 = cir.cast bitcast %p : !cir.ptr<!u32i> -> !u32i // expected-error {{requires !cir.ptr or !cir.vector type for source and result}}
   cir.return
 }
 
 // -----
 
 cir.func @cast5(%p: !cir.float) {
-  %2 = cir.cast(bool_to_float, %p : !cir.float), !cir.float // expected-error {{requires !cir.bool type for source}}
+  %2 = cir.cast bool_to_float %p : !cir.float -> !cir.float // expected-error {{requires !cir.bool type for source}}
   cir.return
 }
 
 // -----
 
 cir.func @cast6(%p: !cir.bool) {
-  %2 = cir.cast(bool_to_float, %p : !cir.bool), !cir.int<u, 32> // expected-error {{requires !cir.float type for result}}
+  %2 = cir.cast bool_to_float %p : !cir.bool -> !cir.int<u, 32> // expected-error {{requires !cir.float type for result}}
   cir.return
 }
 
@@ -161,7 +161,7 @@ cir.func @cast6(%p: !cir.bool) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast7(%p: !cir.ptr<!u32i>) {
-  %2 = cir.cast(ptr_to_bool, %p : !cir.ptr<!u32i>), !u32i // expected-error {{requires !cir.bool type for result}}
+  %2 = cir.cast ptr_to_bool %p : !cir.ptr<!u32i> -> !u32i // expected-error {{requires !cir.bool type for result}}
   cir.return
 }
 
@@ -169,7 +169,7 @@ cir.func @cast7(%p: !cir.ptr<!u32i>) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast8(%p: !u32i) {
-  %2 = cir.cast(ptr_to_bool, %p : !u32i), !cir.bool // expected-error {{requires !cir.ptr type for source}}
+  %2 = cir.cast ptr_to_bool %p : !u32i -> !cir.bool // expected-error {{requires !cir.ptr type for source}}
   cir.return
 }
 
@@ -177,7 +177,7 @@ cir.func @cast8(%p: !u32i) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast9(%p : !u32i) {
-  %2 = cir.cast(integral, %p : !u32i), !cir.float // expected-error {{requires !cir.int type for result}}
+  %2 = cir.cast integral %p : !u32i -> !cir.float // expected-error {{requires !cir.int type for result}}
   cir.return
 }
 
@@ -185,7 +185,7 @@ cir.func @cast9(%p : !u32i) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast10(%p : !cir.float) {
-  %2 = cir.cast(integral, %p : !cir.float), !u32i // expected-error {{requires !cir.int type for source}}
+  %2 = cir.cast integral %p : !cir.float -> !u32i // expected-error {{requires !cir.int type for source}}
   cir.return
 }
 
@@ -193,7 +193,7 @@ cir.func @cast10(%p : !cir.float) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast11(%p : !cir.float) {
-  %2 = cir.cast(floating, %p : !cir.float), !u32i // expected-error {{requires !cir.float type for source and result}}
+  %2 = cir.cast floating %p : !cir.float -> !u32i // expected-error {{requires !cir.float type for source and result}}
   cir.return
 }
 
@@ -201,7 +201,7 @@ cir.func @cast11(%p : !cir.float) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast12(%p : !u32i) {
-  %2 = cir.cast(floating, %p : !u32i), !cir.float // expected-error {{requires !cir.float type for source and result}}
+  %2 = cir.cast floating %p : !u32i -> !cir.float // expected-error {{requires !cir.float type for source and result}}
   cir.return
 }
 
@@ -209,14 +209,14 @@ cir.func @cast12(%p : !u32i) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast13(%p : !u32i) {
-  %2 = cir.cast(float_to_int, %p : !u32i), !u32i // expected-error {{requires !cir.float type for source}}
+  %2 = cir.cast float_to_int %p : !u32i -> !u32i // expected-error {{requires !cir.float type for source}}
   cir.return
 }
 
 // -----
 
 cir.func @cast14(%p : !cir.float) {
-  %2 = cir.cast(float_to_int, %p : !cir.float), !cir.float // expected-error {{requires !cir.int type for result}}
+  %2 = cir.cast float_to_int %p : !cir.float -> !cir.float // expected-error {{requires !cir.int type for result}}
   cir.return
 }
 
@@ -224,7 +224,7 @@ cir.func @cast14(%p : !cir.float) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast15(%p : !cir.ptr<!u64i>) {
-  %2 = cir.cast(int_to_ptr, %p : !cir.ptr<!u64i>), !cir.ptr<!u64i> // expected-error {{requires !cir.int type for source}}
+  %2 = cir.cast int_to_ptr %p : !cir.ptr<!u64i> -> !cir.ptr<!u64i> // expected-error {{requires !cir.int type for source}}
   cir.return
 }
 
@@ -232,7 +232,7 @@ cir.func @cast15(%p : !cir.ptr<!u64i>) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast16(%p : !u64i) {
-  %2 = cir.cast(int_to_ptr, %p : !u64i), !u64i // expected-error {{requires !cir.ptr type for result}}
+  %2 = cir.cast int_to_ptr %p : !u64i -> !u64i // expected-error {{requires !cir.ptr type for result}}
   cir.return
 }
 
@@ -240,7 +240,7 @@ cir.func @cast16(%p : !u64i) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast17(%p : !u64i) {
-  %2 = cir.cast(ptr_to_int, %p : !u64i), !u64i // expected-error {{requires !cir.ptr type for source}}
+  %2 = cir.cast ptr_to_int %p : !u64i -> !u64i // expected-error {{requires !cir.ptr type for source}}
   cir.return
 }
 
@@ -248,7 +248,7 @@ cir.func @cast17(%p : !u64i) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast18(%p : !cir.ptr<!u64i>) {
-  %2 = cir.cast(ptr_to_int, %p : !cir.ptr<!u64i>), !cir.ptr<!u64i> // expected-error {{requires !cir.int type for result}}
+  %2 = cir.cast ptr_to_int %p : !cir.ptr<!u64i> -> !cir.ptr<!u64i> // expected-error {{requires !cir.int type for result}}
   cir.return
 }
 
@@ -256,7 +256,7 @@ cir.func @cast18(%p : !cir.ptr<!u64i>) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast19(%p : !u32i) {
-  %2 = cir.cast(float_to_bool, %p : !u32i), !cir.bool // expected-error {{requires !cir.float type for source}}
+  %2 = cir.cast float_to_bool %p : !u32i -> !cir.bool // expected-error {{requires !cir.float type for source}}
   cir.return
 }
 
@@ -264,7 +264,7 @@ cir.func @cast19(%p : !u32i) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast20(%p : !cir.float) {
-  %2 = cir.cast(float_to_bool, %p : !cir.float), !u32i // expected-error {{requires !cir.bool type for result}}
+  %2 = cir.cast float_to_bool %p : !cir.float -> !u32i // expected-error {{requires !cir.bool type for result}}
   cir.return
 }
 
@@ -272,21 +272,21 @@ cir.func @cast20(%p : !cir.float) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast21(%p : !u32i) {
-  %2 = cir.cast(bool_to_int, %p : !u32i), !u32i // expected-error {{requires !cir.bool type for source}}
+  %2 = cir.cast bool_to_int %p : !u32i -> !u32i // expected-error {{requires !cir.bool type for source}}
   cir.return
 }
 
 // -----
 
 cir.func @cast22(%p : !cir.bool) {
-  %2 = cir.cast(bool_to_int, %p : !cir.bool), !cir.float // expected-error {{requires !cir.int type for result}}
+  %2 = cir.cast bool_to_int %p : !cir.bool -> !cir.float // expected-error {{requires !cir.int type for result}}
   cir.return
 }
 
 // -----
 
 cir.func @cast23(%p : !cir.bool) {
-  %2 = cir.cast(int_to_float, %p : !cir.bool), !cir.float // expected-error {{requires !cir.int type for source}}
+  %2 = cir.cast int_to_float %p : !cir.bool -> !cir.float // expected-error {{requires !cir.int type for source}}
   cir.return
 }
 
@@ -294,7 +294,7 @@ cir.func @cast23(%p : !cir.bool) {
 
 !u32i = !cir.int<u, 32>
 cir.func @cast24(%p : !u32i) {
-  %2 = cir.cast(int_to_float, %p : !u32i), !cir.bool // expected-error {{requires !cir.float type for result}}
+  %2 = cir.cast int_to_float %p : !u32i -> !cir.bool // expected-error {{requires !cir.float type for result}}
   cir.return
 }
 
@@ -303,7 +303,7 @@ cir.func @cast24(%p : !u32i) {
 !u32i = !cir.int<u, 32>
 !u64i = !cir.int<u, 64>
 cir.func @cast25(%p : !cir.ptr<!u32i, addrspace(target<1>)>) {
-  %0 = cir.cast(address_space, %p : !cir.ptr<!u32i, addrspace(target<1>)>), !cir.ptr<!u64i, addrspace(target<2>)> // expected-error {{requires two types differ in addrspace only}}
+  %0 = cir.cast address_space %p : !cir.ptr<!u32i, addrspace(target<1>)> -> !cir.ptr<!u64i, addrspace(target<2>)> // expected-error {{requires two types differ in addrspace only}}
   cir.return
 }
 
@@ -311,7 +311,7 @@ cir.func @cast25(%p : !cir.ptr<!u32i, addrspace(target<1>)>) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast26(%p : !cir.ptr<!u64i, addrspace(target<1>)>) {
-  %0 = cir.cast(address_space, %p : !cir.ptr<!u64i, addrspace(target<1>)>), !u64i // expected-error {{requires !cir.ptr type for source and result}}
+  %0 = cir.cast address_space %p : !cir.ptr<!u64i, addrspace(target<1>)> -> !u64i // expected-error {{requires !cir.ptr type for source and result}}
   cir.return
 }
 
@@ -319,7 +319,7 @@ cir.func @cast26(%p : !cir.ptr<!u64i, addrspace(target<1>)>) {
 
 !u64i = !cir.int<u, 64>
 cir.func @cast27(%p : !u64i) {
-  %0 = cir.cast(address_space, %p : !u64i), !cir.ptr<!u64i, addrspace(target<1>)> // expected-error {{requires !cir.ptr type for source and result}}
+  %0 = cir.cast address_space %p : !u64i -> !cir.ptr<!u64i, addrspace(target<1>)> // expected-error {{requires !cir.ptr type for source and result}}
   cir.return
 }
 
@@ -790,7 +790,7 @@ module {
   cir.func @_Z8divisionii() {
     %11 = cir.alloc.exception 8 -> !cir.ptr<!cir.ptr<!u8i>>
     %12 = cir.get_global @".str" : !cir.ptr<!cir.array<!u8i x 28>>
-    %13 = cir.cast(array_to_ptrdecay, %12 : !cir.ptr<!cir.array<!u8i x 28>>), !cir.ptr<!u8i>
+    %13 = cir.cast array_to_ptrdecay %12 : !cir.ptr<!cir.array<!u8i x 28>> -> !cir.ptr<!u8i>
     cir.store %13, %11 : !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>
     cir.throw %11 : !cir.ptr<!cir.ptr<!u8i>> // expected-error {{'type_info' symbol attribute missing}}
   }
@@ -1386,7 +1386,7 @@ module {
   cir.func @array_to_ptrdecay_addrspace() {
     %0 = cir.alloca !cir.array<!s32i x 32>, !cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_private)>, ["x", init]
     // expected-error@+1 {{requires same address space for source and result}}
-    %1 = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_private)>), !cir.ptr<!s32i>
+    %1 = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_private)> -> !cir.ptr<!s32i>
     cir.return
   }
 }
@@ -1415,7 +1415,7 @@ module {
   cir.func @test_bitcast_addrspace() {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["tmp"] {alignment = 4 : i64}
     // expected-error@+1 {{'cir.cast' op result type address space does not match the address space of the operand}}
-    %1 = cir.cast(bitcast, %0 : !cir.ptr<!s32i>), !cir.ptr<!s32i, addrspace(offload_local)>
+    %1 = cir.cast bitcast %0 : !cir.ptr<!s32i> -> !cir.ptr<!s32i, addrspace(offload_local)>
   }
 }
 
@@ -1429,7 +1429,7 @@ module {
     %0 = cir.const #cir.int<1> : !s16i
     %1 = cir.vec.create(%0, %0 : !s16i, !s16i) : !cir.vector<!s16i x 2>
     // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
-    %2 = cir.cast(bitcast, %1 : !cir.vector<!s16i x 2>), !s64i
+    %2 = cir.cast bitcast %1 : !cir.vector<!s16i x 2> -> !s64i
     cir.return
   }
 }
@@ -1443,7 +1443,7 @@ module {
   cir.func @test_bitcast_scalar2vec_diff_size() {
     %0 = cir.const #cir.int<1> : !s64i
     // expected-error@+1 {{'cir.cast' op requires !cir.ptr or !cir.vector type for source and result}}
-    %1 = cir.cast(bitcast, %0 : !s64i), !cir.vector<!s32i x 4>
+    %1 = cir.cast bitcast %0 : !s64i -> !cir.vector<!s32i x 4>
     cir.return
   }
 }
@@ -1646,14 +1646,14 @@ cir.global external dso_local @glob = #cir.zero : !rec_S {alignment = 2 : i64}
 cir.func dso_local @main() -> !s32i extra(#fn_attr) {
   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
   %1 = cir.const #cir.int<0> : !s32i
-  %2 = cir.cast(integral, %1 : !s32i), !s16i
+  %2 = cir.cast integral %1 : !s32i -> !s16i
   %3 = cir.get_global @glob : !cir.ptr<!rec_S>
   %4 = cir.get_member %3[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
   cir.store align(2) %2, %4 : !s16i, !cir.ptr<!s16i> tbaa(#tbaa_tag)
   %5 = cir.get_global @glob : !cir.ptr<!rec_S>
   %6 = cir.get_member %5[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
   %7 = cir.load align(2) %6 : !cir.ptr<!s16i>, !s16i tbaa(#tbaa_tag)
-  %8 = cir.cast(integral, %7 : !s16i), !s32i
+  %8 = cir.cast integral %7 : !s16i -> !s32i
   cir.store %8, %0 : !s32i, !cir.ptr<!s32i>
   %9 = cir.load %0 : !cir.ptr<!s32i>, !s32i
   cir.return %9 : !s32i

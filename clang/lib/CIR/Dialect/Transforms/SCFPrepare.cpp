@@ -120,7 +120,7 @@ struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
 //     %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
 //     %5 = cir.const #cir.int<100> : !s32i       <- upper bound
 //     %6 = cir.cmp(lt, %4, %5) : !s32i, !s32i
-//     %7 = cir.cast(int_to_bool, %6 : !s32i), !cir.bool
+//     %7 = cir.cast int_to_bool %6 : !s32i -> !cir.bool
 //     cir.condition(%7
 //  } body {
 struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {

@@ -14,15 +14,15 @@ int test1(unsigned char n = 3)
 
     // CHECK: %[[first:.*]] = cir.call @_ZNSt5arrayIhLj9EE5beginEv
     // CHECK: %[[last:.*]] = cir.call @_ZNSt5arrayIhLj9EE3endEv
-    // CHECK: %[[cast_to_void:.*]] = cir.cast(bitcast, %[[first]] : !cir.ptr<!u8i>), !cir.ptr<!void>
+    // CHECK: %[[cast_to_void:.*]] = cir.cast bitcast %[[first]] : !cir.ptr<!u8i> -> !cir.ptr<!void>
     // CHECK: %[[load_pattern:.*]] = cir.load{{.*}} %[[pattern_addr]] : !cir.ptr<!u8i>, !u8i
-    // CHECK: %[[pattern:.*]] = cir.cast(integral, %[[load_pattern:.*]] : !u8i), !s32i
+    // CHECK: %[[pattern:.*]] = cir.cast integral %[[load_pattern:.*]] : !u8i -> !s32i
 
     // CHECK-NOT: {{.*}} cir.call @_ZSt4findIPhhET_S1_S1_RKT0_(
     // CHECK: %[[array_size:.*]] = cir.const #cir.int<9> : !u64i
 
     // CHECK: %[[result_cast:.*]] = cir.libc.memchr(%[[cast_to_void]], %[[pattern]], %[[array_size]])
-    // CHECK: %[[memchr_res:.*]] = cir.cast(bitcast, %[[result_cast]] : !cir.ptr<!void>), !cir.ptr<!u8i>
+    // CHECK: %[[memchr_res:.*]] = cir.cast bitcast %[[result_cast]] : !cir.ptr<!void> -> !cir.ptr<!u8i>
     // CHECK: %[[nullptr:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!u8i>
     // CHECK: %[[cmp_res:.*]] = cir.cmp(eq, %[[nullptr]], %[[memchr_res]]) : !cir.ptr<!u8i>, !cir.bool
     // CHECK: cir.ternary(%[[cmp_res]], true {
@@ -47,15 +47,15 @@ unsigned char* test2(unsigned char* first, unsigned char* last, unsigned char v)
     // CHECK: %[[pattern_storage:.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, ["v", init]
     // CHECK: %[[first:.*]] = cir.load{{.*}} %[[first_storage]]
     // CHECK: %[[last:.*]] = cir.load{{.*}} %[[last_storage]]
-    // CHECK: %[[cast_to_void:.*]] = cir.cast(bitcast, %[[first]] : !cir.ptr<!u8i>), !cir.ptr<!void>
+    // CHECK: %[[cast_to_void:.*]] = cir.cast bitcast %[[first]] : !cir.ptr<!u8i> -> !cir.ptr<!void>
     // CHECK: %[[load_pattern:.*]] = cir.load{{.*}} %[[pattern_storage]] : !cir.ptr<!u8i>, !u8i
-    // CHECK: %[[pattern:.*]] = cir.cast(integral, %[[load_pattern:.*]] : !u8i), !s32i
+    // CHECK: %[[pattern:.*]] = cir.cast integral %[[load_pattern:.*]] : !u8i -> !s32i
 
     // CHECK-NOT: {{.*}} cir.call @_ZSt4findIPhhET_S1_S1_RKT0_(
     // CHECK: %[[array_size:.*]] = cir.ptr_diff(%[[last]], %[[first]]) : !cir.ptr<!u8i> -> !u64i
 
     // CHECK: %[[result_cast:.*]] = cir.libc.memchr(%[[cast_to_void]], %[[pattern]], %[[array_size]])
-    // CHECK: %[[memchr_res:.*]] = cir.cast(bitcast, %[[result_cast]] : !cir.ptr<!void>), !cir.ptr<!u8i>
+    // CHECK: %[[memchr_res:.*]] = cir.cast bitcast %[[result_cast]] : !cir.ptr<!void> -> !cir.ptr<!u8i>
     // CHECK: %[[nullptr:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!u8i>
     // CHECK: %[[cmp_res:.*]] = cir.cmp(eq, %[[nullptr]], %[[memchr_res]]) : !cir.ptr<!u8i>, !cir.bool
     // CHECK: cir.ternary(%[[cmp_res]], true {

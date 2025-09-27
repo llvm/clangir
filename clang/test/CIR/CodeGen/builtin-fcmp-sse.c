@@ -9,7 +9,7 @@ __m128 test_cmpnleps(__m128 A, __m128 B) {
   // CIR-LABEL: @test_cmpnleps
   // CIR: [[CMP:%.*]] = cir.vec.cmp(le, [[A:%.*]], [[B:%.*]]) : !cir.vector<!cir.float x 4>, !cir.vector<!s32i x 4>
   // CIR: [[NOTCMP:%.*]] = cir.unary(not, [[CMP]]) : !cir.vector<!s32i x 4>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[NOTCMP:%.*]] : !cir.vector<!s32i x 4>), !cir.vector<!cir.float x 4>
+  // CIR-NEXT: [[CAST:%.*]] = cir.cast bitcast [[NOTCMP:%.*]] : !cir.vector<!s32i x 4> -> !cir.vector<!cir.float x 4>
   // CIR-NEXT: cir.store [[CAST]], [[ALLOCA:%.*]] :  !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]] :
   // CIR-NEXT: cir.return [[LD]] : !cir.vector<!cir.float x 4>
@@ -33,7 +33,7 @@ __m128d test_cmpnlepd(__m128d A, __m128d B) {
   // CIR-LABEL: @test_cmpnlepd
   // CIR: [[CMP:%.*]] = cir.vec.cmp(le, [[A:%.*]], [[B:%.*]]) :  !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
   // CIR-NEXT: [[NOTCMP:%.*]] = cir.unary(not, [[CMP]]) : !cir.vector<!s64i x 2>, !cir.vector<!s64i x 2>
-  // CIR-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[NOTCMP]] :  !cir.vector<!s64i x 2>), !cir.vector<!cir.double x 2>
+  // CIR-NEXT: [[CAST:%.*]] = cir.cast bitcast [[NOTCMP]] :  !cir.vector<!s64i x 2> -> !cir.vector<!cir.double x 2>
   // CIR-NEXT: cir.store [[CAST]], [[ALLOCA:%.*]] : !cir.vector<!cir.double x 2>, !cir.ptr<!cir.vector<!cir.double x 2>>
   // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]] :
   // CIR-NEXT: cir.return [[LD]] : !cir.vector<!cir.double x 2>
@@ -57,7 +57,7 @@ __m128 test_cmpnltps(__m128 A, __m128 B) {
   // CIR-LABEL: @test_cmpnltps
   // CIR: [[CMP:%.*]] = cir.vec.cmp(lt, [[A:%.*]], [[B:%.*]]) : !cir.vector<!cir.float x 4>, !cir.vector<!s32i x 4>
   // CIR: [[NOTCMP:%.*]] = cir.unary(not, [[CMP]]) : !cir.vector<!s32i x 4>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[NOTCMP:%.*]] : !cir.vector<!s32i x 4>), !cir.vector<!cir.float x 4>
+  // CIR-NEXT: [[CAST:%.*]] = cir.cast bitcast [[NOTCMP:%.*]] : !cir.vector<!s32i x 4> -> !cir.vector<!cir.float x 4>
   // CIR-NEXT: cir.store [[CAST]], [[ALLOCA:%.*]] :  !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]] :
   // CIR-NEXT: cir.return [[LD]] : !cir.vector<!cir.float x 4>
@@ -81,7 +81,7 @@ __m128d test_cmpnltpd(__m128d A, __m128d B) {
   // CIR-LABEL: @test_cmpnltpd
   // CIR: [[CMP:%.*]] = cir.vec.cmp(lt, [[A:%.*]], [[B:%.*]]) :  !cir.vector<!cir.double x 2>, !cir.vector<!s64i x 2>
   // CIR-NEXT: [[NOTCMP:%.*]] = cir.unary(not, [[CMP]]) : !cir.vector<!s64i x 2>, !cir.vector<!s64i x 2>
-  // CIR-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[NOTCMP]] :  !cir.vector<!s64i x 2>), !cir.vector<!cir.double x 2>
+  // CIR-NEXT: [[CAST:%.*]] = cir.cast bitcast [[NOTCMP]] :  !cir.vector<!s64i x 2> -> !cir.vector<!cir.double x 2>
   // CIR-NEXT: cir.store [[CAST]], [[ALLOCA:%.*]] : !cir.vector<!cir.double x 2>, !cir.ptr<!cir.vector<!cir.double x 2>>
   // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]] :
   // CIR-NEXT: cir.return [[LD]] : !cir.vector<!cir.double x 2>

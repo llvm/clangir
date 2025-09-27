@@ -6,12 +6,12 @@ module {
   cir.func @foo(%arg0: !s64i) {
     %0 = cir.const #cir.int<1> : !s64i
     %1 = cir.expect(%arg0, %0) : !s64i
-    %2 = cir.cast(int_to_bool, %1 : !s64i), !cir.bool
+    %2 = cir.cast int_to_bool %1 : !s64i -> !cir.bool
     cir.if %2 {
       cir.yield
     }
     %3 = cir.expect(%arg0, %0, 1.000000e-01) : !s64i
-    %4 = cir.cast(int_to_bool, %3 : !s64i), !cir.bool
+    %4 = cir.cast int_to_bool %3 : !s64i -> !cir.bool
     cir.if %4 {
       cir.yield
     }

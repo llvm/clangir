@@ -30,7 +30,7 @@ module  {
     %2 = cir.const #cir.int<0> : !s32i
     cir.store %2, %0 : !s32i, !cir.ptr<!s32i>
     %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-    %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
+    %4 = cir.cast int_to_bool %3 : !s32i -> !cir.bool
     cir.if %4 {
       %6 = cir.const #cir.int<3> : !s32i
       cir.store %6, %0 : !s32i, !cir.ptr<!s32i>
@@ -87,7 +87,7 @@ module  {
 // CHECK-NEXT:   }
 
 // CHECK:   @if0(%arg0: !s32i) -> !s32i {
-// CHECK:   %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
+// CHECK:   %4 = cir.cast int_to_bool %3 : !s32i -> !cir.bool
 // CHECK-NEXT:   cir.if %4 {
 // CHECK-NEXT:     %6 = cir.const #cir.int<3> : !s32i
 // CHECK-NEXT:     cir.store %6, %0 : !s32i, !cir.ptr<!s32i>

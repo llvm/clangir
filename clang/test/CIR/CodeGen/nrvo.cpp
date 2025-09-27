@@ -20,7 +20,7 @@ std::vector<const char*> test_nrvo() {
 // CHECK:   cir.scope {
 // CHECK:     %5 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["ref.tmp0"] {alignment = 8 : i64}
 // CHECK:     %6 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 59>>
-// CHECK:     %7 = cir.cast(array_to_ptrdecay, %6 : !cir.ptr<!cir.array<!s8i x 59>>), !cir.ptr<!s8i>
+// CHECK:     %7 = cir.cast array_to_ptrdecay %6 : !cir.ptr<!cir.array<!s8i x 59>> -> !cir.ptr<!s8i>
 // CHECK:     cir.store{{.*}} %7, %5 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CHECK:     cir.call @_ZNSt6vectorIPKcE9push_backEOS1_(%0, %5) : (!cir.ptr<![[VEC]]>, !cir.ptr<!cir.ptr<!s8i>>) -> ()
 // CHECK:   }

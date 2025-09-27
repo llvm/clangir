@@ -100,7 +100,7 @@ struct S1 {
 
 /// Cast arguments to the expected type.
 // CHECK: %[[#V0:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, [""] {alignment = 4 : i64}
-// CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S1>), !cir.ptr<!u64i>
+// CHECK: %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S1> -> !cir.ptr<!u64i>
 // CHECK: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CHECK: %[[#V2:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["__retval"] {alignment = 4 : i64}
 // CHECK: %[[#V3:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["agg.tmp0"] {alignment = 4 : i64}
@@ -108,10 +108,10 @@ struct S1 {
 S1 s1(S1 arg) {
 
   /// Cast argument and result of the function call to the expected types.
-  // CHECK: %[[#V9:]] = cir.cast(bitcast, %[[#V3]] : !cir.ptr<!rec_S1>), !cir.ptr<!u64i>
+  // CHECK: %[[#V9:]] = cir.cast bitcast %[[#V3]] : !cir.ptr<!rec_S1> -> !cir.ptr<!u64i>
   // CHECK: %[[#V10:]] = cir.load{{.*}} %[[#V9]] : !cir.ptr<!u64i>, !u64i
   // CHECK: %[[#V11:]] = cir.call @_Z2s12S1(%[[#V10]]) : (!u64i) -> !u64i
-  // CHECK: %[[#V12:]] = cir.cast(bitcast, %[[#V4]] : !cir.ptr<!rec_S1>), !cir.ptr<!u64i>
+  // CHECK: %[[#V12:]] = cir.cast bitcast %[[#V4]] : !cir.ptr<!rec_S1> -> !cir.ptr<!u64i>
   // CHECK: cir.store{{.*}} %[[#V11]], %[[#V12]] : !u64i, !cir.ptr<!u64i>
   s1({1, 2});
 
@@ -121,7 +121,7 @@ S1 s1(S1 arg) {
   // CHECK: %[[#V15:]] = cir.get_member %[[#V2]][1] {name = "b"} : !cir.ptr<!rec_S1> -> !cir.ptr<!s32i>
   // CHECK: %[[#V16:]] = cir.const #cir.int<2> : !s32i
   // CHECK: cir.store{{.*}} %[[#V16]], %[[#V15]] : !s32i, !cir.ptr<!s32i>
-  // CHECK: %[[#V17:]] = cir.cast(bitcast, %[[#V2]] : !cir.ptr<!rec_S1>), !cir.ptr<!u64i>
+  // CHECK: %[[#V17:]] = cir.cast bitcast %[[#V2]] : !cir.ptr<!rec_S1> -> !cir.ptr<!u64i>
   // CHECK: %[[#V18:]] = cir.load{{.*}} %[[#V17]] : !cir.ptr<!u64i>, !u64i
   // CHECK: cir.return %[[#V18]] : !u64i
   return {1, 2};
@@ -142,8 +142,8 @@ struct S2 {
 // CHECK: cir.store{{.*}} %[[ARG0]], %[[#F2]] : !u64i, !cir.ptr<!u64i>
 // CHECK: %[[#F3:]] = cir.get_member %[[#F1]][1]{{.*}} : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!s32i>
 // CHECK: cir.store{{.*}} %[[ARG1]], %[[#F3]] : !s32i, !cir.ptr<!s32i>
-// CHECK: %[[#F4:]] = cir.cast(bitcast, %[[#F1]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!void>
-// CHECK: %[[#F5:]] = cir.cast(bitcast, %[[#F0]] : !cir.ptr<!rec_S2>), !cir.ptr<!void>
+// CHECK: %[[#F4:]] = cir.cast bitcast %[[#F1]] : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!void>
+// CHECK: %[[#F5:]] = cir.cast bitcast %[[#F0]] : !cir.ptr<!rec_S2> -> !cir.ptr<!void>
 // CHECK: %[[#F6:]] = cir.const #cir.int<12> : !u64i
 // CHECK: cir.libc.memcpy %[[#F6]] bytes from %[[#F4]] to %[[#F5]]
 S2 s2(S2 arg) {
@@ -172,8 +172,8 @@ S2 s2(S2 arg) {
 
   // CHECK: %[[#F20:]] = cir.load{{.*}} %[[#F8]] : !cir.ptr<!rec_S2>, !rec_S2
   // CHECK: cir.store{{.*}} %[[#F20]], %[[#F11]] : !rec_S2, !cir.ptr<!rec_S2>
-  // CHECK: %[[#F21:]] = cir.cast(bitcast, %[[#F11]] : !cir.ptr<!rec_S2>), !cir.ptr<!void>
-  // CHECK: %[[#F22:]] = cir.cast(bitcast, %[[#F10]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!void>
+  // CHECK: %[[#F21:]] = cir.cast bitcast %[[#F11]] : !cir.ptr<!rec_S2> -> !cir.ptr<!void>
+  // CHECK: %[[#F22:]] = cir.cast bitcast %[[#F10]] : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!void>
   // CHECK: %[[#F23:]] = cir.const #cir.int<12> : !u64i
   // CHECK: cir.libc.memcpy %[[#F23]] bytes from %[[#F21]] to %[[#F22]]
 
@@ -187,8 +187,8 @@ S2 s2(S2 arg) {
   // CHECK: %[[#F28:]] = cir.call @_Z2s22S2(%[[#F25]], %[[#F27]]) : (!u64i, !s32i) -> !rec_anon_struct
   // CHECK: cir.store{{.*}} %[[#F28]], %[[#F12]] : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
 
-  // CHECK: %[[#F29:]] = cir.cast(bitcast, %[[#F12]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!void>
-  // CHECK: %[[#F30:]] = cir.cast(bitcast, %[[#F9]] : !cir.ptr<!rec_S2>), !cir.ptr<!void>
+  // CHECK: %[[#F29:]] = cir.cast bitcast %[[#F12]] : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!void>
+  // CHECK: %[[#F30:]] = cir.cast bitcast %[[#F9]] : !cir.ptr<!rec_S2> -> !cir.ptr<!void>
   // CHECK: %[[#F31:]] = cir.const #cir.int<12> : !u64i
   // CHECK: cir.libc.memcpy %[[#F31]] bytes from %[[#F29]] to %[[#F30]]
 
@@ -197,8 +197,8 @@ S2 s2(S2 arg) {
 
   // COM: For return, the first two fields of S2 is also coerced.
 
-  // CHECK: %[[#F39:]] = cir.cast(bitcast, %[[#F7]] : !cir.ptr<!rec_S2>), !cir.ptr<!void>
-  // CHECK: %[[#F40:]] = cir.cast(bitcast, %[[#F13]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!void>
+  // CHECK: %[[#F39:]] = cir.cast bitcast %[[#F7]] : !cir.ptr<!rec_S2> -> !cir.ptr<!void>
+  // CHECK: %[[#F40:]] = cir.cast bitcast %[[#F13]] : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!void>
   // CHECK: %[[#F41:]] = cir.const #cir.int<12> : !u64i
   // cir.libc.memcpy %[[#F41]] bytes from %[[#F39]] to %[[#F40]]
   // CHECK: %[[#F42:]] = cir.load{{.*}} %[[#F13]] : !cir.ptr<!rec_anon_struct>, !rec_anon_struct

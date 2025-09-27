@@ -50,7 +50,7 @@ __global__ void global_fn(int a) {}
 
 // CIR-HOST: @_Z24__device_stub__global_fni{{.*}}extra([[Kernel]])
 // CIR-HOST: %[[#CIRKernelArgs:]] = cir.alloca {{.*}}"kernel_args"
-// CIR-HOST: %[[#Decayed:]] = cir.cast(array_to_ptrdecay, %[[#CIRKernelArgs]]
+// CIR-HOST: %[[#Decayed:]] = cir.cast array_to_ptrdecay %[[#CIRKernelArgs]]
 // CIR-HOST: cir.call @__cudaPopCallConfiguration
 // CIR-HOST: cir.get_global @_Z24__device_stub__global_fni
 // CIR-HOST: cir.call @cudaLaunchKernel
@@ -78,7 +78,7 @@ int main() {
 // CIR-HOST: cir.call @_ZN4dim3C1Ejjj
 // CIR-HOST: cir.call @_ZN4dim3C1Ejjj
 // CIR-HOST: [[Push:%[0-9]+]] = cir.call @__cudaPushCallConfiguration
-// CIR-HOST: [[ConfigOK:%[0-9]+]] = cir.cast(int_to_bool, [[Push]]
+// CIR-HOST: [[ConfigOK:%[0-9]+]] = cir.cast int_to_bool [[Push]]
 // CIR-HOST: cir.if [[ConfigOK]] {
 // CIR-HOST: } else {
 // CIR-HOST:   [[Arg:%[0-9]+]] = cir.const #cir.int<1>

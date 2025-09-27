@@ -52,7 +52,7 @@ typedef enum : uint8_t {
 uint32_t g0(EnumAuto32 *E, uint32_t *val) {
   // CIR-LABEL: cir.func dso_local @_Z2g0
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
-  // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u32i
+  // CIR: %[[U_C5:.*]] = cir.cast integral %[[C5]] : !s32i -> !u32i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
   // CIR: cir.store{{.*}} %[[U_C5]], %[[VAL_PTR]] : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
   // CIR: %[[C0:.*]] = cir.const #cir.int<0> : !u32i
@@ -74,7 +74,7 @@ uint32_t g0(EnumAuto32 *E, uint32_t *val) {
 uint64_t g1(EnumAuto64 *E, uint64_t *val) {
   // CIR-LABEL: cir.func dso_local @_Z2g1
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
-  // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u64i
+  // CIR: %[[U_C5:.*]] = cir.cast integral %[[C5]] : !s32i -> !u64i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u64i>>, !cir.ptr<!u64i>
   // CIR: cir.store{{.*}} %[[U_C5]], %[[VAL_PTR]] : !u64i, !cir.ptr<!u64i> tbaa(#tbaa[[LONG_LONG]])
   // CIR: %[[C0:.*]] = cir.const #cir.int<0> : !u64i
@@ -96,7 +96,7 @@ uint64_t g1(EnumAuto64 *E, uint64_t *val) {
 uint16_t g2(Enum16 *E, uint16_t *val) {
   // CIR-LABEL: cir.func dso_local @_Z2g2
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
-  // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u16i
+  // CIR: %[[U_C5:.*]] = cir.cast integral %[[C5]] : !s32i -> !u16i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u16i>>, !cir.ptr<!u16i>
   // CIR: cir.store{{.*}} %[[U_C5]], %[[VAL_PTR]] : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[SHORT]])
   // CIR: %[[C0:.*]] = cir.const #cir.int<0> : !u16i
@@ -118,7 +118,7 @@ uint16_t g2(Enum16 *E, uint16_t *val) {
 uint8_t g3(Enum8 *E, uint8_t *val) {
   // CIR-LABEL: cir.func dso_local @_Z2g3
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
-  // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u8i
+  // CIR: %[[U_C5:.*]] = cir.cast integral %[[C5]] : !s32i -> !u8i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
   // CIR: cir.store{{.*}} %[[U_C5]], %[[VAL_PTR]] : !u8i, !cir.ptr<!u8i> tbaa(#tbaa[[CHAR]])
   // CIR: %[[C0:.*]] = cir.const #cir.int<0> : !u8i

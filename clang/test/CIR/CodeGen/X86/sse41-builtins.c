@@ -21,7 +21,7 @@
 int test_mm_extract_epi8(__m128i x) {
   // CIR-CHECK-LABEL: test_mm_extract_epi8
   // CIR-CHECK %{{.*}} = cir.vec.extract %{{.*}}[%{{.*}} : {{!u32i|!u64i}}] : !cir.vector<!s8i x 16>
-  // CIR-CHECK %{{.*}} = cir.cast(integral, %{{.*}} : !u8i), !s32i
+  // CIR-CHECK %{{.*}} = cir.cast integral %{{.*}} : !u8i -> !s32i
 
   // LLVM-CHECK-LABEL: test_mm_extract_epi8
   // LLVM-CHECK: extractelement <16 x i8> %{{.*}}, {{i32|i64}} 1

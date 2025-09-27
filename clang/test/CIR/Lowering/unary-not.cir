@@ -28,14 +28,14 @@ module {
         cir.store %arg0, %0 : !cir.float, !cir.ptr<!cir.float>
         cir.store %arg1, %1 : !cir.double, !cir.ptr<!cir.double>
         %2 = cir.load %0 : !cir.ptr<!cir.float>, !cir.float
-        %3 = cir.cast(float_to_bool, %2 : !cir.float), !cir.bool
+        %3 = cir.cast float_to_bool %2 : !cir.float -> !cir.bool
         // MLIR: %[[#F_ZERO:]] = llvm.mlir.constant(0.000000e+00 : f32) : f32
         // MLIR: %[[#F_BOOL:]] = llvm.fcmp "une" %{{.+}}, %[[#F_ZERO]] : f32
         %4 = cir.unary(not, %3) : !cir.bool, !cir.bool
         // MLIR: %[[#F_ONE:]] = llvm.mlir.constant(true) : i1
         // MLIR: = llvm.xor %[[#F_BOOL]], %[[#F_ONE]]  : i1
         %5 = cir.load %1 : !cir.ptr<!cir.double>, !cir.double
-        %6 = cir.cast(float_to_bool, %5 : !cir.double), !cir.bool
+        %6 = cir.cast float_to_bool %5 : !cir.double -> !cir.bool
         // MLIR: %[[#D_ZERO:]] = llvm.mlir.constant(0.000000e+00 : f64) : f64
         // MLIR: %[[#D_BOOL:]] = llvm.fcmp "une" %{{.+}}, %[[#D_ZERO]] : f64
         %7 = cir.unary(not, %6) : !cir.bool, !cir.bool
@@ -52,9 +52,9 @@ module {
         cir.store %arg1, %3 : !cir.float, !cir.ptr<!cir.float>
 
         %5 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-        %6 = cir.cast(int_to_bool, %5 : !s32i), !cir.bool
+        %6 = cir.cast int_to_bool %5 : !s32i -> !cir.bool
         %7 = cir.unary(not, %6) : !cir.bool, !cir.bool
-        %8 = cir.cast(bool_to_int, %7 : !cir.bool), !s32i
+        %8 = cir.cast bool_to_int %7 : !cir.bool -> !s32i
         // MLIR: %[[#INT:]] = llvm.load %{{.+}} : !llvm.ptr
         // MLIR: %[[#IZERO:]] = llvm.mlir.constant(0 : i32) : i32
         // MLIR: %[[#ICMP:]] = llvm.icmp "ne" %[[#INT]], %[[#IZERO]] : i32
@@ -63,9 +63,9 @@ module {
         // MLIR: = llvm.zext %[[#IXOR]] : i1 to i32
 
         %17 = cir.load %3 : !cir.ptr<!cir.float>, !cir.float
-        %18 = cir.cast(float_to_bool, %17 : !cir.float), !cir.bool
+        %18 = cir.cast float_to_bool %17 : !cir.float -> !cir.bool
         %19 = cir.unary(not, %18) : !cir.bool, !cir.bool
-        %20 = cir.cast(bool_to_int, %19 : !cir.bool), !s32i
+        %20 = cir.cast bool_to_int %19 : !cir.bool -> !s32i
         // MLIR: %[[#FLOAT:]] = llvm.load %{{.+}} : !llvm.ptr
         // MLIR: %[[#FZERO:]] = llvm.mlir.constant(0.000000e+00 : f32) : f32
         // MLIR: %[[#FCMP:]] = llvm.fcmp "une" %[[#FLOAT]], %[[#FZERO]] : f32

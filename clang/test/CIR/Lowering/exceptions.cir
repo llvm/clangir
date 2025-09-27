@@ -38,7 +38,7 @@ module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.si
     // LLVM:     to label %[[CONT:.*]] unwind label %[[UNWIND:.*]],
   ^bb3:
     // LLVM: [[CONT]]:
-    %13 = cir.cast(float_to_int, %12 : !cir.double), !u64i
+    %13 = cir.cast float_to_int %12 : !cir.double -> !u64i
     cir.store %13, %3 : !u64i, !cir.ptr<!u64i>
     %14 = cir.load %8 : !cir.ptr<!s32i>, !s32i
     %15 = cir.unary(inc, %14) : !s32i, !s32i
@@ -65,7 +65,7 @@ module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.si
     %22 = cir.load %21 : !cir.ptr<!s32i>, !s32i
     cir.store %22, %7 : !s32i, !cir.ptr<!s32i>
     %23 = cir.const #cir.int<98> : !s32i
-    %24 = cir.cast(integral, %23 : !s32i), !u64i
+    %24 = cir.cast integral %23 : !s32i -> !u64i
     cir.store %24, %3 : !u64i, !cir.ptr<!u64i>
     %25 = cir.load %7 : !cir.ptr<!s32i>, !s32i
     %26 = cir.unary(inc, %25) : !s32i, !s32i
@@ -84,7 +84,7 @@ module @"try-catch.cpp" attributes {cir.lang = #cir.lang<cxx>, cir.sob = #cir.si
     // LLVM: call ptr @__cxa_begin_catch(ptr %[[EH_MSG]])
     cir.store %32, %6 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
     %33 = cir.const #cir.int<99> : !s32i
-    %34 = cir.cast(integral, %33 : !s32i), !u64i
+    %34 = cir.cast integral %33 : !s32i -> !u64i
     cir.store %34, %3 : !u64i, !cir.ptr<!u64i>
     %35 = cir.load %6 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
     %36 = cir.const #cir.int<0> : !s32i
