@@ -287,6 +287,13 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
     The `relative_layout` argument specifies whether the Itanium C++ ABI vtable
     uses relative layout. It is only meaningful when the operation models a
     cast-to-complete operation.
+
+    Example:
+
+    ```mlir
+    %res = cir.dyn_cast ptr %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+    %res = cir.dyn_cast ptr relative_layout %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+    ```
   }];
 
   let arguments = (ins
@@ -301,12 +308,9 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
   );
 
   let assemblyFormat = [{
-    `(`
-      $kind `,` $src `:` qualified(type($src))
-      (`,` qualified($info)^)?
-      (`relative_layout` $relative_layout^)?
-    `)`
-    `->` qualified(type($result)) attr-dict
+    $kind (`relative_layout` $relative_layout^)? $src 
+    `:` qualified(type($src)) `->` qualified(type($result)) 
+    (qualified($info)^)? attr-dict
   }];
 
   let extraClassDeclaration = [{
