@@ -29,7 +29,7 @@ module {
     // MLIR-NEXT:    llvm.call_intrinsic "llvm.eh.sjlj.longjmp"([[ARG0]]) : (!llvm.ptr) -> ()
     // MLIR-NEXT:    llvm.unreachable
     // MLIR-NEXT:  }
-    cir.eh.longjmp %arg0 : (!p32) -> ()
+    cir.eh.longjmp %arg0 : !p32
     cir.unreachable
   }
   // MLIR: }

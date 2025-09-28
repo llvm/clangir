@@ -4776,13 +4776,14 @@ def CIR_EhLongjmpOp : CIR_Op<"eh.longjmp"> {
 
     Examples:
     ```mlir
-      cir.eh.longjmp %arg0 : (!cir.ptr<!cir.void>) -> ()
+      cir.eh.longjmp %arg0 : !cir.ptr<!cir.void>
     ```
   }];
+
   let arguments = (ins CIR_PointerType:$env);
 
   let assemblyFormat = [{
-      $env `:` functional-type($env, results) attr-dict
+      $env `:` qualified(type($env)) attr-dict
   }];
 }
 

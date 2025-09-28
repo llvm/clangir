@@ -69,7 +69,7 @@ void test_longjmp(void *env) {
   // CIR-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // CIR-NEXT: [[ENV_LOAD:%[0-9]+]] = cir.load align(8) [[ENV_ALLOCA]]
   // CIR-NEXT: [[CAST:%[0-9]+]] = cir.cast(bitcast, [[ENV_LOAD]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!void>>
-  // CIR-NEXT: cir.eh.longjmp [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> ()
+  // CIR-NEXT: cir.eh.longjmp [[CAST]] : !cir.ptr<!cir.ptr<!void>>
   // CIR-NEXT: cir.unreachable
 
 
