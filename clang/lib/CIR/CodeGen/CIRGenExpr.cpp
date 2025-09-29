@@ -2669,29 +2669,61 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitCallExprLValue(cast<CallExpr>(E));
   case Expr::ExprWithCleanupsClass: {
     const auto *cleanups = cast<ExprWithCleanups>(E);
-    LValue LV;
+    LValue resultLV;
+    bool hasSimpleResult = false;
+    LValueBaseInfo savedBaseInfo;
+    TBAAAccessInfo savedTBAAInfo;
+    QualType savedType;
+    Qualifiers savedQuals;
+    mlir::Type savedElementType;
+    CharUnits savedAlignment;
+    bool savedKnownNonNull = false;
+    bool savedNonGC = false;
+    bool savedNontemporal = false;
 
     auto scopeLoc = getLoc(E->getSourceRange());
-    [[maybe_unused]] auto scope = builder.create<cir::ScopeOp>(
-        scopeLoc, /*scopeBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+    auto scope = builder.create<cir::ScopeOp>(
+        scopeLoc,
+        [&](mlir::OpBuilder &b, mlir::Type &resultTy, mlir::Location loc) {
           CIRGenFunction::LexicalScope lexScope{*this, loc,
                                                 builder.getInsertionBlock()};
 
-          LV = emitLValue(cleanups->getSubExpr());
-          if (LV.isSimple()) {
-            // Defend against branches out of gnu statement expressions
-            // surrounded by cleanups.
-            Address addr = LV.getAddress();
-            auto v = addr.getPointer();
-            LV = LValue::makeAddr(addr.withPointer(v, NotKnownNonNull),
-                                  LV.getType(), getContext(), LV.getBaseInfo(),
-                                  LV.getTBAAInfo());
+          LValue innerLV = emitLValue(cleanups->getSubExpr());
+          resultLV = innerLV;
+
+          if (!innerLV.isSimple()) {
+            resultTy = mlir::Type();
+            b.create<cir::YieldOp>(loc);
+            return;
           }
+
+          hasSimpleResult = true;
+          Address addr = innerLV.getAddress();
+          savedBaseInfo = innerLV.getBaseInfo();
+          savedTBAAInfo = innerLV.getTBAAInfo();
+          savedType = innerLV.getType();
+          savedQuals = innerLV.getQuals();
+          savedElementType = addr.getElementType();
+          savedAlignment = addr.getAlignment();
+          savedKnownNonNull = (addr.isKnownNonNull() == KnownNonNull);
+          savedNonGC = innerLV.isNonGC();
+          savedNontemporal = innerLV.isNontemporal();
+
+          mlir::Value ptr = addr.getPointer();
+          resultTy = ptr.getType();
+          b.create<cir::YieldOp>(loc, ptr);
         });
 
-    // FIXME: Is it possible to create an ExprWithCleanups that produces a
-    // bitfield lvalue or some other non-simple lvalue?
+    if (!hasSimpleResult)
+      return resultLV;
+
+    mlir::Value ptr = scope.getResult(0);
+    Address addr(ptr, savedElementType, savedAlignment,
+                 savedKnownNonNull ? KnownNonNull : NotKnownNonNull);
+    LValue LV = LValue::makeAddr(addr, savedType, savedBaseInfo, savedTBAAInfo);
+    LV.getQuals() = savedQuals;
+    LV.setNonGC(savedNonGC);
+    LV.setNontemporal(savedNontemporal);
     return LV;
   }
   case Expr::CXXDefaultArgExprClass: {

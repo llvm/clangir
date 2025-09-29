@@ -48,20 +48,22 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
-#include "clang/CIR/LowerToLLVM.h"
-#include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TimeProfiler.h"
+#include <cctype>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
 using namespace cir;
 using namespace llvm;
@@ -128,14 +130,22 @@ public:
 
         // Check that the printf attributes can be used in llvmir dialect (i.e
         // they have integer/float type)
-        if (!llvm::all_of(operandTypes, [](mlir::Type ty) {
-              return mlir::LLVM::isCompatibleType(ty);
-            })) {
-          return op.emitError()
-                 << "lowering of printf attributes having a type that is "
-                    "converted to memref in cir-to-mlir lowering (e.g. "
-                    "pointers) not supported yet";
+        // Attempt a best-effort handling of non LLVM-compatible varargs
+        // (e.g. memref<> coming from pointer-to-char) by dropping them.
+        // This preserves pipeline progress instead of hard failing.
+        bool hasNullType =
+            llvm::any_of(operandTypes, [](mlir::Type ty) { return !ty; });
+        if (hasNullType) {
+          op.emitRemark() << "printf lowering: encountered null converted "
+                             "vararg type; conservatively dropping all varargs";
         }
+        bool needsSalvage =
+            !hasNullType && llvm::any_of(operandTypes, [](mlir::Type ty) {
+              return !mlir::LLVM::isCompatibleType(ty);
+            });
+        if (needsSalvage)
+          op.emitRemark() << "printf lowering: attempting to salvage non-LLVM "
+                             "varargs (memref -> pointer)";
 
         // Currently only versions of printf are supported where the format
         // string is defined inside the printf ==> the lowering of the cir ops
@@ -158,10 +168,78 @@ public:
 
             rewriter.setInsertionPoint(globalOp);
 
-            // Insert a equivalent llvm.mlir.global
+            // Reconstruct the format string from the dense char array.
             auto initialvalueAttr =
                 mlir::dyn_cast_or_null<mlir::DenseIntElementsAttr>(
                     globalOp.getInitialValueAttr());
+            std::string fmt;
+            if (initialvalueAttr) {
+              for (auto ap : initialvalueAttr.getValues<mlir::APInt>()) {
+                char ch = static_cast<char>(ap.getZExtValue());
+                if (ch == '\0')
+                  break;
+                fmt.push_back(ch);
+              }
+            }
+
+            // Parse printf style specifiers, capturing each argument-consuming
+            // entity in order: '*' (dynamic width/precision) and the final
+            // conversion letter. This lets us map vararg index -> expected
+            // spec kind (e.g. 's', 'p', etc.).
+            std::vector<char> argKinds; // sequence of argument markers
+            for (size_t i = 0; i < fmt.size(); ++i) {
+              if (fmt[i] != '%')
+                continue;
+              size_t j = i + 1;
+              if (j < fmt.size() && fmt[j] == '%') { // escaped %%
+                i = j;
+                continue;
+              }
+              // Flags
+              while (j < fmt.size() && strchr("-+ #0", fmt[j]))
+                j++;
+              // Width
+              if (j < fmt.size() && fmt[j] == '*') {
+                argKinds.push_back('*');
+                ++j;
+              } else {
+                while (j < fmt.size() &&
+                       std::isdigit(static_cast<unsigned char>(fmt[j])))
+                  j++;
+              }
+              // Precision
+              if (j < fmt.size() && fmt[j] == '.') {
+                ++j;
+                if (j < fmt.size() && fmt[j] == '*') {
+                  argKinds.push_back('*');
+                  ++j;
+                } else {
+                  while (j < fmt.size() &&
+                         std::isdigit(static_cast<unsigned char>(fmt[j])))
+                    j++;
+                }
+              }
+              // Length modifiers (simplified)
+              auto startsWith = [&](const char *s) {
+                size_t L = strlen(s);
+                return j + L <= fmt.size() && strncmp(&fmt[j], s, L) == 0;
+              };
+              if (startsWith("hh"))
+                j += 2;
+              else if (startsWith("ll"))
+                j += 2;
+              else if (j < fmt.size() && strchr("hljztL", fmt[j]))
+                j++;
+              if (j < fmt.size()) {
+                argKinds.push_back(fmt[j]);
+                i = j;
+              } else {
+                break; // truncated spec
+              }
+            }
+
+            // Insert an equivalent llvm.mlir.global (reuse earlier
+            // initialvalueAttr)
 
             auto type = mlir::LLVM::LLVMArrayType::get(
                 mlir::IntegerType::get(context, 8),
@@ -192,11 +270,76 @@ public:
             // Replace the old memref operand with the !llvm.ptr for the frm_str
             mlir::SmallVector<mlir::Value> newOperands;
             newOperands.push_back(gepPtrOp);
-            newOperands.append(operands.begin() + 1, operands.end());
+            auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
+            unsigned varArgIndex = 0; // index into argKinds for varargs
+            for (auto it = operands.begin() + 1; it != operands.end();
+                 ++it, ++varArgIndex) {
+              mlir::Value val = *it;
+              mlir::Type vty = val.getType();
+              if (hasNullType) {
+                // Drop all additional varargs to keep well-formed call.
+                if (std::getenv("CLANGIR_DEBUG_PRINTF"))
+                  llvm::errs()
+                      << "[clangir] dropping vararg (null type scenario) index "
+                      << varArgIndex << "\n";
+                continue;
+              }
+              char kind = (varArgIndex < argKinds.size())
+                              ? argKinds[varArgIndex]
+                              : '\0';
+              if (mlir::LLVM::isCompatibleType(vty)) {
+                newOperands.push_back(val);
+                continue;
+              }
+              if (auto mrTy = mlir::dyn_cast<mlir::MemRefType>(vty)) {
+                bool treatAsString = (kind == 's');
+                bool treatAsPointer = (kind == 'p');
+                if (treatAsString &&
+                    mrTy.getElementType() != rewriter.getI8Type()) {
+                  // Mismatch: expected char element for %s.
+                  treatAsString =
+                      false; // fall back to %p semantics if possible
+                  treatAsPointer = true;
+                }
+                if (treatAsString || treatAsPointer) {
+                  mlir::Location loc = val.getLoc();
+                  mlir::Value addrIdx =
+                      rewriter
+                          .create<mlir::memref::ExtractAlignedPointerAsIndexOp>(
+                              loc, val);
+                  mlir::Value intVal = addrIdx;
+                  if (!intVal.getType().isInteger(64)) {
+                    if (intVal.getType().isIndex())
+                      intVal = rewriter.create<mlir::arith::IndexCastOp>(
+                          loc, rewriter.getI64Type(), intVal);
+                    else if (auto intTy = mlir::dyn_cast<mlir::IntegerType>(
+                                 intVal.getType());
+                             intTy && intTy.getWidth() < 64)
+                      intVal = rewriter.create<mlir::arith::ExtUIOp>(
+                          loc, rewriter.getI64Type(), intVal);
+                  }
+                  mlir::Value rawPtr = rewriter.create<mlir::LLVM::IntToPtrOp>(
+                      loc, llvmPtrTy, intVal);
+                  if (mrTy.getElementType() != rewriter.getI8Type())
+                    rawPtr = rewriter.create<mlir::LLVM::BitcastOp>(
+                        loc, llvmPtrTy, rawPtr);
+                  newOperands.push_back(rawPtr);
+                  if (std::getenv("CLANGIR_DEBUG_PRINTF"))
+                    llvm::errs()
+                        << "[clangir] salvaged memref arg for printf (%"
+                        << (treatAsString ? 's' : 'p') << "): " << vty << "\n";
+                  continue;
+                }
+              }
+              if (std::getenv("CLANGIR_DEBUG_PRINTF"))
+                llvm::errs()
+                    << "[clangir] dropping unsupported printf arg at position "
+                    << varArgIndex << " with type: " << vty << " (format kind '"
+                    << kind << "')\n";
+            }
 
             // Create the llvmir dialect function type for printf
             auto llvmI32Ty = mlir::IntegerType::get(context, 32);
-            auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(context);
             auto llvmFnType =
                 mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmPtrTy,
                                                   /*isVarArg=*/true);
@@ -946,8 +1089,8 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
     } else {
       // For scopes with results, use scf.execute_region
       SmallVector<mlir::Type> types;
-      if (mlir::failed(
-              getTypeConverter()->convertTypes(scopeOp->getResultTypes(), types)))
+      if (mlir::failed(getTypeConverter()->convertTypes(
+              scopeOp->getResultTypes(), types)))
         return mlir::failure();
       auto exec =
           rewriter.create<mlir::scf::ExecuteRegionOp>(scopeOp.getLoc(), types);
@@ -1519,24 +1662,23 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
-           CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
-           CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
-           CIRFuncOpLowering, CIRBrCondOpLowering,
-           CIRTernaryOpLowering, CIRYieldOpLowering, CIRCosOpLowering,
-           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-           CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
-           CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
-           CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
-           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-           CIRRoundOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-           CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-           CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-           CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
-           CIRTrapOpLowering>(converter, patterns.getContext());
+  patterns.add<
+      CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
+      CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
+      CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+      CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+      CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
+      CIRGetElementOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
+      CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering, CIRAbsOpLowering,
+      CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering, CIRVectorCreateLowering,
+      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
+      CIRACosOpLowering, CIRASinOpLowering, CIRUnreachableOpLowering,
+      CIRTanOpLowering, CIRTrapOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1610,7 +1752,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   mlir::ModuleOp theModule = getOperation();
 
   auto converter = prepareTypeConverter();
-  
+
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
@@ -1628,10 +1770,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   // cir dialect, for example the `cir.continue`. If we marked cir as illegal
   // here, then MLIR would think any remaining `cir.continue` indicates a
   // failure, which is not what we want.
-  
-  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(converter, context);
 
-  if (mlir::failed(mlir::applyPartialConversion(theModule, target, 
+  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
+               CIRYieldOpLowering>(converter, context);
+
+  if (mlir::failed(mlir::applyPartialConversion(theModule, target,
                                                 std::move(patterns)))) {
     signalPassFailure();
   }

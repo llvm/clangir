@@ -884,6 +884,8 @@ public:
                                     mlir::ArrayAttr = {}, bool Local = false,
                                     bool AssumeConvergent = false);
 
+  void emitNYIRemark(llvm::StringRef tag, llvm::StringRef detail);
+  
   /// Emit type info if type of an expression is a variably modified
   /// type. Also emit proper debug info for cast types.
   void emitExplicitCastExprType(const ExplicitCastExpr *E,
