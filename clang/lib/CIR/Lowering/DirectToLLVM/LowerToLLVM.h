@@ -49,29 +49,26 @@ struct LLVMBlockAddressInfo {
   // Get the next tag index
   uint32_t getTagIndex() { return blockTagOpIndex++; }
 
-  void mapBlockTag(llvm::StringRef func, llvm::StringRef label,
-                   mlir::LLVM::BlockTagOp tagOp) {
-    auto result = blockInfoToTagOp.try_emplace({func, label}, tagOp);
+  void mapBlockTag(cir::BlockAddrInfoAttr info, mlir::LLVM::BlockTagOp tagOp) {
+    auto result = blockInfoToTagOp.try_emplace(info, tagOp);
     assert(result.second &&
            "attempting to map a BlockTag operation that is already mapped");
   }
 
   // Lookup a BlockTagOp, may return nullptr if not yet registered.
-  mlir::LLVM::BlockTagOp lookupBlockTag(llvm::StringRef func,
-                                        llvm::StringRef label) const {
-    return blockInfoToTagOp.lookup({func, label});
+  mlir::LLVM::BlockTagOp lookupBlockTag(cir::BlockAddrInfoAttr info) const {
+    return blockInfoToTagOp.lookup(info);
   }
 
   // Record an unresolved BlockAddressOp that needs patching later.
   void addUnresolvedBlockAddress(mlir::LLVM::BlockAddressOp op,
-                                 llvm::StringRef func, llvm::StringRef label) {
-    unresolvedBlockAddressOp.try_emplace(op, std::make_pair(func, label));
+                                 cir::BlockAddrInfoAttr info) {
+    unresolvedBlockAddressOp.try_emplace(op, info);
   }
 
   void clearUnresolvedMap() { unresolvedBlockAddressOp.clear(); }
 
-  llvm::DenseMap<mlir::LLVM::BlockAddressOp,
-                 std::pair<llvm::StringRef, llvm::StringRef>> &
+  llvm::DenseMap<mlir::LLVM::BlockAddressOp, cir::BlockAddrInfoAttr> &
   getUnresolvedBlockAddress() {
     return unresolvedBlockAddressOp;
   }
@@ -79,15 +76,13 @@ struct LLVMBlockAddressInfo {
 private:
   // Maps a (function name, label name) pair to the corresponding BlockTagOp.
   // Used to resolve CIR LabelOps into their LLVM BlockTagOp.
-  llvm::DenseMap<std::pair<llvm::StringRef, llvm::StringRef>,
-                 mlir::LLVM::BlockTagOp>
+  llvm::DenseMap<cir::BlockAddrInfoAttr, mlir::LLVM::BlockTagOp>
       blockInfoToTagOp;
   // Tracks BlockAddressOps that could not yet be fully resolved because
   // their BlockTagOp was not available at the time of lowering. The map
   // stores the unresolved BlockAddressOp along with its (function name, label
   // name) pair so it can be patched later.
-  llvm::DenseMap<mlir::LLVM::BlockAddressOp,
-                 std::pair<llvm::StringRef, llvm::StringRef>>
+  llvm::DenseMap<mlir::LLVM::BlockAddressOp, cir::BlockAddrInfoAttr>
       unresolvedBlockAddressOp;
   int32_t blockTagOpIndex;
 };

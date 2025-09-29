@@ -229,15 +229,11 @@ public:
 
   mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *e) {
     auto func = cast<cir::FuncOp>(CGF.CurFn);
-    llvm::StringRef symName = func.getSymName();
-    mlir::FlatSymbolRefAttr funName =
-        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), symName);
-    mlir::StringAttr labelName =
-        mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
+    auto blockInfoAttr = cir::BlockAddrInfoAttr::get(
+        &CGF.getMLIRContext(), func.getSymName(), e->getLabel()->getName());
     return cir::BlockAddressOp::create(Builder, CGF.getLoc(e->getSourceRange()),
-                                       CGF.convertType(e->getType()), funName,
-                                       labelName);
-    ;
+                                       CGF.convertType(e->getType()),
+                                       blockInfoAttr);
   }
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");
