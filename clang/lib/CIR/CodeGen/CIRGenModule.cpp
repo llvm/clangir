@@ -4005,6 +4005,10 @@ void CIRGenModule::applyReplacements() {
     if (!newF)
       continue;
 
+    // Guard against pathological case of mapping a symbol to itself.
+    if (newF == oldF)
+      continue;
+
     // LLVM has opaque pointer but CIR not. So we may have to handle these
     // different pointer types when performing replacement.
     replacePointerTypeArgs(oldF, newF);
@@ -4012,11 +4016,70 @@ void CIRGenModule::applyReplacements() {
     // Replace old with new, but keep the old order.
     if (oldF.replaceAllSymbolUses(newF.getSymNameAttr(), theModule).failed())
       llvm_unreachable("internal error, cannot RAUW symbol");
-    if (newF) {
-      newF->moveBefore(oldF);
-      oldF->erase();
+    // In some RAUW aliasing scenarios (e.g. structor emission choosing RAUW
+    // before the target has been materialized in the module body), the
+    // replacement function may have been created but not yet inserted into
+    // the module. Moving an unattached operation triggers an assertion in
+    // mlir::Operation::moveBefore. If the function has no parent block yet,
+    // attach it to the module now (placing it right before the old
+    // function's position to preserve relative ordering as much as
+    // possible).
+    if (!newF->getBlock()) {
+      theModule.getBody()->getOperations().insert(oldF->getIterator(), newF);
     }
+
+    // If already immediately before oldF (or same block earlier) we only
+    // move if ordering would actually change. This avoids touching intrusive
+    // list links unnecessarily (defensive against corruption).
+    if (newF->getBlock() == oldF->getBlock()) {
+      bool needsMove = false;
+      for (mlir::Operation *op = newF->getNextNode(); op;
+           op = op->getNextNode()) {
+        if (op == oldF) {
+          needsMove = false; // already directly before.
+          break;
+        }
+        if (op == newF) {
+          // Should never happen.
+          break;
+        }
+        if (op == oldF)
+          break;
+      }
+      // Simple linear scan: if oldF appears before newF when walking forward
+      // from block head, we need to move; easiest is to compare iterators.
+      // (Note: MLIR lacks direct isBeforeInBlock on ops pre-3.0; if available
+      // this can be simplified.)
+      // Fallback: move if oldF precedes newF in list order.
+      if (!needsMove) {
+        // Determine relative order by scanning from block beginning.
+        bool seenNew = false;
+        bool seenOld = false;
+        for (auto &op : *newF->getBlock()) {
+          if (&op == newF)
+            seenNew = true;
+          if (&op == oldF) {
+            seenOld = true;
+            break;
+          }
+        }
+        if (seenOld && !seenNew)
+          needsMove = true; // old before new; we want new before old.
+      }
+      if (needsMove)
+        newF->moveBefore(oldF);
+    } else {
+      newF->moveBefore(oldF);
+    }
+
+    oldF->erase();
+
+    // Verify module integrity after each replacement in assert builds.
+    (void)mlir::verify(theModule);
   }
+
+  // Replacements consumed; clear to avoid stale pointers and repeated work.
+  Replacements.clear();
 }
 
 void CIRGenModule::emitExplicitCastExprType(const ExplicitCastExpr *e,

@@ -1242,15 +1242,18 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // CIRGen has its own logic for entry blocks, usually per operation region.
-  // Previously we attempted to create/lookup the return block before having a
-  // valid insertion point (builder.getBlock() was null when StartFunction is
-  // invoked for some thunks), which caused a crash when
-  // getOrCreateRetBlock() dereferenced the current block. Ensure we establish
-  // an insertion point in the function's entry block first.
-  mlir::Block *entryBb = &Fn.getBlocks().front();
-  if (!builder.getBlock()) {
-    builder.setInsertionPointToStart(entryBb);
+  // For normal functions the entry block is created by the caller before
+  // invoking StartFunction. For thunks and other synthesized functions this
+  // might not have happened yet. Ensure an entry block exists to avoid
+  // triggering a sentinel dereference when accessing front().
+  if (Fn.getBlocks().empty()) {
+    mlir::Block *created = Fn.addEntryBlock();
+    if (!builder.getBlock())
+      builder.setInsertionPointToStart(created);
   }
+  mlir::Block *entryBb = &Fn.getBlocks().front();
+  if (!builder.getBlock())
+    builder.setInsertionPointToStart(entryBb);
   mlir::Block *retBlock = currLexScope->getOrCreateRetBlock(*this, getLoc(Loc));
   // returnBlock handles per region getJumpDestInCurrentScope LLVM traditional
   // codegen logic.
