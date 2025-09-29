@@ -18,6 +18,8 @@
 #include "clang/Basic/NoSanitizeList.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/MissingFeatures.h"
+#include <clang/CIR/Dialect/IR/CIRDialect.h>
+#include <optional>
 
 using namespace clang;
 using namespace clang::CIRGen;
@@ -663,33 +665,47 @@ void CIRGenFunction::emitCtorPrologue(const CXXConstructorDecl *CD,
   mlir::Block *BaseCtorContinueBB = nullptr;
   if (ConstructVBases &&
       !CGM.getTarget().getCXXABI().hasConstructorVariants()) {
-    llvm_unreachable("NYI");
+    BaseCtorContinueBB =
+        CGM.getCXXABI().emitCtorCompleteObjectHandler(*this, ClassDecl);
   }
 
   auto const OldThis = CXXThisValue;
   for (; B != E && (*B)->isBaseInitializer() && (*B)->isBaseVirtual(); B++) {
     if (!ConstructVBases)
       continue;
-    if (CGM.getCodeGenOpts().StrictVTablePointers &&
+    const bool NeedLaunder =
+        CGM.getCodeGenOpts().StrictVTablePointers &&
         CGM.getCodeGenOpts().OptimizationLevel > 0 &&
-        isInitializerOfDynamicClass(*B))
-      llvm_unreachable("NYI");
+        isInitializerOfDynamicClass(*B);
+    mlir::Value SavedThis = CXXThisValue;
+    if (NeedLaunder) {
+      mlir::Location InitLoc = getLoc((*B)->getSourceLocation());
+      CXXThisValue = builder.create<cir::InvariantGroupOp>(InitLoc, SavedThis);
+    }
     emitBaseInitializer(getLoc(CD->getBeginLoc()), *this, ClassDecl, *B);
+    if (NeedLaunder)
+      CXXThisValue = SavedThis;
   }
 
   if (BaseCtorContinueBB) {
-    llvm_unreachable("NYI");
+    builder.setInsertionPointToEnd(BaseCtorContinueBB);
   }
 
   // Then, non-virtual base initializers.
   for (; B != E && (*B)->isBaseInitializer(); B++) {
     assert(!(*B)->isBaseVirtual());
-
-    if (CGM.getCodeGenOpts().StrictVTablePointers &&
+    const bool NeedLaunder =
+        CGM.getCodeGenOpts().StrictVTablePointers &&
         CGM.getCodeGenOpts().OptimizationLevel > 0 &&
-        isInitializerOfDynamicClass(*B))
-      llvm_unreachable("NYI");
+        isInitializerOfDynamicClass(*B);
+    mlir::Value SavedThis = CXXThisValue;
+    if (NeedLaunder) {
+      mlir::Location InitLoc = getLoc((*B)->getSourceLocation());
+      CXXThisValue = builder.create<cir::InvariantGroupOp>(InitLoc, SavedThis);
+    }
     emitBaseInitializer(getLoc(CD->getBeginLoc()), *this, ClassDecl, *B);
+    if (NeedLaunder)
+      CXXThisValue = SavedThis;
   }
 
   CXXThisValue = OldThis;
@@ -1226,9 +1242,41 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
   // If the body is a function-try-block, enter the try before
   // anything else.
   bool isTryBody = (Body && isa<CXXTryStmt>(Body));
+  const CXXTryStmt *FnTryStmt = nullptr;
+  cir::TryOp FnTryOp;
+  std::optional<CIRGenFunction::LexicalScope> FnTryScope;
   if (isTryBody) {
-    llvm_unreachable("NYI");
-    // EnterCXXTryStmt(*cast<CXXTryStmt>(Body), true);
+    FnTryStmt = cast<CXXTryStmt>(Body);
+
+    auto hasCatchAll = [&]() {
+      if (!FnTryStmt->getNumHandlers())
+        return false;
+      unsigned lastHandler = FnTryStmt->getNumHandlers() - 1;
+      return FnTryStmt->getHandler(lastHandler)->getExceptionDecl() == nullptr;
+    };
+
+    mlir::OpBuilder::InsertPoint beginInsertTryBody;
+    FnTryOp = builder.create<cir::TryOp>(
+        getLoc(FnTryStmt->getBeginLoc()),
+        [&](mlir::OpBuilder &b, mlir::Location) {
+          beginInsertTryBody = builder.saveInsertionPoint();
+        },
+        [&](mlir::OpBuilder &b, mlir::Location,
+            mlir::OperationState &result) {
+          mlir::OpBuilder::InsertionGuard guard(b);
+          unsigned numRegionsToCreate = FnTryStmt->getNumHandlers();
+          if (!hasCatchAll())
+            ++numRegionsToCreate;
+          for (unsigned i = 0; i != numRegionsToCreate; ++i) {
+            auto *region = result.addRegion();
+            builder.createBlock(region);
+          }
+        });
+
+    builder.restoreInsertionPoint(beginInsertTryBody);
+    FnTryScope.emplace(*this, FnTryOp.getLoc(), builder.getInsertionBlock());
+    FnTryScope->setAsTry(FnTryOp);
+    enterCXXTryStmt(*FnTryStmt, FnTryOp, /*IsFnTryBlock=*/true);
   }
   if (cir::MissingFeatures::emitAsanPrologueOrEpilogue())
     llvm_unreachable("NYI");
@@ -1281,9 +1329,10 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
                                Dtor->getParent());
     }
 
-    if (isTryBody)
-      llvm_unreachable("NYI");
-    else if (Body)
+    if (FnTryStmt) {
+      if (emitStmt(FnTryStmt->getTryBlock(), /*useCurrentScope=*/true).failed())
+        llvm_unreachable("failed to emit function-try block");
+    } else if (Body)
       (void)emitStmt(Body, /*useCurrentScope=*/true);
     else {
       assert(Dtor->isImplicit() && "bodyless dtor not implicit");
@@ -1301,8 +1350,10 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
   DtorEpilogue.ForceCleanup();
 
   // Exit the try if applicable.
-  if (isTryBody)
-    llvm_unreachable("NYI");
+  if (FnTryStmt) {
+    exitCXXTryStmt(*FnTryStmt, /*IsFnTryBlock=*/true);
+    FnTryScope.reset();
+  }
 }
 
 namespace {
@@ -1835,43 +1886,52 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
   // doesn't happen, but it's not clear that it's worth it.
   // llvm::BranchInst *zeroCheckBranch = nullptr;
 
-  // Optimize for a constant count.
-  if (auto constantCount = numElements.getDefiningOp<cir::ConstantOp>()) {
-    if (auto constIntAttr = constantCount.getValueAttr<cir::IntAttr>()) {
-      // Just skip out if the constant count is zero.
-      if (constIntAttr.getUInt() == 0)
-        return;
-      // Otherwise, emit the check.
-    }
+  // Convert the array pointer into a pointer to the element type so that we
+  // can iterate in-place even when the count is only known at runtime.
+  QualType type = getContext().getTypeDeclType(ctor->getParent());
+  mlir::Type elementType = convertType(type);
+  mlir::Location loc = getLoc(E->getSourceRange());
 
-    if (constantCount.use_empty())
-      constantCount.erase();
-  } else {
-    llvm_unreachable("NYI");
-  }
+  mlir::Value flatPtr =
+      builder.maybeBuildArrayDecay(loc, arrayBase.getPointer(), elementType);
+  CharUnits eltAlignment = arrayBase.getAlignment().alignmentOfArrayElement(
+      getContext().getTypeSizeInChars(type));
 
-  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayBase.getElementType());
-  assert(arrayTy && "expected array type");
-  auto elementType = arrayTy.getElementType();
-  auto ptrToElmType = builder.getPointerTo(elementType);
+  // Normalize the element count to the target size type so we can perform the
+  // loop arithmetic in CIR.
+  mlir::Value elementCount =
+      builder.promoteArrayIndex(CGM.getTarget(), loc, numElements);
+  elementCount = builder.createIntCast(elementCount, SizeTy);
 
-  // Tradional LLVM codegen emits a loop here.
-  // TODO(cir): Lower to a loop as part of LoweringPrepare.
+  // Allocate temporaries to hold the running pointer and remaining element
+  // count; this keeps the while loop structured without requiring loop-carried
+  // SSA values.
+  auto elementPtrTy = builder.getPointerTo(elementType);
+  mlir::Value ptrSlotValue = emitAlloca(
+      "array.cur", elementPtrTy, loc, getPointerAlign(),
+      /*insertIntoFnEntryBlock=*/false);
+  mlir::Value countSlotValue = emitAlloca(
+      "array.count", SizeTy, loc,
+      getContext().getTypeAlignInChars(getContext().getSizeType()),
+      /*insertIntoFnEntryBlock=*/false);
+
+  Address ptrSlot(ptrSlotValue, elementPtrTy, getPointerAlign());
+  Address countSlot(countSlotValue, SizeTy,
+                    getContext().getTypeAlignInChars(
+                        getContext().getSizeType()));
+
+  builder.createStore(loc, flatPtr, ptrSlot);
+  builder.createStore(loc, elementCount, countSlot);
+
+  mlir::Value zero = builder.getConstInt(loc, SizeTy, 0);
+  mlir::Value one = builder.getConstInt(loc, SizeTy, 1);
 
   // The alignment of the base, adjusted by the size of a single element,
   // provides a conservative estimate of the alignment of every element.
   // (This assumes we never start tracking offsetted alignments.)
   //
-  // Note that these are complete objects and so we don't need to
-  // use the non-virtual size or alignment.
-  QualType type = getContext().getTypeDeclType(ctor->getParent());
-  CharUnits eltAlignment = arrayBase.getAlignment().alignmentOfArrayElement(
-      getContext().getTypeSizeInChars(type));
-
-  // Zero initialize the storage, if requested.
-  if (zeroInitialize) {
-    llvm_unreachable("NYI");
-  }
+  // Note that these are complete objects and so we don't need to use the
+  // non-virtual size or alignment.
 
   // C++ [class.temporary]p4:
   // There are two contexts in which temporaries are destroyed at a different
@@ -1890,22 +1950,43 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
       llvm_unreachable("NYI");
     }
 
-    // Emit the constructor call that will execute for every array element.
-    auto arrayOp = builder.createPtrBitcast(arrayBase.getPointer(), arrayTy);
-    builder.create<cir::ArrayCtor>(
-        *currSrcLoc, arrayOp, [&](mlir::OpBuilder &b, mlir::Location loc) {
-          auto arg = b.getInsertionBlock()->addArgument(ptrToElmType, loc);
-          Address curAddr = Address(arg, elementType, eltAlignment);
+    // Emit the constructor body for each element.
+    builder.createWhile(
+        loc,
+        [&](mlir::OpBuilder &b, mlir::Location condLoc) {
+          cir::LoadOp remainingLoad = builder.createLoad(condLoc, countSlot);
+          mlir::Value remaining = remainingLoad.getResult();
+          auto cond = builder.createCompare(condLoc, cir::CmpOpKind::ne,
+                                            remaining, zero);
+          builder.createCondition(cond.getResult());
+        },
+        [&](mlir::OpBuilder &b, mlir::Location bodyLoc) {
+          cir::LoadOp currentPtrLoad = builder.createLoad(bodyLoc, ptrSlot);
+          mlir::Value currentPtr = currentPtrLoad.getResult();
+          Address curAddr(currentPtr, elementType, eltAlignment);
           auto currAVS = AggValueSlot::forAddr(
               curAddr, type.getQualifiers(), AggValueSlot::IsDestructed,
               AggValueSlot::DoesNotNeedGCBarriers, AggValueSlot::IsNotAliased,
               AggValueSlot::DoesNotOverlap, AggValueSlot::IsNotZeroed,
               NewPointerIsChecked ? AggValueSlot::IsSanitizerChecked
                                   : AggValueSlot::IsNotSanitizerChecked);
+          if (zeroInitialize)
+            emitNullInitialization(bodyLoc, curAddr, type);
           emitCXXConstructorCall(ctor, Ctor_Complete,
                                  /*ForVirtualBase=*/false,
                                  /*Delegating=*/false, currAVS, E);
-          builder.create<cir::YieldOp>(loc);
+
+          // Advance the element pointer and decrement the remaining count.
+          mlir::Value nextPtr = builder.create<cir::PtrStrideOp>(
+              bodyLoc, currentPtr.getType(), currentPtr, one);
+          builder.createStore(bodyLoc, nextPtr, ptrSlot);
+
+          cir::LoadOp remainingLoad = builder.createLoad(bodyLoc, countSlot);
+          mlir::Value remaining = remainingLoad.getResult();
+          mlir::Value nextCount =
+              builder.createBinop(bodyLoc, remaining, cir::BinOpKind::Sub, one);
+          builder.createStore(bodyLoc, nextCount, countSlot);
+          builder.createYield(bodyLoc);
         });
   }
 }

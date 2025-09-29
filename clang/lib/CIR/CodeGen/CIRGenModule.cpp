@@ -3179,10 +3179,11 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   cir::FuncType fTy;
   if (mlir::isa<cir::FuncType>(ty)) {
     fTy = mlir::cast<cir::FuncType>(ty);
-  } else {
-    assert(false && "NYI");
-    // FTy = mlir::FunctionType::get(VoidTy, false);
+  } else if (mlir::isa<mlir::NoneType>(ty)) {
+    fTy = builder.getFuncType({}, builder.getVoidTy(), /*isVarArg=*/false);
     isIncompleteFunction = true;
+  } else {
+    llvm_unreachable("unsupported placeholder function type");
   }
 
   auto *fd = llvm::cast_or_null<FunctionDecl>(d);
@@ -4001,7 +4002,8 @@ void CIRGenModule::applyReplacements() {
     assert(isa<cir::FuncOp>(entry) && "expected function");
     auto oldF = cast<cir::FuncOp>(entry);
     auto newF = dyn_cast<cir::FuncOp>(replacement);
-    assert(newF && "not implemented");
+    if (!newF)
+      continue;
 
     // LLVM has opaque pointer but CIR not. So we may have to handle these
     // different pointer types when performing replacement.

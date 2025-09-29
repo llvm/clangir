@@ -117,10 +117,8 @@ cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl GD) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
 
-  if (!isFuncTypeConvertible(FPT)) {
-    llvm_unreachable("NYI");
-    // return llvm::RecordType::get(getLLVMContext());
-  }
+  if (!isFuncTypeConvertible(FPT))
+    return Builder.getFuncType({}, Builder.getVoidTy(), /*isVarArg=*/false);
 
   return GetFunctionType(GD);
 }

@@ -28,6 +28,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
+#include "clang/Basic/Thunk.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
@@ -2115,6 +2116,15 @@ public:
   /// given parameter.
   void emitDelegateCallArg(CallArgList &args, const clang::VarDecl *param,
                            clang::SourceLocation loc);
+  void startThunk(cir::FuncOp Fn, clang::GlobalDecl GD,
+                  const CIRGenFunctionInfo &FnInfo, bool IsUnprototyped);
+  void finishThunk();
+  void generateThunk(cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
+                     clang::GlobalDecl GD,
+                     const ThunkInfo &ThunkAdjustments,
+                     bool IsUnprototyped);
+  void emitCallAndReturnForThunk(cir::FuncOp Callee, const ThunkInfo *Thunk,
+                                 bool IsUnprototyped);
 
   // It's important not to confuse this and the previous function. Delegating
   // constructors are the C++11 feature. The constructor delegate optimization
