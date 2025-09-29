@@ -15,11 +15,13 @@
 #include "CIRGenModule.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/VTTBuilder.h"
 #include "clang/Basic/CodeGenOptions.h"
+#include "clang/Basic/Thunk.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
@@ -201,6 +203,12 @@ void CIRGenFunction::startThunk(cir::FuncOp Fn, GlobalDecl GD,
   else
     resultType = MD->getType()->castAs<FunctionProtoType>()->getReturnType();
 
+  FnRetQualTy = resultType;
+  if (!resultType->isVoidType())
+    FnRetCIRTy = convertType(resultType);
+  else
+    FnRetCIRTy.reset();
+
   FunctionArgList functionArgs;
   CGM.getCXXABI().buildThisParam(*this, functionArgs);
 
@@ -218,6 +226,12 @@ void CIRGenFunction::startThunk(cir::FuncOp Fn, GlobalDecl GD,
   CXXThisValue = CXXABIThisValue;
   CurCodeDecl = MD;
   CurFuncDecl = MD;
+
+  if (!resultType->isVoidType()) {
+    auto loc = getLoc(MD->getLocation());
+    emitAndUpdateRetAlloca(resultType, loc,
+                           CGM.getNaturalTypeAlignment(resultType));
+  }
 }
 
 void CIRGenFunction::finishThunk() {
@@ -233,10 +247,9 @@ static void storeScalarResult(CIRGenFunction &CGF, mlir::Location loc,
                               RValue rv) {
   if (!rv.isScalar())
     return;
-  if (!CGF.FnRetAlloca)
+  if (!CGF.ReturnValue.isValid())
     return;
-  CGF.getBuilder().CIRBaseBuilderTy::createStore(loc, rv.getScalarVal(),
-                                                 *CGF.FnRetAlloca);
+  CGF.getBuilder().createStore(loc, rv.getScalarVal(), CGF.ReturnValue);
 }
 
 void CIRGenFunction::emitCallAndReturnForThunk(cir::FuncOp Callee,
@@ -1039,7 +1052,7 @@ cir::FuncOp CIRGenVTables::maybeEmitThunk(GlobalDecl GD,
   } else {
     CIRGenBuilderTy &moduleBuilder = CGM.getBuilder();
     mlir::OpBuilder::InsertionGuard guard(moduleBuilder);
-    CIRGenFunction CGF(CGM, moduleBuilder, /*suppressNewContext=*/true);
+    CIRGenFunction CGF(CGM, moduleBuilder);
     CGF.generateThunk(ThunkFn, FnInfo, GD, ThunkAdjustments, IsUnprototyped);
   }
 

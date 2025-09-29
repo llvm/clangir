@@ -10,27 +10,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CIRGenFunction.h"
+#include "CIRGenFunction.h" // Associated header
+
 #include "CIRGenCXXABI.h"
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
-#include "clang/AST/Attrs.inc"
-#include "clang/Basic/CodeGenOptions.h"
-#include "clang/CIR/MissingFeatures.h"
+#include "CIRGenTBAA.h"
 
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/Builtins.h"
-#include "clang/Basic/DiagnosticCategories.h"
+#include "clang/Basic/CodeGenOptions.h"
+#include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/FPEnv.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
-#include "llvm/ADT/PointerIntPair.h"
+#include "clang/CIR/MissingFeatures.h"
 
-#include "CIRGenTBAA.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Support/LogicalResult.h"
 
 using namespace clang;
@@ -762,12 +760,12 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
-    if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
+    if (const auto *dtor = dyn_cast<CXXDestructorDecl>(fd)) {
       // Attach the special member attribute to the destructor.
       CGM.setCXXSpecialMemberAttr(fn, dtor);
 
       emitDestructorBody(args);
-    } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+    } else if (const auto *ctor = dyn_cast<CXXConstructorDecl>(fd)) {
       cir::CtorKind ctorKind = cir::CtorKind::Custom;
       if (ctor->isDefaultConstructor())
         ctorKind = cir::CtorKind::Default;
@@ -1120,7 +1118,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // Apply xray attributes to the function (as a string, for now)
-  if (d->getAttr<XRayInstrumentAttr>()) {
+  if (d && d->getAttr<XRayInstrumentAttr>()) {
     assert(!cir::MissingFeatures::xray());
   }
 
@@ -1244,12 +1242,19 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // CIRGen has its own logic for entry blocks, usually per operation region.
+  // Previously we attempted to create/lookup the return block before having a
+  // valid insertion point (builder.getBlock() was null when StartFunction is
+  // invoked for some thunks), which caused a crash when
+  // getOrCreateRetBlock() dereferenced the current block. Ensure we establish
+  // an insertion point in the function's entry block first.
+  mlir::Block *entryBb = &Fn.getBlocks().front();
+  if (!builder.getBlock()) {
+    builder.setInsertionPointToStart(entryBb);
+  }
   mlir::Block *retBlock = currLexScope->getOrCreateRetBlock(*this, getLoc(Loc));
   // returnBlock handles per region getJumpDestInCurrentScope LLVM traditional
   // codegen logic.
   (void)returnBlock(retBlock);
-
-  mlir::Block *entryBb = &Fn.getBlocks().front();
 
   if (cir::MissingFeatures::requiresReturnValueCheck())
     llvm_unreachable("NYI");
