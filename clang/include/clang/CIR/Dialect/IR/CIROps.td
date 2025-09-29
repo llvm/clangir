@@ -6144,10 +6144,10 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress", [Pure]> {
     ```
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$func, StrAttr:$label);
+  let arguments = (ins CIR_BlockAddrInfoAttr:$blockAddrInfo);
   let results = (outs CIR_VoidPtrType:$addr);
   let assemblyFormat = [{
-    `(` $func `,` $label `)` `->` qualified(type($addr)) attr-dict
+    $blockAddrInfo `->` qualified(type($addr)) attr-dict
   }];
 }
 
