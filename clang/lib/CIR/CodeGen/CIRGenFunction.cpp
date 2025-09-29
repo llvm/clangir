@@ -2035,21 +2035,28 @@ void CIRGenFunction::ensureScopeTerminator(cir::ScopeOp scope,
       builder.createBlock(&region);
     }
     for (auto &block : region) {
-      if (block.empty() ||
-          !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
-        if (block.empty()) {
-          llvm::errs()
-              << "[clangir][ensureScopeTerminator] inserting placeholder "
-                 "yield for scope at ";
-          scope.getLoc().print(llvm::errs());
-          llvm::errs() << "\n";
-        }
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPointToEnd(&block);
-        builder.create<cir::YieldOp>(loc);
+      // If there's already a proper terminator, skip.
+      if (!block.empty() &&
+          block.back().hasTrait<mlir::OpTrait::IsTerminator>())
+        continue;
+      // Avoid repeatedly spamming placeholder yields: only insert if block is
+      // genuinely empty or last op is not a yield but block has no terminator.
+      bool log = block.empty();
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToEnd(&block);
+      if (log) {
+        llvm::errs() << "[clangir][ensureScopeTerminator] inserting "
+                        "placeholder yield for scope at ";
+        scope.getLoc().print(llvm::errs());
+        llvm::errs() << "\n";
       }
+      builder.create<cir::YieldOp>(loc);
     }
   };
+
+  // Defensive: scope might be null in rare malformed cases; bail early.
+  if (!scope)
+    return;
 
   ensureRegion(scope.getScopeRegion());
   ensureRegion(scope.getCleanupRegion());

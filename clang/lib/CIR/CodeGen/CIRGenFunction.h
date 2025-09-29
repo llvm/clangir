@@ -28,8 +28,8 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
-#include "clang/Basic/Thunk.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Thunk.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
 #include "mlir/IR/MLIRContext.h"
@@ -482,9 +482,24 @@ public:
   const CIRGenModule &getCIRGenModule() const { return CGM; }
 
   mlir::Block *getCurFunctionEntryBlock() {
-    auto Fn = mlir::dyn_cast<cir::FuncOp>(CurFn);
-    assert(Fn && "other callables NYI");
-    return &Fn.getRegion().front();
+    // Normal function case.
+    if (auto fn = mlir::dyn_cast_if_present<cir::FuncOp>(CurFn))
+      return &fn.getRegion().front();
+
+    // Global initializer / static storage duration: CurFn can be a cir.global
+    // while we emit a synthetic function-like body (its ctor region). Allow
+    // allocas to sink to the first block of the ctor region.
+    if (auto glob = mlir::dyn_cast_if_present<cir::GlobalOp>(CurFn)) {
+      auto &region = glob.getCtorRegion();
+      if (region.empty())
+        region.push_back(new mlir::Block());
+      return &region.front();
+    }
+
+    // Future callable kinds (e.g. coroutine wrappers, outlined helpers) can
+    // be added here. For now keep an assert so unexpected cases are visible.
+    assert(false && "unsupported callable op kind in getCurFunctionEntryBlock");
+    return nullptr;
   }
 
   /// Sanitizers enabled for this function.
@@ -2123,8 +2138,7 @@ public:
                   const CIRGenFunctionInfo &FnInfo, bool IsUnprototyped);
   void finishThunk();
   void generateThunk(cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
-                     clang::GlobalDecl GD,
-                     const ThunkInfo &ThunkAdjustments,
+                     clang::GlobalDecl GD, const ThunkInfo &ThunkAdjustments,
                      bool IsUnprototyped);
   void emitCallAndReturnForThunk(cir::FuncOp Callee, const ThunkInfo *Thunk,
                                  bool IsUnprototyped);

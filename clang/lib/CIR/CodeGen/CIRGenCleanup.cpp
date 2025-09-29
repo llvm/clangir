@@ -779,7 +779,9 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
-    cir::TryOp tryOp = ehEntry->getParentOp()->getParentOfType<cir::TryOp>();
+    mlir::Operation *parentOp = ehEntry->getParentOp();
+    cir::TryOp tryOp =
+        parentOp ? parentOp->getParentOfType<cir::TryOp>() : nullptr;
 
     if (EHParent == EHStack.stable_end() && !tryOp)
       return;

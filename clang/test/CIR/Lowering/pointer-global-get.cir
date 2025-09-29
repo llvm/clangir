@@ -1,0 +1,11 @@
+// RUN: cir-opt -cir-to-mlir %s -o - | FileCheck %s
+
+cir.global private @pg : !cir.ptr<!cir.int<s, 32>>
+
+cir.func @use() {
+  %0 = cir.get_global @pg : !cir.ptr<!cir.int<s, 32>>
+  cir.return
+}
+
+// CHECK: llvm.global internal @_pg
+// CHECK: llvm.address_of @_pg

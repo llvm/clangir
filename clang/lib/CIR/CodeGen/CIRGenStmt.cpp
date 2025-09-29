@@ -82,8 +82,9 @@ Address CIRGenFunction::emitCompoundStmt(const CompoundStmt &S, bool getLast,
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     assert(scopeBlock && "scope block should be available");
-    if (auto *terminator = scopeBlock->getTerminator())
-      builder.setInsertionPoint(terminator);
+    if (!scopeBlock->empty() &&
+        scopeBlock->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      builder.setInsertionPoint(&scopeBlock->back());
     else
       builder.setInsertionPointToEnd(scopeBlock);
     LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
@@ -606,8 +607,9 @@ mlir::LogicalResult CIRGenFunction::emitReturnStmt(const ReturnStmt &S) {
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       assert(scopeBody && "scope body block should be available");
-      if (auto *terminator = scopeBody->getTerminator())
-        builder.setInsertionPoint(terminator);
+      if (!scopeBody->empty() &&
+          scopeBody->back().hasTrait<mlir::OpTrait::IsTerminator>())
+        builder.setInsertionPoint(&scopeBody->back());
       else
         builder.setInsertionPointToEnd(scopeBody);
       CIRGenFunction::LexicalScope lexScope{*this, scopeLoc,

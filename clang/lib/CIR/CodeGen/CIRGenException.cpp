@@ -316,8 +316,9 @@ mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
   {
     mlir::OpBuilder::InsertionGuard guard(getBuilder());
     assert(scopeBlock && "expected valid scope block");
-    if (auto *terminator = scopeBlock->getTerminator())
-      getBuilder().setInsertionPoint(terminator);
+    if (!scopeBlock->empty() &&
+        scopeBlock->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      getBuilder().setInsertionPoint(&scopeBlock->back());
     else
       getBuilder().setInsertionPointToEnd(scopeBlock);
     r = emitCXXTryStmtUnderScope(S);

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PassDetail.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -132,6 +133,17 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
       return false;
 
     auto loadAddr = load.getAddr();
+    // Reject loads whose address is computed within the loop. Hoisting such a
+    // load would require hoisting the address computation as well, otherwise
+    // the moved load would reference a value that no longer dominates it.
+    if (Operation *addrDef = loadAddr.getDefiningOp()) {
+      if (forOp->isAncestor(addrDef))
+        return false;
+    } else if (auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(loadAddr)) {
+      if (blockArg.getOwner()->getParentOp() == forOp.getOperation())
+        return false;
+    }
+
     auto result =
         forOp->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
           if (auto store = dyn_cast<StoreOp>(op)) {
