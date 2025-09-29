@@ -962,6 +962,10 @@ private:
   /// Call replaceAllUsesWith on all pairs in Replacements.
   void applyReplacements();
 
+  /// Late materialization of missing Itanium C++ ctor/dtor variants referenced
+  /// by calls but not emitted (creates forwarding wrappers).
+  void synthesizeMissingItaniumStructorVariants();
+
   /// A helper function to replace all uses of OldF to NewF that replace
   /// the type of pointer arguments. This is not needed to tradtional
   /// pipeline since LLVM has opaque pointers but CIR not.

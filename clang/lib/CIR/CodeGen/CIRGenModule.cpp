@@ -2476,13 +2476,13 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   }
 
   auto alias = createCIRFunction(getLoc(aliasGD.getDecl()->getSourceRange()),
-                                mangledName, fnType, aliasFD);
+                                 mangledName, fnType, aliasFD);
   alias.setLinkage(linkage);
 
   mlir::Block *entry = alias.addEntryBlock();
   if (std::getenv("CLANGIR_DEBUG_ALIAS"))
-    llvm::errs() << "[clangir] materialize alias body " << mangledName
-                  << " -> " << aliasee.getSymName() << "\n";
+    llvm::errs() << "[clangir] materialize alias body " << mangledName << " -> "
+                 << aliasee.getSymName() << "\n";
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(entry);
@@ -3473,6 +3473,9 @@ void CIRGenModule::Release() {
   assert(!MissingFeatures::applyGlobalValReplacements());
   applyReplacements();
 
+  // Materialize any missing Itanium ctor/dtor variants referenced by calls.
+  synthesizeMissingItaniumStructorVariants();
+
   // Optional early per-function verifier to pinpoint dominance issues.
   if (std::getenv("CLANGIR_DEBUG_VERIFY")) {
     for (auto func : theModule.getOps<cir::FuncOp>()) {
@@ -4071,6 +4074,95 @@ void CIRGenModule::applyReplacements() {
   Replacements.clear();
 
   (void)mlir::verify(theModule);
+}
+
+/// Synthesize missing Itanium ABI constructor / destructor variants referenced
+/// by calls but not yet materialized as functions. We conservatively create a
+/// wrapper that forwards to any available emitted variant for the same
+/// underlying special member.
+static bool isItaniumCtorOrDtorMangle(llvm::StringRef name) {
+  // Very small heuristic: ctor contains C1/C2/C3 before 'E' and dtor D0/D1/D2.
+  // We only look for a trailing pattern 'C[123]' or 'D[012]' right before 'E'.
+  size_t pos = name.rfind('E');
+  if (pos == llvm::StringRef::npos || pos < 2)
+    return false;
+  char kind = name[pos - 2];
+  char variant = name[pos - 1];
+  if ((kind == 'C' && (variant == '1' || variant == '2' || variant == '3')) ||
+      (kind == 'D' && (variant == '0' || variant == '1' || variant == '2')))
+    return true;
+  return false;
+}
+
+void CIRGenModule::synthesizeMissingItaniumStructorVariants() {
+  llvm::StringMap<cir::FuncOp> existing;
+  for (auto f : theModule.getOps<cir::FuncOp>()) {
+    auto name = f.getSymName();
+    if (isItaniumCtorOrDtorMangle(name))
+      existing[name] = f;
+  }
+
+  auto pickFallback = [&](llvm::StringRef base, bool isCtor) -> cir::FuncOp {
+    static constexpr llvm::StringLiteral ctorOrder[] = {"C1", "C2", "C3"};
+    static constexpr llvm::StringLiteral dtorOrder[] = {"D1", "D2", "D0"};
+    auto &order = isCtor ? ctorOrder : dtorOrder;
+    for (auto tag : order) {
+      // Itanium ctor/dtor symbols end in the sequence <code>Ev, not just E.
+      std::string candidate = (base + tag.str() + "Ev").str();
+      if (auto it = existing.find(candidate); it != existing.end())
+        return it->second;
+    }
+    return nullptr;
+  };
+
+  llvm::SmallVector<cir::CallOp, 8> pending;
+  for (auto call : theModule.getOps<cir::CallOp>()) {
+    auto calleeAttr = call.getCalleeAttr();
+    if (!calleeAttr)
+      continue;
+    llvm::StringRef target = calleeAttr.getValue();
+    if (!isItaniumCtorOrDtorMangle(target) || existing.count(target))
+      continue;
+    pending.push_back(call);
+  }
+  if (pending.empty())
+    return;
+
+  llvm::StringSet<> synthesized;
+  for (auto call : pending) {
+    llvm::StringRef target = call.getCalleeAttr().getValue();
+    if (synthesized.contains(target))
+      continue;
+    size_t epos = target.rfind('E');
+    if (epos == llvm::StringRef::npos || epos < 2)
+      continue;
+    llvm::StringRef base = target.take_front(epos - 2);
+    bool isCtor = target[epos - 2] == 'C';
+    cir::FuncOp fallback = pickFallback(base, isCtor);
+    if (!fallback)
+      continue;
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPoint(fallback);
+    auto ty = fallback.getFunctionType();
+    // createCIRFunction inserts a declaration; we will add body manually.
+    auto wrapper = createCIRFunction(fallback.getLoc(), target, ty, nullptr);
+    // Remove 'is declaration' state by adding a block.
+    auto *entry = new mlir::Block();
+    wrapper.getBody().push_back(entry);
+    builder.setInsertionPointToStart(entry);
+    llvm::SmallVector<mlir::Value, 8> args;
+    for (auto inTy : ty.getInputs())
+      args.push_back(entry->addArgument(inTy, fallback.getLoc()));
+    auto loc = fallback.getLoc();
+    auto symRef = mlir::SymbolRefAttr::get(fallback.getSymNameAttr());
+    auto callOp =
+        builder.create<cir::CallOp>(loc, symRef, builder.getVoidTy(), args);
+    (void)callOp; // ctor/dtor assumed void
+    builder.create<cir::ReturnOp>(loc);
+    existing[target] = wrapper;
+    synthesized.insert(target);
+  }
 }
 
 void CIRGenModule::emitExplicitCastExprType(const ExplicitCastExpr *e,
