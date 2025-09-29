@@ -2332,8 +2332,8 @@ void insertThrowAndSplit(mlir::OpBuilder &builder, mlir::Location loc,
   // This will be erased during codegen, it acts as a placeholder for the
   // operations to be inserted (if any)
   builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 b.create<cir::YieldOp>(loc);
+                               [&](mlir::OpBuilder &b, mlir::Location innerLoc) {
+                                 b.create<cir::YieldOp>(innerLoc);
                                });
 }
 

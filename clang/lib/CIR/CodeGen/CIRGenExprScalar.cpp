@@ -2414,6 +2414,7 @@ mlir::Value ScalarExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
           yieldTy = scopeYieldVal.getType();
         }
       });
+  CGF.ensureScopeTerminator(scope, scopeLoc);
 
   return scope.getNumResults() > 0 ? scope->getResult(0) : nullptr;
 }

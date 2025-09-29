@@ -2682,6 +2682,10 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     bool savedNontemporal = false;
 
     auto scopeLoc = getLoc(E->getSourceRange());
+    bool debugScopes = std::getenv("CLANGIR_DEBUG_SCOPE");
+    if (debugScopes)
+      llvm::errs() << "[clangir] scope begin\n";
+
     auto scope = builder.create<cir::ScopeOp>(
         scopeLoc,
         [&](mlir::OpBuilder &b, mlir::Type &resultTy, mlir::Location loc) {
@@ -2692,11 +2696,15 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
           resultLV = innerLV;
 
           if (!innerLV.isSimple()) {
+            if (debugScopes)
+              llvm::errs() << "[clangir]   non-simple lvalue\n";
             resultTy = mlir::Type();
             b.create<cir::YieldOp>(loc);
             return;
           }
 
+          if (debugScopes)
+            llvm::errs() << "[clangir]   simple lvalue\n";
           hasSimpleResult = true;
           Address addr = innerLV.getAddress();
           savedBaseInfo = innerLV.getBaseInfo();
@@ -2714,6 +2722,14 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
           b.create<cir::YieldOp>(loc, ptr);
         });
 
+    ensureScopeTerminator(scope, scopeLoc);
+
+    // if (mlir::failed(mlir::verify(scope))) {
+    //   scope.emitError("invalid scope generated in ExprWithCleanups");
+    //   scope.print(llvm::errs());
+    //   llvm::report_fatal_error("CIR scope verification failure");
+    // }
+
     if (!hasSimpleResult)
       return resultLV;
 
@@ -2724,6 +2740,10 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     LV.getQuals() = savedQuals;
     LV.setNonGC(savedNonGC);
     LV.setNontemporal(savedNontemporal);
+    if (debugScopes) {
+      llvm::errs() << "[clangir] scope end; yielded pointer\n";
+      llvm::errs().flush();
+    }
     return LV;
   }
   case Expr::CXXDefaultArgExprClass: {

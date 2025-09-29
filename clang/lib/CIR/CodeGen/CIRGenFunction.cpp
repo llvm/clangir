@@ -2007,6 +2007,27 @@ mlir::Value CIRGenFunction::emitAlignmentAssumption(
                                               alignment, offsetValue);
 }
 
+void CIRGenFunction::ensureScopeTerminator(cir::ScopeOp scope,
+                                           mlir::Location loc) {
+  auto ensureRegion = [&](mlir::Region &region) {
+    if (region.empty()) {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.createBlock(&region);
+    }
+    for (auto &block : region) {
+      if (block.empty() ||
+          !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPointToEnd(&block);
+        builder.create<cir::YieldOp>(loc);
+      }
+    }
+  };
+
+  ensureRegion(scope.getScopeRegion());
+  ensureRegion(scope.getCleanupRegion());
+}
+
 mlir::Value CIRGenFunction::emitAlignmentAssumption(
     mlir::Value ptrValue, const Expr *expr, SourceLocation assumptionLoc,
     mlir::IntegerAttr alignment, mlir::Value offsetValue) {

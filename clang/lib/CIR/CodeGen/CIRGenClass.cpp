@@ -1977,6 +1977,13 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
     builder.createWhile(
         loc,
         [&](mlir::OpBuilder &b, mlir::Location condLoc) {
+          // IMPORTANT: use the region-local insertion point. Previously this
+          // lambda used the outer 'builder' with whatever insertion point it
+          // had, which could leave the condition region empty and trigger a
+          // Region::getParentRegion assertion later. Reset the outer CIR
+          // builder's insertion to the block provided by the region-local
+          // mlir::OpBuilder so we can still reuse the CIR-specific helpers.
+          builder.setInsertionPointToEnd(b.getBlock());
           cir::LoadOp remainingLoad = builder.createLoad(condLoc, countSlot);
           mlir::Value remaining = remainingLoad.getResult();
           auto cond = builder.createCompare(condLoc, cir::CmpOpKind::ne,

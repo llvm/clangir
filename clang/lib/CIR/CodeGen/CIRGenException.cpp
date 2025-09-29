@@ -306,12 +306,11 @@ mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
   mlir::OpBuilder::InsertPoint scopeIP;
 
   // Create a scope to hold try local storage for catch params.
-  [[maybe_unused]] auto s =
-      builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                     scopeIP =
-                                         getBuilder().saveInsertionPoint();
-                                   });
+  [[maybe_unused]] auto scopeOp = builder.create<cir::ScopeOp>(
+      loc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location innerLoc) {
+        scopeIP = getBuilder().saveInsertionPoint();
+      });
 
   auto r = mlir::success();
   {
@@ -320,6 +319,7 @@ mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
     r = emitCXXTryStmtUnderScope(S);
     getBuilder().create<cir::YieldOp>(loc);
   }
+  ensureScopeTerminator(scopeOp, loc);
   return r;
 }
 

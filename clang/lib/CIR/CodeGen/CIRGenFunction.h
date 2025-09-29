@@ -1757,6 +1757,9 @@ public:
                          mlir::OpBuilder::InsertPoint ip,
                          mlir::Value arraySize = nullptr);
 
+  /// Ensure a cir.scope has valid terminators in both its regions.
+  void ensureScopeTerminator(cir::ScopeOp scope, mlir::Location loc);
+
   /// Emit code to compute the specified expression which can have any type. The
   /// result is returned as an RValue struct. If this is an aggregate
   /// expression, the aggloc/agglocvolatile arguments indicate where the result
