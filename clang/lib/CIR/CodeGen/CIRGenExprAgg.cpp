@@ -540,6 +540,11 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
         loc,
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
+          // IMPORTANT: ensure ops are inserted into the condition region's
+          // block. Previously we used the outer 'builder' without resetting
+          // its insertion point, which could leave this region empty and lead
+          // to a later Block::getTerminator() assertion.
+          builder.setInsertionPointToEnd(b.getBlock());
           auto currentElement = builder.createLoad(loc, tmpAddr);
           mlir::Type boolTy = CGF.convertType(CGF.getContext().BoolTy);
           auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
@@ -548,6 +553,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
+          // Same as above: reset insertion to region-local block.
+          builder.setInsertionPointToEnd(b.getBlock());
           auto currentElement = builder.createLoad(loc, tmpAddr);
 
           if (cir::MissingFeatures::cleanups())
@@ -852,11 +859,11 @@ void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   auto &builder = CGF.getBuilder();
   auto scopeLoc = CGF.getLoc(E->getSourceRange());
   mlir::OpBuilder::InsertPoint scopeBegin;
-  auto scopeOp = builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        scopeBegin = b.saveInsertionPoint();
-      });
+  auto scopeOp =
+      builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                     scopeBegin = b.saveInsertionPoint();
+                                   });
 
   {
     mlir::OpBuilder::InsertionGuard guard(builder);

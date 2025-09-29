@@ -356,6 +356,22 @@ void CIRGenFunction::LexicalScope::cleanup() {
   auto insertCleanupAndLeave = [&](mlir::Block *insPt) {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(insPt);
+    auto getBlockEndLoc = [&](mlir::Block *block) -> mlir::Location {
+      return block->empty() ? localScope->EndLoc : block->back().getLoc();
+    };
+
+    // If the scope already has a yield terminator, temporarily remove it so
+    // cleanups can be inserted before re-emitting the final yield.
+    for (auto it = insPt->begin(), end = insPt->end(); it != end;) {
+      auto &op = *it++;
+      if (auto existingYield = dyn_cast<YieldOp>(&op)) {
+        if (!retVal && existingYield->getNumOperands() == 1)
+          retVal = existingYield->getOperand(0);
+        llvm::errs() << "[clangir][LexicalScope] stripping prior yield before "
+                        "emitting cleanups\n";
+        existingYield->erase();
+      }
+    }
 
     // If we still don't have a cleanup block, it means that `applyCleanup`
     // below might be able to get us one.
@@ -367,7 +383,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // If we now have one after `applyCleanup`, hook it up properly.
     if (!cleanupBlock && localScope->getCleanupBlock(builder)) {
       cleanupBlock = localScope->getCleanupBlock(builder);
-      builder.create<BrOp>(insPt->back().getLoc(), cleanupBlock);
+      builder.create<BrOp>(getBlockEndLoc(insPt), cleanupBlock);
       if (!cleanupBlock->mightHaveTerminator()) {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(cleanupBlock);
@@ -450,7 +466,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
 
   // If there's a cleanup block, branch to it, nothing else to do.
   if (cleanupBlock) {
-    builder.create<BrOp>(currBlock->back().getLoc(), cleanupBlock);
+    // Compute a reasonable location for the branch: last op in the block if
+    // any, otherwise use the lexical scope end location.
+    mlir::Location brLoc =
+        currBlock->empty() ? localScope->EndLoc : currBlock->back().getLoc();
+    builder.create<BrOp>(brLoc, cleanupBlock);
     return;
   }
 
@@ -1329,11 +1349,11 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     mlir::Location funcBodyEndLoc = funcBodyBeginLoc;
     if (funcDeclBody) {
       auto beginLoc = funcDeclBody->getBeginLoc();
-      funcBodyBeginLoc = beginLoc.isValid() ? getLoc(beginLoc)
-                                            : builder.getUnknownLoc();
+      funcBodyBeginLoc =
+          beginLoc.isValid() ? getLoc(beginLoc) : builder.getUnknownLoc();
       auto endLoc = funcDeclBody->getEndLoc();
-      funcBodyEndLoc = endLoc.isValid() ? getLoc(endLoc)
-                                        : builder.getUnknownLoc();
+      funcBodyEndLoc =
+          endLoc.isValid() ? getLoc(endLoc) : builder.getUnknownLoc();
     }
 
     // TODO: this should live in `emitFunctionProlog
@@ -2017,6 +2037,13 @@ void CIRGenFunction::ensureScopeTerminator(cir::ScopeOp scope,
     for (auto &block : region) {
       if (block.empty() ||
           !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+        if (block.empty()) {
+          llvm::errs()
+              << "[clangir][ensureScopeTerminator] inserting placeholder "
+                 "yield for scope at ";
+          scope.getLoc().print(llvm::errs());
+          llvm::errs() << "\n";
+        }
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(&block);
         builder.create<cir::YieldOp>(loc);

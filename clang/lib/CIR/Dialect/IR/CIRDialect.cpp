@@ -1540,15 +1540,22 @@ LogicalResult cir::IfOp::verify() { return success(); }
 /// not a constant.
 void cir::ScopeOp::getSuccessorRegions(
     mlir::RegionBranchPoint point, SmallVectorImpl<RegionSuccessor> &regions) {
-  // The only region always branch back to the parent operation.
+  // Region exits branch back to the parent op. Only the scope region itself
+  // propagates the yielded value to the parent; the cleanup region never
+  // contributes results.
   if (!point.isParent()) {
-    regions.push_back(RegionSuccessor(getODSResults(0)));
+    if (point.getRegionOrNull() == &getScopeRegion()) {
+      regions.push_back(RegionSuccessor(getODSResults(0)));
+    } else {
+      regions.push_back(RegionSuccessor());
+    }
     return;
   }
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getScopeRegion()));
-  regions.push_back(RegionSuccessor(&getCleanupRegion()));
+  if (!getCleanupRegion().empty())
+    regions.push_back(RegionSuccessor(&getCleanupRegion()));
 }
 
 void cir::ScopeOp::build(

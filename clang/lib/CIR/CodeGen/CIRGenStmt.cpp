@@ -72,16 +72,20 @@ Address CIRGenFunction::emitCompoundStmt(const CompoundStmt &S, bool getLast,
   // Add local scope to track new declared variables.
   SymTableScopeTy varScope(symbolTable);
   auto scopeLoc = getLoc(S.getSourceRange());
-  mlir::OpBuilder::InsertPoint scopeInsPt;
+  mlir::Block *scopeBlock = nullptr;
   auto compoundScope = builder.create<cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Type &type, mlir::Location loc) {
-        scopeInsPt = b.saveInsertionPoint();
+        scopeBlock = b.getInsertionBlock();
       });
   ensureScopeTerminator(compoundScope, scopeLoc);
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.restoreInsertionPoint(scopeInsPt);
+    assert(scopeBlock && "scope block should be available");
+    if (auto *terminator = scopeBlock->getTerminator())
+      builder.setInsertionPoint(terminator);
+    else
+      builder.setInsertionPointToEnd(scopeBlock);
     LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
     retAlloca = emitCompoundStmtWithoutScope(S, getLast, slot);
   }
@@ -592,16 +596,20 @@ mlir::LogicalResult CIRGenFunction::emitReturnStmt(const ReturnStmt &S) {
     // First create cir.scope and later emit it's body. Otherwise all CIRGen
     // dispatched by `handleReturnVal()` might needs to manipulate blocks and
     // look into parents, which are all unlinked.
-    mlir::OpBuilder::InsertPoint scopeBody;
+    mlir::Block *scopeBody = nullptr;
     auto scopeOp = builder.create<cir::ScopeOp>(
         scopeLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          scopeBody = b.saveInsertionPoint();
+          scopeBody = b.getInsertionBlock();
         });
     ensureScopeTerminator(scopeOp, scopeLoc);
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.restoreInsertionPoint(scopeBody);
+      assert(scopeBody && "scope body block should be available");
+      if (auto *terminator = scopeBody->getTerminator())
+        builder.setInsertionPoint(terminator);
+      else
+        builder.setInsertionPointToEnd(scopeBody);
       CIRGenFunction::LexicalScope lexScope{*this, scopeLoc,
                                             builder.getInsertionBlock()};
       handleReturnVal();

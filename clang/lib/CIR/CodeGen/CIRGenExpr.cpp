@@ -2696,11 +2696,10 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
           resultLV = innerLV;
 
           if (!innerLV.isSimple()) {
-            if (debugScopes)
-              llvm::errs() << "[clangir]   non-simple lvalue\n";
-            resultTy = mlir::Type();
-            b.create<cir::YieldOp>(loc);
-            return;
+          if (debugScopes)
+            llvm::errs() << "[clangir]   non-simple lvalue\n";
+          resultTy = mlir::Type();
+          return;
           }
 
           if (debugScopes)
@@ -2719,7 +2718,7 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
 
           mlir::Value ptr = addr.getPointer();
           resultTy = ptr.getType();
-          b.create<cir::YieldOp>(loc, ptr);
+          lexScope.setRetVal(ptr);
         });
 
     ensureScopeTerminator(scope, scopeLoc);
