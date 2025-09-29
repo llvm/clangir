@@ -59,14 +59,14 @@ class CIRGenFunction : public CIRGenTypeCache {
 public:
   CIRGenModule &CGM;
 
-private:
-  friend class ::ScalarExprEmitter;
-  friend class ::AggExprEmitter;
-
   /// The builder is a helper class to create IR inside a function. The
   /// builder is stateful, in particular it keeps an "insertion point": this
   /// is where the next operations will be introduced.
   CIRGenBuilderTy &builder;
+
+private:
+  friend class ::ScalarExprEmitter;
+  friend class ::AggExprEmitter;
 
   /// -------
   /// Goto
@@ -78,7 +78,7 @@ private:
     JumpDest() = default;
     JumpDest(mlir::Block *block, EHScopeStack::stable_iterator depth = {},
              unsigned index = 0)
-        : block(block) {}
+        : block(block), scopeDepth(depth), index(index) {}
 
     bool isValid() const { return block != nullptr; }
     mlir::Block *getBlock() const { return block; }
@@ -368,6 +368,9 @@ public:
   /// The temporary alloca to hold the return value. This is
   /// invalid iff the function has no return value.
   Address ReturnValue = Address::invalid();
+
+  /// Temporary slot used to thread normal cleanup destinations.
+  Address NormalCleanupDest = Address::invalid();
 
   /// Tracks function scope overall cleanup handling.
   EHScopeStack EHStack;
@@ -933,6 +936,9 @@ public:
                      QualType type);
 
   void pushStackRestore(CleanupKind kind, Address SPMem);
+
+  /// Get or create the slot used to store normal cleanup destinations.
+  Address getNormalCleanupDestSlot();
 
   static bool
   IsConstructorDelegationValid(const clang::CXXConstructorDecl *Ctor);

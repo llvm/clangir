@@ -1003,6 +1003,7 @@ static LValue emitFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
 LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
   const NamedDecl *ND = E->getDecl();
   QualType T = E->getType();
+  CIRGenBuilderTy &builder = getBuilder();
 
   assert(E->isNonOdrUse() != NOUR_Unevaluated &&
          "should not emit an unevaluated operand");
@@ -1013,7 +1014,36 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
         !VD->isLocalVarDecl())
       llvm_unreachable("NYI");
 
-    assert(E->isNonOdrUse() != NOUR_Constant && "not implemented");
+    if (E->isNonOdrUse() == NOUR_Constant &&
+        !VD->getType()->isReferenceType()) {
+      VD->getAnyInitializer(VD);
+      if (const APValue *Value = VD->evaluateValue()) {
+        auto attr = ConstantEmitter(*this).emitAbstract(E->getLocation(),
+                                                       *Value, VD->getType());
+        if (auto typedAttr = mlir::dyn_cast_or_null<mlir::TypedAttr>(attr)) {
+          auto loc = getLoc(E->getSourceRange());
+          auto align = CGM.getASTContext().getDeclAlign(VD);
+
+          auto globalName =
+              CGM.getUniqueGlobalName("__const.nonodr." + VD->getName().str());
+          auto addrSpace =
+              cir::toCIRAddressSpace(CGM.getGlobalConstantAddressSpace());
+
+          auto gv = CIRGenModule::createGlobalOp(
+              CGM, loc, globalName, typedAttr.getType(), /*isConstant=*/true,
+              addrSpace);
+
+          gv.setAlignmentAttr(CGM.getSize(align));
+          CIRGenModule::setInitializer(gv, typedAttr);
+
+          auto ptrTy = cir::PointerType::get(typedAttr.getType());
+          mlir::Value addrVal = builder.create<cir::GetGlobalOp>(
+              loc, ptrTy, gv.getSymNameAttr());
+          Address addr(addrVal, typedAttr.getType(), align);
+          return makeAddrLValue(addr, T, AlignmentSource::Decl);
+        }
+      }
+    }
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {

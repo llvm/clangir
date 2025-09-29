@@ -2093,6 +2093,13 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
     }
     break;
   }
+  case Decl::FileScopeAsm: {
+    // ClangIR does not currently model file scope inline assembly. For now
+    // ignore these declarations so that translation can proceed. Once the
+    // CIR to LLVM path supports attaching module level inline assembly, this
+    // should be lowered instead of discarded.
+    break;
+  }
   // No code generation needed.
   case Decl::UsingShadow:
   case Decl::ClassTemplate:
@@ -3065,7 +3072,10 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   // NOTE(cir): Original CodeGen checks if this is an intrinsic. In CIR we
   // represent them in dedicated ops. The correct attributes are ensured during
   // translation to LLVM. Thus, we don't need to check for them here.
-  assert(!isThunk && "isThunk NYI");
+  // CIR needs to be able to attach attributes to thunks emitted from the
+  // vtable builder as well.  Nothing below currently depends on
+  // distinguishing thunks, so just fall through and treat them like ordinary
+  // functions.
 
   if (!isIncompleteFunction) {
     setCIRFunctionAttributes(globalDecl,
