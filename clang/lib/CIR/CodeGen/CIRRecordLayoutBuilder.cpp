@@ -405,8 +405,103 @@ void CIRRecordLowering::computeVolatileBitfields() {
       !cirGenTypes.getModule().getCodeGenOpts().AAPCSBitfieldWidth)
     return;
 
-  for ([[maybe_unused]] auto &I : bitFields) {
-    assert(!cir::MissingFeatures::armComputeVolatileBitfields());
+  for (auto &[field, info] : bitFields) {
+    mlir::Type resLTy = cirGenTypes.convertTypeForMem(field->getType());
+
+    if (astContext.toBits(astRecordLayout.getAlignment()) <
+        getSizeInBits(resLTy).getQuantity())
+      continue;
+
+    // CIRRecordLowering::setBitFieldInfo() pre-adjusts the bit-field offsets
+    // for big-endian targets, but it assumes a container of width
+    // info.storageSize. Since AAPCS uses a different container size (width
+    // of the type), we first undo that calculation here and redo it once
+    // the bit-field offset within the new container is calculated.
+    const unsigned oldOffset =
+        isBE() ? info.StorageSize - (info.Offset + info.Size) : info.Offset;
+    // Offset to the bit-field from the beginning of the struct.
+    const unsigned absoluteOffset =
+        astContext.toBits(info.StorageOffset) + oldOffset;
+
+    // Container size is the width of the bit-field type.
+    const unsigned storageSize = getSizeInBits(resLTy).getQuantity();
+    // Nothing to do if the access uses the desired
+    // container width and is naturally aligned.
+    if (info.StorageSize == storageSize && (oldOffset % storageSize == 0))
+      continue;
+
+    // Offset within the container.
+    unsigned offset = absoluteOffset & (storageSize - 1);
+    // Bail out if an aligned load of the container cannot cover the entire
+    // bit-field. This can happen for example, if the bit-field is part of a
+    // packed struct. AAPCS does not define access rules for such cases, we let
+    // clang to follow its own rules.
+    if (offset + info.Size > storageSize)
+      continue;
+
+    // Re-adjust offsets for big-endian targets.
+    if (isBE())
+      offset = storageSize - (offset + info.Size);
+
+    const CharUnits storageOffset =
+        astContext.toCharUnitsFromBits(absoluteOffset & ~(storageSize - 1));
+    const CharUnits end = storageOffset +
+                          astContext.toCharUnitsFromBits(storageSize) -
+                          CharUnits::One();
+
+    const ASTRecordLayout &layout =
+        astContext.getASTRecordLayout(field->getParent());
+    // If we access outside memory outside the record, than bail out.
+    const CharUnits recordSize = layout.getSize();
+    if (end >= recordSize)
+      continue;
+
+    // Bail out if performing this load would access non-bit-fields members.
+    bool conflict = false;
+    for (const auto *f : recordDecl->fields()) {
+      // Allow sized bit-fields overlaps.
+      if (f->isBitField() && !f->isZeroLengthBitField())
+        continue;
+
+      const CharUnits fOffset = astContext.toCharUnitsFromBits(
+          layout.getFieldOffset(f->getFieldIndex()));
+
+      // As C11 defines, a zero sized bit-field defines a barrier, so
+      // fields after and before it should be race condition free.
+      // The AAPCS acknowledges it and imposes no restritions when the
+      // natural container overlaps a zero-length bit-field.
+      if (f->isZeroLengthBitField()) {
+        if (end > fOffset && storageOffset < fOffset) {
+          conflict = true;
+          break;
+        }
+      }
+
+      const CharUnits fEnd =
+          fOffset +
+          astContext.toCharUnitsFromBits(
+              getSizeInBits(cirGenTypes.convertTypeForMem(f->getType()))
+                  .getQuantity()) -
+          CharUnits::One();
+      // If no overlap, continue.
+      if (end < fOffset || fEnd < storageOffset)
+        continue;
+
+      // The desired load overlaps a non-bit-field member, bail out.
+      conflict = true;
+      break;
+    }
+
+    if (conflict)
+      continue;
+    // Write the new bit-field access parameters.
+    // As the storage offset now is defined as the number of elements from the
+    // start of the structure, we should divide the Offset by the element size.
+    info.VolatileStorageOffset =
+        storageOffset /
+        astContext.toCharUnitsFromBits(storageSize).getQuantity();
+    info.VolatileStorageSize = storageSize;
+    info.VolatileOffset = offset;
   }
 }
 
@@ -488,9 +583,7 @@ void CIRRecordLowering::accumulateVPtrs() {
 }
 
 mlir::Type CIRRecordLowering::getVFPtrType() {
-  // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
-  // type so it's a bit more clear and C++ idiomatic.
-  return builder.getVirtualFnPtrType();
+  return cir::VPtrType::get(builder.getContext());
 }
 
 void CIRRecordLowering::fillOutputFields() {
@@ -515,8 +608,44 @@ RecordDecl::field_iterator
 CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
                                        RecordDecl::field_iterator FieldEnd) {
 
-  if (isDiscreteBitFieldABI())
-    llvm_unreachable("NYI");
+  if (isDiscreteBitFieldABI()) {
+    // run stores the first element of the current run of bitfields. FieldEnd is
+    // used as a special value to note that we don't have a current run. A
+    // bitfield run is a contiguous collection of bitfields that can be stored
+    // in the same storage block. Zero-sized bitfields and bitfields that would
+    // cross an alignment boundary break a run and start a new one.
+    RecordDecl::field_iterator run = FieldEnd;
+    // tail is the offset of the first bit off the end of the current run. It's
+    // used to determine if the ASTRecordLayout is treating these two bitfields
+    // as contiguous. StartBitOffset is offset of the beginning of the Run.
+    uint64_t startBitOffset, tail = 0;
+    for (; Field != FieldEnd && Field->isBitField(); ++Field) {
+      // Zero-width bitfields end runs.
+      if (Field->isZeroLengthBitField()) {
+        run = FieldEnd;
+        continue;
+      }
+      uint64_t bitOffset = getFieldBitOffset(*Field);
+      mlir::Type type = cirGenTypes.convertTypeForMem(Field->getType());
+      // If we don't have a run yet, or don't live within the previous run's
+      // allocated storage then we allocate some storage and start a new run.
+      if (run == FieldEnd || bitOffset >= tail) {
+        run = Field;
+        startBitOffset = bitOffset;
+        tail = startBitOffset + dataLayout.getTypeAllocSizeInBits(type);
+        // Add the storage member to the record.  This must be added to the
+        // record before the bitfield members so that it gets laid out before
+        // the bitfields it contains get laid out.
+        members.push_back(StorageInfo(bitsToCharUnits(startBitOffset), type));
+      }
+      // Bitfields get the offset of their storage but come afterward and remain
+      // there after a stable sort.
+      members.push_back(MemberInfo(bitsToCharUnits(startBitOffset),
+                                   MemberInfo::InfoKind::Field, nullptr,
+                                   *Field));
+    }
+    return Field;
+  }
 
   CharUnits RegSize =
       bitsToCharUnits(astContext.getTargetInfo().getRegisterWidth());
@@ -651,7 +780,7 @@ CIRRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
           } else if (cirGenTypes.getModule()
                          .getCodeGenOpts()
                          .FineGrainedBitfieldAccesses) {
-            llvm_unreachable("NYI");
+            InstallBest = true;
           } else {
             // Otherwise, we're not installing. Update the bit size
             // of the current span to go all the way to LimitOffset, which is

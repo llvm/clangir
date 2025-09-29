@@ -781,7 +781,8 @@ void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl gd,
 }
 
 /// Track functions to be called before main() runs.
-void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor, int priority) {
+void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor,
+                                 std::optional<int> priority) {
   // FIXME(cir): handle LexOrder and Associated data upon testcases.
   //
   // Traditional LLVM codegen directly adds the function to the list of global
@@ -789,13 +790,11 @@ void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor, int priority) {
   // global list is created in LoweringPrepare.
   //
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  ctor->setAttr(
-      ctor.getGlobalCtorAttrName(),
-      cir::GlobalCtorAttr::get(&getMLIRContext(), ctor.getName(), priority));
+  ctor.setGlobalCtorPriority(priority);
 }
 
 /// Add a function to the list that will be called when the module is unloaded.
-void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, int priority,
+void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, std::optional<int> priority,
                                  bool isDtorAttrFunc) {
   assert(isDtorAttrFunc && "NYI");
   if (codeGenOpts.RegisterGlobalDtorsWithAtExit &&
@@ -805,9 +804,7 @@ void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, int priority,
   }
 
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  dtor->setAttr(
-      dtor.getGlobalDtorAttrName(),
-      cir::GlobalDtorAttr::get(&getMLIRContext(), dtor.getName(), priority));
+  dtor.setGlobalDtorPriority(priority);
 }
 
 mlir::Operation *CIRGenModule::getGlobalValue(StringRef name) {
@@ -971,22 +968,34 @@ static mlir::Attribute getNewInitValue(CIRGenModule &cgm, GlobalOp newGlob,
   if (auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(oldInit)) {
     return createNewGlobalView(cgm, newGlob, oldView, oldTy);
   }
-  if (auto oldArray = mlir::dyn_cast<ConstArrayAttr>(oldInit)) {
-    llvm::SmallVector<mlir::Attribute> newArray;
-    auto eltsAttr = dyn_cast<mlir::ArrayAttr>(oldArray.getElts());
-    for (auto elt : eltsAttr) {
-      if (auto view = dyn_cast<GlobalViewAttr>(elt))
-        newArray.push_back(createNewGlobalView(cgm, newGlob, view, oldTy));
-      else if (auto view = dyn_cast<ConstArrayAttr>(elt))
-        newArray.push_back(getNewInitValue(cgm, newGlob, oldTy, user, elt));
-      else
-        newArray.push_back(elt);
-    }
 
-    auto &builder = cgm.getBuilder();
-    mlir::Attribute ar = mlir::ArrayAttr::get(builder.getContext(), newArray);
-    return builder.getConstArray(ar, cast<cir::ArrayType>(oldArray.getType()));
+  auto getNewInitElements =
+      [&](mlir::ArrayAttr oldElements) -> mlir::ArrayAttr {
+    llvm::SmallVector<mlir::Attribute> newElements;
+    for (auto elt : oldElements) {
+      if (auto view = mlir::dyn_cast<cir::GlobalViewAttr>(elt))
+        newElements.push_back(createNewGlobalView(cgm, newGlob, view, oldTy));
+      else if (mlir::isa<cir::ConstArrayAttr, cir::ConstRecordAttr>(elt))
+        newElements.push_back(getNewInitValue(cgm, newGlob, oldTy, user, elt));
+      else
+        newElements.push_back(elt);
+    }
+    return mlir::ArrayAttr::get(cgm.getBuilder().getContext(), newElements);
+  };
+
+  if (auto oldArray = mlir::dyn_cast<cir::ConstArrayAttr>(oldInit)) {
+    mlir::Attribute newElements =
+        getNewInitElements(mlir::dyn_cast<mlir::ArrayAttr>(oldArray.getElts()));
+    return cgm.getBuilder().getConstArray(
+        newElements, mlir::cast<cir::ArrayType>(oldArray.getType()));
   }
+  if (auto oldRecord = mlir::dyn_cast<cir::ConstRecordAttr>(oldInit)) {
+    mlir::ArrayAttr newMembers = getNewInitElements(oldRecord.getMembers());
+    auto recordTy = mlir::cast<cir::RecordType>(oldRecord.getType());
+    return cgm.getBuilder().getConstRecordOrZeroAttr(
+        newMembers, recordTy.getPacked(), recordTy.getPadded(), recordTy);
+  }
+
   llvm_unreachable("NYI");
 }
 
@@ -2738,10 +2747,64 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     f.setExtraAttrsAttr(
         cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
+    // Set the special member attribute for this function, if applicable.
+    setCXXSpecialMemberAttr(f, fd);
+
     if (!curCGF)
       theModule.push_back(f);
   }
   return f;
+}
+
+cir::FuncOp
+CIRGenModule::createCIRBuiltinFunction(mlir::Location loc, StringRef name,
+                                       cir::FuncType ty,
+                                       const clang::FunctionDecl *fd) {
+  cir::FuncOp fnOp = createCIRFunction(loc, name, ty, fd);
+  fnOp.setBuiltin(true);
+  return fnOp;
+}
+
+void CIRGenModule::setCXXSpecialMemberAttr(
+    cir::FuncOp funcOp, const clang::FunctionDecl *funcDecl) {
+  if (!funcDecl)
+    return;
+
+  if (auto dtor = dyn_cast<CXXDestructorDecl>(funcDecl)) {
+    auto cxxDtor = cir::CXXDtorAttr::get(
+        convertType(getASTContext().getRecordType(dtor->getParent())));
+    funcOp.setCxxSpecialMemberAttr(cxxDtor);
+  }
+
+  if (auto ctor = dyn_cast<CXXConstructorDecl>(funcDecl)) {
+    cir::CtorKind ctorKind = cir::CtorKind::Custom;
+    if (ctor->isDefaultConstructor())
+      ctorKind = cir::CtorKind::Default;
+    if (ctor->isCopyConstructor())
+      ctorKind = cir::CtorKind::Copy;
+    if (ctor->isMoveConstructor())
+      ctorKind = cir::CtorKind::Move;
+
+    auto cxxCtor = cir::CXXCtorAttr::get(
+        convertType(getASTContext().getRecordType(ctor->getParent())),
+        ctorKind);
+    funcOp.setCxxSpecialMemberAttr(cxxCtor);
+  }
+
+  auto method = dyn_cast<CXXMethodDecl>(funcDecl);
+  if (method && (method->isCopyAssignmentOperator() ||
+                 method->isMoveAssignmentOperator())) {
+    cir::AssignKind assignKind;
+    if (method->isCopyAssignmentOperator())
+      assignKind = cir::AssignKind::Copy;
+    if (method->isMoveAssignmentOperator())
+      assignKind = cir::AssignKind::Move;
+
+    auto cxxAssign = cir::CXXAssignAttr::get(
+        convertType(getASTContext().getRecordType(method->getParent())),
+        assignKind);
+    funcOp.setCxxSpecialMemberAttr(cxxAssign);
+  }
 }
 
 cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
@@ -2953,8 +3016,10 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     if (decl->hasAttr<ColdAttr>()) {
       llvm_unreachable("NYI");
     }
-    if (decl->hasAttr<HotAttr>())
-      llvm_unreachable("NYI");
+    if (decl->hasAttr<HotAttr>()) {
+      auto attr = cir::HotAttr::get(&getMLIRContext());
+      attrs.set(attr.getMnemonic(), attr);
+    }
     if (decl->hasAttr<MinSizeAttr>())
       assert(!MissingFeatures::minSize());
   }
@@ -3000,6 +3065,7 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   // NOTE(cir): Original CodeGen checks if this is an intrinsic. In CIR we
   // represent them in dedicated ops. The correct attributes are ensured during
   // translation to LLVM. Thus, we don't need to check for them here.
+  assert(!isThunk && "isThunk NYI");
 
   if (!isIncompleteFunction) {
     setCIRFunctionAttributes(globalDecl,
@@ -3035,8 +3101,6 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     StringRef mangledName, mlir::Type ty, GlobalDecl gd, bool forVTable,
     bool dontDefer, bool isThunk, ForDefinition_t isForDefinition,
     mlir::ArrayAttr extraAttrs) {
-  assert(!isThunk && "NYI");
-
   const auto *d = gd.getDecl();
 
   // Any attempts to use a MultiVersion function should result in retrieving the
@@ -3376,7 +3440,7 @@ void CIRGenModule::Release() {
   assert(!MissingFeatures::emitModuleInitializers());
   emitDeferred(getCodeGenOpts().ClangIRBuildDeferredThreshold);
   assert(!MissingFeatures::emittedDeferredDecls());
-  assert(!MissingFeatures::emitVTablesOpportunistically());
+  emitVTablesOpportunistically();
   assert(!MissingFeatures::applyGlobalValReplacements());
   applyReplacements();
   assert(!MissingFeatures::emitMultiVersionFunctions());
@@ -4016,8 +4080,6 @@ cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
 }
 
 bool CIRGenModule::shouldOpportunisticallyEmitVTables() {
-  if (codeGenOpts.OptimizationLevel != 0)
-    llvm_unreachable("NYI");
   return codeGenOpts.OptimizationLevel > 0;
 }
 
@@ -4246,6 +4308,25 @@ void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,
     global.setAnnotationsAttr(builder.getArrayAttr(annotations));
   else if (auto func = dyn_cast<cir::FuncOp>(gv))
     func.setAnnotationsAttr(builder.getArrayAttr(annotations));
+}
+
+void CIRGenModule::emitVTablesOpportunistically() {
+  // Try to emit external vtables as available_externally if they have emitted
+  // all inlined virtual functions.  It runs after EmitDeferred() and therefore
+  // is not allowed to create new references to things that need to be emitted
+  // lazily. Note that it also uses fact that we eagerly emitting RTTI.
+
+  assert(
+      (opportunisticVTables.empty() || shouldOpportunisticallyEmitVTables()) &&
+      "Only emit opportunistic vtables with optimizations");
+
+  for (const CXXRecordDecl *rd : opportunisticVTables) {
+    assert(getVTables().isVTableExternal(rd) &&
+           "This queue should only contain external vtables");
+    if (getCXXABI().canSpeculativelyEmitVTable(rd))
+      VTables.GenerateClassData(rd);
+  }
+  opportunisticVTables.clear();
 }
 
 void CIRGenModule::emitGlobalAnnotations() {

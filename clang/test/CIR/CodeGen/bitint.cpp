@@ -58,9 +58,8 @@ void Size1ExtIntParam(unsigned _BitInt(1) A) {
 //      CHECK: cir.func dso_local @_Z16Size1ExtIntParamDU1_
 //      CHECK:   %[[#A:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<u, 1>>, !cir.int<u, 1>
 // CHECK-NEXT:   %[[#IDX:]] = cir.const #cir.int<2> : !s32i
-// CHECK-NEXT:   %[[#ARRAY:]] = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!cir.int<u, 1> x 5>>), !cir.ptr<!cir.int<u, 1>>
-// CHECK-NEXT:   %[[#PTR:]] = cir.ptr_stride(%[[#ARRAY]] : !cir.ptr<!cir.int<u, 1>>, %[[#IDX]] : !s32i), !cir.ptr<!cir.int<u, 1>>
-// CHECK-NEXT:   cir.store{{.*}} %[[#A]], %[[#PTR]] : !cir.int<u, 1>, !cir.ptr<!cir.int<u, 1>>
+// CHECK-NEXT:   %[[#ELEM:]] = cir.get_element %1[%[[#IDX]]] : (!cir.ptr<!cir.array<!cir.int<u, 1> x 5>>, !s32i) -> !cir.ptr<!cir.int<u, 1>>
+// CHECK-NEXT:   cir.store{{.*}} %[[#A]], %[[#ELEM]] : !cir.int<u, 1>, !cir.ptr<!cir.int<u, 1>>
 //      CHECK: }
 
 struct S {

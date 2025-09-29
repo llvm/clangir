@@ -131,7 +131,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   auto first = findOp.getOperand(0);
   auto last = findOp.getOperand(1);
   auto value = findOp->getOperand(2);
-  if (!isa<PointerType>(first.getType()) || !isa<PointerType>(last.getType()))
+  if (!mlir::isa<PointerType>(first.getType()) || !mlir::isa<PointerType>(last.getType()))
     return;
 
   // Transformation:
@@ -139,9 +139,9 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   //   - Assert the Iterator is a pointer to primitive type.
   //   - Check IterBeginOp is char sized. TODO: add other types that map to
   //   char size.
-  auto iterResTy = dyn_cast<PointerType>(findOp.getType());
+  auto iterResTy = mlir::dyn_cast<PointerType>(findOp.getType());
   assert(iterResTy && "expected pointer type for iterator");
-  auto underlyingDataTy = dyn_cast<IntType>(iterResTy.getPointee());
+  auto underlyingDataTy = mlir::dyn_cast<IntType>(iterResTy.getPointee());
   if (!underlyingDataTy || underlyingDataTy.getWidth() != 8)
     return;
 
@@ -149,7 +149,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   //   - Check it's a pointer type.
   //   - Load the pattern from memory
   //   - cast it to `int`.
-  auto patternAddrTy = dyn_cast<PointerType>(value.getType());
+  auto patternAddrTy = mlir::dyn_cast<PointerType>(value.getType());
   if (!patternAddrTy || patternAddrTy.getPointee() != underlyingDataTy)
     return;
 
@@ -172,14 +172,14 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   // Build memchr op:
   //  void *memchr(const void *s, int c, size_t n);
   auto memChr = [&] {
-    if (auto iterBegin = dyn_cast<IterBeginOp>(first.getDefiningOp());
-        iterBegin && isa<IterEndOp>(last.getDefiningOp())) {
+    if (auto iterBegin = first.getDefiningOp<IterBeginOp>();
+        iterBegin && last.getDefiningOp<IterEndOp>()) {
       // Both operands have the same type, use iterBegin.
 
       // Look at this pointer to retrieve container information.
       auto thisPtr =
-          cast<PointerType>(iterBegin.getOperand().getType()).getPointee();
-      auto containerTy = dyn_cast<RecordType>(thisPtr);
+          mlir::cast<PointerType>(iterBegin.getOperand().getType()).getPointee();
+      auto containerTy = mlir::dyn_cast<RecordType>(thisPtr);
 
       unsigned staticSize = 0;
       if (containerTy && isSequentialContainer(containerTy) &&

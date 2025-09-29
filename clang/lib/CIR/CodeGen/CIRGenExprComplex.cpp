@@ -108,10 +108,23 @@ public:
   mlir::Value VisitObjCMessageExpr(ObjCMessageExpr *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitArraySubscriptExpr(Expr *E) { llvm_unreachable("NYI"); }
-  mlir::Value VisitMemberExpr(MemberExpr *ME) { llvm_unreachable("NYI"); }
+  mlir::Value VisitArraySubscriptExpr(Expr *E) { return emitLoadOfLValue(E); }
+
+  mlir::Value VisitMemberExpr(MemberExpr *ME) {
+    if (CIRGenFunction::ConstantEmission constant = CGF.tryEmitAsConstant(ME)) {
+      CGF.emitIgnoredExpr(ME->getBase());
+      return emitConstant(constant, ME);
+    }
+    return emitLoadOfLValue(ME);
+  }
+
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-    llvm_unreachable("NYI");
+    if (E->isGLValue())
+      return emitLoadOfLValue(CGF.getOrCreateOpaqueLValueMapping(E),
+                              E->getExprLoc());
+
+    // Otherwise, assume the mapping is the scalar directly.
+    return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
   }
 
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {
@@ -147,7 +160,7 @@ public:
   mlir::Value VisitUnaryPreInc(const UnaryOperator *E) {
     return VisitPrePostIncDec(E, true, true);
   }
-  mlir::Value VisitUnaryDeref(const Expr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitUnaryDeref(const Expr *E) { return emitLoadOfLValue(E); }
 
   mlir::Value VisitUnaryPlus(const UnaryOperator *E,
                              QualType PromotionType = QualType());
@@ -163,9 +176,12 @@ public:
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     llvm_unreachable("NYI");
   }
+
   mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
-    llvm_unreachable("NYI");
+    CIRGenFunction::CXXDefaultInitExprScope Scope(CGF, DIE);
+    return Visit(DIE->getExpr());
   }
+
   mlir::Value VisitExprWithCleanups(ExprWithCleanups *E) {
     CIRGenFunction::RunCleanupsScope Scope(CGF);
     mlir::Value V = Visit(E->getSubExpr());
@@ -174,9 +190,13 @@ public:
     Scope.ForceCleanup({&V});
     return V;
   }
+
   mlir::Value VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
-    llvm_unreachable("NYI");
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
+    mlir::Type complexTy = CGF.convertType(E->getType());
+    return Builder.getNullValue(complexTy, loc);
   }
+
   mlir::Value VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
     llvm_unreachable("NYI");
   }
@@ -306,12 +326,40 @@ public:
     return emitLoadOfLValue(LV, E->getExprLoc());
   };
   mlir::Value VisitBinComma(const BinaryOperator *E) {
-    llvm_unreachable("NYI");
+    CGF.emitIgnoredExpr(E->getLHS());
+    return Visit(E->getRHS());
   }
 
   mlir::Value
-  VisitAbstractConditionalOperator(const AbstractConditionalOperator *CO) {
-    llvm_unreachable("NYI");
+  VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
+    mlir::Location loc = CGF.getLoc(E->getSourceRange());
+
+    // Bind the common expression if necessary.
+    CIRGenFunction::OpaqueValueMapping binding(CGF, E);
+
+    CIRGenFunction::ConditionalEvaluation eval(CGF);
+
+    Expr *cond = E->getCond()->IgnoreParens();
+    mlir::Value condValue = CGF.evaluateExprAsBool(cond);
+
+    return Builder
+        .create<cir::TernaryOp>(
+            loc, condValue,
+            /*thenBuilder=*/
+            [&](mlir::OpBuilder &b, mlir::Location loc) {
+              eval.begin(CGF);
+              mlir::Value trueValue = Visit(E->getTrueExpr());
+              b.create<cir::YieldOp>(loc, trueValue);
+              eval.end(CGF);
+            },
+            /*elseBuilder=*/
+            [&](mlir::OpBuilder &b, mlir::Location loc) {
+              eval.begin(CGF);
+              mlir::Value falseValue = Visit(E->getFalseExpr());
+              b.create<cir::YieldOp>(loc, falseValue);
+              eval.end(CGF);
+            })
+        .getResult();
   }
 
   mlir::Value VisitChooseExpr(ChooseExpr *CE) {
@@ -417,22 +465,33 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_Dependent:
     llvm_unreachable("dependent cast kind in IR gen!");
 
-  // Atomic to non-atomic casts may be more than a no-op for some platforms and
-  // for some types.
+  case CK_NoOp:
   case CK_LValueToRValue:
+  case CK_UserDefinedConversion:
     return Visit(Op);
 
+  // Atomic to non-atomic casts may be more than a no-op for some platforms
+  // and for some types.
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
-  case CK_NoOp:
-  case CK_UserDefinedConversion:
     llvm_unreachable("NYI");
 
-  case CK_LValueBitCast:
-    llvm_unreachable("NYI");
+  case CK_LValueBitCast: {
+    LValue origLV = CGF.emitLValue(Op);
+    Address addr =
+        origLV.getAddress().withElementType(Builder, CGF.convertType(DestTy));
+    LValue destLV = CGF.makeAddrLValue(addr, DestTy);
+    return emitLoadOfLValue(destLV, Op->getExprLoc());
+  }
 
-  case CK_LValueToRValueBitCast:
-    llvm_unreachable("NYI");
+  case CK_LValueToRValueBitCast: {
+    LValue SourceLVal = CGF.emitLValue(Op);
+    Address Addr = SourceLVal.getAddress().withElementType(
+        Builder, CGF.convertTypeForMem(DestTy));
+    LValue DestLV = CGF.makeAddrLValue(Addr, DestTy);
+    DestLV.setTBAAInfo(TBAAAccessInfo::getMayAliasInfo());
+    return emitLoadOfLValue(DestLV, Op->getExprLoc());
+  }
 
   case CK_BitCast:
   case CK_BaseToDerived:
@@ -690,9 +749,7 @@ LValue ComplexExprEmitter::emitCompoundAssignLValue(
     }
   } else {
     if (!PromotionTypeRHS.isNull()) {
-      OpInfo.RHS = createComplexFromReal(
-          CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
-          CGF.emitPromotedComplexExpr(E->getRHS(), PromotionTypeRHS));
+      OpInfo.RHS = CGF.emitPromotedComplexExpr(E->getRHS(), PromotionTypeRHS);
     } else {
       assert(CGF.getContext().hasSameUnqualifiedType(OpInfo.Ty,
                                                      E->getRHS()->getType()));
@@ -796,7 +853,8 @@ getComplexRangeAttr(LangOptions::ComplexRangeKind range) {
   case LangOptions::CX_Basic:
     return cir::ComplexRangeKind::Basic;
   case LangOptions::CX_None:
-    return cir::ComplexRangeKind::None;
+    // The default value for ComplexRangeKind is Full if no option is selected
+    return cir::ComplexRangeKind::Full;
   }
 }
 
@@ -988,4 +1046,13 @@ mlir::Value CIRGenFunction::emitComplexPrePostIncDec(const UnaryOperator *E,
 
 mlir::Value CIRGenFunction::emitLoadOfComplex(LValue src, SourceLocation loc) {
   return ComplexExprEmitter(*this).emitLoadOfLValue(src, loc);
+}
+
+LValue CIRGenFunction::emitScalarCompoundAssignWithComplex(
+    const CompoundAssignOperator *E, mlir::Value &Result) {
+  CompoundFunc Op = getComplexOp(E->getOpcode());
+  RValue Val;
+  LValue Ret = ComplexExprEmitter(*this).emitCompoundAssignLValue(E, Op, Val);
+  Result = Val.getScalarVal();
+  return Ret;
 }

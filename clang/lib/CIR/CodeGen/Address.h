@@ -179,6 +179,10 @@ public:
       return nullptr;
     return getPointer().getDefiningOp();
   }
+
+  template <typename T> T getDefiningOp() const {
+    return mlir::dyn_cast_or_null<T>(getDefiningOp());
+  }
 };
 
 } // namespace clang::CIRGen

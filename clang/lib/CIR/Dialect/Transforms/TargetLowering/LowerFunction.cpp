@@ -45,7 +45,7 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
                                  LowerFunction &CGF) {
   auto destPtrTy = cir::PointerType::get(DestTy);
 
-  if (auto load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp()))
+  if (auto load = Src.getDefiningOp<cir::LoadOp>())
     return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
                                             CastKind::bitcast, load.getAddr());
 
@@ -89,7 +89,7 @@ mlir::Value enterRecordPointerForCoercedAccess(mlir::Value SrcPtr,
   auto ptrTy = PointerType::get(FirstElt);
   if (mlir::isa<RecordType>(SrcPtr.getType())) {
     auto addr = SrcPtr;
-    if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
+    if (auto load = SrcPtr.getDefiningOp<cir::LoadOp>())
       addr = load.getAddr();
     cir_cconv_assert(mlir::isa<PointerType>(addr.getType()));
     // we can not use getMemberOp here since we need a pointer to the first
@@ -369,11 +369,11 @@ mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
 /// a non fundamental integer type
 mlir::Value createCoercedNonFundamental(mlir::Value src, mlir::Type ty,
                                         LowerFunction &LF) {
-  if (auto load = mlir::dyn_cast<LoadOp>(src.getDefiningOp())) {
+  if (auto load = src.getDefiningOp<cir::LoadOp>()) {
     auto &bld = LF.getRewriter();
     auto addr = load.getAddr();
 
-    auto oldAlloca = mlir::dyn_cast<AllocaOp>(addr.getDefiningOp());
+    auto oldAlloca = addr.getDefiningOp<cir::AllocaOp>();
     auto alloca = bld.create<AllocaOp>(
         src.getLoc(), cir::PointerType::get(ty), ty,
         /*name=*/llvm::StringRef(""), oldAlloca.getAlignmentAttr());
@@ -751,7 +751,7 @@ LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
 
           auto retInputs = ret.getInput();
           assert(retInputs.size() == 1 && "return should only have one input");
-          if (auto load = mlir::dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
+          if (auto load = retInputs[0].getDefiningOp<cir::LoadOp>())
             if (load.getResult().use_empty())
               rewriter.eraseOp(load);
 

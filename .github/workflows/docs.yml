@@ -54,6 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'llvm/llvm-project'
     steps:
+<<<<<<< HEAD
       # Don't fetch before checking for file changes to force the file changes
       # action to use the Github API in pull requests. If it's a push to a
       # branch we can't use the Github API to get the diff, so we need to have
@@ -61,12 +62,19 @@ jobs:
       - name: Fetch LLVM sources (Push)
         if: ${{ github.event_name == 'push' }}
         uses: actions/checkout@v4.2.2
+=======
+      - name: Fetch LLVM sources
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+>>>>>>> origin/main
         with:
-          fetch-depth: 1
+          fetch-depth: 2
       - name: Get subprojects that have doc changes
         id: docs-changed-subprojects
         uses: step-security/changed-files@95b56dadb92a30ca9036f16423fd3c088a71ee94
         with:
+          skip_initial_fetch: true
+          base_sha: 'HEAD~1'
+          sha: 'HEAD'
           files_yaml: |
             llvm:
               - 'llvm/docs/**'
@@ -96,11 +104,14 @@ jobs:
               - 'flang/include/flang/Optimizer/Dialect/FIROps.td'
             workflow:
               - '.github/workflows/docs.yml'
+<<<<<<< HEAD
       - name: Fetch LLVM sources (PR)
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 1
+=======
+>>>>>>> origin/main
       - name: Setup Python env
         uses: actions/setup-python@v5
         with:
@@ -212,7 +223,7 @@ jobs:
           steps.docs-changed-subprojects.outputs.workflow_any_changed == 'true'
         run: |
           cmake -B flang-build -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;mlir;flang" -DLLVM_ENABLE_SPHINX=ON ./llvm
-          TZ=UTC ninja -C flang-build docs-flang-html
+          TZ=UTC ninja -C flang-build docs-flang-html docs-flang-man
           mkdir built-docs/flang
           cp -r flang-build/docs/* built-docs/flang/
       - name: Upload docs

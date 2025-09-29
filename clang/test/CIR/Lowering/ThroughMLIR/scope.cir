@@ -1,7 +1,5 @@
-// RUN: cir-opt %s -cir-to-mlir -o %t.mlir
-// RUN: FileCheck %s -input-file=%t.mlir -check-prefix=MLIR
-// RUN: cir-opt %s -cir-to-mlir -cir-mlir-to-llvm -o %t.mlir
-// RUN: FileCheck %s -input-file=%t.mlir -check-prefix=LLVM
+// RUN: cir-opt %s -cir-to-mlir -o - | FileCheck %s -check-prefix=MLIR
+// RUN: cir-opt %s -cir-to-mlir -cir-mlir-to-llvm -o - | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
 
 !u32i = !cir.int<u, 32>
 module {
@@ -22,16 +20,19 @@ module {
 // MLIR-NEXT:   }
 // MLIR-NEXT:   return
 
-// LLVM:  llvm.func @foo() {
-// LLVM:    %0 = llvm.intr.stacksave : !llvm.ptr
-// LLVM:    llvm.br ^bb1
-// LLVM:  ^bb1:
-//          [...]
-// LLVM:    llvm.intr.stackrestore %0 : !llvm.ptr
-// LLVM:    llvm.br ^bb2
-// LLVM:  ^bb2:
-// LLVM:    llvm.return
-// LLVM:  }
+// LLVM:      define void @foo() {
+// LLVM-NEXT:   %1 = call ptr @llvm.stacksave.p0()
+// LLVM-NEXT:   br label %2
+// LLVM-EMPTY:
+// LLVM-NEXT: 2:
+// LLVM-NEXT:   %3 = alloca i32, i64 1, align 4
+// LLVM:        store i32 4, ptr {{.*}}, align 4
+// LLVM-NEXT:   call void @llvm.stackrestore.p0(ptr %1)
+// LLVM-NEXT:   br label %8
+// LLVM-EMPTY:
+// LLVM-NEXT: 8:
+// LLVM-NEXT:   ret void
+// LLVM-NEXT: }
 
   // Should drop empty scopes.
   cir.func @empty_scope() {
@@ -43,6 +44,6 @@ module {
   // MLIR-NEXT:   return
   // MLIR-NEXT: }
 
-  // LLVM: llvm.func @empty_scope()
-  // LLVM:   llvm.return
+  // LLVM: define void @empty_scope()
+  // LLVM:   ret void
 }

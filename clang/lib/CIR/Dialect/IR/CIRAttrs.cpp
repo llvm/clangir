@@ -184,7 +184,7 @@ ConstRecordAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
   unsigned attrIdx = 0;
   for (auto &member : sTy.getMembers()) {
-    auto m = dyn_cast_if_present<TypedAttr>(members[attrIdx]);
+    auto m = mlir::dyn_cast_or_null<mlir::TypedAttr>(members[attrIdx]);
     if (!m)
       return emitError() << "expected mlir::TypedAttr attribute";
     if (member != m.getType())
@@ -308,7 +308,7 @@ static ParseResult parseFloatLiteral(AsmParser &parser,
   return success();
 }
 
-FPAttr FPAttr::getZero(Type type) {
+cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
   return get(type,
              APFloat::getZero(
                  mlir::cast<cir::FPTypeInterface>(type).getFloatSemantics()));

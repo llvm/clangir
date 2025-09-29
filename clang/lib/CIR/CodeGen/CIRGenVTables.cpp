@@ -35,6 +35,18 @@ using namespace clang::CIRGen;
 CIRGenVTables::CIRGenVTables(CIRGenModule &CGM)
     : CGM(CGM), VTContext(CGM.getASTContext().getVTableContext()) {}
 
+cir::FuncOp CIRGenModule::getAddrOfThunk(StringRef name, mlir::Type fnTy,
+                                         GlobalDecl gd) {
+  return GetOrCreateCIRFunction(name, fnTy, gd, /*ForVTable=*/true,
+                                /*DontDefer=*/true, /*IsThunk=*/true);
+}
+
+static void setThunkProperties(CIRGenModule &cgm, const ThunkInfo &thunk,
+                               cir::FuncOp thunkFn, bool forVTable,
+                               GlobalDecl gd) {
+  llvm_unreachable("NYI");
+}
+
 static bool UseRelativeLayout(const CIRGenModule &CGM) {
   return CGM.getTarget().getCXXABI().isItaniumFamily() &&
          CGM.getItaniumVTableContext().isRelativeLayout();
@@ -137,11 +149,10 @@ void CIRGenModule::emitDeferredVTables() {
 #endif
 
   for (const CXXRecordDecl *RD : DeferredVTables)
-    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD)) {
+    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD))
       VTables.GenerateClassData(RD);
-    } else if (shouldOpportunisticallyEmitVTables()) {
-      llvm_unreachable("NYI");
-    }
+    else if (shouldOpportunisticallyEmitVTables())
+      opportunisticVTables.push_back(RD);
 
   assert(savedSize == DeferredVTables.size() &&
          "deferred extra vtables during vtable emission?");
@@ -475,8 +486,6 @@ cir::GlobalLinkageKind CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     auto r = shouldEmitAvailableExternallyVTable(*this, RD)
                  ? cir::GlobalLinkageKind::AvailableExternallyLinkage
                  : cir::GlobalLinkageKind::ExternalLinkage;
-    assert(r == cir::GlobalLinkageKind::ExternalLinkage &&
-           "available external NYI");
     return r;
   }
 
@@ -645,6 +654,134 @@ void CIRGenVTables::emitVTTDefinition(cir::GlobalOp VTT,
     assert(!cir::MissingFeatures::setComdat());
   }
 }
+static bool shouldEmitVTableThunk(CIRGenModule &CGM, const CXXMethodDecl *MD,
+                                  bool IsUnprototyped, bool ForVTable) {
+  // Always emit thunks in the MS C++ ABI. We cannot rely on other TUs to
+  // provide thunks for us.
+  if (CGM.getTarget().getCXXABI().isMicrosoft())
+    return true;
+
+  // In the Itanium C++ ABI, vtable thunks are provided by TUs that provide
+  // definitions of the main method. Therefore, emitting thunks with the vtable
+  // is purely an optimization. Emit the thunk if optimizations are enabled and
+  // all of the parameter types are complete.
+  if (ForVTable)
+    return CGM.getCodeGenOpts().OptimizationLevel && !IsUnprototyped;
+
+  // Always emit thunks along with the method definition.
+  return true;
+}
+
+cir::FuncOp CIRGenVTables::maybeEmitThunk(GlobalDecl GD,
+                                          const ThunkInfo &ThunkAdjustments,
+                                          bool ForVTable) {
+  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
+  SmallString<256> Name;
+  MangleContext &MCtx = CGM.getCXXABI().getMangleContext();
+
+  llvm::raw_svector_ostream Out(Name);
+  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(MD)) {
+    MCtx.mangleCXXDtorThunk(DD, GD.getDtorType(), ThunkAdjustments,
+                            /* elideOverrideInfo */ false, Out);
+  } else
+    MCtx.mangleThunk(MD, ThunkAdjustments, /* elideOverrideInfo */ false, Out);
+
+  if (CGM.getASTContext().useAbbreviatedThunkName(GD, Name.str())) {
+    Name = "";
+    if (const CXXDestructorDecl *dd = dyn_cast<CXXDestructorDecl>(MD))
+      MCtx.mangleCXXDtorThunk(dd, GD.getDtorType(), ThunkAdjustments,
+                              /* elideOverrideInfo */ true, Out);
+    else
+      MCtx.mangleThunk(MD, ThunkAdjustments, /* elideOverrideInfo */ true, Out);
+  }
+
+  cir::FuncType ThunkVTableTy = CGM.getTypes().GetFunctionTypeForVTable(GD);
+  cir::FuncOp Thunk = CGM.getAddrOfThunk(Name, ThunkVTableTy, GD);
+
+  // If we don't need to emit a definition, return this declaration as is.
+  bool IsUnprototyped = !CGM.getTypes().isFuncTypeConvertible(
+      MD->getType()->castAs<FunctionType>());
+  if (!shouldEmitVTableThunk(CGM, MD, IsUnprototyped, ForVTable))
+    return Thunk;
+
+  // Arrange a function prototype appropriate for a function definition. In some
+  // cases in the MS ABI, we may need to build an unprototyped musttail thunk.
+  const CIRGenFunctionInfo &FnInfo =
+      IsUnprototyped ? CGM.getTypes().arrangeUnprototypedMustTailThunk(MD)
+                     : CGM.getTypes().arrangeGlobalDeclaration(GD);
+  cir::FuncType ThunkFnTy = CGM.getTypes().GetFunctionType(FnInfo);
+
+  // This is to replace OG's casting to a function, keeping it here to
+  // streamline the 1-to-1 mapping from OG starting below
+  cir::FuncOp ThunkFn = Thunk;
+  if (Thunk.getFunctionType() != ThunkFnTy) {
+    cir::FuncOp OldThunkFn = ThunkFn;
+
+    assert(OldThunkFn.isDeclaration() && "Shouldn't replace non-declaration");
+
+    // Remove the name from the old thunk function and get a new thunk.
+    OldThunkFn.setName(StringRef());
+    auto thunkFn =
+        cir::FuncOp::create(CGM.getBuilder(), Thunk->getLoc(), Name.str(),
+                            ThunkFnTy, cir::GlobalLinkageKind::ExternalLinkage);
+    CGM.setCIRFunctionAttributes(MD, FnInfo, thunkFn, /*IsThunk=*/false);
+
+    if (!OldThunkFn->use_empty()) {
+      OldThunkFn->replaceAllUsesWith(thunkFn);
+    }
+
+    // Remove the old thunk.
+    OldThunkFn->erase();
+  }
+  bool ABIHasKeyFunctions = CGM.getTarget().getCXXABI().hasKeyFunctions();
+  bool UseAvailableExternallyLinkage = ForVTable && ABIHasKeyFunctions;
+  // If the type of the underlying GlobalValue is wrong, we'll have to replace
+  // it. It should be a declaration.
+  if (!ThunkFn.isDeclaration()) {
+    if (!ABIHasKeyFunctions || UseAvailableExternallyLinkage) {
+      // There is already a thunk emitted for this function, do nothing.
+      return ThunkFn;
+    }
+
+    setThunkProperties(CGM, ThunkAdjustments, ThunkFn, ForVTable, GD);
+    return ThunkFn;
+  }
+  if (IsUnprototyped)
+    ThunkFn->setAttr("thunk", mlir::UnitAttr::get(&CGM.getMLIRContext()));
+
+  CGM.setCIRFunctionAttributesForDefinition(GD.getDecl(), ThunkFn);
+  //
+  // Thunks for variadic methods are special because in general variadic
+  // arguments cannot be perfectly forwarded. In the general case, clang
+  // implements such thunks by cloning the original function body. However, for
+  // thunks with no return adjustment on targets that support musttail, we can
+  // use musttail to perfectly forward the variadic arguments.
+  bool ShouldCloneVarArgs = false;
+  if (!IsUnprototyped && ThunkFn.getFunctionType().isVarArg()) {
+    ShouldCloneVarArgs = true;
+    if (ThunkAdjustments.Return.isEmpty()) {
+      switch (CGM.getTriple().getArch()) {
+      case llvm::Triple::x86_64:
+      case llvm::Triple::x86:
+      case llvm::Triple::aarch64:
+        ShouldCloneVarArgs = false;
+        break;
+      default:
+        break;
+      }
+    }
+  }
+  if (ShouldCloneVarArgs) {
+    if (UseAvailableExternallyLinkage)
+      return ThunkFn;
+    llvm_unreachable("NYI method, see OG GenerateVarArgsThunk");
+  } else {
+    llvm_unreachable("NYI method, see OG generateThunk");
+  }
+
+  setThunkProperties(CGM, ThunkAdjustments, ThunkFn, ForVTable, GD);
+  return ThunkFn;
+}
 
 void CIRGenVTables::emitThunks(GlobalDecl GD) {
   const CXXMethodDecl *MD =
@@ -660,8 +797,8 @@ void CIRGenVTables::emitThunks(GlobalDecl GD) {
   if (!ThunkInfoVector)
     return;
 
-  for ([[maybe_unused]] const ThunkInfo &Thunk : *ThunkInfoVector)
-    llvm_unreachable("NYI");
+  for (const ThunkInfo &Thunk : *ThunkInfoVector)
+    maybeEmitThunk(GD, Thunk, /*ForVTable=*/false);
 }
 
 bool CIRGenModule::AlwaysHasLTOVisibilityPublic(const CXXRecordDecl *RD) {

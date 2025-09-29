@@ -408,6 +408,20 @@ DataMemberType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
 }
 
 llvm::TypeSize
+VPtrType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
+                            ::mlir::DataLayoutEntryListRef params) const {
+  // FIXME: consider size differences under different ABIs
+  return llvm::TypeSize::getFixed(64);
+}
+
+uint64_t
+VPtrType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                          ::mlir::DataLayoutEntryListRef params) const {
+  // FIXME: consider alignment differences under different ABIs
+  return 8;
+}
+
+llvm::TypeSize
 ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
   return getSize() * dataLayout.getTypeSizeInBits(getElementType());
@@ -767,8 +781,8 @@ LongDoubleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                 mlir::DataLayoutEntryListRef params) const {
-  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
-      .getABIAlignment(dataLayout, params);
+  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying()).getABIAlignment(
+      dataLayout, params);
 }
 
 //===----------------------------------------------------------------------===//

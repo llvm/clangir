@@ -24,6 +24,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace cir;
 using namespace llvm;
@@ -149,8 +150,8 @@ mlir::LogicalResult SCFLoop::findStepAndIV() {
       return mlir::failure();
 
     mlir::Value value = binary.getRhs();
-    if (auto constValue = dyn_cast<ConstantOp>(value.getDefiningOp());
-        isa<IntAttr>(constValue.getValue()))
+    if (auto constValue = value.getDefiningOp<cir::ConstantOp>();
+        constValue.getValueAttr<cir::IntAttr>())
       step = getConstant(constValue);
 
     if (binary.getKind() == BinOpKind::Add)
@@ -528,7 +529,7 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
     for (auto continueOp : continues) {
       bool nested = false;
       // When there is another loop between this WhileOp and the ContinueOp,
-      // we should change that loop instead.
+      // we shouldn't change that loop instead.
       for (mlir::Operation *parent = continueOp->getParentOp();
            parent != whileOp; parent = parent->getParentOp()) {
         if (isa<WhileOp>(parent)) {
@@ -578,16 +579,15 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
       if (auto breakOp = dyn_cast<BreakOp>(op))
         breaks.push_back(breakOp);
     });
-
     if (breaks.empty())
       return;
-
+    auto *pp = whileOp->getParentOp();
+    pp->dump();
     for (auto breakOp : breaks) {
       // When there is another loop between this WhileOp and the BreakOp,
       // we should change that loop instead.
       if (breakOp->getParentOfType<mlir::scf::WhileOp>() != whileOp)
         continue;
-
       // Similar to the case of ContinueOp, when there is an `IfOp`,
       // we need to take special care.
       for (mlir::Operation *parent = breakOp->getParentOp(); parent != whileOp;
@@ -595,7 +595,6 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
         if (auto ifOp = dyn_cast<cir::IfOp>(parent))
           llvm_unreachable("NYI");
       }
-
       // Operations after this BreakOp has to be removed.
       for (mlir::Operation *runner = breakOp->getNextNode(); runner;) {
         mlir::Operation *next = runner->getNextNode();
@@ -613,7 +612,6 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
       // We know this BreakOp isn't nested in any IfOp.
       // Therefore, the loop is executed only once.
       // We pull everything out of the loop.
-
       auto &beforeOps = whileOp.getBeforeBody()->getOperations();
       for (mlir::Operation *op = &*beforeOps.begin(); op;) {
         if (isa<ConditionOp>(op))
@@ -631,10 +629,10 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
         op->moveBefore(whileOp);
         op = next;
       }
-
-      // The loop itself should now be removed.
-      rewriter.eraseOp(whileOp);
     }
+
+    rewriter.eraseOp(whileOp);
+    pp->dump();
   }
 
 public:

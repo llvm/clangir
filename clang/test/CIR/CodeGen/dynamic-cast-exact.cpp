@@ -16,10 +16,10 @@ struct Derived final : Base1 {};
 Derived *ptr_cast(Base1 *ptr) {
   return dynamic_cast<Derived *>(ptr);
   //      CHECK: %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base1>>, !cir.ptr<!rec_Base1>
-  // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-  // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>, !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-  // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.bool
+  // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.vptr
+  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.vptr>
+  // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+  // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.vptr, !cir.bool
   // CHECK-NEXT: %{{.+}} = cir.ternary(%[[#SUCCESS]], true {
   // CHECK-NEXT:   %[[#RES:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!rec_Derived>
   // CHECK-NEXT:   cir.yield %[[#RES]] : !cir.ptr<!rec_Derived>
@@ -39,10 +39,10 @@ Derived *ptr_cast(Base1 *ptr) {
 Derived &ref_cast(Base1 &ref) {
   return dynamic_cast<Derived &>(ref);
   //      CHECK: %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base1>>, !cir.ptr<!rec_Base1>
-  // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-  // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>, !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
-  // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.bool
+  // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.vptr
+  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.vptr>
+  // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+  // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.vptr, !cir.bool
   // CHECK-NEXT: %[[#FAILED:]] = cir.unary(not, %[[#SUCCESS]]) : !cir.bool, !cir.bool
   // CHECK-NEXT: cir.if %[[#FAILED]] {
   // CHECK-NEXT:   cir.call @__cxa_bad_cast() : () -> ()

@@ -200,30 +200,6 @@ def CIR_ComplexType : CIR_Type<"Complex", "complex", [
 // PointerType
 //===----------------------------------------------------------------------===//
 
-def CIR_AddressSpace : CIR_I32EnumAttr<
-  "AddressSpace", "address space kind", [
-  I32EnumAttrCase<"Default", 0, "default">,
-  I32EnumAttrCase<"OffloadPrivate", 1, "offload_private">,
-  I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,
-  I32EnumAttrCase<"OffloadGlobal", 3, "offload_global">,
-  I32EnumAttrCase<"OffloadConstant", 4, "offload_constant">,
-  I32EnumAttrCase<"OffloadGeneric", 5, "offload_generic">,
-  I32EnumAttrCase<"Target", 6, "target">
-]> {
-  let description = [{
-    The `address_space` attribute is used to represent address spaces for
-    pointer types in CIR. It provides a unified model on top of `clang::LangAS`
-    and simplifies the representation of address spaces.
-
-    The `value` parameter is an extensible enum, which encodes target address
-    space as an offset to the last language address space. For that reason, the
-    attribute is implemented as custom AddressSpaceAttr, which provides custom
-    printer and parser for the `value` parameter.
-  }];
-
-  let genSpecializedAttr = 0;
-}
-
 def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
     DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
     DeclareTypeInterfaceMethods<CIR_SizedTypeInterface>
@@ -342,6 +318,37 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
     `<` $memberTy `in` $clsTy `>`
   }];
 }
+
+//===----------------------------------------------------------------------===//
+// CIR_VPtrType
+//===----------------------------------------------------------------------===//
+
+def CIR_VPtrType : CIR_Type<"VPtr", "vptr", [
+  DeclareTypeInterfaceMethods<DataLayoutTypeInterface>
+]> {
+
+  let summary = "CIR type that is used for the vptr member of C++ objects";
+  let description = [{
+    `cir.vptr` is a special type used as the type for the vptr member of a C++
+    object. This avoids using arbitrary pointer types to declare vptr values
+    and allows stronger type-based checking for operations that use or provide
+    access to the vptr.
+
+    This type will be the element type of the 'vptr' member of structures that
+    require a vtable pointer. A pointer to this type is returned by the
+    `cir.vtable.address_point` and `cir.vtable.get_vptr` operations, and this
+    pointer may be passed to the `cir.vtable.get_virtual_fn_addr` operation to
+    get the address of a virtual function pointer.
+
+    The pointer may also be cast to other pointer types in order to perform
+    pointer arithmetic based on information encoded in the AST layout to get
+    the offset from a pointer to a dynamic object to the base object pointer,
+    the base object offset value from the vtable, or the type information
+    entry for an object.
+    TODO: We should have special operations to do that too.
+  }];
+}
+
 
 //===----------------------------------------------------------------------===//
 // BoolType
@@ -751,7 +758,8 @@ def CIRRecordType : Type<
 def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
-  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType
+  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType,
+  CIR_VPtrType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

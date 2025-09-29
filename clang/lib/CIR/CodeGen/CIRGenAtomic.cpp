@@ -290,7 +290,9 @@ bool AtomicInfo::requiresMemSetZero(mlir::Type ty) const {
   case cir::TEK_Scalar:
     return !isFullSizeType(CGF.CGM, ty, AtomicSizeInBits);
   case cir::TEK_Complex:
-    llvm_unreachable("NYI");
+    return !isFullSizeType(CGF.CGM,
+                           mlir::cast<cir::ComplexType>(ty).getElementType(),
+                           AtomicSizeInBits / 2);
 
   // Padding in structs has an undefined bit pattern.  User beware.
   case cir::TEK_Aggregate:
@@ -330,20 +332,22 @@ Address AtomicInfo::CreateTempAlloca() const {
   return TempAlloca;
 }
 
-// If the value comes from a ConstOp + IntAttr, retrieve and skip a series
-// of casts if necessary.
-//
-// FIXME(cir): figure out warning issue and move this to CIRBaseBuilder.h
-static cir::IntAttr getConstOpIntAttr(mlir::Value v) {
-  mlir::Operation *op = v.getDefiningOp();
-  cir::IntAttr constVal;
-  while (auto c = dyn_cast<cir::CastOp>(op))
-    op = c.getOperand().getDefiningOp();
-  if (auto c = dyn_cast<cir::ConstantOp>(op)) {
-    if (mlir::isa<cir::IntType>(c.getType()))
-      constVal = mlir::cast<cir::IntAttr>(c.getValue());
-  }
-  return constVal;
+static mlir::Value stripCasts(mlir::Value value) {
+  while (auto castOp = value.getDefiningOp<cir::CastOp>())
+    value = castOp.getOperand();
+  return value;
+}
+
+static cir::ConstantOp extractConstant(mlir::Value v) {
+  return stripCasts(v).getDefiningOp<cir::ConstantOp>();
+}
+
+// If the value comes from a ConstOp + IntAttr, retrieve and skip a series of
+// casts if necessary.
+static cir::IntAttr extractIntAttr(mlir::Value v) {
+  if (auto c = extractConstant(v))
+    return c.getValueAttr<cir::IntAttr>();
+  return {};
 }
 
 // Inspect a value that is the strong/weak flag for a compare-exchange.  If it
@@ -351,19 +355,18 @@ static cir::IntAttr getConstOpIntAttr(mlir::Value v) {
 // boolean value and return true.  Otherwise leave `val` unchanged and return
 // false.
 static bool isCstWeak(mlir::Value weakVal, bool &val) {
-  mlir::Operation *op = weakVal.getDefiningOp();
-  while (auto c = dyn_cast<cir::CastOp>(op)) {
-    op = c.getOperand().getDefiningOp();
-  }
-  if (auto c = dyn_cast<cir::ConstantOp>(op)) {
-    if (mlir::isa<cir::IntType>(c.getType())) {
-      val = mlir::cast<cir::IntAttr>(c.getValue()).getUInt() != 0;
+  if (auto c = extractConstant(weakVal)) {
+    if (auto attr = c.getValueAttr<cir::IntAttr>()) {
+      val = attr.getUInt() != 0;
       return true;
-    } else if (mlir::isa<cir::BoolType>(c.getType())) {
-      val = mlir::cast<cir::BoolAttr>(c.getValue()).getValue();
+    }
+
+    if (auto attr = c.getValueAttr<cir::BoolAttr>()) {
+      val = attr.getValue();
       return true;
     }
   }
+
   return false;
 }
 
@@ -456,7 +459,7 @@ static void emitAtomicCmpXchgFailureSet(
     cir::MemOrder SuccessOrder, cir::MemScopeKind Scope) {
 
   cir::MemOrder FailureOrder;
-  if (auto ordAttr = getConstOpIntAttr(FailureOrderVal)) {
+  if (auto ordAttr = extractIntAttr(FailureOrderVal)) {
     // We should not ever get to a case where the ordering isn't a valid CABI
     // value, but it's hard to enforce that in general.
     auto ord = ordAttr.getUInt();
@@ -593,9 +596,8 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
     auto load = builder.createLoad(loc, Ptr);
     // FIXME(cir): add scope information.
     assert(!cir::MissingFeatures::syncScopeID());
-    load->setAttr("mem_order", orderAttr);
-    if (E->isVolatile())
-      load->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
+    load.setMemOrder(Order);
+    load.setIsVolatile(E->isVolatile());
 
     // TODO(cir): this logic should be part of createStore, but doing so
     // currently breaks CodeGen/union.cpp and CodeGen/union.cpp.
@@ -805,7 +807,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *Expr, Address Dest,
   }
 
   // Handle constant scope.
-  if (getConstOpIntAttr(Scope)) {
+  if (extractIntAttr(Scope)) {
     assert(!cir::MissingFeatures::syncScopeID());
     llvm_unreachable("NYI");
     return;
@@ -1208,7 +1210,7 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
                 E->getOp() == AtomicExpr::AO__scoped_atomic_load ||
                 E->getOp() == AtomicExpr::AO__scoped_atomic_load_n;
 
-  if (auto ordAttr = getConstOpIntAttr(Order)) {
+  if (auto ordAttr = extractIntAttr(Order)) {
     // We should not ever get to a case where the ordering isn't a valid CABI
     // value, but it's hard to enforce that in general.
     auto ord = ordAttr.getUInt();
@@ -1499,7 +1501,8 @@ void CIRGenFunction::emitAtomicInit(Expr *init, LValue dest) {
   }
 
   case cir::TEK_Complex: {
-    llvm_unreachable("NYI");
+    mlir::Value value = emitComplexExpr(init);
+    atomics.emitCopyIntoMemory(RValue::get(value));
     return;
   }
 

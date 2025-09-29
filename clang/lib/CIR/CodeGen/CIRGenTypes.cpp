@@ -30,7 +30,7 @@ CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
   switch (CC) {
   case CC_C:
     return cir::CallingConv::C;
-  case CC_OpenCLKernel:
+  case CC_DeviceKernel:
     return CGM.getTargetCIRGenInfo().getOpenCLKernelCallingConv();
   case CC_SpirFunction:
     return cir::CallingConv::SpirFunction;
@@ -62,7 +62,6 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
   PrintingPolicy policy = recordDecl->getASTContext().getPrintingPolicy();
   policy.SuppressInlineNamespace = false;
   policy.AlwaysIncludeTypeForTemplateArgument = true;
-  policy.PrintCanonicalTypes = true;
   policy.SuppressTagKeyword = true;
 
   if (recordDecl->getIdentifier()) {
@@ -373,6 +372,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 
   case Type::Builtin: {
@@ -713,7 +713,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 
     auto memberTy = convertType(MPT->getPointeeType());
     auto clsTy =
-        mlir::cast<cir::RecordType>(convertType(QualType(MPT->getClass(), 0)));
+        mlir::cast<cir::RecordType>(convertType(QualType(MPT->getQualifier()->getAsType(), 0)));
     if (MPT->isMemberDataPointer())
       ResultType = cir::DataMemberType::get(memberTy, clsTy);
     else {

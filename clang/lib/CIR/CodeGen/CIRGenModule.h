@@ -265,10 +265,13 @@ public:
       mlir::Operation *insertPoint = nullptr,
       cir::GlobalLinkageKind linkage = cir::GlobalLinkageKind::ExternalLinkage);
 
-  // FIXME: Hardcoding priority here is gross.
-  void AddGlobalCtor(cir::FuncOp Ctor, int Priority = 65535);
-  void AddGlobalDtor(cir::FuncOp Dtor, int Priority = 65535,
-                     bool IsDtorAttrFunc = false);
+  /// Add a global constructor or destructor to the module.
+  /// The priority is optional, if not specified, the default priority is used.
+  void AddGlobalCtor(cir::FuncOp ctor,
+                     std::optional<int> priority = std::nullopt);
+  void AddGlobalDtor(cir::FuncOp dtor,
+                     std::optional<int> priority = std::nullopt,
+                     bool isDtorAttrFunc = false);
 
   // Return whether structured convergence intrinsics should be generated for
   // this target.
@@ -356,7 +359,7 @@ public:
   cir::GlobalViewAttr
   getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty = {},
                          ForDefinition_t IsForDefinition = NotForDefinition);
-
+  cir::FuncOp getAddrOfThunk(StringRef name, mlir::Type fnTy, GlobalDecl gd);
   /// Get a reference to the target of VD.
   mlir::Operation *getWeakRefReference(const ValueDecl *VD);
 
@@ -570,6 +573,9 @@ public:
   /// A queue of (optional) vtables to consider emitting.
   std::vector<const clang::CXXRecordDecl *> DeferredVTables;
 
+  /// A queue of (optional) vtables that may be emitted opportunistically.
+  std::vector<const clang::CXXRecordDecl *> opportunisticVTables;
+
   mlir::Type getVTableComponentType();
   CIRGenVTables &getVTables() { return VTables; }
 
@@ -728,6 +734,7 @@ public:
   /// expression of the given type.  This is usually, but not always, an LLVM
   /// null constant.
   mlir::Value emitNullConstant(QualType T, mlir::Location loc);
+  mlir::TypedAttr emitNullConstant(QualType T);
 
   /// Return a null constant appropriate for zero-initializing a base class with
   /// the given type. This is usually, but not always, an LLVM null constant.
@@ -779,6 +786,12 @@ public:
 
   /// Emit any needed decls for which code generation was deferred.
   void emitDeferred(unsigned recursionLimit);
+
+  /// Try to emit external vtables as available_externally if they have emitted
+  /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
+  /// is not allowed to create new references to things that need to be emitted
+  /// lazily.
+  void emitVTablesOpportunistically();
 
   /// Helper for `emitDeferred` to apply actual codegen.
   void emitGlobalDecl(clang::GlobalDecl &D);
@@ -856,6 +869,16 @@ public:
   cir::FuncOp createCIRFunction(mlir::Location loc, llvm::StringRef name,
                                 cir::FuncType Ty,
                                 const clang::FunctionDecl *FD);
+
+  /// Create a CIR function with builtin attribute set.
+  cir::FuncOp createCIRBuiltinFunction(mlir::Location loc, llvm::StringRef name,
+                                       cir::FuncType Ty,
+                                       const clang::FunctionDecl *FD);
+
+  /// Sets the CXX special member attribute for the function based on the
+  /// function declaration.
+  void setCXXSpecialMemberAttr(cir::FuncOp func,
+                               const clang::FunctionDecl *funcDecl);
 
   cir::FuncOp createRuntimeFunction(cir::FuncType Ty, llvm::StringRef Name,
                                     mlir::ArrayAttr = {}, bool Local = false,

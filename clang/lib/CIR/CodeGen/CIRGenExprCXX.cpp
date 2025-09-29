@@ -126,7 +126,7 @@ CIRGenFunction::emitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
     This = emitLValue(BaseExpr).getAddress();
 
   emitTypeCheck(TCK_MemberCall, E->getExprLoc(), This.emitRawPointer(),
-                QualType(MPT->getClass(), 0));
+                QualType(MPT->getQualifier()->getAsType(), 0));
 
   // Get the member function pointer.
   mlir::Value MemFnPtr = emitScalarExpr(MemFnExpr);
@@ -302,7 +302,10 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (useVirtualCall) {
-      llvm_unreachable("NYI");
+      CIRGenFunction* CGF = CGM.getCurrCIRGenFun();
+      CGM.getCXXABI().emitVirtualDestructorCall(
+          *CGF, dtor, Dtor_Complete, This.getAddress(),
+          dyn_cast<CXXMemberCallExpr>(CE));
     } else {
       GlobalDecl globalDecl(dtor, Dtor_Complete);
       CIRGenCallee Callee;
@@ -371,6 +374,11 @@ CIRGenFunction::emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
   return emitCXXMemberOrOperatorMemberCallExpr(
       E, MD, ReturnValue, /*HasQualifier=*/false, /*Qualifier=*/nullptr,
       /*IsArrow=*/false, E->getArg(0));
+}
+
+RValue CIRGenFunction::emitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
+                                              ReturnValueSlot ReturnValue) {
+  return CGM.getCUDARuntime().emitCUDAKernelCallExpr(*this, E, ReturnValue);
 }
 
 static void emitNullBaseClassInitialization(CIRGenFunction &CGF,
@@ -1099,12 +1107,12 @@ void CIRGenFunction::emitNewArrayInitializer(
 
   // If all elements have already been initialized, skip any further
   // initialization.
-  auto ConstOp = dyn_cast<cir::ConstantOp>(NumElements.getDefiningOp());
-  if (ConstOp) {
-    auto ConstIntAttr = mlir::dyn_cast<cir::IntAttr>(ConstOp.getValue());
-    // Just skip out if the constant count is zero.
-    if (ConstIntAttr && ConstIntAttr.getUInt() <= InitListElements)
-      return;
+  if (auto ConstOp = NumElements.getDefiningOp<cir::ConstantOp>()) {
+    if (auto ConstIntAttr = ConstOp.getValueAttr<cir::IntAttr>()) {
+      // Just skip out if the constant count is zero.
+      if (ConstIntAttr.getUInt() <= InitListElements)
+        return;
+    }
   }
 
   assert(Init && "have trailing elements to initialize but no initializer");
@@ -1227,7 +1235,8 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
           }
         }
         if (UseVirtualCall) {
-          llvm_unreachable("NYI");
+          CGF.CGM.getCXXABI().emitVirtualObjectDelete(CGF, DE, Ptr, ElementType,
+                                                      Dtor);
           return false;
         }
       }
@@ -1241,7 +1250,9 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
       NormalAndEHCleanup, Ptr.getPointer(), OperatorDelete, ElementType);
 
   if (Dtor) {
-    llvm_unreachable("NYI");
+    CGF.emitCXXDestructorCall(Dtor, Dtor_Complete,
+                              /*ForVirtualBase=*/false,
+                              /*Delegating=*/false, Ptr, ElementType);
   } else if (auto Lifetime = ElementType.getObjCLifetime()) {
     switch (Lifetime) {
     case Qualifiers::OCL_None:
@@ -1576,6 +1587,55 @@ RValue CIRGenFunction::emitCXXDestructorCall(GlobalDecl Dtor,
                   ReturnValueSlot(), Args, nullptr, CE && CE == MustTailCall,
                   CE ? getLoc(CE->getExprLoc())
                      : getLoc(Dtor.getDecl()->getSourceRange()));
+}
+
+RValue CIRGenFunction::emitCXXPseudoDestructorExpr(
+    const CXXPseudoDestructorExpr *expr) {
+  QualType destroyedType = expr->getDestroyedType();
+  if (destroyedType.hasStrongOrWeakObjCLifetime()) {
+    // Automatic Reference Counting:
+    //   If the pseudo-expression names a retainable object with weak or
+    //   strong lifetime, the object shall be released.
+    Expr *baseExpr = expr->getBase();
+    Address baseValue = Address::invalid();
+    Qualifiers baseQuals;
+
+    // If this is s.x, emit s as an lvalue. If it is s->x, emit s as a scalar.
+    if (expr->isArrow()) {
+      baseValue = emitPointerWithAlignment(baseExpr);
+      const auto *ptrTy = baseExpr->getType()->castAs<PointerType>();
+      baseQuals = ptrTy->getPointeeType().getQualifiers();
+    } else {
+      LValue baseLV = emitLValue(baseExpr);
+      baseValue = baseLV.getAddress();
+      QualType baseTy = baseExpr->getType();
+      baseQuals = baseTy.getQualifiers();
+    }
+
+    switch (destroyedType.getObjCLifetime()) {
+    case Qualifiers::OCL_None:
+    case Qualifiers::OCL_ExplicitNone:
+    case Qualifiers::OCL_Autoreleasing:
+      break;
+
+    case Qualifiers::OCL_Strong:
+      llvm_unreachable("NYI, emitArcRelease");
+      break;
+
+    case Qualifiers::OCL_Weak:
+      llvm_unreachable("NYI, emitARCDestroyWeak");
+      break;
+    }
+  } else {
+    // C++ [expr.pseudo]p1:
+    //   The result shall only be used as the operand for the function call
+    //   operator (), and the result of such a call has type void. The only
+    //   effect is the evaluation of the postfix-expression before the dot or
+    //   arrow.
+    emitIgnoredExpr(expr->getBase());
+  }
+
+  return RValue::get(nullptr);
 }
 
 /// Emit a call to an operator new or operator delete function, as implicitly

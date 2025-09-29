@@ -3,6 +3,9 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - \
 // RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck  --check-prefix=LLVM --input-file=%t.ll %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm %s -o - \
+// RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
+// RUN: FileCheck  --check-prefix=OGCG --input-file=%t.ll %s
 
 typedef __SIZE_TYPE__ size_t;
 void test_memcpy_chk(void *dest, const void *src, size_t n) {
@@ -229,4 +232,29 @@ void test_memset_inline(void *dst, int val) {
 
   // LLVM: call void @llvm.memset.inline.p0.i64(ptr {{%.*}}, i8 {{%.*}}, i64 4, i1 false)
   __builtin_memset_inline(dst, val, 4);
+}
+
+void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
+  // CIR-LABEL: test_builtin_mempcpy
+  // CIR: [[ALLOCA:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["__retval"]
+  // CIR: cir.libc.memcpy [[NUM:%.*]] bytes from [[S:.*]] to [[DST:.*]] :
+  // CIR: [[CAST2:%.*]] = cir.cast(bitcast, [[DST]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!u8i>>
+  // CIR: [[GEP:%.*]] = cir.ptr_stride [[CAST2]], [[NUM]] : (!cir.ptr<!cir.ptr<!u8i>>, !u64i) -> !cir.ptr<!cir.ptr<!u8i>>
+  // CIR: [[CAST3:%.*]] = cir.cast(bitcast, [[ALLOCA]]
+  // CIR: cir.store [[GEP]], [[CAST3:%.*]]
+  // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]]
+  // CIR-NEXT: cir.return [[LD]]
+ 
+  // LLVM-LABEL: test_builtin_mempcpy
+  // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr [[DST:%.*]], ptr {{%.*}}, i64 [[NUM:%.*]], i1 false)
+  // LLVM-NEXT: [[GEP:%.*]] = getelementptr ptr, ptr [[DST]], i64 [[NUM]]
+  // LLVM-NEXT: store ptr [[GEP]], ptr [[P:%.*]] 
+  // LLVM-NEXT: [[LD:%.*]] = load ptr, ptr [[P]]
+  // LLVM-NEXT: ret ptr [[LD]]
+
+  // OGCG-LABEL: test_builtin_mempcpy
+  // OGCG: call void @llvm.memcpy.p0.p0.i64(ptr align 1 [[DST:%.*]], ptr align 1 {{%.*}}, i64 [[NUM:%.*]], i1 false)
+  // OGCG-NEXT: [[GEP:%.*]] = getelementptr inbounds i8, ptr [[DST]], i64 [[NUM]]
+  // OGCG-NEXT: ret ptr [[GEP]]
+  return __builtin_mempcpy(dest, src, n);
 }

@@ -28,12 +28,13 @@ void test() {
 // CIR: cir.scope {
 // CIR: [[INITLIST_LOCAL:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: [[LOCAL_ELEM_ARRAY:%.*]] = cir.alloca !cir.array<!cir.ptr<!s8i> x 2>, !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>,
-// CIR: [[FIRST_ELEM_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[LOCAL_ELEM_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>), !cir.ptr<!cir.ptr<!s8i>>
+// CIR: [[ZERO:%.*]] = cir.const #cir.int<0>
+// CIR: [[FIRST_ELEM_PTR:%.*]] = cir.get_element [[LOCAL_ELEM_ARRAY]][[[ZERO]]] : (!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !s32i) -> !cir.ptr<!cir.ptr<!s8i>>
 // CIR: [[XY_CHAR_ARRAY:%.*]] = cir.get_global [[STR_XY]]  : !cir.ptr<!cir.array<!s8i x 3>>
 // CIR: [[STR_XY_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[XY_CHAR_ARRAY]] : !cir.ptr<!cir.array<!s8i x 3>>), !cir.ptr<!s8i>
 // CIR:  cir.store{{.*}} [[STR_XY_PTR]], [[FIRST_ELEM_PTR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR: [[ONE:%.*]] = cir.const #cir.int<1>
-// CIR: [[NEXT_ELEM_PTR:%.*]] = cir.ptr_stride([[FIRST_ELEM_PTR]] : !cir.ptr<!cir.ptr<!s8i>>, [[ONE]] : !s64i), !cir.ptr<!cir.ptr<!s8i>>
+// CIR: [[NEXT_ELEM_PTR:%.*]] = cir.get_element [[LOCAL_ELEM_ARRAY]][[[ONE]]] : (!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !s64i) -> !cir.ptr<!cir.ptr<!s8i>>
 // CIR: [[UV_CHAR_ARRAY:%.*]] = cir.get_global [[STR_UV]]  : !cir.ptr<!cir.array<!s8i x 3>>
 // CIR: [[STR_UV_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[UV_CHAR_ARRAY]] : !cir.ptr<!cir.array<!s8i x 3>>), !cir.ptr<!s8i>
 // CIR:  cir.store{{.*}} [[STR_UV_PTR]], [[NEXT_ELEM_PTR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
@@ -42,7 +43,7 @@ void test() {
 // CIR: cir.store{{.*}} [[LOCAL_ELEM_ARRAY]], [[START_FLD_PTR_AS_PTR_2_CHAR_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: [[ELEM_ARRAY_LEN:%.*]] = cir.const #cir.int<2>
 // CIR: [[END_FLD_PTR:%.*]] = cir.get_member [[INITLIST_LOCAL]][1] {name = "array_end"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!cir.ptr<!cir.ptr<!s8i>>>
-// CIR: [[LOCAL_ELEM_ARRAY_END:%.*]] = cir.ptr_stride([[LOCAL_ELEM_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, [[ELEM_ARRAY_LEN]] : !u64i), !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>
+// CIR: [[LOCAL_ELEM_ARRAY_END:%.*]] = cir.ptr_stride [[LOCAL_ELEM_ARRAY]], [[ELEM_ARRAY_LEN]] : (!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !u64i) -> !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>
 // CIR: [[END_FLD_PTR_AS_PTR_2_CHAR_ARRAY:%.*]] = cir.cast(bitcast, [[END_FLD_PTR]] : !cir.ptr<!cir.ptr<!cir.ptr<!s8i>>>), !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: cir.store{{.*}} [[LOCAL_ELEM_ARRAY_END]], [[END_FLD_PTR_AS_PTR_2_CHAR_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>, !cir.ptr<!cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>>
 // CIR: [[ARG:%.*]] = cir.load{{.*}} [[INITLIST_LOCAL]] : !cir.ptr<[[INITLIST_TYPE]]>, [[INITLIST_TYPE]]
@@ -67,9 +68,9 @@ void test() {
 // LLVM:  [[ELEM_ARRAY_PTR:%.*]] = alloca [2 x ptr], i64 1, align 8
 // LLVM: br label %[[SCOPE_START:.*]]
 // LLVM: [[SCOPE_START]]: ; preds = %0
-// LLVM:  [[PTR_FIRST_ELEM:%.*]] = getelementptr ptr, ptr [[ELEM_ARRAY_PTR]], i32 0
+// LLVM:  [[PTR_FIRST_ELEM:%.*]] = getelementptr [2 x ptr], ptr [[ELEM_ARRAY_PTR]], i32 0, i64 0
 // LLVM:  store ptr @.str, ptr [[PTR_FIRST_ELEM]], align 8
-// LLVM:  [[PTR_SECOND_ELEM:%.*]] = getelementptr ptr, ptr [[PTR_FIRST_ELEM]], i64 1
+// LLVM:  [[PTR_SECOND_ELEM:%.*]] = getelementptr [2 x ptr], ptr [[ELEM_ARRAY_PTR]], i32 0, i64 1
 // LLVM:  store ptr @.str.1, ptr [[PTR_SECOND_ELEM]], align 8
 // LLVM:  [[INIT_START_FLD_PTR:%.*]] = getelementptr %"class.std::initializer_list<const char *>", ptr [[INIT_STRUCT]], i32 0, i32 0
 // LLVM:  store ptr [[ELEM_ARRAY_PTR]], ptr [[INIT_START_FLD_PTR]], align 8

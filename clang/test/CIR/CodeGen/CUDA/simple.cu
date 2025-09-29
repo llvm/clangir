@@ -10,6 +10,26 @@
 // RUN:            %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
 
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
+// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda -fclangir \
+// RUN:            -fcuda-is-device -emit-llvm -target-sdk-version=12.3 \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=LLVM-DEVICE --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu  \
+// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=OGCG-HOST --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda \
+// RUN:            -fcuda-is-device -emit-llvm -target-sdk-version=12.3 \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
+
 // Attribute for global_fn
 // CIR-HOST: [[Kernel:#[a-zA-Z_0-9]+]] = {{.*}}#cir.cu.kernel_name<_Z9global_fni>{{.*}}
 
@@ -24,6 +44,7 @@ __device__ void device_fn(int* a, double b, float c) {}
 __global__ void global_fn(int a) {}
 // CIR-DEVICE: @_Z9global_fni({{.*}} cc(ptx_kernel)
 // LLVM-DEVICE: define dso_local ptx_kernel void @_Z9global_fni
+// OGCG-DEVICE: define dso_local ptx_kernel void @_Z9global_fni
 
 // Check for device stub emission.
 
@@ -37,9 +58,16 @@ __global__ void global_fn(int a) {}
 // LLVM-HOST: void @_Z24__device_stub__global_fni
 // LLVM-HOST: %[[#KernelArgs:]] = alloca [1 x ptr], i64 1, align 16
 // LLVM-HOST: %[[#GEP1:]] = getelementptr ptr, ptr %[[#KernelArgs]], i32 0
-// LLVM-HOST: %[[#GEP2:]] = getelementptr ptr, ptr %[[#GEP1]], i64 0
+// LLVM-HOST: %[[#GEP2:]] = getelementptr [1 x ptr], ptr %[[#KernelArgs]], i32 0, i64 0
 // LLVM-HOST: call i32 @__cudaPopCallConfiguration
 // LLVM-HOST: call i32 @cudaLaunchKernel(ptr @_Z24__device_stub__global_fni
+
+// OGCG-HOST: void @_Z24__device_stub__global_fni
+// OGCG-HOST: %kernel_args = alloca ptr, i64 1, align 16
+// OGCG-HOST: getelementptr ptr, ptr %kernel_args, i32 0
+// OGCG-HOST: call i32 @__cudaPopCallConfiguration
+// OGCG-HOST: call noundef i32 @cudaLaunchKernel(ptr noundef @_Z24__device_stub__global_fni
+
 
 int main() {
   global_fn<<<1, 1>>>(1);
@@ -62,10 +90,29 @@ int main() {
 // LLVM-HOST: alloca %struct.dim3
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
-// LLVM-HOST: [[LLVMConfigOK:%[0-9]+]] = call i32 @__cudaPushCallConfiguration
-// LLVM-HOST: br [[LLVMConfigOK]], label %[[#Good:]], label [[#Bad:]]
+// LLVM-HOST: %[[#ConfigOK:]] = call i32 @__cudaPushCallConfiguration
+// LLVM-HOST: %[[#ConfigCond:]] = icmp ne i32 %[[#ConfigOK]], 0
+// LLVM-HOST: br i1 %[[#ConfigCond]], label %[[#Good:]], label %[[#Bad:]]
 // LLVM-HOST: [[#Good]]:
-// LLVM-HOST:   br label [[#End:]]
+// LLVM-HOST:   br label %[[#End:]]
 // LLVM-HOST: [[#Bad]]:
-// LLVM-HOST:   call void @_Z24__device_stub__global_fni
-// LLVM-HOST:   br label [[#End]]
+// LLVM-HOST:   call void @_Z24__device_stub__global_fni(i32 1)
+// LLVM-HOST:   br label %[[#End:]]
+// LLVM-HOST: [[#End]]:
+// LLVM-HOST:   %[[#]] = load i32
+// LLVM-HOST:   ret i32
+
+// OGCG-HOST: define dso_local noundef i32 @main
+// OGCG-HOST: alloca %struct.dim3, align 4
+// OGCG-HOST: alloca %struct.dim3, align 4
+// OGCG-HOST: call void @_ZN4dim3C1Ejjj
+// OGCG-HOST: call void @_ZN4dim3C1Ejjj
+// OGCG-HOST: %call = call i32 @__cudaPushCallConfiguration
+// OGCG-HOST: %tobool = icmp ne i32 %call, 0
+// OGCG-HOST: br i1 %tobool, label %kcall.end, label %kcall.configok
+// OGCG-HOST: kcall.configok:
+// OGCG-HOST:   call void @_Z24__device_stub__global_fni(i32 noundef 1)
+// OGCG-HOST:   br label %kcall.end
+// OGCG-HOST: kcall.end:
+// OGCG-HOST:   %{{[0-9]+}} = load i32, ptr %retval, align 4
+// OGCG-HOST:   ret i32

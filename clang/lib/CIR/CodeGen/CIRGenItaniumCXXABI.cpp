@@ -123,6 +123,7 @@ public:
 
   bool classifyReturnType(CIRGenFunctionInfo &FI) const override;
   bool isZeroInitializable(const MemberPointerType *MPT) override;
+  mlir::TypedAttr emitNullMemberPointer(clang::QualType T) override;
 
   AddedStructorArgCounts
   buildStructorSignature(GlobalDecl GD,
@@ -187,6 +188,9 @@ public:
                           QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
+  void emitVirtualObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
+                               Address Ptr, QualType ElementType,
+                               const CXXDestructorDecl *Dtor) override;
   virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
   virtual void emitThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) override;
   CatchTypeInfo
@@ -205,6 +209,10 @@ public:
   CIRGenCallee getVirtualFunctionPointer(CIRGenFunction &CGF, GlobalDecl GD,
                                          Address This, mlir::Type Ty,
                                          SourceLocation Loc) override;
+  mlir::Value emitVirtualDestructorCall(CIRGenFunction &CGF,
+                                        const CXXDestructorDecl *Dtor,
+                                        CXXDtorType DtorType, Address This,
+                                        DeleteOrMemberCallExpr E) override;
   mlir::Value getVTableAddressPoint(BaseSubobject Base,
                                     const CXXRecordDecl *VTableClass) override;
   mlir::Value getVTableAddressPointInStructorWithVTT(
@@ -219,6 +227,16 @@ public:
   void emitVTableDefinitions(CIRGenVTables &CGVT,
                              const CXXRecordDecl *RD) override;
   void emitVirtualInheritanceTables(const CXXRecordDecl *RD) override;
+
+  void setThunkLinkage(cir::FuncOp Thunk, bool ForVTable, GlobalDecl GD,
+                       bool ReturnAdjustment) override {
+    if (ForVTable && !Thunk.hasLocalLinkage())
+      Thunk.setLinkage(cir::GlobalLinkageKind::AvailableExternallyLinkage);
+    const auto *ND = cast<NamedDecl>(GD.getDecl());
+    CGM.setGVProperties(Thunk.getOperation(), ND);
+  }
+
+  bool exportThunk() override { return true; }
   mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                           QualType Ty) override;
   bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,
@@ -928,11 +946,11 @@ cir::GlobalOp CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
 CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     CIRGenFunction &CGF, GlobalDecl GD, Address This, mlir::Type Ty,
     SourceLocation Loc) {
+  auto &builder = CGM.getBuilder();
   auto loc = CGF.getLoc(Loc);
-  auto TyPtr = CGF.getBuilder().getPointerTo(Ty);
+  auto TyPtr = builder.getPointerTo(Ty);
   auto *MethodDecl = cast<CXXMethodDecl>(GD.getDecl());
-  auto VTable = CGF.getVTablePtr(
-      loc, This, CGF.getBuilder().getPointerTo(TyPtr), MethodDecl->getParent());
+  auto VTable = CGF.getVTablePtr(loc, This, MethodDecl->getParent());
 
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
   mlir::Value VFunc{};
@@ -945,15 +963,10 @@ CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     if (CGM.getItaniumVTableContext().isRelativeLayout()) {
       llvm_unreachable("NYI");
     } else {
-      VTable = CGF.getBuilder().createBitcast(
-          loc, VTable, CGF.getBuilder().getPointerTo(TyPtr));
-      auto VTableSlotPtr = CGF.getBuilder().create<cir::VTableAddrPointOp>(
-          loc, CGF.getBuilder().getPointerTo(TyPtr),
-          ::mlir::FlatSymbolRefAttr{}, VTable,
-          cir::AddressPointAttr::get(CGF.getBuilder().getContext(), 0,
-                                     VTableIndex));
-      VFuncLoad = CGF.getBuilder().createAlignedLoad(loc, TyPtr, VTableSlotPtr,
-                                                     CGF.getPointerAlign());
+      auto VTableSlotPtr = builder.create<cir::VTableGetVirtualFnAddrOp>(
+          loc, builder.getPointerTo(TyPtr), VTable, VTableIndex);
+      VFuncLoad = builder.createAlignedLoad(loc, TyPtr, VTableSlotPtr,
+                                            CGF.getPointerAlign());
     }
 
     // Add !invariant.load md to virtual function load to indicate that
@@ -990,7 +1003,8 @@ mlir::Value CIRGenItaniumCXXABI::getVTableAddressPointInStructorWithVTT(
   VTTPtr = CGF.getBuilder().createVTTAddrPoint(Loc, VTTPtr.getType(), VTTPtr,
                                                VirtualPointerIndex);
   // And load the address point from the VTT.
-  return CGF.getBuilder().createAlignedLoad(Loc, CGF.VoidPtrTy, VTTPtr,
+  auto VPtrType = cir::VPtrType::get(CGF.getBuilder().getContext());
+  return CGF.getBuilder().createAlignedLoad(Loc, VPtrType, VTTPtr,
                                             CGF.getPointerAlign());
 }
 
@@ -1007,11 +1021,11 @@ CIRGenItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
           .getAddressPoint(Base);
 
   auto &builder = CGM.getBuilder();
-  auto vtablePtrTy = builder.getVirtualFnPtrType(/*isVarArg=*/false);
+  auto vtablePtrTy = cir::VPtrType::get(builder.getContext());
 
   return builder.create<cir::VTableAddrPointOp>(
       CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
-      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()), mlir::Value{},
+      mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()),
       cir::AddressPointAttr::get(CGM.getBuilder().getContext(),
                                  AddressPoint.VTableIndex,
                                  AddressPoint.AddressPointIndex));
@@ -1259,7 +1273,7 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
   case BuiltinType::OCLQueue:
   case BuiltinType::OCLReserveID:
 #define SVE_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
-#include "clang/Basic/AArch64SVEACLETypes.def"
+#include "clang/Basic/AArch64ACLETypes.def"
 #define PPC_VECTOR_TYPE(Name, Id, Size) case BuiltinType::Id:
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
@@ -1416,7 +1430,8 @@ static bool ContainsIncompleteClassType(QualType Ty) {
   if (const MemberPointerType *MemberPointerTy =
           dyn_cast<MemberPointerType>(Ty)) {
     // Check if the class type is incomplete.
-    const RecordType *ClassType = cast<RecordType>(MemberPointerTy->getClass());
+    const auto *ClassType = cast<RecordType>(
+        MemberPointerTy->getMostRecentCXXRecordDecl()->getTypeForDecl());
     if (IsIncompleteClassType(ClassType))
       return true;
 
@@ -1575,6 +1590,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   switch (Ty->getTypeClass()) {
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
@@ -1951,6 +1967,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   switch (Ty->getTypeClass()) {
   case Type::ArrayParameter:
   case Type::HLSLAttributedResource:
+  case Type::HLSLInlineSpirv:
     llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
@@ -2186,6 +2203,32 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
     llvm_unreachable("NYI");
 }
 
+mlir::Value CIRGenItaniumCXXABI::emitVirtualDestructorCall(
+    CIRGenFunction &CGF, const CXXDestructorDecl *dtor, CXXDtorType dtorType,
+    Address thisAddr, DeleteOrMemberCallExpr expr) {
+  auto *callExpr = dyn_cast<const CXXMemberCallExpr *>(expr);
+  auto *delExpr = dyn_cast<const CXXDeleteExpr *>(expr);
+  assert((callExpr != nullptr) ^ (delExpr != nullptr));
+  assert(callExpr == nullptr || callExpr->arg_begin() == callExpr->arg_end());
+  assert(dtorType == Dtor_Deleting || dtorType == Dtor_Complete);
+
+  GlobalDecl globalDecl(dtor, dtorType);
+  const CIRGenFunctionInfo *fnInfo =
+      &CGM.getTypes().arrangeCXXStructorDeclaration(globalDecl);
+  auto fnTy = CGF.CGM.getTypes().GetFunctionType(*fnInfo);
+  auto callee = CIRGenCallee::forVirtual(callExpr, globalDecl, thisAddr, fnTy);
+
+  QualType thisTy;
+  if (callExpr)
+    thisTy = callExpr->getObjectType();
+  else
+    thisTy = delExpr->getDestroyedType();
+
+  CGF.emitCXXDestructorCall(globalDecl, callee, thisAddr.emitRawPointer(),
+                            thisTy, nullptr, QualType(), nullptr);
+  return nullptr;
+}
+
 void CIRGenItaniumCXXABI::emitVirtualInheritanceTables(
     const CXXRecordDecl *RD) {
   CIRGenVTables &VTables = CGM.getVTables();
@@ -2377,14 +2420,16 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
 mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
     mlir::Location loc, CIRGenFunction &CGF, Address This,
     const CXXRecordDecl *ClassDecl, const CXXRecordDecl *BaseClassDecl) {
-  auto VTablePtr = CGF.getVTablePtr(loc, This, CGM.UInt8PtrTy, ClassDecl);
+  auto VTablePtr = CGF.getVTablePtr(loc, This, ClassDecl);
+  auto VTableBytePtr =
+      CGF.getBuilder().createBitcast(VTablePtr, CGM.UInt8PtrTy);
   CharUnits VBaseOffsetOffset =
       CGM.getItaniumVTableContext().getVirtualBaseOffsetOffset(ClassDecl,
                                                                BaseClassDecl);
   mlir::Value OffsetVal =
       CGF.getBuilder().getSInt64(VBaseOffsetOffset.getQuantity(), loc);
   auto VBaseOffsetPtr = CGF.getBuilder().create<cir::PtrStrideOp>(
-      loc, VTablePtr.getType(), VTablePtr,
+      loc, CGM.UInt8PtrTy, VTableBytePtr,
       OffsetVal); // vbase.offset.ptr
 
   mlir::Value VBaseOffset;
@@ -2714,6 +2759,37 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
 /// member pointers, for which '0' is a valid offset.
 bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return MPT->isMemberFunctionPointer();
+}
+
+mlir::TypedAttr CIRGenItaniumCXXABI::emitNullMemberPointer(clang::QualType T) {
+  auto *MPT = T->getAs<MemberPointerType>();
+  // Itanium C++ ABI 2.3:
+  //   A NULL pointer is represented as -1.
+  //
+  // Note that CIR uses a DataMemberAttr without member_index to get
+  // #cir.data_member<null>, lowering shall later transform it into -1.
+  if (MPT->isMemberDataPointer())
+    return cir::DataMemberAttr::get(
+        cast<cir::DataMemberType>(CGM.convertType(T)));
+
+  // Create an annon struct with two constant int of CGM.PtrDiffTy size.
+  llvm_unreachable("NYI");
+}
+
+/// The Itanium ABI always places an offset to the complete object
+/// at entry -2 in the vtable.
+void CIRGenItaniumCXXABI::emitVirtualObjectDelete(
+    CIRGenFunction &CGF, const CXXDeleteExpr *delExpr, Address ptr,
+    QualType elementType, const CXXDestructorDecl *dtor) {
+  bool useGlobalDelete = delExpr->isGlobalDelete();
+  if (useGlobalDelete)
+    llvm_unreachable("NYI");
+
+  CXXDtorType dtorType = useGlobalDelete ? Dtor_Complete : Dtor_Deleting;
+  emitVirtualDestructorCall(CGF, dtor, dtorType, ptr, delExpr);
+
+  if (useGlobalDelete)
+    llvm_unreachable("NYI");
 }
 
 /************************** Array allocation cookies **************************/

@@ -398,3 +398,21 @@ int extract_imag_and_add(int _Complex a, int _Complex b) {
 void complex_with_empty_init() { int _Complex c = {}; }
 
 // CHECK: {{.*}} = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
+
+void complex_array_subscript() {
+  int _Complex arr[2];
+  int _Complex r = arr[1];
+}
+
+// CHECK: %[[ARR:.*]] = cir.alloca !cir.array<!cir.complex<!s32i> x 2>, !cir.ptr<!cir.array<!cir.complex<!s32i> x 2>>, ["arr"]
+// CHECK: %[[RESULT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["r", init]
+// CHECK: %[[IDX:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK: %[[RESULT_VAL:.*]] = cir.get_element %[[ARR]][%[[IDX]]] : (!cir.ptr<!cir.complex<!s32i>>, !s32i) -> !cir.ptr<!cir.complex<!s32i>>
+// CHECK: %[[TMP:.*]] = cir.load{{.*}} %[[RESULT_VAL]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK: cir.store{{.*}} %[[TMP]], %[[RESULT]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+
+// LLVM: %[[ARR:.*]] = alloca [2 x { i32, i32 }], i64 1, align 16
+// LLVM: %[[RESULT:.*]] = alloca { i32, i32 }, i64 1, align 4
+// LLVM: %[[RESULT_VAL:.*]] = getelementptr [2 x { i32, i32 }], ptr %[[ARR]], i32 0, i64 1
+// LLVM: %[[TMP:.*]] = load { i32, i32 }, ptr %[[RESULT_VAL]], align 8
+// LLVM: store { i32, i32 } %[[TMP]], ptr %[[RESULT]], align 4

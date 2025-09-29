@@ -99,8 +99,8 @@ class LowerFunctionInfo final
 
   unsigned NumArgs;
 
-  const ArgInfo *getArgsBuffer() const { return getTrailingObjects<ArgInfo>(); }
-  ArgInfo *getArgsBuffer() { return getTrailingObjects<ArgInfo>(); }
+  const ArgInfo *getArgsBuffer() const { return getTrailingObjects(); }
+  ArgInfo *getArgsBuffer() { return getTrailingObjects(); }
 
   LowerFunctionInfo() : Required(RequiredArgs::All) {}
 

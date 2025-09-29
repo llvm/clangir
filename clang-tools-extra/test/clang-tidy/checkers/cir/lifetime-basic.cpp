@@ -9,6 +9,12 @@
 // RUN: --
 // RUN: FileCheck -input-file=%t.yaml -check-prefix=CHECK-YAML %s
 
+<<<<<<< HEAD
+=======
+// NYI with 'invalid C++ ABI kind' on windows
+// UNSUPPORTED: system-windows
+
+>>>>>>> origin/main
 int *p0() {
   int *p = nullptr;
   {
@@ -36,4 +42,8 @@ int *p0() {
 // CHECK-YAML: Notes:
 // CHECK-YAML:   - Message:         'pointee ''x'' invalidated at end of scope'
 // CHECK-YAML:     Replacements:    []
+<<<<<<< HEAD
 // CHECK-YAML: Level:           Warning
+=======
+// CHECK-YAML: Level:           Warning
+>>>>>>> origin/main

@@ -67,28 +67,29 @@ const EHPersonality EHPersonality::XL_CPlusPlus = {"__xlcxx_personality_v1",
                                                    nullptr};
 
 static const EHPersonality &getCPersonality(const TargetInfo &Target,
-                                            const LangOptions &L) {
+                                            const CodeGenOptions &CGOpts) {
   const llvm::Triple &T = Target.getTriple();
   if (T.isWindowsMSVCEnvironment())
     return EHPersonality::MSVC_CxxFrameHandler3;
-  if (L.hasSjLjExceptions())
+  if (CGOpts.hasSjLjExceptions())
     return EHPersonality::GNU_C_SJLJ;
-  if (L.hasDWARFExceptions())
+  if (CGOpts.hasDWARFExceptions())
     return EHPersonality::GNU_C;
-  if (L.hasSEHExceptions())
+  if (CGOpts.hasSEHExceptions())
     return EHPersonality::GNU_C_SEH;
   return EHPersonality::GNU_C;
 }
 
 static const EHPersonality &getObjCPersonality(const TargetInfo &Target,
-                                               const LangOptions &L) {
+                                               const LangOptions &L,
+                                               const CodeGenOptions &CGOpts) {
   const llvm::Triple &T = Target.getTriple();
   if (T.isWindowsMSVCEnvironment())
     return EHPersonality::MSVC_CxxFrameHandler3;
 
   switch (L.ObjCRuntime.getKind()) {
   case ObjCRuntime::FragileMacOSX:
-    return getCPersonality(Target, L);
+    return getCPersonality(Target, CGOpts);
   case ObjCRuntime::MacOSX:
   case ObjCRuntime::iOS:
   case ObjCRuntime::WatchOS:
@@ -99,9 +100,9 @@ static const EHPersonality &getObjCPersonality(const TargetInfo &Target,
     [[fallthrough]];
   case ObjCRuntime::GCC:
   case ObjCRuntime::ObjFW:
-    if (L.hasSjLjExceptions())
+    if (CGOpts.hasSjLjExceptions())
       return EHPersonality::GNU_ObjC_SJLJ;
-    if (L.hasSEHExceptions())
+    if (CGOpts.hasSEHExceptions())
       return EHPersonality::GNU_ObjC_SEH;
     return EHPersonality::GNU_ObjC;
   }
@@ -109,19 +110,19 @@ static const EHPersonality &getObjCPersonality(const TargetInfo &Target,
 }
 
 static const EHPersonality &getCXXPersonality(const TargetInfo &Target,
-                                              const LangOptions &L) {
+                                              const CodeGenOptions &CGOpts) {
   const llvm::Triple &T = Target.getTriple();
   if (T.isWindowsMSVCEnvironment())
     return EHPersonality::MSVC_CxxFrameHandler3;
   if (T.isOSAIX())
     return EHPersonality::XL_CPlusPlus;
-  if (L.hasSjLjExceptions())
+  if (CGOpts.hasSjLjExceptions())
     return EHPersonality::GNU_CPlusPlus_SJLJ;
-  if (L.hasDWARFExceptions())
+  if (CGOpts.hasDWARFExceptions())
     return EHPersonality::GNU_CPlusPlus;
-  if (L.hasSEHExceptions())
+  if (CGOpts.hasSEHExceptions())
     return EHPersonality::GNU_CPlusPlus_SEH;
-  if (L.hasWasmExceptions())
+  if (CGOpts.hasWasmExceptions())
     return EHPersonality::GNU_Wasm_CPlusPlus;
   return EHPersonality::GNU_CPlusPlus;
 }
@@ -129,7 +130,8 @@ static const EHPersonality &getCXXPersonality(const TargetInfo &Target,
 /// Determines the personality function to use when both C++
 /// and Objective-C exceptions are being caught.
 static const EHPersonality &getObjCXXPersonality(const TargetInfo &Target,
-                                                 const LangOptions &L) {
+                                                 const LangOptions &L,
+                                                 const CodeGenOptions &CGOpts) {
   if (Target.getTriple().isWindowsMSVCEnvironment())
     return EHPersonality::MSVC_CxxFrameHandler3;
 
@@ -137,7 +139,7 @@ static const EHPersonality &getObjCXXPersonality(const TargetInfo &Target,
   // In the fragile ABI, just use C++ exception handling and hope
   // they're not doing crazy exception mixing.
   case ObjCRuntime::FragileMacOSX:
-    return getCXXPersonality(Target, L);
+    return getCXXPersonality(Target, CGOpts);
 
   // The ObjC personality defers to the C++ personality for non-ObjC
   // handlers.  Unlike the C++ case, we use the same personality
@@ -145,7 +147,7 @@ static const EHPersonality &getObjCXXPersonality(const TargetInfo &Target,
   case ObjCRuntime::MacOSX:
   case ObjCRuntime::iOS:
   case ObjCRuntime::WatchOS:
-    return getObjCPersonality(Target, L);
+    return getObjCPersonality(Target, L, CGOpts);
 
   case ObjCRuntime::GNUstep:
     return EHPersonality::GNU_ObjCXX;
@@ -154,7 +156,7 @@ static const EHPersonality &getObjCXXPersonality(const TargetInfo &Target,
   // mixed EH.  Use the ObjC personality just to avoid returning null.
   case ObjCRuntime::GCC:
   case ObjCRuntime::ObjFW:
-    return getObjCPersonality(Target, L);
+    return getObjCPersonality(Target, L, CGOpts);
   }
   llvm_unreachable("bad runtime kind");
 }
@@ -169,6 +171,7 @@ const EHPersonality &EHPersonality::get(CIRGenModule &CGM,
                                         const FunctionDecl *FD) {
   const llvm::Triple &T = CGM.getTarget().getTriple();
   const LangOptions &L = CGM.getLangOpts();
+  const CodeGenOptions &CGOpts = CGM.getCodeGenOpts();
   const TargetInfo &Target = CGM.getTarget();
 
   // Functions using SEH get an SEH personality.
@@ -176,10 +179,10 @@ const EHPersonality &EHPersonality::get(CIRGenModule &CGM,
     return getSEHPersonalityMSVC(T);
 
   if (L.ObjC)
-    return L.CPlusPlus ? getObjCXXPersonality(Target, L)
-                       : getObjCPersonality(Target, L);
-  return L.CPlusPlus ? getCXXPersonality(Target, L)
-                     : getCPersonality(Target, L);
+    return L.CPlusPlus ? getObjCXXPersonality(Target, L, CGOpts)
+                       : getObjCPersonality(Target, L, CGOpts);
+  return L.CPlusPlus ? getCXXPersonality(Target, CGOpts)
+                     : getCPersonality(Target, CGOpts);
 }
 
 const EHPersonality &EHPersonality::get(CIRGenFunction &CGF) {
@@ -418,7 +421,7 @@ static void emitCatchDispatchBlock(CIRGenFunction &CGF,
   // that catch-all as the dispatch block.
   if (catchScope.getNumHandlers() == 1 &&
       catchScope.getHandler(0).isCatchAll()) {
-    // assert(dispatchBlock == catchScope.getHandler(0).Block);
+    assert(dispatchBlock == catchScope.getHandler(0).Block);
     return;
   }
 
@@ -786,13 +789,21 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
     case EHScope::Catch: {
       // LLVM does some optimization with branches here, CIR just keep track of
       // the corresponding calls.
-      assert(callWithExceptionCtx && "expected call information");
-      {
-        mlir::OpBuilder::InsertionGuard guard(getBuilder());
-        assert(callWithExceptionCtx.getCleanup().empty() &&
-               "one per call: expected empty region at this point");
-        dispatchBlock = builder.createBlock(&callWithExceptionCtx.getCleanup());
-        builder.createYield(callWithExceptionCtx.getLoc());
+      EHCatchScope &catchScope = cast<EHCatchScope>(scope);
+      if (catchScope.getNumHandlers() == 1 &&
+          catchScope.getHandler(0).isCatchAll()) {
+        dispatchBlock = catchScope.getHandler(0).Block;
+        assert(dispatchBlock);
+      } else {
+        assert(callWithExceptionCtx && "expected call information");
+        {
+          mlir::OpBuilder::InsertionGuard guard(getBuilder());
+          assert(callWithExceptionCtx.getCleanup().empty() &&
+                 "one per call: expected empty region at this point");
+          dispatchBlock =
+              builder.createBlock(&callWithExceptionCtx.getCleanup());
+          builder.createYield(callWithExceptionCtx.getLoc());
+        }
       }
       break;
     }

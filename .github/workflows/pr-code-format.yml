@@ -36,6 +36,8 @@ jobs:
         with:
           separator: ","
           skip_initial_fetch: true
+          base_sha: 'HEAD~1'
+          sha: 'HEAD'
 
       # We need to pull the script from the main branch, so that we ensure
       # we get the latest version of this script.
@@ -60,7 +62,7 @@ jobs:
       - name: Install clang-format
         uses: aminya/setup-cpp@v1
         with:
-          clangformat: 19.1.6
+          clangformat: 20.1.8
 
       - name: Setup Python env
         uses: actions/setup-python@v5
@@ -78,10 +80,6 @@ jobs:
           START_REV: ${{ github.event.pull_request.base.sha }}
           END_REV: ${{ github.event.pull_request.head.sha }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
-        # TODO(boomanaiden154): Once clang v18 is released, we should be able
-        # to take advantage of the new --diff_from_common_commit option
-        # explicitly in code-format-helper.py and not have to diff starting at
-        # the merge base.
         # Create an empty comments file so the pr-write job doesn't fail.
         run: |
           echo "[]" > comments &&
@@ -89,8 +87,8 @@ jobs:
             --write-comment-to-file \
             --token ${{ secrets.GITHUB_TOKEN }} \
             --issue-number $GITHUB_PR_NUMBER \
-            --start-rev $(git merge-base $START_REV $END_REV) \
-            --end-rev $END_REV \
+            --start-rev HEAD~1 \
+            --end-rev HEAD \
             --changed-files "$CHANGED_FILES"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2

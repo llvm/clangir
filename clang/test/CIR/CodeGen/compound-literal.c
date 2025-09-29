@@ -3,7 +3,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -Wno-unused-value -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
-
 typedef struct {
   int *arr;
 } S;
@@ -75,21 +74,22 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR-LABEL: @split_large_page
 // CIR:   %[[VAL_2:.*]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["addr", init] {alignment = 8 : i64}
 // CIR:   %[[VAL_3:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["prot", init] {alignment = 8 : i64}
-// CIR:   %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["tmp"] {alignment = 8 : i64}
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_3]] : !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>
-// CIR:   %[[VAL_5:.*]] = cir.load{{.*}} %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
-// CIR:   %[[VAL_6:.*]] = cir.cast(int_to_bool, %[[VAL_5]] : !u64i), !cir.bool
-// CIR:   cir.if %[[VAL_6]] {
-// CIR:     cir.copy %[[VAL_3]] to %[[VAL_4]] : !cir.ptr<!rec_pgprot_t>
-// CIR:   } else {
-// CIR:     %[[VAL_7:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
-// CIR:     %[[VAL_8:.*]] = cir.const #cir.int<1> : !s32i
-// CIR:     %[[VAL_9:.*]] = cir.cast(integral, %[[VAL_8]] : !s32i), !u64i
-// CIR:     cir.store{{.*}} %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
-// CIR:   }
-// CIR:   %[[VAL_10:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
-// CIR:   %[[VAL_11:.*]] = cir.load{{.*}} %[[VAL_10]] : !cir.ptr<!u64i>, !u64i
+// CIR:   {{.*}} = cir.scope {
+// CIR:     %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["ref.tmp0"] {alignment = 8 : i64} loc(#loc64)
+// CIR:     %[[VAL_5:.*]] = cir.load{{.*}} %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
+// CIR:     %[[VAL_6:.*]] = cir.cast(int_to_bool, %[[VAL_5]] : !u64i), !cir.bool
+// CIR:     cir.if %[[VAL_6]] {
+// CIR:       cir.copy %[[VAL_3]] to %[[VAL_4]] : !cir.ptr<!rec_pgprot_t>
+// CIR:     } else {
+// CIR:       %[[VAL_7:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
+// CIR:       %[[VAL_8:.*]] = cir.const #cir.int<1> : !s32i
+// CIR:       %[[VAL_9:.*]] = cir.cast(integral, %[[VAL_8]] : !s32i), !u64i
+// CIR:       cir.store{{.*}} %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
+// CIR:     }
+// CIR:     %[[VAL_10:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
+// CIR:     %[[VAL_11:.*]] = cir.load{{.*}} %[[VAL_10]] : !cir.ptr<!u64i>, !u64i
 // CIR:   cir.return
 // CIR: }
 

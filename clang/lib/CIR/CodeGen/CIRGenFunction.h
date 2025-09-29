@@ -957,7 +957,6 @@ public:
                          VisitedVirtualBasesSetTy &VBases, VPtrsVector &vptrs);
   /// Return the Value of the vtable pointer member pointed to by This.
   mlir::Value getVTablePtr(mlir::Location Loc, Address This,
-                           mlir::Type VTableTy,
                            const CXXRecordDecl *VTableClass);
 
   /// Returns whether we should perform a type checked load when loading a
@@ -1843,6 +1842,13 @@ public:
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
                                     cir::IntType ResType, mlir::Value EmittedE,
                                     bool IsDynamic);
+
+  /// Get size of type in bits using SizedTypeInterface
+  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const {
+    assert(cir::isSized(Ty) && "Type must implement SizedTypeInterface");
+    return CGM.getDataLayout().getTypeSizeInBits(Ty);
+  }
+
   template <uint32_t N>
   [[maybe_unused]] RValue
   emitBuiltinWithOneOverloadedType(const CallExpr *E, llvm::StringRef Name) {
@@ -1937,6 +1943,8 @@ public:
 
   LValue emitComplexAssignmentLValue(const BinaryOperator *E);
   LValue emitComplexCompoundAssignmentLValue(const CompoundAssignOperator *E);
+  LValue emitScalarCompoundAssignWithComplex(const CompoundAssignOperator *E,
+                                             mlir::Value &Result);
 
   /// Emit the computation of the specified expression of complex type,
   /// returning the result.
@@ -2028,7 +2036,7 @@ public:
 
   mlir::LogicalResult
   emitCXXForRangeStmt(const CXXForRangeStmt &S,
-                      llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+                      llvm::ArrayRef<const Attr *> Attrs = {});
 
   RValue emitCXXMemberCallExpr(const clang::CXXMemberCallExpr *E,
                                ReturnValueSlot ReturnValue);
@@ -2059,6 +2067,11 @@ public:
   RValue emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                        const CXXMethodDecl *MD,
                                        ReturnValueSlot ReturnValue);
+
+  RValue emitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
+                                ReturnValueSlot ReturnValue);
+
+  RValue emitCXXPseudoDestructorExpr(const CXXPseudoDestructorExpr *expr);
 
   void emitCXXTemporary(const CXXTemporary *Temporary, QualType TempType,
                         Address Ptr);
@@ -2384,9 +2397,8 @@ public:
 
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.
-  mlir::LogicalResult
-  emitStmt(const clang::Stmt *S, bool useCurrentScope,
-           llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+  mlir::LogicalResult emitStmt(const clang::Stmt *S, bool useCurrentScope,
+                               llvm::ArrayRef<const Attr *> Attrs = {});
 
   LValue emitStmtExprLValue(const StmtExpr *E);
 
@@ -2651,10 +2663,10 @@ inline mlir::Value DominatingCIRValue::restore(CIRGenFunction &CGF,
     return value.getPointer();
 
   // Otherwise, it should be an alloca instruction, as set up in save().
-  auto alloca = mlir::cast<cir::AllocaOp>(value.getPointer().getDefiningOp());
+  auto alloca = value.getPointer().getDefiningOp<cir::AllocaOp>();
   mlir::Value val = CGF.getBuilder().createAlignedLoad(
       alloca.getLoc(), alloca.getType(), alloca);
-  cir::LoadOp loadOp = mlir::cast<cir::LoadOp>(val.getDefiningOp());
+  cir::LoadOp loadOp = val.getDefiningOp<cir::LoadOp>();
   loadOp.setAlignment(alloca.getAlignment());
   return val;
 }

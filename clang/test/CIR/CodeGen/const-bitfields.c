@@ -30,8 +30,8 @@ struct Inner var = { 1, 0, 1, 21};
 // CHECK: cir.func {{.*@getZ()}}
 // CHECK:   %1 = cir.get_global @GV : !cir.ptr<!rec_anon_struct>
 // CHECK:   %2 = cir.cast(bitcast, %1 : !cir.ptr<!rec_anon_struct>), !cir.ptr<!rec_T>
-// CHECK:   %3 = cir.cast(bitcast, %2 : !cir.ptr<!rec_T>), !cir.ptr<!u32i>
-// CHECK:   %4 = cir.get_bitfield(#bfi_Z, %3 : !cir.ptr<!u32i>) -> !s32i
+// CHECK:   %3 = cir.get_member %2[0] {name = "Z"} : !cir.ptr<!rec_T> -> !cir.ptr<!u32i>
+// CHECK:   %4 = cir.get_bitfield align(4) (#bfi_Z, %3 : !cir.ptr<!u32i>) -> !s32i
 int getZ() {
   return GV.Z;
 }

@@ -17,6 +17,7 @@
 #include "TargetInfo.h"
 #include "clang/CIR/MissingFeatures.h"
 
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
@@ -54,8 +55,8 @@ struct BinOpInfo {
   /// Check if the binop can result in integer overflow.
   bool mayHaveIntegerOverflow() const {
     // Without constant input, we can't rule out overflow.
-    auto LHSCI = dyn_cast<cir::ConstantOp>(LHS.getDefiningOp());
-    auto RHSCI = dyn_cast<cir::ConstantOp>(RHS.getDefiningOp());
+    auto LHSCI = LHS.getDefiningOp<cir::ConstantOp>();
+    auto RHSCI = RHS.getDefiningOp<cir::ConstantOp>();
     if (!LHSCI || !RHSCI)
       return true;
 
@@ -225,8 +226,18 @@ public:
   }
 
   mlir::Value VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *E);
-  mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *E) {
-    llvm_unreachable("NYI");
+
+  mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *e) {
+    auto func = cast<cir::FuncOp>(CGF.CurFn);
+    llvm::StringRef symName = func.getSymName();
+    mlir::FlatSymbolRefAttr funName =
+        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), symName);
+    mlir::StringAttr labelName =
+        mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
+    return cir::BlockAddressOp::create(Builder, CGF.getLoc(e->getSourceRange()),
+                                       CGF.convertType(e->getType()), funName,
+                                       labelName);
+    ;
   }
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");
@@ -370,7 +381,7 @@ public:
     // direclty in the parent scope removing the need to hoist it.
     assert(retAlloca.getDefiningOp() && "expected a alloca op");
     CGF.getBuilder().hoistAllocaToParentRegion(
-        cast<cir::AllocaOp>(retAlloca.getDefiningOp()));
+        retAlloca.getDefiningOp<cir::AllocaOp>());
 
     return CGF.emitLoadOfScalar(CGF.makeAddrLValue(retAlloca, E->getType()),
                                 E->getExprLoc());
@@ -702,7 +713,13 @@ public:
     return {};
   }
   mlir::Value VisitTypeTraitExpr(const TypeTraitExpr *E) {
-    llvm_unreachable("NYI");
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
+    if (E->isStoredAsBoolean())
+      return Builder.getBool(E->getBoolValue(), loc);
+
+    assert(E->getAPValue().isInt() && "APValue type not supported");
+    mlir::Type ty = CGF.convertType(E->getType());
+    return Builder.getConstAPInt(loc, ty, E->getAPValue().getInt());
   }
   mlir::Value
   VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E) {
@@ -728,7 +745,7 @@ public:
     return nullptr;
   }
   mlir::Value VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
-    llvm_unreachable("NYI");
+    return CGF.getBuilder().getBool(E->getValue(), CGF.getLoc(E->getExprLoc()));
   }
 
   /// Perform a pointer to boolean conversion.
@@ -1756,7 +1773,8 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     QualType derivedTy =
         Kind == CK_DerivedToBaseMemberPointer ? E->getType() : CE->getType();
     const CXXRecordDecl *derivedClass = derivedTy->castAs<MemberPointerType>()
-                                            ->getClass()
+                                            ->getQualifier()
+                                            ->getAsType()
                                             ->getAsCXXRecordDecl();
     CharUnits offset = CGF.CGM.computeNonVirtualBaseClassOffset(
         derivedClass, CE->path_begin(), CE->path_end());
@@ -2053,16 +2071,18 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
 
   Expr *Op = E->getSubExpr();
   if (Op->getType()->isAnyComplexType()) {
+    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
     if (E->isGLValue()) {
-      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
       mlir::Value Complex = CGF.emitComplexExpr(Op);
       return CGF.builder.createComplexReal(Loc, Complex);
     }
+
     // Otherwise, calculate and project.
-    llvm_unreachable("NYI");
+    return Builder.createComplexReal(Loc, CGF.emitComplexExpr(Op));
   }
 
   return Visit(Op);
@@ -2073,16 +2093,18 @@ mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
 
   Expr *Op = E->getSubExpr();
   if (Op->getType()->isAnyComplexType()) {
+    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
     // this won't work for, e.g. an Obj-C property.
     if (E->isGLValue()) {
-      mlir::Location Loc = CGF.getLoc(E->getExprLoc());
       mlir::Value Complex = CGF.emitComplexExpr(Op);
       return CGF.builder.createComplexImag(Loc, Complex);
     }
+
     // Otherwise, calculate and project.
-    llvm_unreachable("NYI");
+    return Builder.createComplexImag(Loc, CGF.emitComplexExpr(Op));
   }
 
   return Visit(Op);
@@ -2099,8 +2121,7 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
                                               ScalarConversionOpts Opts) {
   assert(!SrcType->isMatrixType() && !DstType->isMatrixType() &&
          "Internal error: matrix types not handled by this function.");
-  if (mlir::isa<mlir::IntegerType>(SrcTy) ||
-      mlir::isa<mlir::IntegerType>(DstTy))
+  if (mlir::isa<mlir::IntegerType>(SrcTy) || mlir::isa<mlir::IntegerType>(DstTy))
     llvm_unreachable("Obsolete code. Don't use mlir::IntegerType with CIR.");
 
   mlir::Type FullDstTy = DstTy;
@@ -2214,7 +2235,7 @@ LValue ScalarExprEmitter::emitCompoundAssignLValue(
   BinOpInfo OpInfo;
 
   if (E->getComputationResultType()->isAnyComplexType())
-    assert(0 && "not implemented");
+    return CGF.emitScalarCompoundAssignWithComplex(E, Result);
 
   // Emit the RHS first.  __block variables need to have the rhs evaluated
   // first, plus this should improve codegen a little.
@@ -2831,10 +2852,16 @@ mlir::Value CIRGenFunction::emitCheckedInBoundsGEP(
   assert(IdxList.size() == 1 && "multi-index ptr arithmetic NYI");
   mlir::Value GEPVal =
       builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr, IdxList[0]);
-
   // If the pointer overflow sanitizer isn't enabled, do nothing.
-  if (!SanOpts.has(SanitizerKind::PointerOverflow))
-    return GEPVal;
+  if (!SanOpts.has(SanitizerKind::PointerOverflow)) {
+    cir::CIR_GEPNoWrapFlags nwFlags = cir::CIR_GEPNoWrapFlags::inbounds;
+    if (!SignedIndices && !IsSubtraction)
+      nwFlags = nwFlags | cir::CIR_GEPNoWrapFlags::nuw;
+    return builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr,
+                                            IdxList[0], nwFlags);
+  }
+
+  return GEPVal;
 
   // TODO(cir): the unreachable code below hides a substantial amount of code
   // from the original codegen related with pointer overflow sanitizer.

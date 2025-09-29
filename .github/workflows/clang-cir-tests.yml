@@ -36,3 +36,7 @@ jobs:
       build_target: check-clang-cir
       projects: clang;mlir
       extra_cmake_args: -DCLANG_ENABLE_CIR=ON
+<<<<<<< HEAD
+=======
+      os_list: '["ubuntu-24.04", "windows-2022", "macOS-13"]'
+>>>>>>> origin/main

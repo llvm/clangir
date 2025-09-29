@@ -1,0 +1,2 @@
+openai-api-base: "http://localhost:8087/v1"
+model: openai/claude4-sonnet

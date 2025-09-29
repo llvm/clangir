@@ -1,5 +1,7 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=BEFORE
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=AFTER
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2> %t.before.log
+// RUN: FileCheck %s --input-file=%t.before.log -check-prefix=BEFORE
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-lowering-prepare %s -o %t.cir 2> %t.after.log
+// RUN: FileCheck %s --input-file=%t.after.log -check-prefix=AFTER
 
 struct Base {
   virtual ~Base();
@@ -7,9 +9,9 @@ struct Base {
 
 struct Derived : Base {};
 
-// BEFORE: #dyn_cast_info__ZTI4Base__ZTI7Derived = #cir.dyn_cast_info<#cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI7Derived> : !cir.ptr<!u8i>, @__dynamic_cast, @__cxa_bad_cast, #cir.int<0> : !s64i>
-// BEFORE: !rec_Base = !cir.record
-// BEFORE: !rec_Derived = !cir.record
+// BEFORE-DAG: #dyn_cast_info__ZTI4Base__ZTI7Derived = #cir.dyn_cast_info<#cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI7Derived> : !cir.ptr<!u8i>, @__dynamic_cast, @__cxa_bad_cast, #cir.int<0> : !s64i>
+// BEFORE-DAG: !rec_Base = !cir.record
+// BEFORE-DAG: !rec_Derived = !cir.record
 
 Derived *ptr_cast(Base *b) {
   return dynamic_cast<Derived *>(b);
@@ -71,12 +73,14 @@ void *ptr_cast_to_complete(Base *ptr) {
 //      AFTER:   %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base>>, !cir.ptr<!rec_Base>
 // AFTER-NEXT:   %[[#SRC_IS_NOT_NULL:]] = cir.cast(ptr_to_bool, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.bool
 // AFTER-NEXT:   %{{.+}} = cir.ternary(%[[#SRC_IS_NOT_NULL]], true {
-// AFTER-NEXT:     %[[#VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.ptr<!cir.ptr<!s64i>>
-// AFTER-NEXT:     %[[#VPTR:]] = cir.load{{.*}} %[[#VPTR_PTR]] : !cir.ptr<!cir.ptr<!s64i>>, !cir.ptr<!s64i>
-// AFTER-NEXT:     %[[#BASE_OFFSET_PTR:]] = cir.vtable.address_point( %[[#VPTR]] : !cir.ptr<!s64i>, address_point = <index = 0, offset = -2>) : !cir.ptr<!s64i>
+// AFTER-NEXT:     %[[#VPTR_PTR:]] = cir.vtable.get_vptr %[[#SRC]] : !cir.ptr<!rec_Base> -> !cir.ptr<!cir.vptr>
+// AFTER-NEXT:     %[[#VPTR:]] = cir.load %[[#VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
+// AFTER-NEXT:     %[[#ELEM_PTR:]] = cir.cast(bitcast, %[[#VPTR]] : !cir.vptr), !cir.ptr<!s64i>
+// AFTER-NEXT:     %[[#MINUS_TWO:]] = cir.const #cir.int<-2> : !s64i
+// AFTER-NEXT:     %[[#BASE_OFFSET_PTR:]] = cir.ptr_stride %[[#ELEM_PTR]], %[[#MINUS_TWO:]] : (!cir.ptr<!s64i>, !s64i) -> !cir.ptr<!s64i>
 // AFTER-NEXT:     %[[#BASE_OFFSET:]] = cir.load align(8) %[[#BASE_OFFSET_PTR]] : !cir.ptr<!s64i>, !s64i
 // AFTER-NEXT:     %[[#SRC_BYTES_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base>), !cir.ptr<!u8i>
-// AFTER-NEXT:     %[[#DST_BYTES_PTR:]] = cir.ptr_stride(%[[#SRC_BYTES_PTR]] : !cir.ptr<!u8i>, %[[#BASE_OFFSET]] : !s64i), !cir.ptr<!u8i>
+// AFTER-NEXT:     %[[#DST_BYTES_PTR:]] = cir.ptr_stride %[[#SRC_BYTES_PTR]], %[[#BASE_OFFSET]] : (!cir.ptr<!u8i>, !s64i) -> !cir.ptr<!u8i>
 // AFTER-NEXT:     %[[#CASTED_PTR:]] = cir.cast(bitcast, %[[#DST_BYTES_PTR]] : !cir.ptr<!u8i>), !cir.ptr<!void>
 // AFTER-NEXT:     cir.yield %[[#CASTED_PTR]] : !cir.ptr<!void>
 // AFTER-NEXT:   }, false {

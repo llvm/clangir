@@ -110,7 +110,7 @@ void t_constant_size_nontrivial() {
 // CHECK:    cir.store{{.*}} %[[NUM_ELEMENTS]], %5 : !u64i, !cir.ptr<!u64i>
 // CHECK:    %6 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
 // CHECK:    %[[COOKIE_SIZE:.*]] = cir.const #cir.int<8> : !s32i
-// CHECK:    %8 = cir.ptr_stride(%6 : !cir.ptr<!u8i>, %[[COOKIE_SIZE]] : !s32i), !cir.ptr<!u8i>
+// CHECK:    %8 = cir.ptr_stride %6, %[[COOKIE_SIZE]] : (!cir.ptr<!u8i>, !s32i) -> !cir.ptr<!u8i>
 // CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!u8i>), !cir.ptr<!rec_C>
 // CHECK:    cir.store{{.*}} %9, %0 : !cir.ptr<!rec_C>, !cir.ptr<!cir.ptr<!rec_C>>
 // CHECK:    cir.return
@@ -139,7 +139,7 @@ void t_constant_size_nontrivial2() {
 // CHECK:    cir.store{{.*}} %[[NUM_ELEMENTS]], %5 : !u64i, !cir.ptr<!u64i>
 // CHECK:    %6 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
 // CHECK:    %[[COOKIE_SIZE:.*]] = cir.const #cir.int<8> : !s32i
-// CHECK:    %8 = cir.ptr_stride(%6 : !cir.ptr<!u8i>, %[[COOKIE_SIZE]] : !s32i), !cir.ptr<!u8i>
+// CHECK:    %8 = cir.ptr_stride %6, %[[COOKIE_SIZE]] : (!cir.ptr<!u8i>, !s32i) -> !cir.ptr<!u8i>
 // CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!u8i>), !cir.ptr<!rec_D>
 // CHECK:    cir.store{{.*}} %9, %0 : !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>
 // CHECK:    cir.return
@@ -174,15 +174,15 @@ void t_constant_size_partial_init() {
 // CHECK:    %[[CONST_ONE:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:    cir.store{{.*}} %[[CONST_ONE]], %[[ELEM_0_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:    %[[OFFSET:.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[ELEM_1_PTR:.*]] = cir.ptr_stride(%[[ELEM_0_PTR]] : !cir.ptr<!s32i>, %[[OFFSET]] : !s32i), !cir.ptr<!s32i>
+// CHECK:    %[[ELEM_1_PTR:.*]] = cir.ptr_stride %[[ELEM_0_PTR]], %[[OFFSET]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // CHECK:    %[[CONST_TWO:.*]] = cir.const #cir.int<2> : !s32i
 // CHECK:    cir.store{{.*}} %[[CONST_TWO]], %[[ELEM_1_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:    %[[OFFSET1:.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[ELEM_2_PTR:.*]] = cir.ptr_stride(%[[ELEM_1_PTR]] : !cir.ptr<!s32i>, %[[OFFSET1]] : !s32i), !cir.ptr<!s32i>
+// CHECK:    %[[ELEM_2_PTR:.*]] = cir.ptr_stride %[[ELEM_1_PTR]], %[[OFFSET1]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // CHECK:    %[[CONST_THREE:.*]] = cir.const #cir.int<3> : !s32i
 // CHECK:    cir.store{{.*}} %[[CONST_THREE]], %[[ELEM_2_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:    %[[OFFSET2:.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[ELEM_3_PTR:.*]] = cir.ptr_stride(%[[ELEM_2_PTR]] : !cir.ptr<!s32i>, %[[OFFSET2]] : !s32i), !cir.ptr<!s32i>
+// CHECK:    %[[ELEM_3_PTR:.*]] = cir.ptr_stride %[[ELEM_2_PTR]], %[[OFFSET2]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // CHECK:    %[[INIT_SIZE:.*]] = cir.const #cir.int<12> : !u64i
 // CHECK:    %[[REMAINING_SIZE:.*]] = cir.binop(sub, %[[ALLOCATION_SIZE]], %[[INIT_SIZE]]) : !u64i
 // CHECK:    %[[VOID_PTR:.*]] = cir.cast(bitcast, %[[ELEM_3_PTR]] : !cir.ptr<!s32i>), !cir.ptr<!void>
@@ -303,27 +303,29 @@ void t_multidim_init() {
 // CHECK:    %[[NEW_PTR:.*]] = cir.call @_Znam(%2) : (!u64i) -> !cir.ptr<!void>
 // CHECK:    %[[ELEMENT_PTR:.*]] = cir.cast(bitcast, %[[NEW_PTR]] : !cir.ptr<!void>), !cir.ptr<!s32i>
 // CHECK:    %[[ARRAY_ELEM0_PTR:.*]] = cir.cast(bitcast, %[[ELEMENT_PTR]] : !cir.ptr<!s32i>), !cir.ptr<!cir.array<!s32i x 3>>
-// CHECK:    %[[ELEM_00_PTR:.*]] = cir.cast(array_to_ptrdecay, %[[ARRAY_ELEM0_PTR]] : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
+// CHECK:    %[[OFFSET0:.*]] = cir.const #cir.int<0> : !s32i
+// CHECK:    %[[ELEM_00_PTR:.*]] = cir.get_element %[[ARRAY_ELEM0_PTR]][%[[OFFSET0]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_00_VAL:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_00_VAL]], %[[ELEM_00_PTR]] : !s32i, !cir.ptr<!s32i>
-// CHECK:    %[[OFFSET:.*]] = cir.const #cir.int<1> : !s64i
-// CHECK:    %[[ELEM_01_PTR:.*]] = cir.ptr_stride(%[[ELEM_00_PTR]] : !cir.ptr<!s32i>, %[[OFFSET]] : !s64i), !cir.ptr<!s32i>
+// CHECK:    %[[OFFSET1:.*]] = cir.const #cir.int<1> : !s64i
+// CHECK:    %[[ELEM_01_PTR:.*]] = cir.get_element %[[ARRAY_ELEM0_PTR]][%[[OFFSET1]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_01_VAL:.*]] = cir.const #cir.int<2> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_01_VAL]], %[[ELEM_01_PTR]] : !s32i, !cir.ptr<!s32i>
-// CHECK:    %[[OFFSET1:.*]] = cir.const #cir.int<2> : !s64i
-// CHECK:    %[[ELEM_02_PTR:.*]] = cir.ptr_stride(%[[ELEM_00_PTR]] : !cir.ptr<!s32i>, %[[OFFSET1]] : !s64i), !cir.ptr<!s32i>
+// CHECK:    %[[OFFSET2:.*]] = cir.const #cir.int<2> : !s64i
+// CHECK:    %[[ELEM_02_PTR:.*]] = cir.get_element %[[ARRAY_ELEM0_PTR]][%[[OFFSET2]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_02_VAL:.*]] = cir.const #cir.int<3> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_02_VAL]], %[[ELEM_02_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:    %[[OFFSET3:.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:    %[[ARRAY_ELEM1_PTR:.*]] = cir.ptr_stride(%[[ARRAY_ELEM0_PTR]] : !cir.ptr<!cir.array<!s32i x 3>>, %[[OFFSET3]] : !s32i), !cir.ptr<!cir.array<!s32i x 3>>
-// CHECK:    %[[ELEM_10_PTR:.*]] = cir.cast(array_to_ptrdecay, %[[ARRAY_ELEM1_PTR]] : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
+// CHECK:    %[[ARRAY_ELEM1_PTR:.*]] = cir.ptr_stride %[[ARRAY_ELEM0_PTR]], %[[OFFSET3]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!cir.array<!s32i x 3>>
+// CHECK:    %[[OFFSET4:.*]] = cir.const #cir.int<0> : !s32i
+// CHECK:    %[[ELEM_10_PTR:.*]] = cir.get_element %[[ARRAY_ELEM1_PTR]][%[[OFFSET4]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_10_VAL:.*]] = cir.const #cir.int<4> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_10_VAL]], %[[ELEM_10_PTR]] : !s32i, !cir.ptr<!s32i>
-// CHECK:    %[[OFFSET4:.*]] = cir.const #cir.int<1> : !s64i
-// CHECK:    %[[ELEM_11_PTR:.*]] = cir.ptr_stride(%[[ELEM_10_PTR]] : !cir.ptr<!s32i>, %[[OFFSET4]] : !s64i), !cir.ptr<!s32i>
+// CHECK:    %[[OFFSET5:.*]] = cir.const #cir.int<1> : !s64i
+// CHECK:    %[[ELEM_11_PTR:.*]] = cir.get_element %[[ARRAY_ELEM1_PTR]][%[[OFFSET5]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_11_VAL:.*]] = cir.const #cir.int<5> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_11_VAL]], %[[ELEM_11_PTR]] : !s32i, !cir.ptr<!s32i>
-// CHECK:    %[[OFFSET5:.*]] = cir.const #cir.int<2> : !s64i
-// CHECK:    %[[ELEM_12_PTR:.*]] = cir.ptr_stride(%[[ELEM_10_PTR]] : !cir.ptr<!s32i>, %21 : !s64i), !cir.ptr<!s32i>
+// CHECK:    %[[OFFSET6:.*]] = cir.const #cir.int<2> : !s64i
+// CHECK:    %[[ELEM_12_PTR:.*]] = cir.get_element %[[ARRAY_ELEM1_PTR]][%[[OFFSET6]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_12_VAL:.*]] = cir.const #cir.int<6> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_12_VAL]], %[[ELEM_12_PTR]] : !s32i, !cir.ptr<!s32i>

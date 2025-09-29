@@ -19,6 +19,7 @@
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTLambda.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticCategories.h"
@@ -82,6 +83,7 @@ cir::TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
 
     case Type::ArrayParameter:
     case Type::HLSLAttributedResource:
+    case Type::HLSLInlineSpirv:
       llvm_unreachable("NYI");
 
     case Type::Auto:
@@ -293,11 +295,9 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addr = emitAlloca(namedVar->getName(), ty, loc, alignment);
-  auto allocaOp = cast<cir::AllocaOp>(addr.getDefiningOp());
-  if (isParam)
-    allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
-  if (ty->isReferenceType() || ty.isConstQualified())
-    allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
+  allocaOp.setInit(isParam);
+  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
 
   symbolTable.insert(var, addr);
   return mlir::success();
@@ -313,11 +313,9 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  auto allocaOp = cast<cir::AllocaOp>(addrVal.getDefiningOp());
-  if (isParam)
-    allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
-  if (ty->isReferenceType() || ty.isConstQualified())
-    allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
+  auto allocaOp = addrVal.getDefiningOp<cir::AllocaOp>();
+  allocaOp.setInit(isParam);
+  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
 
   symbolTable.insert(var, addrVal);
   return mlir::success();
@@ -764,15 +762,30 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
-    if (isa<CXXDestructorDecl>(fd))
+    if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
+      // Attach the special member attribute to the destructor.
+      CGM.setCXXSpecialMemberAttr(fn, dtor);
+
       emitDestructorBody(args);
-    else if (isa<CXXConstructorDecl>(fd))
+    } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+      cir::CtorKind ctorKind = cir::CtorKind::Custom;
+      if (ctor->isDefaultConstructor())
+        ctorKind = cir::CtorKind::Default;
+      if (ctor->isCopyConstructor())
+        ctorKind = cir::CtorKind::Copy;
+      if (ctor->isMoveConstructor())
+        ctorKind = cir::CtorKind::Move;
+
+      auto cxxCtor = cir::CXXCtorAttr::get(
+          convertType(getContext().getRecordType(ctor->getParent())), ctorKind);
+      fn.setCxxSpecialMemberAttr(cxxCtor);
+
       emitConstructorBody(args);
-    else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
-             fd->hasAttr<CUDAGlobalAttr>())
+    } else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
+               fd->hasAttr<CUDAGlobalAttr>()) {
       CGM.getCUDARuntime().emitDeviceStub(*this, fn, args);
-    else if (isa<CXXMethodDecl>(fd) &&
-             cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
+    } else if (isa<CXXMethodDecl>(fd) &&
+               cast<CXXMethodDecl>(fd)->isLambdaStaticInvoker()) {
       // The lambda static invoker function is special, because it forwards or
       // clones the body of the function call operator (but is actually
       // static).
@@ -780,6 +793,9 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     } else if (fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
                (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
                 cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator())) {
+      // Attach the special member attribute to the assignment operator.
+      CGM.setCXXSpecialMemberAttr(fn, fd);
+
       // Implicit copy-assignment gets the same special treatment as implicit
       // copy-constructors.
       emitImplicitAssignmentOperatorBody(args);
@@ -788,8 +804,9 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         fn.erase();
         return nullptr;
       }
-    } else
+    } else {
       llvm_unreachable("no definition for emitted function");
+    }
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
@@ -1111,7 +1128,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     assert(!cir::MissingFeatures::xray());
   }
 
-  if (CGM.getCodeGenOpts().getProfileInstr() != CodeGenOptions::ProfileNone) {
+  if (CGM.getCodeGenOpts().getProfileInstr() != llvm::driver::ProfileNone) {
     assert(!cir::MissingFeatures::getProfileCount());
   }
 
@@ -1333,7 +1350,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
       // We're in a lambda.
       auto fn = dyn_cast<cir::FuncOp>(CurFn);
       assert(fn && "other callables NYI");
-      fn.setLambdaAttr(mlir::UnitAttr::get(&getMLIRContext()));
+      fn.setLambda(true);
 
       // Figure out the captures.
       md->getParent()->getCaptureFields(LambdaCaptureFields,
@@ -1415,7 +1432,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   if (CurFuncDecl)
     if ([[maybe_unused]] const auto *vecWidth =
             CurFuncDecl->getAttr<MinVectorWidthAttr>())
-      llvm_unreachable("NYI");
+      LargestVectorWidth = vecWidth->getVectorWidth();
 
   if (CGM.shouldEmitConvergenceTokens())
     llvm_unreachable("NYI");
@@ -1770,6 +1787,8 @@ void CIRGenFunction::emitVariablyModifiedType(QualType type) {
     case clang::Type::PackIndexing:
     case clang::Type::ArrayParameter:
     case clang::Type::HLSLAttributedResource:
+    case clang::Type::HLSLInlineSpirv:
+    case clang::Type::PredefinedSugar:
       llvm_unreachable("NYI");
 
 #define TYPE(Class, Base)
@@ -1971,7 +1990,7 @@ void CIRGenFunction::emitVarAnnotations(const VarDecl *decl, mlir::Value val) {
   for (const auto *annot : decl->specific_attrs<AnnotateAttr>()) {
     annotations.push_back(CGM.emitAnnotateAttr(annot));
   }
-  auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(val.getDefiningOp());
+  auto allocaOp = val.getDefiningOp<cir::AllocaOp>();
   assert(allocaOp && "expects available alloca");
   allocaOp.setAnnotationsAttr(builder.getArrayAttr(annotations));
 }

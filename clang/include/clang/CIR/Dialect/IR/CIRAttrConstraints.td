@@ -39,10 +39,54 @@ def CIR_AnyIntOrFloatAttr : AnyAttrOf<[CIR_AnyIntAttr, CIR_AnyFPAttr],
 }
 
 //===----------------------------------------------------------------------===//
+// GlobalViewAttr constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyGlobalViewAttr : CIR_AttrConstraint<"::cir::GlobalViewAttr", "GlobalView attribute">;
+
+def CIR_AnyIntOrGlobalViewAttr : AnyAttrOf<[CIR_AnyIntAttr, CIR_AnyGlobalViewAttr],
+    "integer or global view attribute"> {
+  string cppType = "::mlir::TypedAttr";
+}
+
+//===----------------------------------------------------------------------===//
 // ArrayAttr constraints
 //===----------------------------------------------------------------------===//
 
 def CIR_IntArrayAttr : TypedArrayAttrBase<CIR_AnyIntAttr,
    "integer array attribute">;
+
+def CIR_IntOrGlobalViewArrayAttr : TypedArrayAttrBase<CIR_AnyIntOrGlobalViewAttr,
+   "integer or global view array attribute">{
+  string cppType = "::mlir::ArrayAttr";
+}
+
+//===----------------------------------------------------------------------===//
+// TBAAAttr constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_TBAAConstraint
+  : CIR_AttrConstraint<"::cir::TBAAAttr", "base attribute for TBAA">;
+def CIR_TBAAOmnipotentCharConstraint
+  : CIR_AttrConstraint<"::cir::TBAAOmnipotentCharAttr", "Omnipotent char type">;
+def CIR_TBAAVTablePointerConstraint
+  : CIR_AttrConstraint<"::cir::TBAAVTablePointerAttr", "VTable pointer type">;
+def CIR_TBAAScalarConstraint
+  : CIR_AttrConstraint<"::cir::TBAAScalarAttr", "Scalar type with identifier">;
+def CIR_TBAAStructConstraint
+  : CIR_AttrConstraint<"::cir::TBAAStructAttr", "Struct type">;
+def CIR_TBAATagConstraint
+  : CIR_AttrConstraint<"::cir::TBAATagAttr", "Member of a TBAA struct type">;
+
+def CIR_AnyTBAAAttr : AnyAttrOf<[
+  CIR_TBAAConstraint,
+  CIR_TBAAOmnipotentCharConstraint,
+  CIR_TBAAVTablePointerConstraint,
+  CIR_TBAAScalarConstraint,
+  CIR_TBAAStructConstraint,
+  CIR_TBAATagConstraint
+]> {
+  string cppType = "::mlir::Attribute";
+}
 
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRCONSTRAINTS_TD
