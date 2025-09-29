@@ -57,6 +57,10 @@ class CIRGenVTables {
   /// Cache for the deleted virtual member call function.
   cir::FuncOp DeletedVirtualFn = nullptr;
 
+  /// Get the address of a thunk and emit it if necessary.
+  cir::FuncOp maybeEmitThunk(GlobalDecl gd, const ThunkInfo &thunkAdjustments,
+                             bool forVTable);
+
   void addVTableComponent(ConstantArrayBuilder &builder,
                           const VTableLayout &layout, unsigned componentIndex,
                           mlir::Attribute rtti, unsigned &nextVTableThunkIndex,
