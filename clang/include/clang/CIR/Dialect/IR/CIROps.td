@@ -3762,6 +3762,67 @@ def CIR_OptionalPriorityAttr : OptionalAttr<
   >
 >;
 
+def CIR_AliasOp : CIR_Op<"alias", [AutomaticAllocationScope, CallableOpInterface,
+                       FunctionOpInterface, IsolatedFromAbove]> {
+  let arguments = (ins 
+    SymbolNameAttr:$sym_name,
+    TypeAttrOf<CIR_FuncType>:$function_type, FlatSymbolRefAttr:$aliasee,
+    CIR_VisibilityAttr:$global_visibility,
+    DefaultValuedAttr<CIR_GlobalLinkageKind,
+                      "GlobalLinkageKind::ExternalLinkage">:$linkage,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs,
+    DefaultValuedAttr<CIR_CallingConv, "CallingConv::C">:$calling_conv
+   );
+
+  let regions = (region AnyRegion:$body);
+  let extraClassDeclaration = [{
+    /// Returns the region on the current operation that is callable. This may
+    /// return null in the case of an external callable object, e.g. an external
+    /// function.
+    ::mlir::Region *getCallableRegion() {
+      return nullptr;
+    }
+
+    /// Returns the results types that the callable region produces when
+    /// executed.
+    llvm::ArrayRef<mlir::Type> getCallableResults() {
+      return getFunctionType().getReturnTypes();
+    }
+
+    /// Returns the argument attributes for all callable region arguments or
+    /// null if there are none.
+    ::mlir::ArrayAttr getCallableArgAttrs() {
+      return getArgAttrs().value_or(nullptr);
+    }
+
+    /// Returns the result attributes for all callable region results or null if
+    /// there are none.
+    ::mlir::ArrayAttr getCallableResAttrs() {
+      return getResAttrs().value_or(nullptr);
+    }
+
+    /// Returns the argument types of this function.
+    llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+       return getFunctionType().getInputs();
+    }
+
+    /// Returns 0 or 1 result type of this function (0 in the case of a function
+    /// returing void)
+    llvm::ArrayRef<mlir::Type> getResultTypes() {
+       return getFunctionType().getReturnTypes();
+    }
+
+    //===------------------------------------------------------------------===//
+    // SymbolOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    bool isDeclaration() {
+      return true;
+    }
+  }];
+}
+
 def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
   DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
