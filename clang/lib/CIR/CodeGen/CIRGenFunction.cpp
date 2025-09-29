@@ -726,12 +726,15 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
   // Create a scope in the symbol table to hold variable declarations.
   SymTableScopeTy varScope(symbolTable);
   // Compiler synthetized functions might have invalid slocs...
-  auto bSrcLoc = fd->getBody()->getBeginLoc();
-  auto eSrcLoc = fd->getBody()->getEndLoc();
   auto unknownLoc = builder.getUnknownLoc();
-
-  auto fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
-  auto fnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
+  mlir::Location fnBeginLoc = unknownLoc;
+  mlir::Location fnEndLoc = unknownLoc;
+  if (body) {
+    auto bSrcLoc = body->getBeginLoc();
+    auto eSrcLoc = body->getEndLoc();
+    fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
+    fnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
+  }
   const auto fusedLoc =
       mlir::FusedLoc::get(&getMLIRContext(), {fnBeginLoc, fnEndLoc});
   SourceLocRAIIObject fnLoc{*this, loc.isValid() ? getLoc(loc) : unknownLoc};
@@ -808,8 +811,15 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    if (mlir::failed(fn.verifyBody()))
+    if (mlir::failed(fn.verifyBody())) {
+      if (std::getenv("CLANGIR_DEBUG_VERIFY")) {
+        llvm::errs() << "[clangir] verifyBody failed in function '"
+                     << fn.getSymName() << "' before epilogue\n";
+        fn.print(llvm::errs());
+        llvm::errs() << "\n[clangir] --- end body dump ---\n";
+      }
       return nullptr;
+    }
 
     // Emit the standard function epilogue.
     finishFunction(bodyRange.getEnd());
@@ -848,7 +858,10 @@ void CIRGenFunction::emitConstructorBody(FunctionArgList &args) {
 
   const FunctionDecl *definition = nullptr;
   Stmt *body = ctor->getBody(definition);
-  assert(definition == ctor && "emitting wrong constructor body");
+  if (definition && definition != ctor)
+    body = definition->getBody();
+  if (!body)
+    return;
 
   // Enter the function-try-block before the constructor prologue if
   // applicable.
@@ -1293,9 +1306,11 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   if (getLangOpts().OpenMP && CurCodeDecl)
     CGM.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
 
-  if (fd && getLangOpts().HLSL) {
+  const FunctionDecl *funcDecl = dyn_cast_or_null<FunctionDecl>(CurCodeDecl);
+
+  if (funcDecl && getLangOpts().HLSL) {
     // Handle emitting HLSL entry functions.
-    if (fd->hasAttr<HLSLShaderAttr>()) {
+    if (funcDecl->hasAttr<HLSLShaderAttr>()) {
       llvm_unreachable("NYI");
     }
     llvm_unreachable("NYI");
@@ -1308,6 +1323,18 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     // function body, it will be used throughout the codegen to create
     // operations in this function.
     builder.setInsertionPointToStart(entryBb);
+
+    const Stmt *funcDeclBody = funcDecl ? funcDecl->getBody() : nullptr;
+    mlir::Location funcBodyBeginLoc = builder.getUnknownLoc();
+    mlir::Location funcBodyEndLoc = funcBodyBeginLoc;
+    if (funcDeclBody) {
+      auto beginLoc = funcDeclBody->getBeginLoc();
+      funcBodyBeginLoc = beginLoc.isValid() ? getLoc(beginLoc)
+                                            : builder.getUnknownLoc();
+      auto endLoc = funcDeclBody->getEndLoc();
+      funcBodyEndLoc = endLoc.isValid() ? getLoc(endLoc)
+                                        : builder.getUnknownLoc();
+    }
 
     // TODO: this should live in `emitFunctionProlog
     // Declare all the function arguments in the symbol table.
@@ -1335,17 +1362,14 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
-      auto fnBodyBegin = getLoc(fd->getBody()->getBeginLoc());
-      builder.CIRBaseBuilderTy::createStore(fnBodyBegin, paramVal, addr);
+      builder.CIRBaseBuilderTy::createStore(funcBodyBeginLoc, paramVal, addr);
     }
     assert(builder.getInsertionBlock() && "Should be valid");
-
-    auto fnEndLoc = getLoc(fd->getBody()->getEndLoc());
 
     // When the current function is not void, create an address to store the
     // result value.
     if (FnRetCIRTy.has_value())
-      emitAndUpdateRetAlloca(FnRetQualTy, fnEndLoc,
+      emitAndUpdateRetAlloca(FnRetQualTy, funcBodyEndLoc,
                              CGM.getNaturalTypeAlignment(FnRetQualTy));
   }
 

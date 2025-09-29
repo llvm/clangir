@@ -566,15 +566,10 @@ void CIRGenItaniumCXXABI::emitCXXStructor(GlobalDecl GD) {
       BaseDecl = GD.getWithDtorType(Dtor_Base);
 
     if (CIRGenType == StructorCIRGen::Alias ||
-        CIRGenType == StructorCIRGen::COMDAT) {
+        CIRGenType == StructorCIRGen::COMDAT ||
+        CIRGenType == StructorCIRGen::RAUW) {
+      CGM.emitGlobal(BaseDecl);
       emitConstructorDestructorAlias(CGM, GD, BaseDecl);
-      return;
-    }
-
-    if (CIRGenType == StructorCIRGen::RAUW) {
-      StringRef MangledName = CGM.getMangledName(GD);
-      auto *Aliasee = CGM.GetAddrOfGlobal(BaseDecl);
-      CGM.addReplacement(MangledName, Aliasee);
       return;
     }
   }
@@ -2275,8 +2270,13 @@ void CIRGenItaniumCXXABI::emitDestructorCall(
   if (getContext().getLangOpts().AppleKext && Type != Dtor_Base &&
       DD->isVirtual())
     llvm_unreachable("NYI");
-  else
-    Callee = CIRGenCallee::forDirect(CGM.getAddrOfCXXStructor(GD), GD);
+  else {
+    auto CalleeOp = CGM.getAddrOfCXXStructor(GD);
+    CGM.addDeferredDeclToEmit(GD);
+    if (GD != CGF.CurGD)
+      CGM.emitGlobal(GD);
+    Callee = CIRGenCallee::forDirect(CalleeOp, GD);
+  }
 
   CGF.emitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy, VTT, VTTTy,
                             nullptr);

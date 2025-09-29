@@ -2468,10 +2468,32 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   auto &fnInfo = getTypes().arrangeCXXStructorDeclaration(aliasGD);
   auto fnType = getTypes().GetFunctionType(fnInfo);
 
+  if (op) {
+    if (auto existing = dyn_cast<cir::FuncOp>(op))
+      existing.erase();
+    else
+      llvm_unreachable("NYI");
+  }
+
   auto alias = createCIRFunction(getLoc(aliasGD.getDecl()->getSourceRange()),
-                                 mangledName, fnType, aliasFD);
-  alias.setAliasee(aliasee.getName());
+                                mangledName, fnType, aliasFD);
   alias.setLinkage(linkage);
+
+  mlir::Block *entry = alias.addEntryBlock();
+  if (std::getenv("CLANGIR_DEBUG_ALIAS"))
+    llvm::errs() << "[clangir] materialize alias body " << mangledName
+                  << " -> " << aliasee.getSymName() << "\n";
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(entry);
+    mlir::Location loc = alias.getLoc();
+    auto calleeAttr = mlir::FlatSymbolRefAttr::get(aliasee.getSymNameAttr());
+    auto call = builder.createCallOp(loc, calleeAttr, entry->getArguments());
+    if (call.getResults().size() == 0)
+      builder.create<cir::ReturnOp>(loc);
+    else
+      builder.create<cir::ReturnOp>(loc, call.getResults());
+  }
   // Declarations cannot have public MLIR visibility, just mark them private
   // but this really should have no meaning since CIR should not be using
   // this information to derive linkage information.
@@ -2481,14 +2503,9 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   // Alias constructors and destructors are always unnamed_addr.
   assert(!cir::MissingFeatures::unnamedAddr());
 
-  // Switch any previous uses to the alias.
-  if (op) {
-    llvm_unreachable("NYI");
-  } else {
-    // Name already set by createCIRFunction
-  }
+  // Existing uses already refer to this symbol when reusing the mangled name.
 
-  // Finally, set up the alias with its proper name and attributes.
+  // Finally, set up the alias function with its attributes.
   setCommonAttributes(aliasGD, alias);
 }
 
@@ -3400,7 +3417,8 @@ void CIRGenModule::emitDeferred(unsigned recursionLimit) {
     if (getCodeGenOpts().ClangIRSkipFunctionsFromSystemHeaders) {
       auto *decl = d.getDecl();
       assert(decl && "expected decl");
-      if (astContext.getSourceManager().isInSystemHeader(decl->getLocation()))
+      if (astContext.getSourceManager().isInSystemHeader(decl->getLocation()) &&
+          !isa<FunctionDecl>(decl))
         continue;
     }
 
@@ -3454,6 +3472,18 @@ void CIRGenModule::Release() {
   emitVTablesOpportunistically();
   assert(!MissingFeatures::applyGlobalValReplacements());
   applyReplacements();
+
+  // Optional early per-function verifier to pinpoint dominance issues.
+  if (std::getenv("CLANGIR_DEBUG_VERIFY")) {
+    for (auto func : theModule.getOps<cir::FuncOp>()) {
+      if (mlir::failed(mlir::verify(func))) {
+        llvm::errs() << "[clangir] verification failure in function '"
+                     << func.getSymName() << "'\n";
+        func.print(llvm::errs());
+        llvm::errs() << "\n[clangir] --- end function dump ---\n";
+      }
+    }
+  }
   assert(!MissingFeatures::emitMultiVersionFunctions());
 
   assert(!MissingFeatures::incrementalExtensions());
@@ -3993,93 +4023,54 @@ void CIRGenModule::replacePointerTypeArgs(cir::FuncOp oldF, cir::FuncOp newF) {
 }
 
 void CIRGenModule::applyReplacements() {
-  for (auto &i : Replacements) {
-    StringRef mangledName = i.first();
-    mlir::Operation *replacement = i.second;
-    auto *entry = getGlobalValue(mangledName);
+  // Collect work first to avoid iterator invalidation if symbol table changes.
+  SmallVector<std::pair<cir::FuncOp, cir::FuncOp>, 8> work;
+  work.reserve(Replacements.size());
+  for (auto &it : Replacements) {
+    auto *entry = getGlobalValue(it.first());
     if (!entry)
       continue;
-    assert(isa<cir::FuncOp>(entry) && "expected function");
-    auto oldF = cast<cir::FuncOp>(entry);
-    auto newF = dyn_cast<cir::FuncOp>(replacement);
-    if (!newF)
+    auto oldF = dyn_cast<cir::FuncOp>(entry);
+    auto newF = dyn_cast<cir::FuncOp>(it.second);
+    if (!oldF || !newF || oldF == newF)
       continue;
-
-    // Guard against pathological case of mapping a symbol to itself.
-    if (newF == oldF)
-      continue;
-
-    // LLVM has opaque pointer but CIR not. So we may have to handle these
-    // different pointer types when performing replacement.
-    replacePointerTypeArgs(oldF, newF);
-
-    // Replace old with new, but keep the old order.
-    if (oldF.replaceAllSymbolUses(newF.getSymNameAttr(), theModule).failed())
-      llvm_unreachable("internal error, cannot RAUW symbol");
-    // In some RAUW aliasing scenarios (e.g. structor emission choosing RAUW
-    // before the target has been materialized in the module body), the
-    // replacement function may have been created but not yet inserted into
-    // the module. Moving an unattached operation triggers an assertion in
-    // mlir::Operation::moveBefore. If the function has no parent block yet,
-    // attach it to the module now (placing it right before the old
-    // function's position to preserve relative ordering as much as
-    // possible).
-    if (!newF->getBlock()) {
-      theModule.getBody()->getOperations().insert(oldF->getIterator(), newF);
-    }
-
-    // If already immediately before oldF (or same block earlier) we only
-    // move if ordering would actually change. This avoids touching intrusive
-    // list links unnecessarily (defensive against corruption).
-    if (newF->getBlock() == oldF->getBlock()) {
-      bool needsMove = false;
-      for (mlir::Operation *op = newF->getNextNode(); op;
-           op = op->getNextNode()) {
-        if (op == oldF) {
-          needsMove = false; // already directly before.
-          break;
-        }
-        if (op == newF) {
-          // Should never happen.
-          break;
-        }
-        if (op == oldF)
-          break;
-      }
-      // Simple linear scan: if oldF appears before newF when walking forward
-      // from block head, we need to move; easiest is to compare iterators.
-      // (Note: MLIR lacks direct isBeforeInBlock on ops pre-3.0; if available
-      // this can be simplified.)
-      // Fallback: move if oldF precedes newF in list order.
-      if (!needsMove) {
-        // Determine relative order by scanning from block beginning.
-        bool seenNew = false;
-        bool seenOld = false;
-        for (auto &op : *newF->getBlock()) {
-          if (&op == newF)
-            seenNew = true;
-          if (&op == oldF) {
-            seenOld = true;
-            break;
-          }
-        }
-        if (seenOld && !seenNew)
-          needsMove = true; // old before new; we want new before old.
-      }
-      if (needsMove)
-        newF->moveBefore(oldF);
-    } else {
-      newF->moveBefore(oldF);
-    }
-
-    oldF->erase();
-
-    // Verify module integrity after each replacement in assert builds.
-    (void)mlir::verify(theModule);
+    work.emplace_back(oldF, newF);
   }
 
-  // Replacements consumed; clear to avoid stale pointers and repeated work.
+  // Phase 1: Argument pointer casts + ensure insertion + rename swap.
+  for (auto &p : work) {
+    auto oldF = p.first;
+    auto newF = p.second;
+    replacePointerTypeArgs(oldF, newF);
+
+    // Ensure newF is in the module before renaming.
+    if (!newF->getBlock()) {
+      theModule.push_back(
+          newF); // append; ordering not critical for correctness.
+    }
+
+    auto oldName = oldF.getSymName();
+    auto newName = newF.getSymName();
+    if (oldName != newName) {
+      std::string tmpName = (oldName + ".old.repl").str();
+      unsigned suffix = 0;
+      while (getGlobalValue(tmpName))
+        tmpName = (oldName + ".old.repl." + std::to_string(++suffix)).str();
+      oldF.setSymNameAttr(builder.getStringAttr(tmpName));
+      assert(!getGlobalValue(oldName) &&
+             "temp rename failed to free original name");
+      newF.setSymNameAttr(builder.getStringAttr(oldName));
+    }
+  }
+
+  // Phase 2: Erase old functions after all renames complete so no lookups race.
+  for (auto &p : work) {
+    p.first.erase();
+  }
+
   Replacements.clear();
+
+  (void)mlir::verify(theModule);
 }
 
 void CIRGenModule::emitExplicitCastExprType(const ExplicitCastExpr *e,

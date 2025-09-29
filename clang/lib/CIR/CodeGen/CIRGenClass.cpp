@@ -2091,7 +2091,15 @@ void CIRGenFunction::emitCXXConstructorCall(
                                                  Delegating, Args);
 
   // Emit the call.
-  auto CalleePtr = CGM.getAddrOfCXXStructor(GlobalDecl(D, Type));
+  GlobalDecl CtorGD(D, Type);
+  auto CalleePtr = CGM.getAddrOfCXXStructor(CtorGD);
+  // Ensure the constructor variant referenced here is queued for emission.
+  // Inline template specialisations from system headers often bypass the
+  // normal deferred-decl discovery; marking them now prevents verifier
+  // complaints about unresolved calls.
+  CGM.addDeferredDeclToEmit(CtorGD);
+  if (CtorGD != CurGD)
+    CGM.emitGlobal(CtorGD);
   const CIRGenFunctionInfo &Info = CGM.getTypes().arrangeCXXConstructorCall(
       Args, D, Type, ExtraArgs.Prefix, ExtraArgs.Suffix, PassPrototypeArgs);
   CIRGenCallee Callee = CIRGenCallee::forDirect(CalleePtr, GlobalDecl(D, Type));

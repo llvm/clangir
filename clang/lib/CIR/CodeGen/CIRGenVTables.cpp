@@ -564,12 +564,9 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
                layout.vtable_thunks()[nextVTableThunkIndex].first ==
                    componentIndex) {
       // Thunks.
-      llvm_unreachable("NYI");
-      // auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
-
-      // nextVTableThunkIndex++;
-      // fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
-
+      auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
+      nextVTableThunkIndex++;
+      fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
     } else {
       // Otherwise we can use the method definition directly.
       auto fnTy = CGM.getTypes().GetFunctionTypeForVTable(GD);

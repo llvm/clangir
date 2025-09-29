@@ -1019,7 +1019,7 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
       VD->getAnyInitializer(VD);
       if (const APValue *Value = VD->evaluateValue()) {
         auto attr = ConstantEmitter(*this).emitAbstract(E->getLocation(),
-                                                       *Value, VD->getType());
+                                                        *Value, VD->getType());
         if (auto typedAttr = mlir::dyn_cast_or_null<mlir::TypedAttr>(attr)) {
           auto loc = getLoc(E->getSourceRange());
           auto align = CGM.getASTContext().getDeclAlign(VD);
@@ -1037,8 +1037,8 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
           CIRGenModule::setInitializer(gv, typedAttr);
 
           auto ptrTy = cir::PointerType::get(typedAttr.getType());
-          mlir::Value addrVal = builder.create<cir::GetGlobalOp>(
-              loc, ptrTy, gv.getSymNameAttr());
+          mlir::Value addrVal =
+              builder.create<cir::GetGlobalOp>(loc, ptrTy, gv.getSymNameAttr());
           Address addr(addrVal, typedAttr.getType(), align);
           return makeAddrLValue(addr, T, AlignmentSource::Decl);
         }
@@ -2889,14 +2889,17 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
                                        mlir::Location loc, CharUnits alignment,
                                        bool insertIntoFnEntryBlock,
                                        mlir::Value arraySize) {
-  mlir::Block *entryBlock = insertIntoFnEntryBlock
-                                ? getCurFunctionEntryBlock()
-                                : currLexScope->getEntryBlock();
+  // Previous implementation attempted to place non-entry allocas at the
+  // current lexical scope entry block. This caused dominance violations when
+  // cleanups (e.g. dtors) referencing the alloca were emitted in blocks not
+  // dominated by that lexical scope entry (e.g. merged cleanup / ret blocks).
+  // For correctness, always sink allocas to the *function* entry block for
+  // now; later we can re-introduce scoped placement guarded by dominance-safe
+  // lifetime markers.
+  mlir::Block *entryBlock = getCurFunctionEntryBlock();
 
-  // If this is an alloca in the entry basic block of a cir.try and there's
-  // a surrounding cir.scope, make sure the alloca ends up in the surrounding
-  // scope instead. This is necessary in order to guarantee all SSA values are
-  // reachable during cleanups.
+  // Preserve the special-case for try/scope so that allocas live outside the
+  // try body ensuring values remain available to outer cleanups.
   if (auto tryOp =
           llvm::dyn_cast_if_present<cir::TryOp>(entryBlock->getParentOp())) {
     if (auto scopeOp = llvm::dyn_cast<cir::ScopeOp>(tryOp->getParentOp()))
