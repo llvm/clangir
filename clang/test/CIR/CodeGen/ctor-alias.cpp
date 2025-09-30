@@ -21,7 +21,7 @@ void t() {
 //      CHECK:   cir.func dso_local @_Z1tv
 // CHECK-NEXT:     %0 = cir.alloca !rec_DummyString, !cir.ptr<!rec_DummyString>, ["s4", init] {alignment = 1 : i64}
 // CHECK-NEXT:     %1 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 5>>
-// CHECK-NEXT:     %2 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s8i x 5>>), !cir.ptr<!s8i>
+// CHECK-NEXT:     %2 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!s8i x 5>> -> !cir.ptr<!s8i>
 // CHECK-NEXT:     cir.call @_ZN11DummyStringC2EPKc(%0, %2) : (!cir.ptr<!rec_DummyString>, !cir.ptr<!s8i>) -> ()
 // CHECK-NEXT:     cir.return
 

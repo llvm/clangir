@@ -86,11 +86,11 @@ void loadWithThreadFence(DataPtr d) {
 // CIR:    cir.atomic.fence syncscope(system) seq_cst
 // CIR:    %[[LOAD_DATA:.*]] = cir.load{{.*}} %[[DATA]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
 // CIR:    %[[DATA_VALUE:.*]] = cir.get_member %[[LOAD_DATA]][1] {name = "ptr"} : !cir.ptr<!rec_Data> -> !cir.ptr<!cir.ptr<!void>>
-// CIR:    %[[CASTED_DATA_VALUE:.*]] = cir.cast(bitcast, %[[DATA_VALUE]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!u64i>
-// CIR:    %[[CASTED_ATOMIC_TEMP:.*]] = cir.cast(bitcast, %[[ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!u64i>
+// CIR:    %[[CASTED_DATA_VALUE:.*]] = cir.cast bitcast %[[DATA_VALUE]] : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!u64i>
+// CIR:    %[[CASTED_ATOMIC_TEMP:.*]] = cir.cast bitcast %[[ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!u64i>
 // CIR:    %[[ATOMIC_LOAD:.*]] = cir.load{{.*}} atomic(seq_cst) %[[CASTED_DATA_VALUE]] : !cir.ptr<!u64i>, !u64i
 // CIR:    cir.store{{.*}} %[[ATOMIC_LOAD]], %[[CASTED_ATOMIC_TEMP]] : !u64i, !cir.ptr<!u64i>
-// CIR:    %[[DOUBLE_CASTED_ATOMIC_TEMP:.*]] = cir.cast(bitcast, %[[CASTED_ATOMIC_TEMP]] : !cir.ptr<!u64i>), !cir.ptr<!cir.ptr<!void>>
+// CIR:    %[[DOUBLE_CASTED_ATOMIC_TEMP:.*]] = cir.cast bitcast %[[CASTED_ATOMIC_TEMP]] : !cir.ptr<!u64i> -> !cir.ptr<!cir.ptr<!void>>
 // CIR:    %[[ATOMIC_LOAD_PTR:.*]] = cir.load{{.*}} %[[DOUBLE_CASTED_ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:    cir.return
 
@@ -115,11 +115,11 @@ void loadWithSignalFence(DataPtr d) {
 // CIR:    cir.atomic.fence syncscope(single_thread) seq_cst
 // CIR:    %[[LOAD_DATA:.*]] = cir.load{{.*}} %[[DATA]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
 // CIR:    %[[DATA_PTR:.*]] = cir.get_member %[[LOAD_DATA]][1] {name = "ptr"} : !cir.ptr<!rec_Data> -> !cir.ptr<!cir.ptr<!void>>
-// CIR:    %[[CASTED_DATA_PTR:.*]] = cir.cast(bitcast, %[[DATA_PTR]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!u64i>
-// CIR:    %[[CASTED_ATOMIC_TEMP:.*]] = cir.cast(bitcast, %[[ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!u64i>
+// CIR:    %[[CASTED_DATA_PTR:.*]] = cir.cast bitcast %[[DATA_PTR]] : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!u64i>
+// CIR:    %[[CASTED_ATOMIC_TEMP:.*]] = cir.cast bitcast %[[ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!u64i>
 // CIR:    %[[ATOMIC_LOAD:.*]] = cir.load{{.*}} atomic(seq_cst) %[[CASTED_DATA_PTR]] : !cir.ptr<!u64i>, !u64i
 // CIR:    cir.store{{.*}} %[[ATOMIC_LOAD]], %[[CASTED_ATOMIC_TEMP]] : !u64i, !cir.ptr<!u64i>
-// CIR:    %[[DOUBLE_CASTED_ATOMIC_TEMP:.*]] = cir.cast(bitcast, %[[CASTED_ATOMIC_TEMP]] : !cir.ptr<!u64i>), !cir.ptr<!cir.ptr<!void>>
+// CIR:    %[[DOUBLE_CASTED_ATOMIC_TEMP:.*]] = cir.cast bitcast %[[CASTED_ATOMIC_TEMP]] : !cir.ptr<!u64i> -> !cir.ptr<!cir.ptr<!void>>
 // CIR:    %[[LOAD_ATOMIC_TEMP:.*]] = cir.load{{.*}} %[[DOUBLE_CASTED_ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:    cir.return
 

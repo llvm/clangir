@@ -57,8 +57,8 @@ void test_mm256_mask_storeu_pd(void *__P, __mmask8 __U, __m256d __A) {
 
 __m128i test_mm_movm_epi8(__mmask16 __A) {
   // CIR-LABEL: _mm_movm_epi8
-  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u16i), !cir.vector<!cir.int<s, 1> x 16>
-  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 16>), !cir.vector<{{!s8i|!u8i}} x 16>
+  // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !u16i -> !cir.vector<!cir.int<s, 1> x 16>
+  // CIR: %{{.*}} = cir.cast integral %{{.*}} : !cir.vector<!cir.int<s, 1> x 16> -> !cir.vector<{{!s8i|!u8i}} x 16>
 
   // LLVM-LABEL: @test_mm_movm_epi8
   // LLVM: %{{.*}} = bitcast i16 %{{.*}} to <16 x i1>
@@ -68,8 +68,8 @@ __m128i test_mm_movm_epi8(__mmask16 __A) {
 
 __m256i test_mm256_movm_epi8(__mmask32 __A) {
   // CIR-LABEL: _mm256_movm_epi8
-  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u32i), !cir.vector<!cir.int<s, 1> x 32>
-  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 32>), !cir.vector<{{!s8i|!u8i}} x 32>
+  // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !u32i -> !cir.vector<!cir.int<s, 1> x 32>
+  // CIR: %{{.*}} = cir.cast integral %{{.*}} : !cir.vector<!cir.int<s, 1> x 32> -> !cir.vector<{{!s8i|!u8i}} x 32>
 
   // LLVM-LABEL: @test_mm256_movm_epi8
   // LLVM: %{{.*}} = bitcast i32 %{{.*}} to <32 x i1>
@@ -79,8 +79,8 @@ __m256i test_mm256_movm_epi8(__mmask32 __A) {
 
 __m512i test_mm512_movm_epi8(__mmask64 __A) {
   // CIR-LABEL: _mm512_movm_epi8
-  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u64i), !cir.vector<!cir.int<s, 1> x 64>
-  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 64>), !cir.vector<{{!s8i|!u8i}} x 64>
+  // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !u64i -> !cir.vector<!cir.int<s, 1> x 64>
+  // CIR: %{{.*}} = cir.cast integral %{{.*}} : !cir.vector<!cir.int<s, 1> x 64> -> !cir.vector<{{!s8i|!u8i}} x 64>
 
   // LLVM-LABEL: @test_mm512_movm_epi8
   // LLVM:  %{{.*}} = bitcast i64 %{{.*}} to <64 x i1>
@@ -90,8 +90,8 @@ __m512i test_mm512_movm_epi8(__mmask64 __A) {
 
 __m128i test_mm_movm_epi16(__mmask8 __A) {
   // CIR-LABEL: _mm_movm_epi16
-  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u8i), !cir.vector<!cir.int<s, 1> x 8>
-  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 8>), !cir.vector<!s16i x 8>
+  // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !u8i -> !cir.vector<!cir.int<s, 1> x 8>
+  // CIR: %{{.*}} = cir.cast integral %{{.*}} : !cir.vector<!cir.int<s, 1> x 8> -> !cir.vector<!s16i x 8>
 
   // LLVM-LABEL: @test_mm_movm_epi16
   // LLVM: %{{.*}} = bitcast i8 %{{.*}} to <8 x i1>
@@ -101,8 +101,8 @@ __m128i test_mm_movm_epi16(__mmask8 __A) {
 
 __m256i test_mm256_movm_epi16(__mmask16 __A) {
   // CIR-LABEL: _mm256_movm_epi16
-  // CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !u16i), !cir.vector<!cir.int<s, 1> x 16>
-  // CIR: %{{.*}} = cir.cast(integral, %{{.*}} : !cir.vector<!cir.int<s, 1> x 16>), !cir.vector<!s16i x 16>
+  // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !u16i -> !cir.vector<!cir.int<s, 1> x 16>
+  // CIR: %{{.*}} = cir.cast integral %{{.*}} : !cir.vector<!cir.int<s, 1> x 16> -> !cir.vector<!s16i x 16>
 
   // LLVM-LABEL: @test_mm256_movm_epi16
   // LLVM: %{{.*}} = bitcast i16 %{{.*}} to <16 x i1>

@@ -14,14 +14,14 @@ cir.global external dso_local @glob = #cir.zero : !rec_S {alignment = 2 : i64}
 cir.func dso_local @main() -> !s32i extra(#fn_attr) {
   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
   %1 = cir.const #cir.int<0> : !s32i
-  %2 = cir.cast(integral, %1 : !s32i), !s16i
+  %2 = cir.cast integral %1 : !s32i -> !s16i
   %3 = cir.get_global @glob : !cir.ptr<!rec_S>
   %4 = cir.get_member %3[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
   cir.store align(2) %2, %4 : !s16i, !cir.ptr<!s16i> tbaa(#tbaa_tag)
   %5 = cir.get_global @glob : !cir.ptr<!rec_S>
   %6 = cir.get_member %5[0] {name = "i"} : !cir.ptr<!rec_S> -> !cir.ptr<!s16i>
   %7 = cir.load align(2) %6 : !cir.ptr<!s16i>, !s16i tbaa(#tbaa_tag)
-  %8 = cir.cast(integral, %7 : !s16i), !s32i
+  %8 = cir.cast integral %7 : !s16i -> !s32i
   cir.store %8, %0 : !s32i, !cir.ptr<!s32i>
   %9 = cir.load %0 : !cir.ptr<!s32i>, !s32i
   cir.return %9 : !s32i

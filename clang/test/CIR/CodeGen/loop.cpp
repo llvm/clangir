@@ -85,7 +85,7 @@ void l2(bool cond) {
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     cir.while {
 // CHECK-NEXT:       %3 = cir.const #cir.int<1> : !s32i
-// CHECK-NEXT:       %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
+// CHECK-NEXT:       %4 = cir.cast int_to_bool %3 : !s32i -> !cir.bool
 // CHECK-NEXT:       cir.condition(%4)
 // CHECK-NEXT:     } do {
 // CHECK-NEXT:       cir.scope {
@@ -151,7 +151,7 @@ void l3(bool cond) {
 // CHECK-NEXT:     cir.yield
 // CHECK-NEXT:   } while {
 // CHECK-NEXT:     %3 = cir.const #cir.int<1> : !s32i
-// CHECK-NEXT:     %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
+// CHECK-NEXT:     %4 = cir.cast int_to_bool %3 : !s32i -> !cir.bool
 // CHECK-NEXT:     cir.condition(%4)
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
@@ -196,7 +196,7 @@ void l5() {
 // CHECK-NEXT:       cir.yield
 // CHECK-NEXT:     } while {
 // CHECK-NEXT:       %0 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:       %1 = cir.cast(int_to_bool, %0 : !s32i), !cir.bool
+// CHECK-NEXT:       %1 = cir.cast int_to_bool %0 : !s32i -> !cir.bool
 // CHECK-NEXT:       cir.condition(%1)
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }

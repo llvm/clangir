@@ -1449,7 +1449,7 @@ public:
   }
 
   // Rewrite
-  //        %0 = cir.cast(array_to_ptrdecay, %base)
+  //        %0 = cir.cast array_to_ptrdecay %base
   //        cir.ptr_stride(%0, %stride)
   // to
   //        memref.reinterpret_cast (%base, %stride)

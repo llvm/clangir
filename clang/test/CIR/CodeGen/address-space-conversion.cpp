@@ -15,7 +15,7 @@ void test_ptr() {
   pi1_t ptr1;
   pi2_t ptr2 = (pi2_t)ptr1;
   // CIR:      %[[#PTR1:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.ptr<!s32i, addrspace(target<1>)>>, !cir.ptr<!s32i, addrspace(target<1>)>
-  // CIR-NEXT: %[[#CAST:]] = cir.cast(address_space, %[[#PTR1]] : !cir.ptr<!s32i, addrspace(target<1>)>), !cir.ptr<!s32i, addrspace(target<2>)>
+  // CIR-NEXT: %[[#CAST:]] = cir.cast address_space %[[#PTR1]] : !cir.ptr<!s32i, addrspace(target<1>)> -> !cir.ptr<!s32i, addrspace(target<2>)>
   // CIR-NEXT: cir.store{{.*}} %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(target<2>)>, !cir.ptr<!cir.ptr<!s32i, addrspace(target<2>)>>
 
   // LLVM:      %[[#PTR1:]] = load ptr addrspace(1), ptr %{{[0-9]+}}, align 8
@@ -32,7 +32,7 @@ void test_ref() {
   // CIR:      %[[#DEREF:]] = cir.load deref{{.*}}  %{{[0-9]+}} : !cir.ptr<!cir.ptr<!s32i, addrspace(target<1>)>>, !cir.ptr<!s32i, addrspace(target<1>)>
   // CIR-NEXT: cir.store{{.*}} %[[#DEREF]], %[[#ALLOCAREF1:]] : !cir.ptr<!s32i, addrspace(target<1>)>, !cir.ptr<!cir.ptr<!s32i, addrspace(target<1>)>>
   // CIR-NEXT: %[[#REF1:]] = cir.load{{.*}} %[[#ALLOCAREF1]] : !cir.ptr<!cir.ptr<!s32i, addrspace(target<1>)>>, !cir.ptr<!s32i, addrspace(target<1>)>
-  // CIR-NEXT: %[[#CAST:]] = cir.cast(address_space, %[[#REF1]] : !cir.ptr<!s32i, addrspace(target<1>)>), !cir.ptr<!s32i, addrspace(target<2>)>
+  // CIR-NEXT: %[[#CAST:]] = cir.cast address_space %[[#REF1]] : !cir.ptr<!s32i, addrspace(target<1>)> -> !cir.ptr<!s32i, addrspace(target<2>)>
   // CIR-NEXT: cir.store{{.*}} %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(target<2>)>, !cir.ptr<!cir.ptr<!s32i, addrspace(target<2>)>>
 
   // LLVM:      %[[#DEREF:]] = load ptr addrspace(1), ptr %{{[0-9]+}}, align 8

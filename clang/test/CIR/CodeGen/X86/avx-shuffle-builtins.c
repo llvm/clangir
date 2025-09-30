@@ -55,11 +55,11 @@ __m256 test_mm256_insertf128_ps_1(__m256 a, __m128 b) {
 }
 
 // CIR-LABEL: @test_mm256_insertf128_si256_0(
-// CIR: [[TMP0:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 4>), !cir.vector<!s32i x 8>
-// CIR: [[TMP1:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 2>), !cir.vector<!s32i x 4>
+// CIR: [[TMP0:%.*]] = cir.cast bitcast %{{.*}} : !cir.vector<!s64i x 4> -> !cir.vector<!s32i x 8>
+// CIR: [[TMP1:%.*]] = cir.cast bitcast %{{.*}} : !cir.vector<!s64i x 2> -> !cir.vector<!s32i x 4>
 // CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
 // CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!s32i x 8>) [#cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
-// CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.vector<!s32i x 8>), !cir.vector<!s64i x 4>
+// CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s32i x 8> -> !cir.vector<!s64i x 4>
 // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 4>
 
 // LLVM-LABEL: @test_mm256_insertf128_si256_0
@@ -75,11 +75,11 @@ __m256i test_mm256_insertf128_si256_0(__m256i a, __m128i b) {
 }
 
 // CIR-LABEL: @test_mm256_insertf128_si256_1(
-// CIR: [[TMP0:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 4>), !cir.vector<!s32i x 8>
-// CIR: [[TMP1:%.*]] = cir.cast(bitcast, %{{.*}} : !cir.vector<!s64i x 2>), !cir.vector<!s32i x 4>
+// CIR: [[TMP0:%.*]] = cir.cast bitcast %{{.*}} : !cir.vector<!s64i x 4> -> !cir.vector<!s32i x 8>
+// CIR: [[TMP1:%.*]] = cir.cast bitcast %{{.*}} : !cir.vector<!s64i x 2> -> !cir.vector<!s32i x 4>
 // CIR: %{{.*}} = cir.vec.shuffle([[TMP1]], %{{.*}} : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 8>
 // CIR-NEXT: %{{.*}} = cir.vec.shuffle([[TMP0]], %{{.*}} : !cir.vector<!s32i x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i] : !cir.vector<!s32i x 8>
-// CIR: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.vector<!s32i x 8>), !cir.vector<!s64i x 4>
+// CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s32i x 8> -> !cir.vector<!s64i x 4>
 // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 4>
 
 // LLVM-LABEL: @test_mm256_insertf128_si256_1

@@ -21,7 +21,7 @@ unsigned long long tc() {
     z = division(x, y);
 
     // CIR_FLAT: ^[[CONT:.*]]:  // pred: ^bb2
-    // CIR_FLAT: cir.cast(float_to_int, %12 : !cir.double), !u64i
+    // CIR_FLAT: cir.cast float_to_int %12 : !cir.double -> !u64i
     a++;
     // CIR_FLAT: cir.br ^[[AFTER_TRY:.*]] loc
 

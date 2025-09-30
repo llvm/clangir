@@ -7,13 +7,13 @@ void foo(void) {
   // CIR-LABEL: cir.func dso_local @_Z3foov()
   // CIR: %[[V0:.*]] = cir.alloca !cir.array<!cir.float x 4>, !cir.ptr<!cir.array<!cir.float x 4>>, ["f4"] {alignment = 16 : i64}
   // CIR: %[[V1:.*]] = cir.alloca !cir.array<!cir.float x 8>, !cir.ptr<!cir.array<!cir.float x 8>>, ["f8"] {alignment = 16 : i64}
-  // CIR: %[[V2:.*]] = cir.cast(array_to_ptrdecay, %[[V0]] : !cir.ptr<!cir.array<!cir.float x 4>>), !cir.ptr<!cir.float>
-  // CIR: %[[V3:.*]] = cir.cast(bitcast, %[[V2]] : !cir.ptr<!cir.float>), !cir.ptr<!void>
-  // CIR: %[[V4:.*]] = cir.cast(array_to_ptrdecay, %[[V1]] : !cir.ptr<!cir.array<!cir.float x 8>>), !cir.ptr<!cir.float>
-  // CIR: %[[V5:.*]] = cir.cast(bitcast, %[[V4]] : !cir.ptr<!cir.float>), !cir.ptr<!void>
+  // CIR: %[[V2:.*]] = cir.cast array_to_ptrdecay %[[V0]] : !cir.ptr<!cir.array<!cir.float x 4>> -> !cir.ptr<!cir.float>
+  // CIR: %[[V3:.*]] = cir.cast bitcast %[[V2]] : !cir.ptr<!cir.float> -> !cir.ptr<!void>
+  // CIR: %[[V4:.*]] = cir.cast array_to_ptrdecay %[[V1]] : !cir.ptr<!cir.array<!cir.float x 8>> -> !cir.ptr<!cir.float>
+  // CIR: %[[V5:.*]] = cir.cast bitcast %[[V4]] : !cir.ptr<!cir.float> -> !cir.ptr<!void>
   // CIR: %[[V6:.*]] = cir.const #cir.int<4> : !u64i
   // CIR: %[[V7:.*]] = cir.const #cir.int<4> : !s32i
-  // CIR: %[[V8:.*]] = cir.cast(integral, %[[V7]] : !s32i), !u64i
+  // CIR: %[[V8:.*]] = cir.cast integral %[[V7]] : !s32i -> !u64i
   // CIR: %[[V9:.*]] = cir.binop(mul, %[[V6]], %[[V8]]) : !u64i
   // CIR: cir.libc.memmove %[[V9]] bytes from %[[V3]] to %[[V5]] : !cir.ptr<!void>, !u64i
   // CIR: cir.return

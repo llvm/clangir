@@ -42,7 +42,7 @@ void T2(void) {
   struct outer X = {ARRAY_PTR(10, 20, 30)};
 
   // CIR-DAG: %[[T2A:.*]] = cir.get_global @T2._a : !cir.ptr<![[annon_struct]]>
-  // CIR-DAG: cir.cast(bitcast, %[[T2A]] : !cir.ptr<![[annon_struct]]>), !cir.ptr<![[sized_array]]>
+  // CIR-DAG: cir.cast bitcast %[[T2A]] : !cir.ptr<![[annon_struct]]> -> !cir.ptr<![[sized_array]]>
   escape(A);
   escape(&X);
 }

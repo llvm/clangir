@@ -40,7 +40,7 @@ void x() {
 // AFTER: cir.func dso_local @_Z1xv()
 // AFTER: %[[ArrayAddr0:.*]] = cir.alloca !cir.array<!rec_xpto x 2>
 // AFTER: %[[ConstTwo:.*]] = cir.const #cir.int<2> : !u64i
-// AFTER: %[[ArrayBegin:.*]] = cir.cast(array_to_ptrdecay, %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>>), !cir.ptr<!rec_xpto>
+// AFTER: %[[ArrayBegin:.*]] = cir.cast array_to_ptrdecay %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>> -> !cir.ptr<!rec_xpto>
 // AFTER: %[[ArrayPastEnd:.*]] = cir.ptr_stride %[[ArrayBegin]], %[[ConstTwo]] : (!cir.ptr<!rec_xpto>, !u64i) -> !cir.ptr<!rec_xpto>
 // AFTER: %[[TmpIdx:.*]] = cir.alloca !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>, ["__array_idx"] {alignment = 1 : i64}
 // AFTER: cir.store %[[ArrayBegin]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>
@@ -57,7 +57,7 @@ void x() {
 // AFTER:   cir.condition(%[[ExitCond]])
 // AFTER: }
 // AFTER: %[[ConstOne:.*]] = cir.const #cir.int<1> : !u64i
-// AFTER: %[[ArrayBegin:.*]] = cir.cast(array_to_ptrdecay, %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>>), !cir.ptr<!rec_xpto>
+// AFTER: %[[ArrayBegin:.*]] = cir.cast array_to_ptrdecay %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>> -> !cir.ptr<!rec_xpto>
 // AFTER: %[[ArrayEnd:.*]] = cir.ptr_stride %[[ArrayBegin]], %[[ConstOne]] : (!cir.ptr<!rec_xpto>, !u64i) -> !cir.ptr<!rec_xpto>
 // AFTER: %[[TmpIdx:.*]] = cir.alloca !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>, ["__array_idx"] {alignment = 1 : i64}
 // AFTER: cir.store %[[ArrayEnd]], %[[TmpIdx]] : !cir.ptr<!rec_xpto>, !cir.ptr<!cir.ptr<!rec_xpto>>

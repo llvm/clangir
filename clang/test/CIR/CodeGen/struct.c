@@ -38,7 +38,7 @@ void shouldConstInitStructs(void) {
 // CHECK: cir.func dso_local @shouldConstInitStructs
   struct Foo f = {1, 2, {3, 4}};
   // CHECK: %[[#V0:]] = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["f"] {alignment = 4 : i64}
-  // CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_Foo>), !cir.ptr<!rec_anon_struct1>
+  // CHECK: %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_Foo> -> !cir.ptr<!rec_anon_struct1>
   // CHECK: %[[#V2:]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s8i,
   // CHECK-SAME:        #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>,
   // CHECK-SAME:        #cir.const_record<{#cir.int<3> : !s32i, #cir.int<4> : !s8i,

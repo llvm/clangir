@@ -225,9 +225,9 @@ def CIR_CastOp : CIR_Op<"cast",[
     Example:
 
     ```mlir
-    %4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
+    %4 = cir.cast int_to_bool %3 : i32 -> !cir.bool
     ...
-    %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
+    %x = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<i32 x 10>> -> !cir.ptr<i32>
     ```
   }];
 
@@ -235,8 +235,7 @@ def CIR_CastOp : CIR_Op<"cast",[
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    `(` $kind `,` $src `:` type($src) `)`
-    `,` type($result) attr-dict
+    $kind $src `:` type($src) `->` type($result) attr-dict
   }];
 
   // The input and output types should match the cast kind.
@@ -4922,7 +4921,7 @@ def CIR_MemSetOp : CIR_Op<"libc.memset"> {
       // Set 2 bytes from a record to 0:
       %2 = cir.const #cir.int<2> : !u32i
       %3 = cir.const #cir.int<0> : !u32i
-      %zero = cir.cast(integral, %3 : !s32i), !u8i
+      %zero = cir.cast integral %3 : !s32i -> !u8i
       cir.libc.memset %2 bytes from %record set to %zero : !cir.ptr<!void>, !s32i, !u64i
     ```
   }];
@@ -5446,7 +5445,7 @@ def CIR_FreeExceptionOp : CIR_Op<"free.exception"> {
     %1 = cir.get_global @d2 : !cir.ptr<!some_record>
     cir.try synthetic cleanup {
       cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_record>, !cir.ptr<!some_record>) -> () cleanup {
-        %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_record>), !cir.ptr<!void>
+        %2 = cir.cast bitcast %0 : !cir.ptr<!some_record> -> !cir.ptr<!void>
         cir.free.exception %2
         cir.yield
       }
@@ -5865,7 +5864,7 @@ def CIR_GotoOp : CIR_Op<"goto", [Terminator]> {
   ```mlir
     cir.scope {  // REGION #1
       %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-      %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+      %3 = cir.cast int_to_bool %2 : !s32i -> !cir.bool
       cir.if %3 {
         cir.goto "label"
       }

@@ -16,7 +16,7 @@ int f6(int a0, struct s6 a1, struct s6 a2) {
 // CIR:  cir.scope {
 // CIR:    %[[TMP:.*]] = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, ["ref.tmp0"]
 // CIR:    %[[LOAD_A0:.*]] = cir.load{{.*}} %[[A0]] : !cir.ptr<!s32i>, !s32i
-// CIR:    %[[COND:.*]] = cir.cast(int_to_bool, %[[LOAD_A0]] : !s32i), !cir.bool
+// CIR:    %[[COND:.*]] = cir.cast int_to_bool %[[LOAD_A0]] : !s32i -> !cir.bool
 // CIR:    cir.if %[[COND]] {
 // CIR:      cir.copy %[[A1]] to %[[TMP]] : !cir.ptr<!rec_s6>
 // CIR:    } else {

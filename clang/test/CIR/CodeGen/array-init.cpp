@@ -19,7 +19,7 @@ void foo() {
 // CHECK: %[[VAL_3:.*]] = cir.call @_Z3barv() : () -> !s32i
 // CHECK: cir.store{{.*}} %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
 // CHECK: %[[VAL_4:.*]] = cir.get_member %[[VAL_0]][1] {name = "b"} : !cir.ptr<!rec_A> -> !cir.ptr<!cir.array<!s32i x 2>>
-// CHECK: %[[VAL_5:.*]] = cir.cast(array_to_ptrdecay, %[[VAL_4]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!s32i>
+// CHECK: %[[VAL_5:.*]] = cir.cast array_to_ptrdecay %[[VAL_4]] : !cir.ptr<!cir.array<!s32i x 2>> -> !cir.ptr<!s32i>
 // CHECK: cir.store{{.*}} %[[VAL_5]], %[[VAL_1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK: %[[VAL_6:.*]] = cir.const #cir.int<2> : !s64i
 // CHECK: %[[VAL_7:.*]] = cir.get_element %[[VAL_4]][%[[VAL_6]]] : (!cir.ptr<!cir.array<!s32i x 2>>, !s64i) -> !cir.ptr<!s32i>
