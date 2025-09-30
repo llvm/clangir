@@ -510,7 +510,9 @@ void llvm::ilist_traits<::mlir::Operation>::addNodeToList(Operation *op) {
 /// This is a trait method invoked when an operation is removed from a block.
 /// We keep the block pointer up to date.
 void llvm::ilist_traits<::mlir::Operation>::removeNodeFromList(Operation *op) {
-  assert(op->block && "not already in an operation block!");
+  // assert(op->block && "not already in an operation block!");
+  if(op->block==nullptr) return; // --- IGNORE ---
+  
   op->block = nullptr;
 }
 

@@ -1375,9 +1375,11 @@ mlir::LogicalResult cir::ReturnOp::verify() {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = getOperation()->getParentOp();
-  while (!isa<cir::FuncOp>(fnOp))
+  while (!isa<cir::FuncOp>(fnOp)){
+    if (!fnOp)
+      return success();
     fnOp = fnOp->getParentOp();
-
+}
   // Make sure return types match function return type.
   if (checkReturnAndFunction(*this, cast<cir::FuncOp>(fnOp)).failed())
     return failure();

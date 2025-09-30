@@ -54,9 +54,9 @@
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/Value.h"
@@ -458,20 +458,155 @@ static mlir::Type convertTypeForMemory(const mlir::TypeConverter &converter,
   return converter.convertType(type);
 }
 
-static llvm::DenseMap<mlir::Value, mlir::Value> PointerBackingMemrefs;
+// Track pointer SSA values (llvm.ptr) that originate from CIR allocas or a
+// memref-based view so we can recover the underlying memref when lowering
+// loads/stores.
+namespace {
 
-static void clearPointerBackingMemrefs() { PointerBackingMemrefs.clear(); }
+using PointerBackingMap = llvm::DenseMap<mlir::Value, mlir::Value>;
+
+PointerBackingMap &getPointerBackingMemrefMap() {
+  static PointerBackingMap map;
+  return map;
+}
+
+} // namespace
+
+static void clearPointerBackingMemrefs() {
+  getPointerBackingMemrefMap().clear();
+}
 
 static void registerPointerBackingMemref(mlir::Value pointer,
                                          mlir::Value memref) {
   if (!pointer || !memref)
     return;
-  PointerBackingMemrefs[pointer] = memref;
+  getPointerBackingMemrefMap()[pointer] = memref;
 }
 
+static void erasePointerBackingEntryForValue(mlir::Value value) {
+  if (!value)
+    return;
+  getPointerBackingMemrefMap().erase(value);
+}
+
+static void erasePointerBackingEntriesReferencingMemref(mlir::Value memref) {
+  if (!memref)
+    return;
+  PointerBackingMap &map = getPointerBackingMemrefMap();
+  for (auto it = map.begin(), e = map.end(); it != e;) {
+    auto current = it++;
+    if (current->second == memref)
+      map.erase(current);
+  }
+}
+
+static mlir::LLVM::GEPNoWrapFlags
+convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
+  using CIRFlags = cir::CIR_GEPNoWrapFlags;
+  using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
+
+  LLVMFlags result = LLVMFlags::none;
+  if ((flags & CIRFlags::inboundsFlag) == CIRFlags::inboundsFlag)
+    result = result | LLVMFlags::inboundsFlag;
+  if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
+    result = result | LLVMFlags::nusw;
+  if ((flags & CIRFlags::inbounds) == CIRFlags::inbounds)
+    result = result | LLVMFlags::inbounds;
+  if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
+    result = result | LLVMFlags::nuw;
+  return result;
+}
+
+static mlir::LogicalResult
+normalizeStrideToPointerWidth(cir::PtrStrideOp op, mlir::Value &stride,
+                              bool isUnsigned, mlir::Type pointerType,
+                              mlir::ConversionPatternRewriter &rewriter) {
+  unsigned targetWidth = 64;
+  if (auto module = op->getParentOfType<mlir::ModuleOp>()) {
+    mlir::DataLayout layout(module);
+    if (auto maybeWidth = layout.getTypeIndexBitwidth(pointerType))
+      targetWidth = *maybeWidth;
+  }
+
+  auto destTy = rewriter.getIntegerType(targetWidth);
+  auto curTy = stride.getType();
+  if (curTy == destTy)
+    return mlir::success();
+
+  auto loc = op.getLoc();
+  if (mlir::isa<mlir::IndexType>(curTy)) {
+    stride = rewriter.create<mlir::arith::IndexCastOp>(loc, destTy, stride)
+                 .getResult();
+    return mlir::success();
+  }
+
+  auto intTy = mlir::dyn_cast<mlir::IntegerType>(curTy);
+  if (!intTy) {
+    op.emitError() << "ptr_stride requires integral or index stride but got "
+                   << curTy;
+    return mlir::failure();
+  }
+
+  unsigned currentWidth = intTy.getWidth();
+  if (currentWidth == targetWidth)
+    return mlir::success();
+
+  if (currentWidth < targetWidth) {
+    stride =
+        (isUnsigned ? rewriter.create<mlir::arith::ExtUIOp>(loc, destTy, stride)
+                          .getResult()
+                    : rewriter.create<mlir::arith::ExtSIOp>(loc, destTy, stride)
+                          .getResult());
+    return mlir::success();
+  }
+
+  stride =
+      rewriter.create<mlir::arith::TruncIOp>(loc, destTy, stride).getResult();
+  return mlir::success();
+}
+
+class PointerBackingListener : public mlir::RewriterBase::Listener {
+public:
+  void notifyOperationErased(mlir::Operation *op) override {
+    for (mlir::Value res : op->getResults()) {
+      erasePointerBackingEntryForValue(res);
+      erasePointerBackingEntriesReferencingMemref(res);
+    }
+  }
+
+  void notifyOperationReplaced(mlir::Operation *op,
+                               mlir::ValueRange replacements) override {
+    (void)replacements;
+    for (mlir::Value res : op->getResults()) {
+      erasePointerBackingEntryForValue(res);
+      erasePointerBackingEntriesReferencingMemref(res);
+    }
+  }
+};
+
+static PointerBackingListener &getPointerBackingListener() {
+  static PointerBackingListener listener;
+  return listener;
+}
+
+class PointerBackingListenerScope {
+public:
+  PointerBackingListenerScope(mlir::PatternRewriter &rewriter)
+      : rewriter(rewriter), previous(rewriter.getListener()) {
+    rewriter.setListener(&getPointerBackingListener());
+  }
+
+  ~PointerBackingListenerScope() { rewriter.setListener(previous); }
+
+private:
+  mlir::PatternRewriter &rewriter;
+  mlir::OpBuilder::Listener *previous;
+};
+
 static mlir::Value lookupPointerBackingMemref(mlir::Value pointer) {
-  auto it = PointerBackingMemrefs.find(pointer);
-  if (it == PointerBackingMemrefs.end())
+  PointerBackingMap &map = getPointerBackingMemrefMap();
+  auto it = map.find(pointer);
+  if (it == map.end())
     return {};
   return it->second;
 }
@@ -512,8 +647,8 @@ unwrapPointerLikeToMemRefImpl(mlir::Value value,
       if (mlir::Value remappedInput = rewriter.getRemappedValue(input)) {
         if (auto cached = lookupPointerBackingMemref(remappedInput))
           return PointerMemRefView{cached, castOp};
-        if (auto nested = unwrapPointerLikeToMemRefImpl(remappedInput, rewriter,
-                                                        visited))
+        if (auto nested =
+                unwrapPointerLikeToMemRefImpl(remappedInput, rewriter, visited))
           return PointerMemRefView{nested->memref, castOp};
       }
     }
@@ -631,6 +766,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    PointerBackingListenerScope listenerScope(rewriter);
 
     mlir::Type mlirType =
         convertTypeForMemory(*getTypeConverter(), adaptor.getAllocaType());
@@ -764,6 +900,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::LoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    PointerBackingListenerScope listenerScope(rewriter);
     mlir::Operation *castToErase = nullptr;
     mlir::Value loweredAddr = adaptor.getAddr();
     if (auto view = unwrapPointerLikeToMemRef(loweredAddr, rewriter)) {
@@ -790,17 +927,35 @@ public:
     }
 
     // Diagnostic guard: if the address isn't a memref, degrade gracefully.
+    if (!loweredAddr) {
+      llvm::errs() << "[cir][lowering][debug] store addr is null value\n";
+      return op.emitError()
+             << "store lowering: null address after pointer unwrap";
+    }
+    if (!loweredAddr) {
+      llvm::errs() << "[cir][lowering][debug] load addr is null value\n";
+      return op.emitError()
+             << "load lowering: null address after pointer unwrap";
+    }
     mlir::Type addrTy = loweredAddr.getType();
+    llvm::errs() << "[cir][lowering][debug] load addr type=";
+    addrTy.print(llvm::errs());
+    llvm::errs() << '\n';
     if (!mlir::isa<mlir::MemRefType>(addrTy)) {
-      llvm::errs() << "[cir][lowering][debug] load fallback addr type=";
-      addrTy.print(llvm::errs());
-      llvm::errs() << "\n";
-      loweredAddr.dump();
-      if (auto *def = loweredAddr.getDefiningOp())
-        def->dump();
-      else
-        llvm::errs() << "[cir][lowering][debug] load addr has no defining op\n";
-      llvm::errs().flush();
+      if (auto loweredResTy = getTypeConverter()->convertType(op.getType())) {
+        if (mlir::isa<mlir::LLVM::LLVMPointerType>(addrTy) &&
+            mlir::isa<mlir::LLVM::LLVMPointerType>(loweredResTy)) {
+          auto rawLoad = rewriter.create<mlir::LLVM::LoadOp>(
+              op.getLoc(), loweredResTy, loweredAddr);
+          if (auto align = op.getAlignmentAttr())
+            rawLoad.setAlignmentAttr(align);
+          rewriter.replaceOp(op, rawLoad.getResult());
+          if (castToErase && castToErase->use_empty())
+            for (auto res : castToErase->getResults())
+              erasePointerBackingEntryForValue(res);
+          return mlir::success();
+        }
+      }
       op.emitRemark() << "load lowering: non-memref address operand type "
                       << adaptor.getAddr().getType()
                       << "; producing undef surrogate";
@@ -864,7 +1019,8 @@ public:
     mlir::Value result = emitFromMemory(rewriter, op, newLoad.getResult());
     rewriter.replaceOp(op, result);
     if (castToErase && castToErase->use_empty())
-      rewriter.eraseOp(castToErase);
+      for (auto res : castToErase->getResults())
+        erasePointerBackingEntryForValue(res);
     return mlir::LogicalResult::success();
   }
 };
@@ -876,6 +1032,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    PointerBackingListenerScope listenerScope(rewriter);
     mlir::Operation *castToErase = nullptr;
     mlir::Value loweredAddr = adaptor.getAddr();
     if (auto view = unwrapPointerLikeToMemRef(loweredAddr, rewriter)) {
@@ -902,25 +1059,22 @@ public:
     }
 
     // If the address is not a memref, attempt pointer bridging.
+    if (!loweredAddr) {
+      llvm::errs() << "[cir][lowering][debug] store addr is null value\n";
+      return op.emitError()
+             << "store lowering: null address after pointer unwrap";
+    }
     mlir::Type addrTy = loweredAddr.getType();
     if (!mlir::isa<mlir::MemRefType>(addrTy)) {
       if (mlir::isa<mlir::LLVM::LLVMPointerType>(addrTy)) {
-        // Bridging path: emit an LLVM store directly. Convert value to memory
-        // representation (e.g. bool widening) but DO NOT box it in a memref.
-        mlir::Value value = emitToMemory(rewriter, op, adaptor.getValue());
-        // Ensure the stored value is not a memref (we cannot store a memref
-        // descriptor through a raw pointer). If it is, conservatively remark
-        // and drop.
-        if (mlir::isa<mlir::MemRefType>(value.getType())) {
-          op.emitRemark() << "store lowering: value is memref but address is "
-                             "raw pointer; dropping store";
-          rewriter.eraseOp(op);
-          return mlir::success();
-        }
-        rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, value,
-                                                         loweredAddr);
+        auto store = rewriter.create<mlir::LLVM::StoreOp>(
+            op.getLoc(), adaptor.getValue(), loweredAddr);
+        if (auto align = op.getAlignmentAttr())
+          store.setAlignmentAttr(align);
+        rewriter.eraseOp(op);
         if (castToErase && castToErase->use_empty())
-          rewriter.eraseOp(castToErase);
+          for (auto res : castToErase->getResults())
+            erasePointerBackingEntryForValue(res);
         return mlir::success();
       }
       // Unknown non-memref, non-LLVM pointer address kind: keep prior degrade.
@@ -944,7 +1098,8 @@ public:
       rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
           op, value, loweredAddr, mlir::ValueRange{}, op.getIsNontemporal());
     if (castToErase && castToErase->use_empty())
-      rewriter.eraseOp(castToErase);
+      for (auto res : castToErase->getResults())
+        erasePointerBackingEntryForValue(res);
     return mlir::LogicalResult::success();
   }
 };
@@ -1160,6 +1315,8 @@ private:
            "Can't lower a non-typed attribute");
     auto mlirType = getTypeConverter()->convertType(
         mlir::cast<mlir::TypedAttr>(cirAttr).getType());
+    if (!mlirType)
+      return mlir::TypedAttr();
     if (auto vecAttr = mlir::dyn_cast<cir::ConstVectorAttr>(cirAttr)) {
       assert(mlir::isa<mlir::VectorType>(mlirType) &&
              "MLIR type for CIR vector attribute is not mlir::VectorType");
@@ -1233,9 +1390,42 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(
-        op, getTypeConverter()->convertType(op.getType()),
-        this->lowerCirAttrToMlirAttr(op.getValue(), rewriter));
+    auto loweredTy = getTypeConverter()->convertType(op.getType());
+    if (!loweredTy)
+      return op.emitError()
+             << "constant lowering: unable to convert result type "
+             << op.getType();
+
+    // Handle pointer constants that lower to LLVM pointer values separately so
+    // we can materialize a dedicated LLVM zero initializer instead of forcing
+    // them through arith.constant (which only accepts builtin attrs/types).
+    if (auto ptrAttr = mlir::dyn_cast<cir::ConstPtrAttr>(op.getValue())) {
+      if (auto llvmPtrTy =
+              mlir::dyn_cast<mlir::LLVM::LLVMPointerType>(loweredTy)) {
+        if (!ptrAttr.isNullValue()) {
+          op.emitRemark()
+              << "constant lowering: non-null pointer constants unsupported; "
+                 "falling back to null";
+        }
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZeroOp>(op, llvmPtrTy);
+        return mlir::success();
+      }
+    }
+
+    auto loweredAttr = this->lowerCirAttrToMlirAttr(op.getValue(), rewriter);
+    if (!loweredAttr) {
+      if (auto zero = rewriter.getZeroAttr(loweredTy)) {
+        op.emitRemark()
+            << "constant lowering: falling back to zero initializer";
+        loweredAttr = mlir::cast<mlir::TypedAttr>(zero);
+      } else {
+        return op.emitError()
+               << "constant lowering: unsupported attribute kind";
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, loweredTy,
+                                                         loweredAttr);
     return mlir::LogicalResult::success();
   }
 };
@@ -1667,7 +1857,6 @@ public:
             mlir::dyn_cast<mlir::LLVM::LLVMPointerType>(convertedType)) {
       // Build initializer if present (only handle simple scalar
       // zero/int/float/bool cases now).
-      mlir::Attribute initAttr; // (unused for now; pointer scalar init NYI)
       if (op.getInitialValue()) {
         auto iv = *op.getInitialValue();
         if (auto intAttr = mlir::dyn_cast<cir::IntAttr>(iv)) {
@@ -1718,59 +1907,47 @@ public:
           op.emitRemark()
               << "global lowering: unsupported constant array initializer; "
                  "emitting zero-initialized fallback";
-          // Best-effort zero fallback (scalar) if element type is integral/FP.
-          if (auto elemTy = memrefType.getElementType();
-              mlir::isa<mlir::IntegerType>(elemTy)) {
+          // Best-effort scalar zero when element type supports a zero attr.
+          auto elemTy = memrefType.getElementType();
+          if (auto zeroAttr = rewriter.getZeroAttr(elemTy)) {
             auto rtt = mlir::RankedTensorType::get({}, elemTy);
-            initialValue = mlir::DenseIntElementsAttr::get(rtt, 0);
-          } else if (auto fTy = mlir::dyn_cast<mlir::FloatType>(elemTy)) {
-            auto rtt = mlir::RankedTensorType::get({}, fTy);
-            initialValue = mlir::DenseFPElementsAttr::get(
-                rtt, mlir::FloatAttr::get(fTy, 0.0).getValue());
+            initialValue = mlir::DenseElementsAttr::get(rtt, zeroAttr);
           }
         }
       } else if (auto zeroAttr = mlir::dyn_cast<cir::ZeroAttr>(init.value())) {
         (void)zeroAttr; // unused variable silence
         auto shape = memrefType.getShape();
         auto elementType = memrefType.getElementType();
-        auto buildZeroTensor = [&](mlir::Type elemTy, mlir::Type tensorElemTy) {
+        auto buildZeroTensor = [&](mlir::Type tensorElemTy) {
+          auto zeroAttr = rewriter.getZeroAttr(tensorElemTy);
+          if (!zeroAttr) {
+            op.emitRemark() << "global lowering: unsupported element type in "
+                               "zero initializer; leaving uninitialized";
+            return;
+          }
           if (!shape.empty()) {
             auto rtt = mlir::RankedTensorType::get(shape, tensorElemTy);
-            if (mlir::isa<mlir::IntegerType>(tensorElemTy)) {
-              initialValue = mlir::DenseIntElementsAttr::get(rtt, 0);
-            } else if (auto fTy =
-                           mlir::dyn_cast<mlir::FloatType>(tensorElemTy)) {
-              initialValue = mlir::DenseFPElementsAttr::get(
-                  rtt, mlir::FloatAttr::get(fTy, 0.0).getValue());
-            } else {
-              op.emitRemark() << "global lowering: unsupported element type in "
-                                 "zero initializer; leaving uninitialized";
-            }
+            initialValue = mlir::DenseElementsAttr::get(rtt, zeroAttr);
           } else {
             auto rtt = mlir::RankedTensorType::get({}, tensorElemTy);
-            if (mlir::isa<mlir::IntegerType>(tensorElemTy)) {
-              initialValue = mlir::DenseIntElementsAttr::get(rtt, 0);
-            } else if (auto fTy =
-                           mlir::dyn_cast<mlir::FloatType>(tensorElemTy)) {
-              initialValue = mlir::DenseFPElementsAttr::get(
-                  rtt, mlir::FloatAttr::get(tensorElemTy, 0.0).getValue());
-            } else {
-              op.emitRemark() << "global lowering: unsupported scalar type in "
-                                 "zero initializer; leaving uninitialized";
-            }
+            initialValue = mlir::DenseElementsAttr::get(rtt, zeroAttr);
           }
         };
-        buildZeroTensor(elementType, elementType);
+        buildZeroTensor(elementType);
       } else if (auto intAttr = mlir::dyn_cast<cir::IntAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
-        initialValue = mlir::DenseIntElementsAttr::get(rtt, intAttr.getValue());
+        auto valueAttr = rewriter.getIntegerAttr(convertedType, intAttr.getValue());
+        initialValue = mlir::DenseElementsAttr::get(rtt, valueAttr);
       } else if (auto fltAttr = mlir::dyn_cast<cir::FPAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
-        initialValue = mlir::DenseFPElementsAttr::get(rtt, fltAttr.getValue());
+        auto valueAttr =
+            rewriter.getFloatAttr(convertedType, fltAttr.getValue());
+        initialValue = mlir::DenseElementsAttr::get(rtt, valueAttr);
       } else if (auto boolAttr = mlir::dyn_cast<cir::BoolAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
-        initialValue =
-            mlir::DenseIntElementsAttr::get(rtt, (char)boolAttr.getValue());
+        auto valueAttr = rewriter.getIntegerAttr(convertedType,
+                                                 boolAttr.getValue() ? 1 : 0);
+        initialValue = mlir::DenseElementsAttr::get(rtt, valueAttr);
       } else {
         op.emitRemark() << "global lowering: unsupported initializer kind; "
                            "leaving uninitialized";
@@ -2130,39 +2307,7 @@ class CIRGetElementOpLowering
     if (mlir::isa_and_nonnull<mlir::LLVM::LLVMPointerType>(converted)) {
       auto pointerView = unwrapPointerLikeToMemRef(adaptor.getBase(), rewriter);
       if (!pointerView) {
-        // Raw pointer arithmetic: scale index by element size if known.
-        auto elemTy = op.getType();
-        auto memElemTy = convertTypeForMemory(*getTypeConverter(), elemTy);
-        mlir::Value scaledIndex = index;
-        if (memElemTy && !memElemTy.isInteger(1)) {
-          // Attempt to get size in bytes for element.
-          uint64_t elemSizeBytes = 1;
-          if (auto llvmInt = mlir::dyn_cast<mlir::IntegerType>(memElemTy))
-            elemSizeBytes = llvmInt.getWidth() / 8;
-          else if (auto fty = mlir::dyn_cast<mlir::FloatType>(memElemTy))
-            elemSizeBytes = fty.getWidth() / 8;
-          else if (mlir::isa<mlir::LLVM::LLVMPointerType>(memElemTy))
-            elemSizeBytes = 8; // assume 64-bit pointer (TODO: datalayout)
-          if (elemSizeBytes > 1) {
-            auto idxTy = rewriter.getIndexType();
-            auto cst = rewriter.create<mlir::arith::ConstantIndexOp>(
-                op.getLoc(), elemSizeBytes);
-            // Multiply index * elemSizeBytes
-            scaledIndex =
-                rewriter.create<mlir::arith::MulIOp>(op.getLoc(), index, cst);
-          }
-        }
-        // ptr + scaledIndex (byte offset) via ptrtoint/add/inttoptr sequence.
-        auto i64Ty = rewriter.getI64Type();
-        auto baseInt = rewriter.create<mlir::LLVM::PtrToIntOp>(
-            op.getLoc(), i64Ty, adaptor.getBase());
-        auto idxInt = rewriter.create<mlir::arith::IndexCastOp>(
-            op.getLoc(), i64Ty, scaledIndex);
-        auto sum =
-            rewriter.create<mlir::arith::AddIOp>(op.getLoc(), baseInt, idxInt);
-        auto newPtr = rewriter.create<mlir::LLVM::IntToPtrOp>(
-            op.getLoc(), converted, sum.getResult());
-        rewriter.replaceOp(op, newPtr.getResult());
+        rewriter.replaceOp(op, adaptor.getBase());
         return mlir::success();
       }
 
@@ -2179,7 +2324,6 @@ class CIRGetElementOpLowering
       auto castBack = rewriter.create<mlir::UnrealizedConversionCastOp>(
           op.getLoc(), converted, reinterpret.getResult());
       rewriter.replaceOp(op, castBack.getResults());
-      registerPointerBackingMemref(castBack.getResult(0), reinterpret.getResult());
 
       if (pointerView->bridgingCast && pointerView->bridgingCast->use_empty())
         rewriter.eraseOp(pointerView->bridgingCast);
@@ -2197,39 +2341,6 @@ class CIRPtrStrideOpLowering
 public:
   using mlir::OpConversionPattern<cir::PtrStrideOp>::OpConversionPattern;
 
-  // Return true if PtrStrideOp is produced by cast with array_to_ptrdecay kind
-  // and they are in the same block.
-  inline bool isCastArrayToPtrConsumer(cir::PtrStrideOp op) const {
-    auto castOp = op->getOperand(0).getDefiningOp<cir::CastOp>();
-    if (!castOp)
-      return false;
-    if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
-      return false;
-    if (!castOp->hasOneUse())
-      return false;
-    if (!castOp->isBeforeInBlock(op))
-      return false;
-    return true;
-  }
-
-  // Return true if all the PtrStrideOp users are load, store or cast
-  // with array_to_ptrdecay kind and they are in the same block.
-  inline bool isLoadStoreOrCastArrayToPtrProduer(cir::PtrStrideOp op) const {
-    if (op.use_empty())
-      return false;
-    for (auto *user : op->getUsers()) {
-      if (!op->isBeforeInBlock(user))
-        return false;
-      if (isa<cir::LoadOp, cir::StoreOp, cir::GetElementOp>(*user))
-        continue;
-      auto castOp = dyn_cast<cir::CastOp>(*user);
-      if (castOp && (castOp.getKind() == cir::CastKind::array_to_ptrdecay))
-        continue;
-      return false;
-    }
-    return true;
-  }
-
   inline mlir::Type convertTy(mlir::Type ty) const {
     return getTypeConverter()->convertType(ty);
   }
@@ -2246,10 +2357,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!isCastArrayToPtrConsumer(op))
-      return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProduer(op))
-      return mlir::failure();
+    PointerBackingListenerScope listenerScope(rewriter);
     auto baseVal = adaptor.getBase();
     auto baseOp = baseVal.getDefiningOp<mlir::memref::ReinterpretCastOp>();
     auto dstType = op.getType();
@@ -2258,23 +2366,61 @@ public:
     mlir::Value baseMemRef;
     mlir::Operation *castToErase = nullptr;
 
+    auto acquireBaseMemRef = [&]() -> bool {
+      if (auto baseRC =
+              baseVal.getDefiningOp<mlir::memref::ReinterpretCastOp>()) {
+        baseOp = baseRC;
+        baseMemRef = baseRC->getOperand(0);
+        return true;
+      }
+      if (mlir::isa<mlir::MemRefType>(baseVal.getType())) {
+        baseMemRef = baseVal;
+        return true;
+      }
+      if (auto pointerView = unwrapPointerLikeToMemRef(baseVal, rewriter)) {
+        baseMemRef = pointerView->memref;
+        castToErase = pointerView->bridgingCast;
+        return true;
+      }
+      return false;
+    };
+
     if (auto memrefTy =
             mlir::dyn_cast_if_present<mlir::MemRefType>(converted)) {
-      if (!baseOp)
+      if (!acquireBaseMemRef())
         return mlir::failure();
-      baseMemRef = baseOp->getOperand(0);
       maybeDst = ensureMemRefOrForward(op.getLoc(), memrefTy, baseVal, op,
                                        rewriter, "ptr_stride");
       if (!maybeDst)
         return mlir::success();
     } else if (mlir::isa_and_nonnull<mlir::LLVM::LLVMPointerType>(converted)) {
-      auto pointerView = unwrapPointerLikeToMemRef(baseVal, rewriter);
-      if (!pointerView) {
-        rewriter.replaceOp(op, baseVal);
+      if (!acquireBaseMemRef()) {
+        auto elementTy = getTypeConverter()->convertType(op.getElementTy());
+        if (!elementTy) {
+          op.emitRemark()
+              << "ptr_stride pointer fallback defaulting element type to i8";
+          elementTy = rewriter.getIntegerType(8);
+        }
+        if (mlir::isa<mlir::LLVM::LLVMVoidType>(elementTy) ||
+            mlir::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
+          elementTy = rewriter.getIntegerType(8);
+
+        auto strideVal = adaptor.getStride();
+        bool isUnsigned = false;
+        if (auto cirInt =
+                mlir::dyn_cast<cir::IntType>(op.getStride().getType()))
+          isUnsigned = cirInt.isUnsigned();
+        if (mlir::failed(normalizeStrideToPointerWidth(
+                op, strideVal, isUnsigned, adaptor.getBase().getType(),
+                rewriter)))
+          return mlir::failure();
+
+        auto gep = rewriter.create<mlir::LLVM::GEPOp>(
+            op.getLoc(), converted, elementTy, adaptor.getBase(), strideVal,
+            convertPtrStrideKindToGEPFlags(adaptor.getNoWrapFlags()));
+        rewriter.replaceOp(op, gep.getResult());
         return mlir::success();
       }
-      baseMemRef = pointerView->memref;
-      castToErase = pointerView->bridgingCast;
       auto memElemTy = convertTypeForMemory(*getTypeConverter(), dstType);
       if (!memElemTy)
         return op.emitError()
@@ -2298,46 +2444,11 @@ public:
         mlir::ValueRange{}, llvm::ArrayRef<mlir::NamedAttribute>{});
 
     if (mlir::isa<mlir::LLVM::LLVMPointerType>(converted)) {
-      // Provide element-size aware byte stride for raw pointers when a memref
-      // view exists: reinterpret cast indexes units-of-elements; convert to
-      // byte offset via (stride * elemSizeBytes).
-      auto memElemTy = convertTypeForMemory(*getTypeConverter(), op.getType());
-      uint64_t elemSizeBytes = 1;
-      if (memElemTy) {
-        if (auto it = mlir::dyn_cast<mlir::IntegerType>(memElemTy))
-          elemSizeBytes = it.getWidth() / 8;
-        else if (auto ft = mlir::dyn_cast<mlir::FloatType>(memElemTy))
-          elemSizeBytes = ft.getWidth() / 8;
-        else if (mlir::isa<mlir::LLVM::LLVMPointerType>(memElemTy))
-          elemSizeBytes = 8; // TODO: compute from data layout
-      }
-      auto loc = op.getLoc();
-      auto i64Ty = rewriter.getI64Type();
-      // baseMemRef is a memref value; we need an llvm.ptr to the buffer. We
-      // fall back to reusing the prior reinterpret cast result's bridging
-      // pointer if available; otherwise we cannot form raw pointer arithmetic
-      // here (conservatively skip scaling path and just forward original
-      // reinterpret result via unrealized cast). For now, bail out if we can't
-      // detect an existing pointer origin.
-      if (!mlir::isa<mlir::MemRefType>(baseMemRef.getType())) {
-        return op.emitError() << "expected memref base for ptr stride lowering";
-      }
-      // Degrade: just produce the original reinterpret result cast to pointer
-      // if stride is zero; else approximate by not adjusting.
-      auto zeroIdx = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
-      if (stride != zeroIdx) {
-        // Without a direct buffer pointer, fallback to previous behavior: cast
-        // reinterpret result back.
-        auto castBack = rewriter.create<mlir::UnrealizedConversionCastOp>(
-            loc, converted, reinterpret.getResult());
-        rewriter.replaceOp(op, castBack.getResults());
-        return mlir::success();
-      }
       auto castBack = rewriter.create<mlir::UnrealizedConversionCastOp>(
-          loc, converted, reinterpret.getResult());
+          op.getLoc(), converted, reinterpret.getResult());
+      registerPointerBackingMemref(castBack.getResult(0),
+                                   reinterpret.getResult());
       rewriter.replaceOp(op, castBack.getResults());
-      registerPointerBackingMemref(castBack.getResult(0), reinterpret.getResult());
-      return mlir::success();
     } else {
       rewriter.replaceOp(op, reinterpret.getResult());
     }
@@ -2345,7 +2456,8 @@ public:
     if (baseOp && baseOp->use_empty())
       rewriter.eraseOp(baseOp);
     if (castToErase && castToErase->use_empty())
-      rewriter.eraseOp(castToErase);
+      for (auto res : castToErase->getResults())
+        erasePointerBackingEntryForValue(res);
     return mlir::success();
   }
 };
@@ -2457,12 +2569,14 @@ static mlir::TypeConverter prepareTypeConverter() {
     SmallVector<int64_t> shape;
     mlir::Type curType = type;
     while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
-      shape.push_back(arrayType.getSize());
+      shape.push_back(static_cast<int64_t>(arrayType.getSize()));
       curType = arrayType.getElementType();
     }
     auto elementType = converter.convertType(curType);
-    // FIXME: The element type might not be converted (e.g. struct)
-    if (!elementType)
+    // Bail out if element type either failed to convert or isn't a legal
+    // memref element yet (e.g. structs still converted as CIR record types).
+    if (!elementType ||
+        !mlir::BaseMemRefType::isValidElementType(elementType))
       return nullptr;
     return mlir::MemRefType::get(shape, elementType);
   });
