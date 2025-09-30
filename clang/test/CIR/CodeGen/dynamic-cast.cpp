@@ -18,7 +18,7 @@ Derived *ptr_cast(Base *b) {
 }
 
 // BEFORE: cir.func dso_local @_Z8ptr_castP4Base
-// BEFORE:   %{{.+}} = cir.dyn_cast(ptr, %{{.+}} : !cir.ptr<!rec_Base>, #dyn_cast_info__ZTI4Base__ZTI7Derived) -> !cir.ptr<!rec_Derived>
+// BEFORE:   %{{.+}} = cir.dyn_cast ptr %{{.+}} : !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived> #dyn_cast_info__ZTI4Base__ZTI7Derived
 // BEFORE: }
 
 //      AFTER: cir.func dso_local @_Z8ptr_castP4Base
@@ -43,7 +43,7 @@ Derived &ref_cast(Base &b) {
 }
 
 // BEFORE: cir.func dso_local @_Z8ref_castR4Base
-// BEFORE:   %{{.+}} = cir.dyn_cast(ref, %{{.+}} : !cir.ptr<!rec_Base>, #dyn_cast_info__ZTI4Base__ZTI7Derived) -> !cir.ptr<!rec_Derived>
+// BEFORE:   %{{.+}} = cir.dyn_cast ref %{{.+}} : !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived> #dyn_cast_info__ZTI4Base__ZTI7Derived
 // BEFORE: }
 
 //      AFTER: cir.func dso_local @_Z8ref_castR4Base
@@ -66,7 +66,7 @@ void *ptr_cast_to_complete(Base *ptr) {
 }
 
 // BEFORE: cir.func dso_local @_Z20ptr_cast_to_completeP4Base
-// BEFORE:   %{{.+}} = cir.dyn_cast(ptr, %{{.+}} : !cir.ptr<!rec_Base>) -> !cir.ptr<!void>
+// BEFORE:   %{{.+}} = cir.dyn_cast ptr %{{.+}} : !cir.ptr<!rec_Base> -> !cir.ptr<!void>
 // BEFORE: }
 
 //      AFTER: cir.func dso_local @_Z20ptr_cast_to_completeP4Base

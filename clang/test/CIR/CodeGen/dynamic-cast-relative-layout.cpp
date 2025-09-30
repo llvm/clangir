@@ -12,7 +12,7 @@ void *ptr_cast_to_complete(Base *ptr) {
 }
 
 // BEFORE: cir.func dso_local @_Z20ptr_cast_to_completeP4Base
-// BEFORE:   %{{.+}} = cir.dyn_cast(ptr, %{{.+}} : !cir.ptr<!rec_Base> relative_layout) -> !cir.ptr<!void>
+// BEFORE:   %{{.+}} = cir.dyn_cast ptr relative_layout %{{.+}} : !cir.ptr<!rec_Base> -> !cir.ptr<!void>
 // BEFORE: }
 
 //      AFTER: cir.func dso_local @_Z20ptr_cast_to_completeP4Base
