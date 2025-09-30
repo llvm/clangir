@@ -1,22 +1,22 @@
-// Test attempts to build bogus CIR
-// RUN: cir-opt %s
+// RUN: cir-opt %s -verify-roundtrip | FileCheck %s
 
 !s32i = !cir.int<s, 32>
 
-module {
-  cir.func @div(%x : !s32i, %y : !s32i) -> !s32i {
-    %3 = cir.const #cir.int<0> : !s32i
-    cir.return %3 : !s32i
-  }
+// CHECK: cir.func @div
+cir.func @div(%x : !s32i, %y : !s32i) -> !s32i {
+  %3 = cir.const #cir.int<0> : !s32i
+  cir.return %3 : !s32i
+}
 
-  cir.func @foo(%x : !s32i, %y : !s32i) -> () {
+// CHECK: cir.func @foo
+cir.func @foo(%x : !s32i, %y : !s32i) -> () {
+  cir.scope {
     cir.scope {
-      cir.scope {
-        %d = cir.call exception @div(%x, %y) : (!s32i, !s32i) -> !s32i
-        cir.yield
-      }
+      // CHECK: cir.call exception 
+      %d = cir.call exception @div(%x, %y) : (!s32i, !s32i) -> !s32i
       cir.yield
     }
-    cir.return
+    cir.yield
   }
+  cir.return
 }
