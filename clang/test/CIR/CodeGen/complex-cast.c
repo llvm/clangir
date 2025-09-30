@@ -22,31 +22,31 @@ void scalar_to_complex() {
 
 // CHECK-LABEL: @scalar_to_complex()
 
-// CIR-BEFORE: %{{.+}} = cir.cast(float_to_complex, %{{.+}} : !cir.double), !cir.complex<!cir.double>
+// CIR-BEFORE: %{{.+}} = cir.cast float_to_complex %{{.+}} : !cir.double -> !cir.complex<!cir.double>
 
 //      CIR-AFTER: %[[#REAL:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
 
-// CIR-BEFORE: %{{.+}} = cir.cast(int_to_complex, %{{.+}} : !s32i), !cir.complex<!s32i>
+// CIR-BEFORE: %{{.+}} = cir.cast int_to_complex %{{.+}} : !s32i -> !cir.complex<!s32i>
 
 //      CIR-AFTER: %[[#REAL:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.double
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(float_to_complex, %[[#A]] : !cir.double), !cir.complex<!cir.double>
+//      CIR-BEFORE: %[[#A:]] = cir.cast int_to_float %{{.+}} : !s32i -> !cir.double
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast float_to_complex %[[#A]] : !cir.double -> !cir.complex<!cir.double>
 
 //      CIR-AFTER: %[[#A:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!s32i>, !s32i
-// CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast(int_to_float, %[[#A]] : !s32i), !cir.double
+// CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast int_to_float %[[#A]] : !s32i -> !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(float_to_int, %{{.+}} : !cir.double), !s32i
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(int_to_complex, %[[#A]] : !s32i), !cir.complex<!s32i>
+//      CIR-BEFORE: %[[#A:]] = cir.cast float_to_int %{{.+}} : !cir.double -> !s32i
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast int_to_complex %[[#A]] : !s32i -> !cir.complex<!s32i>
 
 //      CIR-AFTER: %[[#A:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!cir.double>, !cir.double
-// CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast(float_to_int, %[[#A]] : !cir.double), !s32i
+// CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast float_to_int %[[#A]] : !cir.double -> !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
 
@@ -79,7 +79,7 @@ void scalar_to_complex_explicit() {
 
 // CHECK-LABEL: @scalar_to_complex_explicit()
 
-// CIR-BEFORE: %{{.+}} = cir.cast(float_to_complex, %{{.+}} : !cir.double), !cir.complex<!cir.double>
+// CIR-BEFORE: %{{.+}} = cir.cast float_to_complex %{{.+}} : !cir.double -> !cir.complex<!cir.double>
 
 //      CIR-AFTER: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %{{.+}}, %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
@@ -87,7 +87,7 @@ void scalar_to_complex_explicit() {
 //      LLVM: %[[#A:]] = insertvalue { double, double } {{.*}}, double %{{.+}}, 0
 // LLVM-NEXT: %{{.+}} = insertvalue { double, double } %[[#A]], double 0.000000e+00, 1
 
-// CIR-BEFORE: %{{.+}} = cir.cast(int_to_complex, %{{.+}} : !s32i), !cir.complex<!s32i>
+// CIR-BEFORE: %{{.+}} = cir.cast int_to_complex %{{.+}} : !s32i -> !cir.complex<!s32i>
 
 //      CIR-AFTER: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %{{.+}}, %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
@@ -95,10 +95,10 @@ void scalar_to_complex_explicit() {
 //      LLVM: %[[#A:]] = insertvalue { i32, i32 } {{.*}}, i32 %{{.+}}, 0
 // LLVM-NEXT: %{{.+}} = insertvalue { i32, i32 } %[[#A]], i32 0, 1
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.double
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(float_to_complex, %[[#A]] : !cir.double), !cir.complex<!cir.double>
+//      CIR-BEFORE: %[[#A:]] = cir.cast int_to_float %{{.+}} : !s32i -> !cir.double
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast float_to_complex %[[#A]] : !cir.double -> !cir.complex<!cir.double>
 
-//      CIR-AFTER: %[[#REAL:]] = cir.cast(int_to_float, %11 : !s32i), !cir.double
+//      CIR-AFTER: %[[#REAL:]] = cir.cast int_to_float %11 : !s32i -> !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
 
@@ -106,10 +106,10 @@ void scalar_to_complex_explicit() {
 // LLVM-NEXT: %[[#A:]] = insertvalue { double, double } {{.*}}, double %[[#REAL]], 0
 // LLVM-NEXT: %{{.+}} = insertvalue { double, double } %[[#A]], double 0.000000e+00, 1
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(float_to_int, %{{.+}} : !cir.double), !s32i
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(int_to_complex, %[[#A]] : !s32i), !cir.complex<!s32i>
+//      CIR-BEFORE: %[[#A:]] = cir.cast float_to_int %{{.+}} : !cir.double -> !s32i
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast int_to_complex %[[#A]] : !s32i -> !cir.complex<!s32i>
 
-//      CIR-AFTER: %[[#REAL:]] = cir.cast(float_to_int, %{{.+}} : !cir.double), !s32i
+//      CIR-AFTER: %[[#REAL:]] = cir.cast float_to_int %{{.+}} : !cir.double -> !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
 
@@ -128,32 +128,32 @@ void complex_to_scalar() {
 
 // CHECK-LABEL: @complex_to_scalar()
 
-// CIR-BEFORE: %{{.+}} = cir.cast(float_complex_to_real, %{{.+}} : !cir.complex<!cir.double>), !cir.double
+// CIR-BEFORE: %{{.+}} = cir.cast float_complex_to_real %{{.+}} : !cir.complex<!cir.double> -> !cir.double
 
 // CIR-AFTER: %{{.+}} = cir.complex.real %{{.+}} : !cir.complex<!cir.double> -> !cir.double
 
 // LLVM: %{{.+}} = extractvalue { double, double } %{{.+}}, 0
 
-// CIR-BEFORE: %{{.+}} = cir.cast(int_complex_to_real, %{{.+}} : !cir.complex<!s32i>), !s32i
+// CIR-BEFORE: %{{.+}} = cir.cast int_complex_to_real %{{.+}} : !cir.complex<!s32i> -> !s32i
 
 // CIR-AFTER: %{{.+}} = cir.complex.real %{{.+}} : !cir.complex<!s32i> -> !s32i
 
 // LLVM: %{{.+}} = extractvalue { i32, i32 } %{{.+}}, 0
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(int_complex_to_real, %{{.+}} : !cir.complex<!s32i>), !s32i
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(int_to_float, %[[#A]] : !s32i), !cir.double
+//      CIR-BEFORE: %[[#A:]] = cir.cast int_complex_to_real %{{.+}} : !cir.complex<!s32i> -> !s32i
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast int_to_float %[[#A]] : !s32i -> !cir.double
 
 //      CIR-AFTER: %[[#A:]] = cir.complex.real %{{.+}} : !cir.complex<!s32i> -> !s32i
-// CIR-AFTER-NEXT: %{{.+}} = cir.cast(int_to_float, %[[#A]] : !s32i), !cir.double
+// CIR-AFTER-NEXT: %{{.+}} = cir.cast int_to_float %[[#A]] : !s32i -> !cir.double
 
 //      LLVM: %[[#A:]] = extractvalue { i32, i32 } %{{.+}}, 0
 // LLVM-NEXT: %{{.+}} = sitofp i32 %[[#A]] to double
 
-//      CIR-BEFORE: %[[#A:]] = cir.cast(float_complex_to_real, %{{.+}} : !cir.complex<!cir.double>), !cir.double
-// CIR-BEFORE-NEXT: %{{.+}} = cir.cast(float_to_int, %[[#A]] : !cir.double), !s32i
+//      CIR-BEFORE: %[[#A:]] = cir.cast float_complex_to_real %{{.+}} : !cir.complex<!cir.double> -> !cir.double
+// CIR-BEFORE-NEXT: %{{.+}} = cir.cast float_to_int %[[#A]] : !cir.double -> !s32i
 
 //      CIR-AFTER: %[[#A:]] = cir.complex.real %{{.+}} : !cir.complex<!cir.double> -> !cir.double
-// CIR-AFTER-NEXT: %{{.+}} = cir.cast(float_to_int, %[[#A]] : !cir.double), !s32i
+// CIR-AFTER-NEXT: %{{.+}} = cir.cast float_to_int %[[#A]] : !cir.double -> !s32i
 
 //      LLVM: %[[#A:]] = extractvalue { double, double } %{{.+}}, 0
 // LLVM-NEXT: %{{.+}} = fptosi double %[[#A]] to i32
@@ -167,12 +167,12 @@ void complex_to_bool() {
 
 // CHECK-LABEL: @complex_to_bool()
 
-// CIR-BEFORE: %{{.+}} = cir.cast(float_complex_to_bool, %{{.+}} : !cir.complex<!cir.double>), !cir.bool
+// CIR-BEFORE: %{{.+}} = cir.cast float_complex_to_bool %{{.+}} : !cir.complex<!cir.double> -> !cir.bool
 
 //      CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.+}} : !cir.complex<!cir.double> -> !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.complex.imag %{{.+}} : !cir.complex<!cir.double> -> !cir.double
-// CIR-AFTER-NEXT: %[[#RB:]] = cir.cast(float_to_bool, %[[#REAL]] : !cir.double), !cir.bool
-// CIR-AFTER-NEXT: %[[#IB:]] = cir.cast(float_to_bool, %[[#IMAG]] : !cir.double), !cir.bool
+// CIR-AFTER-NEXT: %[[#RB:]] = cir.cast float_to_bool %[[#REAL]] : !cir.double -> !cir.bool
+// CIR-AFTER-NEXT: %[[#IB:]] = cir.cast float_to_bool %[[#IMAG]] : !cir.double -> !cir.bool
 // CIR-AFTER-NEXT: %[[#A:]] = cir.const #true
 // CIR-AFTER-NEXT: %{{.+}} = cir.select if %[[#RB]] then %[[#A]] else %[[#IB]] : (!cir.bool, !cir.bool, !cir.bool) -> !cir.bool
 
@@ -182,12 +182,12 @@ void complex_to_bool() {
 // LLVM-NEXT:   %[[#IB:]] = fcmp une double %[[#IMAG]], 0.000000e+00
 // LLVM-NEXT:   %{{.+}} = or i1 %[[#RB]], %[[#IB]]
 
-// CIR-BEFORE: %{{.+}} = cir.cast(int_complex_to_bool, %{{.+}} : !cir.complex<!s32i>), !cir.bool
+// CIR-BEFORE: %{{.+}} = cir.cast int_complex_to_bool %{{.+}} : !cir.complex<!s32i> -> !cir.bool
 
 //      CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.+}} : !cir.complex<!s32i> -> !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.complex.imag %{{.+}} : !cir.complex<!s32i> -> !s32i
-// CIR-AFTER-NEXT: %[[#RB:]] = cir.cast(int_to_bool, %[[#REAL]] : !s32i), !cir.bool
-// CIR-AFTER-NEXT: %[[#IB:]] = cir.cast(int_to_bool, %[[#IMAG]] : !s32i), !cir.bool
+// CIR-AFTER-NEXT: %[[#RB:]] = cir.cast int_to_bool %[[#REAL]] : !s32i -> !cir.bool
+// CIR-AFTER-NEXT: %[[#IB:]] = cir.cast int_to_bool %[[#IMAG]] : !s32i -> !cir.bool
 // CIR-AFTER-NEXT: %[[#A:]] = cir.const #true
 // CIR-AFTER-NEXT: %{{.+}} = cir.select if %[[#RB]] then %[[#A]] else %[[#IB]] : (!cir.bool, !cir.bool, !cir.bool) -> !cir.bool
 
@@ -211,9 +211,9 @@ void lvalue_to_rvalue_bitcast() {
 
 // CHECK-LABEL: @lvalue_to_rvalue_bitcast()
 
-// CIR-BEFORE: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+// CIR-BEFORE: %{{.+}} = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_CX> -> !cir.ptr<!cir.complex<!cir.double>>
 
-// CIR-AFTER: %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+// CIR-AFTER: %{{.+}} = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_CX> -> !cir.ptr<!cir.complex<!cir.double>>
 
 // LLVM: %[[PTR_ADDR:.*]] = alloca %struct.CX, i64 1, align 8
 // LLVM: %[[COMPLEX_ADDR:.*]] = alloca { double, double }, i64 1, align 8
@@ -228,12 +228,12 @@ void complex_to_complex_cast() {
 }
 
 // CIR-BEFORE: %[[TMP:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.complex<!cir.float>>, !cir.complex<!cir.float>
-// CIR-BEFORE: %[[FP_COMPLEX:.*]] = cir.cast(float_complex, %[[TMP]] : !cir.complex<!cir.float>), !cir.complex<!cir.double>
+// CIR-BEFORE: %[[FP_COMPLEX:.*]] = cir.cast float_complex %[[TMP]] : !cir.complex<!cir.float> -> !cir.complex<!cir.double>
 
 // CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.*}} : !cir.complex<!cir.float> -> !cir.float
 // CIR-AFTER: %[[#IMAG:]] = cir.complex.imag %{{.*}} : !cir.complex<!cir.float> -> !cir.float
-// CIR-AFTER: %[[#REAL_FP_CAST:]] = cir.cast(floating, %[[#REAL]] : !cir.float), !cir.double
-// CIR-AFTER: %[[#IMAG_FP_CAST:]] = cir.cast(floating, %[[#IMAG]] : !cir.float), !cir.double
+// CIR-AFTER: %[[#REAL_FP_CAST:]] = cir.cast floating %[[#REAL]] : !cir.float -> !cir.double
+// CIR-AFTER: %[[#IMAG_FP_CAST:]] = cir.cast floating %[[#IMAG]] : !cir.float -> !cir.double
 // CIR-AFTER: %{{.*}} = cir.complex.create %[[#REAL_FP_CAST]], %[[#IMAG_FP_CAST]] : !cir.double -> !cir.complex<!cir.double>
 
 // LLVM: %[[#REAL:]] = extractvalue { float, float } %{{.*}}, 0
@@ -244,12 +244,12 @@ void complex_to_complex_cast() {
 // LLVM: %{{.*}} = insertvalue { double, double } %[[TMP]], double %[[#IMAG_FP_CAST]], 1
 
 // CIR-BEFORE: %[[TMP:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.complex<!s16i>>, !cir.complex<!s16i>
-// CIR-BEFORE: %[[INT_COMPLEX:.*]] = cir.cast(int_complex, %[[TMP]] : !cir.complex<!s16i>), !cir.complex<!s32i>
+// CIR-BEFORE: %[[INT_COMPLEX:.*]] = cir.cast int_complex %[[TMP]] : !cir.complex<!s16i> -> !cir.complex<!s32i>
 
 // CIR-AFTER: %[[#REAL:]] = cir.complex.real %{{.*}} : !cir.complex<!s16i> -> !s16i
 // CIR-AFTER: %[[#IMAG:]] = cir.complex.imag %{{.*}} : !cir.complex<!s16i> -> !s16i
-// CIR-AFTER: %[[#REAL_INT_CAST:]] = cir.cast(integral, %[[#REAL]] : !s16i), !s32i
-// CIR-AFTER: %[[#IMAG_INT_CAST:]] = cir.cast(integral, %[[#IMAG]] : !s16i), !s32i
+// CIR-AFTER: %[[#REAL_INT_CAST:]] = cir.cast integral %[[#REAL]] : !s16i -> !s32i
+// CIR-AFTER: %[[#IMAG_INT_CAST:]] = cir.cast integral %[[#IMAG]] : !s16i -> !s32i
 // CIR-AFTER: %{{.*}} = cir.complex.create %[[#REAL_INT_CAST]], %[[#IMAG_INT_CAST]] : !s32i -> !cir.complex<!s32i>
 
 // LLVM: %[[#REAL:]] = extractvalue { i16, i16 } %{{.*}}, 0

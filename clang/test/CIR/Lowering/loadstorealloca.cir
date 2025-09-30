@@ -50,7 +50,7 @@ module {
     %2 = cir.load %0 : !cir.ptr<!cir.bool>, !cir.bool
     // MLIR: %[[LOAD_VAL:.*]] = llvm.load %[[VAR]] {alignment = 1 : i64} : !llvm.ptr -> i8
     // MLIR: %[[LOAD_SCALAR:.*]] = llvm.trunc %[[LOAD_VAL]] : i8 to i1
-    %3 = cir.cast(bool_to_int, %2 : !cir.bool), !u32i
+    %3 = cir.cast bool_to_int %2 : !cir.bool -> !u32i
     // MLIR: %[[CAST_VAL:.*]] = llvm.zext %[[LOAD_SCALAR]] : i1 to i32
     cir.return
   }

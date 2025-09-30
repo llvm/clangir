@@ -25,5 +25,5 @@ void storeNoArgsFn() {
 // CHECK:  cir.func {{.*@storeNoArgsFn}}
 // CHECK:    %0 = cir.alloca
 // CHECK:    %1 = cir.get_global @get42 : !cir.ptr<!cir.func<() -> !s32i>>
-// CHECK:    %2 = cir.cast(bitcast, %1 : !cir.ptr<!cir.func<() -> !s32i>>), !cir.ptr<!cir.func<(...) -> !s32i>>
+// CHECK:    %2 = cir.cast bitcast %1 : !cir.ptr<!cir.func<() -> !s32i>> -> !cir.ptr<!cir.func<(...) -> !s32i>>
 // CHECK:    cir.store{{.*}} %2, %0 : !cir.ptr<!cir.func<(...) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(...) -> !s32i>>>

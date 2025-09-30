@@ -115,7 +115,7 @@ int16x4_t test_vpadd_s16(int16x4_t a, int16x4_t b) {
 // CIR-LABEL: vpadd_s16
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!s16i x 4>, !cir.vector<!s16i x 4>) -> !cir.vector<!s16i x 4>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!s16i x 4>), !cir.vector<!s8i x 8>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!s16i x 4> -> !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vpadd_s16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <4 x i16> @llvm.aarch64.neon.addp.v4i16(<4 x i16> [[A]], <4 x i16> [[B]])
@@ -128,7 +128,7 @@ int16x8_t test_vpaddq_s16(int16x8_t a, int16x8_t b) {
 // CIR-LABEL: vpaddq_s16
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!s16i x 8>, !cir.vector<!s16i x 8>) -> !cir.vector<!s16i x 8>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!s16i x 8>), !cir.vector<!s8i x 16>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!s16i x 8> -> !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vpaddq_s16(<8 x i16>{{.*}}[[A:%.*]], <8 x i16>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <8 x i16> @llvm.aarch64.neon.addp.v8i16(<8 x i16> [[A]], <8 x i16> [[B]])
@@ -141,7 +141,7 @@ uint16x4_t test_vpadd_u16(uint16x4_t a, uint16x4_t b) {
 // CIR-LABEL: vpadd_u16
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>) -> !cir.vector<!u16i x 4>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!u16i x 4>), !cir.vector<!s8i x 8>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!u16i x 4> -> !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vpadd_u16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <4 x i16> @llvm.aarch64.neon.addp.v4i16(<4 x i16> [[A]], <4 x i16> [[B]])
@@ -154,7 +154,7 @@ int32x2_t test_vpadd_s32(int32x2_t a, int32x2_t b) {
 // CIR-LABEL: vpadd_s32
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!s32i x 2>, !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!s32i x 2>), !cir.vector<!s8i x 8>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!s32i x 2> -> !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vpadd_s32(<2 x i32>{{.*}}[[A:%.*]], <2 x i32>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <2 x i32> @llvm.aarch64.neon.addp.v2i32(<2 x i32> [[A]], <2 x i32> [[B]])
@@ -167,7 +167,7 @@ int32x4_t test_vpaddq_s32(int32x4_t a, int32x4_t b) {
 // CIR-LABEL: vpaddq_s32
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!s32i x 4>, !cir.vector<!s32i x 4>) -> !cir.vector<!s32i x 4>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!s32i x 4>), !cir.vector<!s8i x 16>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!s32i x 4> -> !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vpaddq_s32(<4 x i32>{{.*}}[[A:%.*]], <4 x i32>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <4 x i32> @llvm.aarch64.neon.addp.v4i32(<4 x i32> [[A]], <4 x i32> [[B]])
@@ -180,7 +180,7 @@ float32x2_t test_vpadd_f32(float32x2_t a, float32x2_t b) {
 // CIR-LABEL: vpadd_f32
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!cir.float x 2>, !cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!cir.float x 2>), !cir.vector<!s8i x 8>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!cir.float x 2> -> !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vpadd_f32(<2 x float>{{.*}}[[A:%.*]], <2 x float>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <2 x float> @llvm.aarch64.neon.faddp.v2f32(<2 x float> [[A]], <2 x float> [[B]])
@@ -193,7 +193,7 @@ float32x4_t test_vpaddq_f32(float32x4_t a, float32x4_t b) {
 // CIR-LABEL: vpaddq_f32
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!cir.float x 4>), !cir.vector<!s8i x 16>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!cir.float x 4> -> !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vpaddq_f32(<4 x float>{{.*}}[[A:%.*]], <4 x float>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <4 x float> @llvm.aarch64.neon.faddp.v4f32(<4 x float> [[A]], <4 x float> [[B]])
@@ -206,7 +206,7 @@ float64x2_t test_vpaddq_f64(float64x2_t a, float64x2_t b) {
 // CIR-LABEL: vpaddq_f64
 // CIR: [[RES:%.*]] = cir.llvm.intrinsic "aarch64.neon.addp" {{%.*}}, {{%.*}} :
 // CIR-SAME: (!cir.vector<!cir.double x 2>, !cir.vector<!cir.double x 2>) -> !cir.vector<!cir.double x 2>
-// CIR: {{%.*}} = cir.cast(bitcast, [[RES]] : !cir.vector<!cir.double x 2>), !cir.vector<!s8i x 16>
+// CIR: {{%.*}} = cir.cast bitcast [[RES]] : !cir.vector<!cir.double x 2> -> !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vpaddq_f64(<2 x double>{{.*}}[[A:%.*]], <2 x double>{{.*}}[[B:%.*]])
 // LLVM: [[RES:%.*]] = call <2 x double> @llvm.aarch64.neon.faddp.v2f64(<2 x double> [[A]], <2 x double> [[B]])
@@ -759,7 +759,7 @@ int16x4_t test_vabs_s16(int16x4_t a) {
   return vabs_s16(a);
 
   // CIR-LABEL: vabs_s16
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s16i x 4>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s16i x 4>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s16i x 4>
 
   // LLVM: {{.*}}test_vabs_s16(<4 x i16>{{.*}}[[a:%.*]])
@@ -771,7 +771,7 @@ int16x8_t test_vabsq_s16(int16x8_t a) {
   return vabsq_s16(a);
 
   // CIR-LABEL: vabsq_s16
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s16i x 8>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s16i x 8>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s16i x 8>
 
   // LLVM: {{.*}}test_vabsq_s16(<8 x i16>{{.*}}[[a:%.*]])
@@ -783,7 +783,7 @@ int32x2_t test_vabs_s32(int32x2_t a) {
   return vabs_s32(a);
 
   // CIR-LABEL: vabs_s32
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s32i x 2>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s32i x 2>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s32i x 2>
 
   // LLVM: {{.*}}test_vabs_s32(<2 x i32>{{.*}}[[a:%.*]])
@@ -795,7 +795,7 @@ int32x4_t test_vabsq_s32(int32x4_t a) {
   return vabsq_s32(a);
 
   // CIR-LABEL: vabsq_s32
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s32i x 4>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s32i x 4>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s32i x 4>
 
   // LLVM: {{.*}}test_vabsq_s32(<4 x i32>{{.*}}[[a:%.*]])
@@ -807,7 +807,7 @@ int64x1_t test_vabs_s64(int64x1_t a) {
   return vabs_s64(a);
 
   // CIR-LABEL: vabs_s64
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s64i x 1>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s64i x 1>
 
   // LLVM: {{.*}}test_vabs_s64(<1 x i64>{{.*}}[[a:%.*]])
@@ -819,7 +819,7 @@ int64x2_t test_vabsq_s64(int64x2_t a) {
   return vabsq_s64(a);
 
   // CIR-LABEL: vabsq_s64
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s64i x 2>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
   // CIR: cir.abs [[TMP0]] : !cir.vector<!s64i x 2>
 
   // LLVM: {{.*}}test_vabsq_s64(<2 x i64>{{.*}}[[a:%.*]])
@@ -832,7 +832,7 @@ float32x2_t test_vabs_f32(float32x2_t a) {
   return vabs_f32(a);
 
   // CIR-LABEL: vabs_f32
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.float x 2>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.float x 2>
   // CIR: cir.fabs [[TMP0]] : !cir.vector<!cir.float x 2>
 
   // LLVM: {{.*}}test_vabs_f32(<2 x float>{{.*}}[[a:%.*]])
@@ -844,7 +844,7 @@ float32x4_t test_vabsq_f32(float32x4_t a) {
   return vabsq_f32(a);
 
   // CIR-LABEL: vabsq_f32
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.float x 4>
   // CIR: cir.fabs [[TMP0]] : !cir.vector<!cir.float x 4>
 
   // LLVM: {{.*}}test_vabsq_f32(<4 x float>{{.*}}[[a:%.*]])
@@ -856,7 +856,7 @@ float64x1_t test_vabs_f64(float64x1_t a) {
   return vabs_f64(a);
 
   // CIR-LABEL: vabs_f64
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.double x 1>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.double x 1>
   // CIR: cir.fabs [[TMP0]] : !cir.vector<!cir.double x 1>
 
   // LLVM: {{.*}}test_vabs_f64(<1 x double>{{.*}}[[a:%.*]])
@@ -868,7 +868,7 @@ float64x2_t test_vabsq_f64(float64x2_t a) {
   return vabsq_f64(a);
 
   // CIR-LABEL: vabsq_f64
-  // CIR: [[TMP0:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.double x 2>
+  // CIR: [[TMP0:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.double x 2>
   // CIR: cir.fabs [[TMP0]] : !cir.vector<!cir.double x 2>
 
   // LLVM: {{.*}}test_vabsq_f64(<2 x double>{{.*}}[[a:%.*]])
@@ -949,7 +949,7 @@ uint16_t test_vaddv_u16(uint16x4_t a) {
 
   // CIR-LABEL: vaddv_u16
   // CIR: [[VADDV_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddv" {{%.*}} : (!cir.vector<!u16i x 4>) -> !s32i
-  // CIR: cir.cast(integral, [[VADDV_I]] : !s32i), !u16i
+  // CIR: cir.cast integral [[VADDV_I]] : !s32i -> !u16i
 
   // LLVM: {{.*}}test_vaddv_u16(<4 x i16>{{.*}}[[A:%.*]])
   // LLVM:    [[VADDV_I:%.*]] = call i32 @llvm.aarch64.neon.uaddv.i32.v4i16(<4 x i16> [[A]])
@@ -962,7 +962,7 @@ int16_t test_vaddv_s16(int16x4_t a) {
 
   // CIR-LABEL: vaddv_s16
   // CIR: [[VADDV_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddv" {{%.*}} : (!cir.vector<!s16i x 4>) -> !s32i
-  // CIR: cir.cast(integral, [[VADDV_I]] : !s32i), !s16i
+  // CIR: cir.cast integral [[VADDV_I]] : !s32i -> !s16i
 
   // LLVM: {{.*}}test_vaddv_s16(<4 x i16>{{.*}}[[A:%.*]])
   // LLVM:    [[VADDV_I:%.*]] = call i32 @llvm.aarch64.neon.saddv.i32.v4i16(<4 x i16> [[A]])

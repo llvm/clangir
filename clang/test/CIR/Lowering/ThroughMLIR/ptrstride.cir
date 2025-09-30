@@ -19,7 +19,7 @@ module {
 
     %1 = cir.get_global @a : !cir.ptr<!cir.array<!s32i x 100>>
     %2 = cir.const #cir.int<1> : !s32i
-    %3 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 100>>), !cir.ptr<!s32i>
+    %3 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!s32i x 100>> -> !cir.ptr<!s32i>
     %4 = cir.ptr_stride %3, %2 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
     %5 = cir.load %4 : !cir.ptr<!s32i>, !s32i
     cir.return %5 : !s32i
@@ -40,10 +40,10 @@ module {
 
     %1 = cir.get_global @aa : !cir.ptr<!cir.array<!cir.array<!s32i x 100> x 100>>
     %2 = cir.const #cir.int<1> : !s32i
-    %3 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!cir.array<!s32i x 100> x 100>>), !cir.ptr<!cir.array<!s32i x 100>>
+    %3 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!cir.array<!s32i x 100> x 100>> -> !cir.ptr<!cir.array<!s32i x 100>>
     %4 = cir.ptr_stride %3, %2 : (!cir.ptr<!cir.array<!s32i x 100>>, !s32i) -> !cir.ptr<!cir.array<!s32i x 100>>
     %5 = cir.const #cir.int<2> : !s32i
-    %6 = cir.cast(array_to_ptrdecay, %4 : !cir.ptr<!cir.array<!s32i x 100>>), !cir.ptr<!s32i>
+    %6 = cir.cast array_to_ptrdecay %4 : !cir.ptr<!cir.array<!s32i x 100>> -> !cir.ptr<!s32i>
     %7 = cir.ptr_stride %6, %5 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
     %8 = cir.load %7 : !cir.ptr<!s32i>, !s32i
     cir.return %8 : !s32i
@@ -68,7 +68,7 @@ module {
     %0 = cir.const #cir.int<2> : !s32i
     %1 = cir.get_global @a : !cir.ptr<!cir.array<!s32i x 100>>
     %2 = cir.const #cir.int<1> : !s32i
-    %3 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 100>>), !cir.ptr<!s32i>
+    %3 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!s32i x 100>> -> !cir.ptr<!s32i>
     %4 = cir.ptr_stride %3, %2 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
     %5 = cir.load %4 : !cir.ptr<!s32i>, !s32i
     %6 = cir.binop(add, %5, %0) : !s32i

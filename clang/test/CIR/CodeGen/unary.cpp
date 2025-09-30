@@ -163,7 +163,7 @@ void floats(float f) {
   f--; // CHECK: = cir.unary(dec, %{{[0-9]+}}) : !cir.float, !cir.float
 
   f = !f;
-  // CHECK: %[[#F_BOOL:]] = cir.cast(float_to_bool, %{{[0-9]+}} : !cir.float), !cir.bool
+  // CHECK: %[[#F_BOOL:]] = cir.cast float_to_bool %{{[0-9]+}} : !cir.float -> !cir.bool
   // CHECK: = cir.unary(not, %[[#F_BOOL]]) : !cir.bool, !cir.bool
 }
 
@@ -177,7 +177,7 @@ void doubles(double d) {
   d--; // CHECK: = cir.unary(dec, %{{[0-9]+}}) : !cir.double, !cir.double
 
   d = !d;
-  // CHECK: %[[#D_BOOL:]] = cir.cast(float_to_bool, %{{[0-9]+}} : !cir.double), !cir.bool
+  // CHECK: %[[#D_BOOL:]] = cir.cast float_to_bool %{{[0-9]+}} : !cir.double -> !cir.bool
   // CHECK: = cir.unary(not, %[[#D_BOOL]]) : !cir.bool, !cir.bool
 }
 
@@ -206,7 +206,7 @@ void pointers(int *p) {
   // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 
   bool p1 = !p;
-  // %[[BOOLPTR:]] = cir.cast(ptr_to_bool, %15 : !cir.ptr<!s32i>), !cir.bool
+  // %[[BOOLPTR:]] = cir.cast ptr_to_bool %15 : !cir.ptr<!s32i> -> !cir.bool
   // cir.unary(not, %[[BOOLPTR]]) : !cir.bool, !cir.bool
 }
 
@@ -214,10 +214,10 @@ void chars(char c) {
 // CHECK: cir.func dso_local @{{.+}}chars{{.+}}
 
   int c1 = +c;
-  // CHECK: %[[#PROMO:]] = cir.cast(integral, %{{.+}} : !s8i), !s32i
+  // CHECK: %[[#PROMO:]] = cir.cast integral %{{.+}} : !s8i -> !s32i
   // CHECK: cir.unary(plus, %[[#PROMO]]) : !s32i, !s32i
   int c2 = -c;
-  // CHECK: %[[#PROMO:]] = cir.cast(integral, %{{.+}} : !s8i), !s32i
+  // CHECK: %[[#PROMO:]] = cir.cast integral %{{.+}} : !s8i -> !s32i
   // CHECK: cir.unary(minus, %[[#PROMO]]) nsw : !s32i, !s32i
 
   // Chars can go through some integer promotion codegen paths even when not promoted.
@@ -227,6 +227,6 @@ void chars(char c) {
   c--; // CHECK: cir.unary(dec, %16) : !s8i, !s8i
 
   bool c3 = !c;
-  // CHECK: %[[#C_BOOL:]] = cir.cast(int_to_bool, %{{[0-9]+}} : !s8i), !cir.bool
+  // CHECK: %[[#C_BOOL:]] = cir.cast int_to_bool %{{[0-9]+}} : !s8i -> !cir.bool
   // CHECK: cir.unary(not, %[[#C_BOOL]]) : !cir.bool, !cir.bool
 }

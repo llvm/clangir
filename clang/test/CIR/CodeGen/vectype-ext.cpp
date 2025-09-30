@@ -87,7 +87,7 @@ void vector_int_test(int x) {
   // Vector to vector conversion
   vd2 bbb = { };
   bb = (vi4)bbb;
-  // CIR: %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!s32i x 4>
+  // CIR: %{{[0-9]+}} = cir.cast bitcast %{{[0-9]+}} : !cir.vector<!cir.double x 2> -> !cir.vector<!s32i x 4>
   // LLVM: %{{[0-9]+}} = bitcast <2 x double> %{{[0-9]+}} to <4 x i32>
 
   // Extract element
@@ -335,7 +335,7 @@ void vector_double_test(int x, double y) {
 
   // __builtin_convertvector
   vus2 w = __builtin_convertvector(a, vus2);
-  // CIR: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!u16i x 2>
+  // CIR: %{{[0-9]+}} = cir.cast float_to_int %{{[0-9]+}} : !cir.vector<!cir.double x 2> -> !cir.vector<!u16i x 2>
   // LLVM: %{{[0-9]+}} = fptoui <2 x double> %{{[0-9]+}} to <2 x i16>
 }
 
@@ -532,7 +532,7 @@ void test_vec3() {
   // LLVM-NEXT: store <3 x i32> zeroinitializer, ptr %[[#PV]], align 16
 
   v + 1;
-  // CIR-NEXT: %[[#PV4:]] = cir.cast(bitcast, %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 3>>), !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#PV4:]] = cir.cast bitcast %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 3>> -> !cir.ptr<!cir.vector<!s32i x 4>>
   // CIR-NEXT: %[[#V4:]] = cir.load{{.*}} %[[#PV4]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#POISON6:]] = cir.const #cir.poison : !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#V3:]] = cir.vec.shuffle(%[[#V4]], %[[#POISON6]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 3>

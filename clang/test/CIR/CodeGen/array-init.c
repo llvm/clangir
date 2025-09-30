@@ -65,7 +65,7 @@ void buz(int x) {
 // CIR-NEXT: cir.store{{.*}} [[XA_VAL]], [[A_STORAGE0]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[B_STORAGE0:%.*]] = cir.get_member [[FI_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
 // CIR-NEXT: [[XB_VAL:%.*]] = cir.load{{.*}} [[X_ALLOCA]] : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: [[XB_CASTED:%.*]] = cir.cast(integral, [[XB_VAL]] : !s32i), !s64i
+// CIR-NEXT: [[XB_CASTED:%.*]] = cir.cast integral [[XB_VAL]] : !s32i -> !s64i
 // CIR-NEXT: cir.store{{.*}} [[XB_CASTED]], [[B_STORAGE0]] : !s64i, !cir.ptr<!s64i>
 // CIR-NEXT: [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
 // CIR-NEXT: [[SE_EL:%.*]] = cir.get_element [[ARR]][[[ONE]]] : (!cir.ptr<!cir.array<!rec_T x 2>>, !s64i) -> !cir.ptr<!rec_T>
@@ -74,7 +74,7 @@ void buz(int x) {
 // CIR-NEXT: cir.store{{.*}} [[A1_ZERO]], [[A_STORAGE1]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: [[B_STORAGE1:%.*]] = cir.get_member [[SE_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
 // CIR-NEXT: [[B1_ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR-NEXT: [[B1_CASTED:%.*]] = cir.cast(integral, [[B1_ZERO]] : !s32i), !s64i
+// CIR-NEXT: [[B1_CASTED:%.*]] = cir.cast integral [[B1_ZERO]] : !s32i -> !s64i
 // CIR-NEXT: cir.store{{.*}} [[B1_CASTED]], [[B_STORAGE1]] : !s64i, !cir.ptr<!s64i>
 // CIR-NEXT: cir.return
 

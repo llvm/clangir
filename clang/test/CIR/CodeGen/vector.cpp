@@ -22,7 +22,7 @@ namespace std {
 // CHECK:   cir.store{{.*}} %4, %2 : !u64i, !cir.ptr<!u64i>
 // CHECK:   cir.scope {
 // CHECK:     %5 = cir.load{{.*}} %2 : !cir.ptr<!u64i>, !u64i
-// CHECK:     %6 = cir.cast(int_to_bool, %5 : !u64i), !cir.bool
+// CHECK:     %6 = cir.cast int_to_bool %5 : !u64i -> !cir.bool
 // CHECK:     cir.if %6 {
 // CHECK:     }
 // CHECK:   }

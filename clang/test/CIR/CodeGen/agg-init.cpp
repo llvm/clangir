@@ -55,7 +55,7 @@ void yo() {
 // CHECK:   %4 = cir.const #cir.int<1000066001> : !u32i
 // CHECK:   cir.store{{.*}} %4, %3 : !u32i, !cir.ptr<!u32i>
 // CHECK:   %5 = cir.get_member %1[1] {name = "next"} : !cir.ptr<!rec_Yo> -> !cir.ptr<!cir.ptr<!void>>
-// CHECK:   %6 = cir.cast(bitcast, %0 : !cir.ptr<!rec_Yo>), !cir.ptr<!void>
+// CHECK:   %6 = cir.cast bitcast %0 : !cir.ptr<!rec_Yo> -> !cir.ptr<!void>
 // CHECK:   cir.store{{.*}} %6, %5 : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CHECK:   %7 = cir.get_member %1[2] {name = "createFlags"} : !cir.ptr<!rec_Yo> -> !cir.ptr<!u64i>
 // CHECK:   %8 = cir.const #cir.int<0> : !u64i

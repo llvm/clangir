@@ -44,7 +44,7 @@ void vector_int_test(int x, unsigned short usx) {
   // Vector to vector conversion
   vd2 bbb = { };
   bb = (vi4)bbb;
-  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!s32i x 4>
+  // CHECK: %{{[0-9]+}} = cir.cast bitcast %{{[0-9]+}} : !cir.vector<!cir.double x 2> -> !cir.vector<!s32i x 4>
 
   // Extract element
   int c = a[x];
@@ -136,15 +136,15 @@ void vector_int_test(int x, unsigned short usx) {
 
   // Vector to scalar conversion
   unsigned int zi = (unsigned int)z;
-  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!u16i x 2>), !u32i
+  // CHECK: %{{[0-9]+}} = cir.cast bitcast {{%.*}} : !cir.vector<!u16i x 2> -> !u32i
 
   // Scalar to vector conversion
   vus2 zz = (vus2)zi;
-  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !u32i), !cir.vector<!u16i x 2>
+  // CHECK: %{{[0-9]+}} = cir.cast bitcast {{%.*}} : !u32i -> !cir.vector<!u16i x 2>
 
   // Vector to vector conversion
   vll2 aaa = (vll2)a;
-  // CHECK: %{{[0-9]+}} = cir.cast(bitcast, {{%.*}} : !cir.vector<!s32i x 4>), !cir.vector<!s64i x 2>
+  // CHECK: %{{[0-9]+}} = cir.cast bitcast {{%.*}} : !cir.vector<!s32i x 4> -> !cir.vector<!s64i x 2>
 }
 
 void vector_double_test(int x, double y) {
@@ -209,7 +209,7 @@ void vector_double_test(int x, double y) {
 
   // __builtin_convertvector
   vus2 w = __builtin_convertvector(a, vus2);
-  // CHECK: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!u16i x 2>
+  // CHECK: %{{[0-9]+}} = cir.cast float_to_int %{{[0-9]+}} : !cir.vector<!cir.double x 2> -> !cir.vector<!u16i x 2>
 }
 
 void vector_integers_shifts_test() {

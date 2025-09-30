@@ -6,7 +6,7 @@ void test_setjmp(void *env) {
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%[0-9]+]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>,
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%[0-9]+]] = cir.load align(8) [[ENV_ALLOCA]]
-  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%[0-9]+]] = cir.cast(bitcast, [[ENV_LOAD]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!void>>
+  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%[0-9]+]] = cir.cast bitcast [[ENV_LOAD]] : !cir.ptr<!void> -> !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: [[ZERO:%[0-9]+]] = cir.const #cir.int<0>
   // BEFORE-LOWERING-PREPARE-NEXT: [[FA:%[0-9]+]] = cir.frame_address([[ZERO]])
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[FA]], [[CAST]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
@@ -21,7 +21,7 @@ void test_setjmp(void *env) {
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%[0-9]+]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>,
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%[0-9]+]] = cir.load align(8) [[ENV_ALLOCA]]
-  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%[0-9]+]] = cir.cast(bitcast, [[ENV_LOAD]] : !cir.ptr<!void>), !cir.ptr<!cir.ptr<!void>>
+  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%[0-9]+]] = cir.cast bitcast [[ENV_LOAD]] : !cir.ptr<!void> -> !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: [[ZERO:%[0-9]+]] = cir.const #cir.int<0>
   // AFTER-LOWERING-PREPARE-NEXT: [[FA:%[0-9]+]] = cir.frame_address([[ZERO]])
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[FA]], [[CAST]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
@@ -40,7 +40,7 @@ void test_setjmp2(void *env) {
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast bitcast [[ENV_LOAD]]
   // BEFORE-LOWERING-PREPARE-NEXT: cir.eh.setjmp [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
 
   // AFTER-LOWERING-PREPARE-LABEL: test_setjmp2
@@ -48,7 +48,7 @@ void test_setjmp2(void *env) {
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast bitcast [[ENV_LOAD]]
   // AFTER-LOWERING-PREPARE-NEXT: cir.eh.setjmp [[CAST]] : (!cir.ptr<!cir.ptr<!void>>) -> !s32i
   _setjmp (env);
 }

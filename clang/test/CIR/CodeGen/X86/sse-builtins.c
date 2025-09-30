@@ -36,7 +36,7 @@ void test_mm_sfence(void) {
 __m128 test_mm_undefined_ps(void) {
   // CIR-LABEL: _mm_undefined_ps
   // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 2>
-  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 2>), !cir.vector<!cir.float x 4>
+  // CIR: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 2> -> !cir.vector<!cir.float x 4>
   // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 4>
 
   // LLVM-LABEL: test_mm_undefined_ps

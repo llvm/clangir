@@ -45,7 +45,7 @@ public:
 // CHECK:   %0 = cir.alloca !rec_PSEvent, !cir.ptr<!rec_PSEvent>, ["p", init] {alignment = 8 : i64}
 // CHECK:   %1 = cir.const #cir.int<1> : !s32i
 // CHECK:   %2 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 5>>
-// CHECK:   %3 = cir.cast(array_to_ptrdecay, %2 : !cir.ptr<!cir.array<!s8i x 5>>), !cir.ptr<!s8i>
+// CHECK:   %3 = cir.cast array_to_ptrdecay %2 : !cir.ptr<!cir.array<!s8i x 5>> -> !cir.ptr<!s8i>
 // CHECK:   cir.call @_ZN7PSEventC1E6EFModePKc(%0, %1, %3) : (!cir.ptr<!rec_PSEvent>, !s32i, !cir.ptr<!s8i>) -> ()
 // CHECK:   cir.return
 // CHECK: }
@@ -138,7 +138,7 @@ void pseudo_dtor() {
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>
 // CHECK:     %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<![[ClassB]]>>, !cir.ptr<![[ClassB]]>
 // CHECK:     cir.call @_ZN1BD2Ev(%1) : (!cir.ptr<![[ClassB]]>) -> ()
-// CHECK:     %2 = cir.cast(bitcast, %1 : !cir.ptr<![[ClassB]]>), !cir.ptr<!void>
+// CHECK:     %2 = cir.cast bitcast %1 : !cir.ptr<![[ClassB]]> -> !cir.ptr<!void>
 // CHECK:     cir.call @_ZdlPvm(%2, %3) : (!cir.ptr<!void>, !u64i) -> ()
 // CHECK:     cir.return
 // CHECK:   }

@@ -49,9 +49,9 @@ int f1(int n, ...) {
 // AFTER: [[BB_IN_REG]]:
 // AFTER-NEXT: [[GR_TOP_P:%.*]] = cir.get_member [[VARLIST]][1] {name = "gr_top"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: [[GR_TOP:%.*]] = cir.load{{.*}} [[GR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// AFTER-NEXT: [[TMP2:%.*]] = cir.cast(bitcast, [[GR_TOP]] : !cir.ptr<!void>), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP2:%.*]] = cir.cast bitcast [[GR_TOP]] : !cir.ptr<!void> -> !cir.ptr<i8>
 // AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride [[TMP2]], [[GR_OFFS]] : (!cir.ptr<i8>, !s32i) -> !cir.ptr<i8>
-// AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<i8>), !cir.ptr<!void>
+// AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast bitcast [[TMP3]] : !cir.ptr<i8> -> !cir.ptr<!void>
 // AFTER-NEXT: cir.br [[BB_END:\^bb.*]]([[IN_REG_OUTPUT]] : !cir.ptr<!void>)
 
 // arg is passed in stack.
@@ -59,9 +59,9 @@ int f1(int n, ...) {
 // AFTER-NEXT: [[STACK_P:%.*]] = cir.get_member [[VARLIST]][0] {name = "stack"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: [[STACK_V:%.*]] = cir.load{{.*}} [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[EIGHT_IN_PTR_ARITH:%.*]]  = cir.const #cir.int<8> : !u64i
-// AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
+// AFTER-NEXT: [[TMP4:%.*]] = cir.cast bitcast [[STACK_V]] : !cir.ptr<!void> -> !cir.ptr<i8>
 // AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride [[TMP4]], [[EIGHT_IN_PTR_ARITH]] : (!cir.ptr<i8>, !u64i) -> !cir.ptr<i8>
-// AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
+// AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast bitcast [[TMP5]] : !cir.ptr<i8> -> !cir.ptr<!void>
 // AFTER-NEXT: cir.store{{.*}} [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)
 
@@ -70,7 +70,7 @@ int f1(int n, ...) {
 // stack's argument saving area.
 // Or from ON_STACK block which means arg is passed in from caller's stack area.
 // AFTER-NEXT: [[BB_END]]([[BLK_ARG:%.*]]: !cir.ptr<!void>):  // 2 preds: [[BB_IN_REG]], [[BB_ON_STACK]]
-// AFTER-NEXT:  [[TMP0:%.*]] = cir.cast(bitcast, [[BLK_ARG]] : !cir.ptr<!void>), !cir.ptr<!s32i>
+// AFTER-NEXT:  [[TMP0:%.*]] = cir.cast bitcast [[BLK_ARG]] : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // AFTER-NEXT:  [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!s32i>, !s32i
 // AFTER:   cir.store{{.*}} [[TMP1]], [[RESP]] : !s32i, !cir.ptr<!s32i>
 // AFTER:   cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>

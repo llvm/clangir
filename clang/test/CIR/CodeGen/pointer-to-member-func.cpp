@@ -128,7 +128,7 @@ bool memfunc_to_bool(void (Foo::*func)(int)) {
 }
 
 // CIR-LABEL: @_Z15memfunc_to_boolM3FooFviE
-// CIR:   %{{.+}} = cir.cast(member_ptr_to_bool, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo>), !cir.bool
+// CIR:   %{{.+}} = cir.cast member_ptr_to_bool %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo> -> !cir.bool
 // CIR: }
 
 // LLVM-LABEL: @_Z15memfunc_to_boolM3FooFviE
@@ -142,7 +142,7 @@ auto memfunc_reinterpret(void (Foo::*func)(int)) -> void (Bar::*)() {
 }
 
 // CIR-LABEL: @_Z19memfunc_reinterpretM3FooFviE
-// CIR:   %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo>), !cir.method<!cir.func<()> in !rec_Bar>
+// CIR:   %{{.+}} = cir.cast bitcast %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo> -> !cir.method<!cir.func<()> in !rec_Bar>
 // CIR: }
 
 // LLVM-LABEL: @_Z19memfunc_reinterpretM3FooFviE

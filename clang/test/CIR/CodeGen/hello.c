@@ -13,7 +13,7 @@ int main (void) {
 // CHECK:   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK:   %1 = cir.get_global @printf : !cir.ptr<!cir.func<(!cir.ptr<!s8i>, ...) -> !s32i>>
 // CHECK:   %2 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 15>>
-// CHECK:   %3 = cir.cast(array_to_ptrdecay, %2 : !cir.ptr<!cir.array<!s8i x 15>>), !cir.ptr<!s8i>
+// CHECK:   %3 = cir.cast array_to_ptrdecay %2 : !cir.ptr<!cir.array<!s8i x 15>> -> !cir.ptr<!s8i>
 // CHECK:   %4 = cir.call @printf(%3) : (!cir.ptr<!s8i>) -> !s32i
 // CHECK:   %5 = cir.const #cir.int<0> : !s32i
 // CHECK:   cir.store %5, %0 : !s32i, !cir.ptr<!s32i>

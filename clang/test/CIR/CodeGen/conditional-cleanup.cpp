@@ -42,7 +42,7 @@ namespace test7 {
 // CIR:     %[[TRUE1:.*]] = cir.const #true
 
 // CIR:     %[[NULL_CHECK0:.*]] = cir.cmp(ne
-// CIR:     %[[PTR_B0:.*]] = cir.cast(bitcast
+// CIR:     %[[PTR_B0:.*]] = cir.cast bitcast
 // CIR:     cir.store align(1) %[[FALSE1]], %[[CLEANUP_COND_OUTER]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR:     cir.store align(1) %[[FALSE0]], %[[CLEANUP_COND_INNER]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR:     cir.if %[[NULL_CHECK0]] {
@@ -52,7 +52,7 @@ namespace test7 {
 // CIR:       cir.store{{.*}} %[[TRUE1]], %[[CLEANUP_COND_OUTER]] : !cir.bool, !cir.ptr<!cir.bool>
 
 // CIR:       %[[NULL_CHECK1:.*]] = cir.cmp(ne
-// CIR:       %[[PTR_B1:.*]] = cir.cast(bitcast
+// CIR:       %[[PTR_B1:.*]] = cir.cast bitcast
 // CIR:       cir.if %[[NULL_CHECK1]] {
 
 // Ctor call: @test7::A::A()
@@ -106,7 +106,7 @@ namespace test7 {
 // CIR_EH:             %[[VAL_16:.*]] = cir.call @_ZN5test71BnwEm(%[[VAL_15]]) : (!u64i) -> !cir.ptr<!void>
 // CIR_EH:             %[[VAL_17:.*]] = cir.const #{{.*}}<null> : !cir.ptr<!void>
 // CIR_EH:             %[[VAL_18:.*]] = cir.cmp(ne, %[[VAL_16]], %[[VAL_17]]) : !cir.ptr<!void>, !cir.bool
-// CIR_EH:             %[[VAL_19:.*]] = cir.cast(bitcast, %[[VAL_16]] : !cir.ptr<!void>), !cir.ptr<!rec_test73A3AB>
+// CIR_EH:             %[[VAL_19:.*]] = cir.cast bitcast %[[VAL_16]] : !cir.ptr<!void> -> !cir.ptr<!rec_test73A3AB>
 // CIR_EH:             cir.store align(1) %[[VAL_13]], %[[VAL_1]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:             cir.store align(1) %[[VAL_11]], %[[VAL_3]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:             cir.store align(1) %[[VAL_9]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
@@ -130,7 +130,7 @@ namespace test7 {
 // CIR_EH:               %[[VAL_22:.*]] = cir.call @_ZN5test71BnwEm(%[[VAL_21]]) : (!u64i) -> !cir.ptr<!void>
 // CIR_EH:               %[[VAL_23:.*]] = cir.const #{{.*}}<null> : !cir.ptr<!void>
 // CIR_EH:               %[[VAL_24:.*]] = cir.cmp(ne, %[[VAL_22]], %[[VAL_23]]) : !cir.ptr<!void>, !cir.bool
-// CIR_EH:               %[[VAL_25:.*]] = cir.cast(bitcast, %[[VAL_22]] : !cir.ptr<!void>), !cir.ptr<!rec_test73A3AB>
+// CIR_EH:               %[[VAL_25:.*]] = cir.cast bitcast %[[VAL_22]] : !cir.ptr<!void> -> !cir.ptr<!rec_test73A3AB>
 // CIR_EH:               cir.if %[[VAL_24]] {
 // CIR_EH:                 cir.store{{.*}} %[[VAL_10]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:                 cir.try synthetic cleanup {

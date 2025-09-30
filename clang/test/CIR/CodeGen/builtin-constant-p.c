@@ -11,7 +11,7 @@ int foo() {
 // CIR:    [[TMP1:%.*]] = cir.get_global @a : !cir.ptr<!s32i>
 // CIR:    [[TMP2:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!s32i>, !s32i
 // CIR:    [[TMP3:%.*]] = cir.is_constant([[TMP2]] : !s32i) : !cir.bool
-// CIR:    [[TMP4:%.*]] = cir.cast(bool_to_int, [[TMP3]] : !cir.bool), !s32i
+// CIR:    [[TMP4:%.*]] = cir.cast bool_to_int [[TMP3]] : !cir.bool -> !s32i
 // CIR:    cir.store [[TMP4]], [[TMP0]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[TMP5:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[TMP5]] : !s32i

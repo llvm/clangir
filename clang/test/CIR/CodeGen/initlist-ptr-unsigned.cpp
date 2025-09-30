@@ -31,7 +31,7 @@ void test() {
 // CIR: [[SEVEN:%.*]] = cir.const #cir.int<7> : !s32i
 // CIR: cir.store{{.*}} [[SEVEN]], [[FIRST_ELEM]] : !s32i, !cir.ptr<!s32i>
 // CIR: [[FLD_C:%.*]] = cir.get_member [[LIST_PTR]][0] {name = "c"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!cir.ptr<!s32i>>
-// CIR: [[ARRAY_PTR:%.*]] = cir.cast(bitcast, [[FLD_C]] : !cir.ptr<!cir.ptr<!s32i>>), !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
+// CIR: [[ARRAY_PTR:%.*]] = cir.cast bitcast [[FLD_C]] : !cir.ptr<!cir.ptr<!s32i>> -> !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
 // CIR: cir.store{{.*}} [[ARRAY]], [[ARRAY_PTR]] : !cir.ptr<!cir.array<!s32i x 1>>, !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
 // CIR: [[LENGTH_ONE:%.*]] = cir.const #cir.int<1>
 // CIR: [[FLD_LEN:%.*]] = cir.get_member [[LIST_PTR]][1] {name = "len"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!u64i>

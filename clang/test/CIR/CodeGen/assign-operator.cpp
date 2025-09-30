@@ -80,7 +80,7 @@ int main() {
 // CHECK:     cir.scope {
 // CHECK:       %3 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s", init] {alignment = 8 : i64}
 // CHECK:       %4 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 3>>
-// CHECK:       %5 = cir.cast(array_to_ptrdecay, %4 : !cir.ptr<!cir.array<!s8i x 3>>), !cir.ptr<!s8i>
+// CHECK:       %5 = cir.cast array_to_ptrdecay %4 : !cir.ptr<!cir.array<!s8i x 3>> -> !cir.ptr<!s8i>
 // CHECK:       cir.call @_ZN6StringC2EPKc(%3, %5) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
 // CHECK:       cir.scope {
 // CHECK:         %6 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["ref.tmp0"] {alignment = 8 : i64}
@@ -124,8 +124,8 @@ struct ContainsNonTrivial {
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CHECK-NEXT:    %[[#OTHER_I:]] = cir.get_member %[[#OTHER_LOAD]][2] {name = "i"}
 // CHECK-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<12> : !u64i
-// CHECK-NEXT:    %[[#THIS_I_CAST:]] = cir.cast(bitcast, %[[#THIS_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
-// CHECK-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast(bitcast, %[[#OTHER_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
+// CHECK-NEXT:    %[[#THIS_I_CAST:]] = cir.cast bitcast %[[#THIS_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
+// CHECK-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast bitcast %[[#OTHER_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
 // CHECK-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_I_CAST]] to %[[#THIS_I_CAST]]
 // CHECK-NEXT:    %[[#THIS_MIDDLE:]] = cir.get_member %[[#THIS_LOAD]][4] {name = "middle"}
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
@@ -135,8 +135,8 @@ struct ContainsNonTrivial {
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CHECK-NEXT:    %[[#OTHER_K:]] = cir.get_member %[[#OTHER_LOAD]][5] {name = "k"}
 // CHECK-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<2> : !u64i
-// CHECK-NEXT:    %[[#THIS_K_CAST:]] = cir.cast(bitcast, %[[#THIS_K]] : !cir.ptr<!u16i>), !cir.ptr<!void>
-// CHECK-NEXT:    %[[#OTHER_K_CAST:]] = cir.cast(bitcast, %[[#OTHER_K]] : !cir.ptr<!u16i>), !cir.ptr<!void>
+// CHECK-NEXT:    %[[#THIS_K_CAST:]] = cir.cast bitcast %[[#THIS_K]] : !cir.ptr<!u16i> -> !cir.ptr<!void>
+// CHECK-NEXT:    %[[#OTHER_K_CAST:]] = cir.cast bitcast %[[#OTHER_K]] : !cir.ptr<!u16i> -> !cir.ptr<!void>
 // CHECK-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_K_CAST]] to %[[#THIS_K_CAST]]
 // CHECK-NEXT:    %[[#THIS_END:]] = cir.get_member %[[#THIS_LOAD]][6] {name = "end"}
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
@@ -168,8 +168,8 @@ struct Trivial {
 // CHECK-NEXT:    %[[#OTHER_I:]] = cir.get_member %[[#OTHER_LOAD]][0] {name = "i"}
 // Note that tail padding bytes are not included.
 // CHECK-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<36> : !u64i
-// CHECK-NEXT:    %[[#THIS_I_CAST:]] = cir.cast(bitcast, %[[#THIS_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
-// CHECK-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast(bitcast, %[[#OTHER_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
+// CHECK-NEXT:    %[[#THIS_I_CAST:]] = cir.cast bitcast %[[#THIS_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
+// CHECK-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast bitcast %[[#OTHER_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
 // CHECK-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_I_CAST]] to %[[#THIS_I_CAST]]
 // CHECK-NEXT:    cir.store{{.*}} %[[#THIS_LOAD]], %[[#RETVAL]]
 // CHECK-NEXT:    %[[#RETVAL_LOAD:]] = cir.load{{.*}} %[[#RETVAL]]
@@ -206,10 +206,10 @@ struct ContainsTrivialArray {
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsTrivialArray, copy>>
 // CHECK:         %[[#THIS_LOAD:]] = cir.load{{.*}} deref %[[#]]
 // CHECK-NEXT:    %[[#THIS_ARR:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "arr"}
-// CHECK-NEXT:    %[[#THIS_ARR_CAST:]] = cir.cast(bitcast, %[[#THIS_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>>), !cir.ptr<!void>
+// CHECK-NEXT:    %[[#THIS_ARR_CAST:]] = cir.cast bitcast %[[#THIS_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>> -> !cir.ptr<!void>
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#]]
 // CHECK-NEXT:    %[[#OTHER_ARR:]] = cir.get_member %[[#OTHER_LOAD]][0] {name = "arr"}
-// CHECK-NEXT:    %[[#OTHER_ARR_CAST:]] = cir.cast(bitcast, %[[#OTHER_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>>), !cir.ptr<!void>
+// CHECK-NEXT:    %[[#OTHER_ARR_CAST:]] = cir.cast bitcast %[[#OTHER_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>> -> !cir.ptr<!void>
 // CHECK-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<80> : !u64i
 // CHECK-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_ARR_CAST]] to %[[#THIS_ARR_CAST]]
 ContainsTrivialArray &

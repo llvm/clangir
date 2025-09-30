@@ -12,7 +12,7 @@ int foo(S s) { return 42 + s.a; }
 // CHECK: cir.func {{.*@bar}}
 // CHECK:   %[[#V0:]] = cir.alloca !cir.ptr<!cir.func<(!rec_S) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>, ["a", init]
 // CHECK:   %[[#V1:]] = cir.get_global @foo : !cir.ptr<!cir.func<(!s32i) -> !s32i>>
-// CHECK:   %[[#V2:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!cir.func<(!s32i) -> !s32i>>), !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
+// CHECK:   %[[#V2:]] = cir.cast bitcast %[[#V1]] : !cir.ptr<!cir.func<(!s32i) -> !s32i>> -> !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
 // CHECK:   cir.store{{.*}} %[[#V2]], %[[#V0]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>
 void bar() {
   myfptr a = foo;
@@ -20,16 +20,16 @@ void bar() {
 
 // CHECK: cir.func {{.*@baz}}(%arg0: !s32i
 // CHECK:   %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
-// CHECK:   %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!s32i>
+// CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!s32i>
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !s32i, !cir.ptr<!s32i>
 // CHECK:   %[[#V2:]] = cir.alloca !cir.ptr<!cir.func<(!rec_S) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>, ["a", init]
 // CHECK:   %[[#V3:]] = cir.get_global @foo : !cir.ptr<!cir.func<(!s32i) -> !s32i>>
-// CHECK:   %[[#V4:]] = cir.cast(bitcast, %[[#V3]] : !cir.ptr<!cir.func<(!s32i) -> !s32i>>), !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
+// CHECK:   %[[#V4:]] = cir.cast bitcast %[[#V3]] : !cir.ptr<!cir.func<(!s32i) -> !s32i>> -> !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
 // CHECK:   cir.store{{.*}} %[[#V4]], %[[#V2]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>
 // CHECK:   %[[#V5:]] = cir.load{{.*}} %[[#V2]] : !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>, !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
-// CHECK:   %[[#V6:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!s32i>
+// CHECK:   %[[#V6:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!s32i>
 // CHECK:   %[[#V7:]] = cir.load{{.*}} %[[#V6]] : !cir.ptr<!s32i>, !s32i
-// CHECK:   %[[#V8:]] = cir.cast(bitcast, %[[#V5]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>>), !cir.ptr<!cir.func<(!s32i) -> !s32i>>
+// CHECK:   %[[#V8:]] = cir.cast bitcast %[[#V5]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>> -> !cir.ptr<!cir.func<(!s32i) -> !s32i>>
 // CHECK:   %[[#V9:]] = cir.call %[[#V8]](%[[#V7]]) : (!cir.ptr<!cir.func<(!s32i) -> !s32i>>, !s32i) -> !s32i
 
 // LLVM: define dso_local void @baz(i32 %0)

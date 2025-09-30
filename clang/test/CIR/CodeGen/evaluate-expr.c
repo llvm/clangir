@@ -11,7 +11,7 @@ void foo() {
 // CHECK:  cir.func no_proto dso_local @foo()
 // CHECK:    cir.scope {
 // CHECK:      [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-// CHECK:      [[FALSE:%.*]] = cir.cast(int_to_bool, [[ZERO:%.*]] : !s32i), !cir.bool
+// CHECK:      [[FALSE:%.*]] = cir.cast int_to_bool [[ZERO:%.*]] : !s32i -> !cir.bool
 // CHECK:      cir.if [[FALSE]] {
 // CHECK:        cir.return
 // CHECK:      }

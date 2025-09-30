@@ -9,7 +9,7 @@ float test_scalar(int &oper) {
 
 // CIR-LABEL: cir.func dso_local @_Z11test_scalarRi
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!s32i>), !cir.ptr<!cir.float>
+//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!s32i> -> !cir.ptr<!cir.float>
 //  CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!cir.float>, !cir.float
 //       CIR: }
 
@@ -29,7 +29,7 @@ unsigned long test_aggregate_to_scalar(two_ints &ti) {
 
 // CIR-LABEL: cir.func dso_local @_Z24test_aggregate_to_scalarR8two_ints
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_two_ints>>, !cir.ptr<!rec_two_ints>
-//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints>), !cir.ptr<!u64i>
+//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints> -> !cir.ptr<!u64i>
 //  CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!u64i>, !u64i
 //       CIR: }
 
@@ -49,8 +49,8 @@ two_floats test_aggregate_record(two_ints& ti) {
 
 // CIR-LABEL: cir.func dso_local @_Z21test_aggregate_recordR8two_ints
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_two_ints>>, !cir.ptr<!rec_two_ints>
-//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_floats>), !cir.ptr<!void>
+//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
+//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_floats> -> !cir.ptr<!void>
 //  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
 //  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
 //       CIR: }
@@ -68,8 +68,8 @@ two_floats test_aggregate_array(int (&ary)[2]) {
 
 // CIR-LABEL: cir.func dso_local @_Z20test_aggregate_arrayRA2_i
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 2>>>, !cir.ptr<!cir.array<!s32i x 2>>
-//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_floats>), !cir.ptr<!void>
+//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>> -> !cir.ptr<!void>
+//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_floats> -> !cir.ptr<!void>
 //  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
 //  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
 //       CIR: }
@@ -86,8 +86,8 @@ two_ints test_scalar_to_aggregate(unsigned long ul) {
 }
 
 // CIR-LABEL: cir.func dso_local @_Z24test_scalar_to_aggregatem
-//       CIR:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!u64i>), !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
+//       CIR:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!u64i> -> !cir.ptr<!void>
+//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
 //  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
 //  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
 //       CIR: }
@@ -104,7 +104,7 @@ unsigned long test_array(int (&ary)[2]) {
 
 // CIR-LABEL: cir.func dso_local @_Z10test_arrayRA2_i
 //      CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 2>>>, !cir.ptr<!cir.array<!s32i x 2>>
-// CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!u64i>
+// CIR-NEXT:   %[[#DST_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>> -> !cir.ptr<!u64i>
 // CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!u64i>, !u64i
 //      CIR: }
 
@@ -122,8 +122,8 @@ two_ints test_rvalue_aggregate() {
 //  CIR-NEXT:     %[[#TMP_SLOT:]] = cir.alloca !u64i, !cir.ptr<!u64i>
 //  CIR-NEXT:     %[[#A:]] = cir.const #cir.int<42> : !u64i
 //  CIR-NEXT:     cir.store{{.*}} %[[#A]], %[[#TMP_SLOT]] : !u64i, !cir.ptr<!u64i>
-//  CIR-NEXT:     %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#TMP_SLOT]] : !cir.ptr<!u64i>), !cir.ptr<!void>
-//  CIR-NEXT:     %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %0 : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
+//  CIR-NEXT:     %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#TMP_SLOT]] : !cir.ptr<!u64i> -> !cir.ptr<!void>
+//  CIR-NEXT:     %[[#DST_VOID_PTR:]] = cir.cast bitcast %0 : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
 //  CIR-NEXT:     %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
 //  CIR-NEXT:     cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
 //  CIR-NEXT:   }

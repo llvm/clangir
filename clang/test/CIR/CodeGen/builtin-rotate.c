@@ -9,7 +9,7 @@ void f() {
   unsigned int v[4];
   unsigned int h = __builtin_rotateleft32(v[0], 1);
 // CIR: %[[CONST:.*]] = cir.const #cir.int<1> : !s32i
-// CIR: %[[CAST:.*]] = cir.cast(integral, %[[CONST]] : !s32i), !u32i
+// CIR: %[[CAST:.*]] = cir.cast integral %[[CONST]] : !s32i -> !u32i
 // CIR: cir.rotate left {{.*}}, %[[CAST]] -> !u32i
 
 // LLVM: %[[SRC:.*]] = load i32, ptr

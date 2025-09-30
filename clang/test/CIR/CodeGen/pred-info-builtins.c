@@ -13,7 +13,7 @@ void expect(int x) {
 
 // CIR-O2: cir.func dso_local @expect
 // CIR-O2:   [[EXPECT:%.*]] = cir.expect({{.*}}, {{.*}}) : !s64i
-// CIR-O2:   [[EXPECT_BOOL:%.*]] = cir.cast(int_to_bool, [[EXPECT]] : !s64i), !cir.bool
+// CIR-O2:   [[EXPECT_BOOL:%.*]] = cir.cast int_to_bool [[EXPECT]] : !s64i -> !cir.bool
 // CIR-O2:   cir.if [[EXPECT_BOOL]]
 // CIR-O2:     cir.call @bar() : () -> ()
 
@@ -27,7 +27,7 @@ void expect_with_probability(int x) {
 
 // CIR-O2:  cir.func dso_local @expect_with_probability
 // CIR-O2:    [[EXPECT:%.*]] = cir.expect({{.*}}, {{.*}}, 8.000000e-01) : !s64i
-// CIR-O2:    [[EXPECT_BOOL:%.*]] = cir.cast(int_to_bool, [[EXPECT]] : !s64i), !cir.bool
+// CIR-O2:    [[EXPECT_BOOL:%.*]] = cir.cast int_to_bool [[EXPECT]] : !s64i -> !cir.bool
 // CIR-O2:    cir.if [[EXPECT_BOOL]]
 // CIR-O2:      cir.call @bar() : () -> ()
 

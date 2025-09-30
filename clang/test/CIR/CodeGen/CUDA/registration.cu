@@ -53,9 +53,9 @@ __global__ void fn() {}
 // CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
 // CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
-// CIR-HOST:   %[[#DeviceFn:]] = cir.cast(bitcast, %[[#T1]]
+// CIR-HOST:   %[[#DeviceFn:]] = cir.cast bitcast %[[#T1]]
 // CIR-HOST:   %[[#T2:]] = cir.get_global @_Z17__device_stub__fnv
-// CIR-HOST:   %[[#HostFn:]] = cir.cast(bitcast, %[[#T2]]
+// CIR-HOST:   %[[#HostFn:]] = cir.cast bitcast %[[#T2]]
 // CIR-HOST:   %[[#MinusOne:]] = cir.const #cir.int<-1>
 // CIR-HOST:   cir.call @__cudaRegisterFunction(
 // CIR-HOST-SAME: %[[FatbinHandle]],

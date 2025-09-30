@@ -596,9 +596,9 @@ void sub_uchar(unsigned char* a, char b) {
 // CHECK-LABEL: @_Z13cmp_bool_uint
 // CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
 // CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[CMP_U:.*]] = cir.cast(integral, %[[CMP]] : !s32i), !u32i
+// CHECK: %[[CMP_U:.*]] = cir.cast integral %[[CMP]] : !s32i -> !u32i
 // CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[UPD_U:.*]] = cir.cast(integral, %[[UPD]] : !s32i), !u32i
+// CHECK: %[[UPD_U:.*]] = cir.cast integral %[[UPD]] : !s32i -> !u32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)
 // CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
@@ -636,12 +636,12 @@ void cmp_bool_ulong(unsigned long* p, long x, long u) {
 // CHECK-LABEL: @_Z12cmp_val_uint
 // CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
 // CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[CMP_U:.*]] = cir.cast(integral, %[[CMP]] : !s32i), !u32i
+// CHECK: %[[CMP_U:.*]] = cir.cast integral %[[CMP]] : !s32i -> !u32i
 // CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[UPD_U:.*]] = cir.cast(integral, %[[UPD]] : !s32i), !u32i
+// CHECK: %[[UPD_U:.*]] = cir.cast integral %[[UPD]] : !s32i -> !u32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)
-// CHECK: %[[R:.*]] = cir.cast(integral, %[[OLD]] : !u32i), !s32i
+// CHECK: %[[R:.*]] = cir.cast integral %[[OLD]] : !u32i -> !s32i
 // CHECK: cir.store{{.*}} %[[R]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z12cmp_val_uint
@@ -677,7 +677,7 @@ void cmp_val_ulong(unsigned long* p, long x, long u) {
 // LLVM-LABEL: @test_op_and_fetch
 extern "C" void test_op_and_fetch(void)
 {
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[RET0:%.*]] = cir.binop(add, [[RES0]], [[VAL0]]) : !s8i
   // LLVM:  [[VAL0:%.*]] = load i8, ptr @uc, align 1
@@ -694,7 +694,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_add_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(add, [[RES2]], [[VAL2]]) : !s16i
   // LLVM:  [[VAL2:%.*]] = load i8, ptr @uc, align 1
@@ -704,7 +704,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_add_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[RET3:%.*]] = cir.binop(add, [[RES3]], [[VAL3]]) : !u16i
   // LLVM:  [[VAL3:%.*]] = load i8, ptr @uc, align 1
@@ -714,7 +714,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us
   us = __sync_add_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[RET4:%.*]] = cir.binop(add, [[RES4]], [[VAL4]]) : !s32i
   // LLVM:  [[VAL4:%.*]] = load i8, ptr @uc, align 1
@@ -724,7 +724,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_add_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[RET5:%.*]] = cir.binop(add, [[RES5]], [[VAL5]]) : !u32i
   // LLVM:  [[VAL5:%.*]] = load i8, ptr @uc, align 1
@@ -734,7 +734,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_add_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[RET6:%.*]] = cir.binop(add, [[RES6]], [[VAL6]]) : !s64i
   // LLVM:  [[VAL6:%.*]] = load i8, ptr @uc, align 1
@@ -744,7 +744,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_add_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[RET7:%.*]] = cir.binop(add, [[RES7]], [[VAL7]]) : !u64i
   // LLVM:  [[VAL7:%.*]] = load i8, ptr @uc, align 1
@@ -754,7 +754,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_add_and_fetch(&ull, uc);
 
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[RET0:%.*]] = cir.binop(sub, [[RES0]], [[VAL0]]) : !s8i
   // LLVM:  [[VAL0:%.*]] = load i8, ptr @uc, align 1
@@ -771,7 +771,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_sub_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(sub, [[RES2]], [[VAL2]]) : !s16i
   // LLVM:  [[VAL2:%.*]] = load i8, ptr @uc, align 1
@@ -781,7 +781,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_sub_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[RET3:%.*]] = cir.binop(sub, [[RES3]], [[VAL3]]) : !u16i
   // LLVM:  [[VAL3:%.*]] = load i8, ptr @uc, align 1
@@ -791,7 +791,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us
   us = __sync_sub_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[RET4:%.*]] = cir.binop(sub, [[RES4]], [[VAL4]]) : !s32i
   // LLVM:  [[VAL4:%.*]] = load i8, ptr @uc, align 1
@@ -801,7 +801,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_sub_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[RET5:%.*]] = cir.binop(sub, [[RES5]], [[VAL5]]) : !u32i
   // LLVM:  [[VAL5:%.*]] = load i8, ptr @uc, align 1
@@ -811,7 +811,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_sub_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[RET6:%.*]] = cir.binop(sub, [[RES6]], [[VAL6]]) : !s64i
   // LLVM:  [[VAL6:%.*]] = load i8, ptr @uc, align 1
@@ -821,7 +821,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_sub_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[RET7:%.*]] = cir.binop(sub, [[RES7]], [[VAL7]]) : !u64i
   // LLVM:  [[VAL7:%.*]] = load i8, ptr @uc, align 1
@@ -831,7 +831,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_sub_and_fetch(&ull, uc);
 
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[RET0:%.*]] = cir.binop(and, [[RES0]], [[VAL0]]) : !s8i
   // LLVM:  [[VAL0:%.*]] = load i8, ptr @uc, align 1
@@ -848,7 +848,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_and_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(and, [[RES2]], [[VAL2]]) : !s16i
   // LLVM:  [[VAL2:%.*]] = load i8, ptr @uc, align 1
@@ -858,7 +858,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_and_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[RET3:%.*]] = cir.binop(and, [[RES3]], [[VAL3]]) : !u16i
   // LLVM:  [[VAL3:%.*]] = load i8, ptr @uc, align 1
@@ -868,7 +868,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us
   us = __sync_and_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[RET4:%.*]] = cir.binop(and, [[RES4]], [[VAL4]]) : !s32i
   // LLVM:  [[VAL4:%.*]] = load i8, ptr @uc, align 1
@@ -878,7 +878,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_and_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[RET5:%.*]] = cir.binop(and, [[RES5]], [[VAL5]]) : !u32i
   // LLVM:  [[VAL5:%.*]] = load i8, ptr @uc, align 1
@@ -888,7 +888,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_and_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[RET6:%.*]] = cir.binop(and, [[RES6]], [[VAL6]]) : !s64i
   // LLVM:  [[VAL6:%.*]] = load i8, ptr @uc, align 1
@@ -898,7 +898,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_and_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[RET7:%.*]] = cir.binop(and, [[RES7]], [[VAL7]]) : !u64i
   // LLVM:  [[VAL7:%.*]] = load i8, ptr @uc, align 1
@@ -908,7 +908,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_and_and_fetch(&ull, uc);
 
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[RET0:%.*]] = cir.binop(or, [[RES0]], [[VAL0]]) : !s8i
   // LLVM:  [[VAL0:%.*]] = load i8, ptr @uc, align 1
@@ -925,7 +925,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_or_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(or, [[RES2]], [[VAL2]]) : !s16i
   // LLVM:  [[VAL2:%.*]] = load i8, ptr @uc, align 1
@@ -935,7 +935,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_or_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[RET3:%.*]] = cir.binop(or, [[RES3]], [[VAL3]]) : !u16i
   // LLVM:  [[VAL3:%.*]] = load i8, ptr @uc, align 1
@@ -945,7 +945,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us
   us = __sync_or_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[RET4:%.*]] = cir.binop(or, [[RES4]], [[VAL4]]) : !s32i
   // LLVM:  [[VAL4:%.*]] = load i8, ptr @uc, align 1
@@ -955,7 +955,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_or_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[RET5:%.*]] = cir.binop(or, [[RES5]], [[VAL5]]) : !u32i
   // LLVM:  [[VAL5:%.*]] = load i8, ptr @uc, align 1
@@ -965,7 +965,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_or_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[RET6:%.*]] = cir.binop(or, [[RES6]], [[VAL6]]) : !s64i
   // LLVM:  [[VAL6:%.*]] = load i8, ptr @uc, align 1
@@ -975,7 +975,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_or_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[RET7:%.*]] = cir.binop(or, [[RES7]], [[VAL7]]) : !u64i
   // LLVM:  [[VAL7:%.*]] = load i8, ptr @uc, align 1
@@ -985,7 +985,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_or_and_fetch(&ull, uc);
 
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[RET0:%.*]] = cir.binop(xor, [[RES0]], [[VAL0]]) : !s8i
   // LLVM:  [[VAL0:%.*]] = load i8, ptr @uc, align 1
@@ -1002,7 +1002,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_xor_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(xor, [[RES2]], [[VAL2]]) : !s16i
   // LLVM:  [[VAL2:%.*]] = load i8, ptr @uc, align 1
@@ -1012,7 +1012,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_xor_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[RET3:%.*]] = cir.binop(xor, [[RES3]], [[VAL3]]) : !u16i
   // LLVM:  [[VAL3:%.*]] = load i8, ptr @uc, align 1
@@ -1022,7 +1022,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us
   us = __sync_xor_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[RET4:%.*]] = cir.binop(xor, [[RES4]], [[VAL4]]) : !s32i
   // LLVM:  [[VAL4:%.*]] = load i8, ptr @uc, align 1
@@ -1032,7 +1032,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_xor_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[RET5:%.*]] = cir.binop(xor, [[RES5]], [[VAL5]]) : !u32i
   // LLVM:  [[VAL5:%.*]] = load i8, ptr @uc, align 1
@@ -1042,7 +1042,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_xor_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[RET6:%.*]] = cir.binop(xor, [[RES6]], [[VAL6]]) : !s64i
   // LLVM:  [[VAL6:%.*]] = load i8, ptr @uc, align 1
@@ -1052,7 +1052,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_xor_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[RET7:%.*]] = cir.binop(xor, [[RES7]], [[VAL7]]) : !u64i
   // LLVM:  [[VAL7:%.*]] = load i8, ptr @uc, align 1
@@ -1062,7 +1062,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_xor_and_fetch(&ull, uc);
 
-  // CHECK: [[VAL0:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s8i
+  // CHECK: [[VAL0:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s8i
   // CHECK: [[RES0:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!s8i>, [[VAL0]] : !s8i, seq_cst) fetch_first : !s8i
   // CHECK: [[INTERM0:%.*]] = cir.binop(and, [[RES0]], [[VAL0]]) : !s8i
   // CHECK: [[RET0:%.*]] =  cir.unary(not, [[INTERM0]]) : !s8i, !s8i
@@ -1083,7 +1083,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_nand_and_fetch(&uc, uc);
 
-  // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
+  // CHECK: [[VAL2:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[INTERM2:%.*]] = cir.binop(and, [[RES2]], [[VAL2]]) : !s16i
   // CHECK: [[RET2:%.*]] =  cir.unary(not, [[INTERM2]]) : !s16i, !s16i
@@ -1095,7 +1095,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET2]], ptr @ss, align 2
   ss = __sync_nand_and_fetch(&ss, uc);
 
-  // CHECK: [[VAL3:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u16i
+  // CHECK: [[VAL3:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u16i
   // CHECK: [[RES3:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!u16i>, [[VAL3]] : !u16i, seq_cst) fetch_first : !u16i
   // CHECK: [[INTERM3:%.*]] = cir.binop(and, [[RES3]], [[VAL3]]) : !u16i
   // CHECK: [[RET3:%.*]] =  cir.unary(not, [[INTERM3]]) : !u16i, !u16i
@@ -1107,7 +1107,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i16 [[RET3]], ptr @us, align 2
   us = __sync_nand_and_fetch(&us, uc);
 
-  // CHECK: [[VAL4:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s32i
+  // CHECK: [[VAL4:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s32i
   // CHECK: [[RES4:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!s32i>, [[VAL4]] : !s32i, seq_cst) fetch_first : !s32i
   // CHECK: [[INTERM4:%.*]] = cir.binop(and, [[RES4]], [[VAL4]]) : !s32i
   // CHECK: [[RET4:%.*]] =  cir.unary(not, [[INTERM4]]) : !s32i, !s32i
@@ -1119,7 +1119,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET4]], ptr @si, align 4
   si = __sync_nand_and_fetch(&si, uc);
 
-  // CHECK: [[VAL5:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u32i
+  // CHECK: [[VAL5:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u32i
   // CHECK: [[RES5:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!u32i>, [[VAL5]] : !u32i, seq_cst) fetch_first : !u32i
   // CHECK: [[INTERM5:%.*]] = cir.binop(and, [[RES5]], [[VAL5]]) : !u32i
   // CHECK: [[RET5:%.*]] =  cir.unary(not, [[INTERM5]]) : !u32i, !u32i
@@ -1131,7 +1131,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i32 [[RET5]], ptr @ui, align 4
   ui = __sync_nand_and_fetch(&ui, uc);
 
-  // CHECK: [[VAL6:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s64i
+  // CHECK: [[VAL6:%.*]] = cir.cast integral {{%.*}} : !u8i -> !s64i
   // CHECK: [[RES6:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!s64i>, [[VAL6]] : !s64i, seq_cst) fetch_first : !s64i
   // CHECK: [[INTERM6:%.*]] = cir.binop(and, [[RES6]], [[VAL6]]) : !s64i
   // CHECK: [[RET6:%.*]] =  cir.unary(not, [[INTERM6]]) : !s64i, !s64i
@@ -1143,7 +1143,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET6]], ptr @sll, align 8
   sll = __sync_nand_and_fetch(&sll, uc);
 
-  // CHECK: [[VAL7:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !u64i
+  // CHECK: [[VAL7:%.*]] = cir.cast integral {{%.*}} : !u8i -> !u64i
   // CHECK: [[RES7:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!u64i>, [[VAL7]] : !u64i, seq_cst) fetch_first : !u64i
   // CHECK: [[INTERM7:%.*]] = cir.binop(and, [[RES7]], [[VAL7]]) : !u64i
   // CHECK: [[RET7:%.*]] =  cir.unary(not, [[INTERM7]]) : !u64i, !u64i

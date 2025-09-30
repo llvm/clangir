@@ -123,7 +123,7 @@ void createU() {
 // for this struct type we create an anon structure with different storage types in initialization
 // CHECK: cir.func {{.*@createD}}
 // CHECK:   %0 = cir.alloca !rec_D, !cir.ptr<!rec_D>, ["d"] {alignment = 4 : i64}
-// CHECK:   %1 = cir.cast(bitcast, %0 : !cir.ptr<!rec_D>), !cir.ptr<!rec_anon_struct>
+// CHECK:   %1 = cir.cast bitcast %0 : !cir.ptr<!rec_D> -> !cir.ptr<!rec_anon_struct>
 // CHECK:   %2 = cir.const #cir.const_record<{#cir.int<33> : !u8i, #cir.int<0> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<3> : !s32i}> : !rec_anon_struct
 // CHECK:   cir.store{{.*}} %2, %1 : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
 void createD() {
@@ -150,7 +150,7 @@ G g = { -123, 254UL};
 
 // CHECK: cir.func {{.*@get_y}}
 // CHECK:   %[[V1:.*]] = cir.get_global @g : !cir.ptr<!rec_anon_struct>
-// CHECK:   %[[V2:.*]] = cir.cast(bitcast, %[[V1]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!rec_G>
+// CHECK:   %[[V2:.*]] = cir.cast bitcast %[[V1]] : !cir.ptr<!rec_anon_struct> -> !cir.ptr<!rec_G>
 // CHECK:   %[[V3:.*]] = cir.get_member %[[V2]][1] {name = "y"} : !cir.ptr<!rec_G> -> !cir.ptr<!s32i>
 // CHECK:   cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 int get_y() {

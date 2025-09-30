@@ -63,7 +63,7 @@ extern "C" char* test_memchr(const char arg[32]) {
   // CIR-LABEL: test_memchr
   // CIR: [[PATTERN:%.*]] = cir.const #cir.int<123> : !s32i 
   // CIR: [[LEN:%.*]] = cir.const #cir.int<32> : !s32i 
-  // CIR: [[LEN_U64:%.*]] = cir.cast(integral, [[LEN]] : !s32i), !u64i 
+  // CIR: [[LEN_U64:%.*]] = cir.cast integral [[LEN]] : !s32i -> !u64i 
   // CIR: {{%.*}} = cir.libc.memchr({{%.*}}, [[PATTERN]], [[LEN_U64]])
 
   // LLVM: {{.*}}@test_memchr(ptr{{.*}}[[ARG:%.*]]) 
@@ -82,7 +82,7 @@ extern "C"  wchar_t* test_wmemchr(const wchar_t *wc) {
   // CIR-LABEL: test_wmemchr
   // CIR: [[PATTERN:%.*]] = cir.const #cir.int<257> : !u32i 
   // CIR: [[LEN:%.*]] = cir.const #cir.int<32> : !s32i 
-  // CIR: [[LEN_U64:%.*]] = cir.cast(integral, [[LEN]] : !s32i), !u64i 
+  // CIR: [[LEN_U64:%.*]] = cir.cast integral [[LEN]] : !s32i -> !u64i 
   // CIR: cir.call @wmemchr({{%.*}}, [[PATTERN]], [[LEN_U64]]) : (!cir.ptr<!u32i>, !u32i, !u64i) -> !cir.ptr<!u32i>
 
   // LLVM: {{.*}}@test_wmemchr(ptr{{.*}}[[ARG:%.*]])

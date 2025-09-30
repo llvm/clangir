@@ -26,7 +26,7 @@ void test() {
 // CHECK-NEXT:   cir.store{{.*}} %3, %2 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CHECK-NEXT:   %4 = cir.get_member %1[1] {name = "size"} : !cir.ptr<!rec_String> -> !cir.ptr<!s64i>
 // CHECK-NEXT:   %5 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:   %6 = cir.cast(integral, %5 : !s32i), !s64i
+// CHECK-NEXT:   %6 = cir.cast integral %5 : !s32i -> !s64i
 // CHECK-NEXT:   cir.store{{.*}} %6, %4 : !s64i, !cir.ptr<!s64i>
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
@@ -41,7 +41,7 @@ void test() {
 // CHECK-NEXT:   cir.store{{.*}} %4, %3
 // CHECK-NEXT:   %5 = cir.get_member %2[1] {name = "size"} : !cir.ptr<!rec_String> -> !cir.ptr<!s64i>
 // CHECK-NEXT:   %6 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT:   %7 = cir.cast(integral, %6 : !s32i), !s64i
+// CHECK-NEXT:   %7 = cir.cast integral %6 : !s32i -> !s64i
 // CHECK-NEXT:   cir.store{{.*}} %7, %5 : !s64i, !cir.ptr<!s64i>
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }

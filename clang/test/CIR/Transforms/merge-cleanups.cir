@@ -125,7 +125,7 @@ module  {
   //       CHECK:  %[[ARG0:.+]]: !cir.ptr<!s32i>
   //       CHECK:  cir.return %[[ARG0]] : !cir.ptr<!s32i>
   cir.func @ptrbitcastfold(%arg0: !cir.ptr<!s32i>) -> !cir.ptr<!s32i> {
-    %0 = cir.cast(bitcast, %arg0: !cir.ptr<!s32i>), !cir.ptr<!s32i>
+    %0 = cir.cast bitcast %arg0 : !cir.ptr<!s32i> -> !cir.ptr<!s32i>
     cir.return %0 : !cir.ptr<!s32i>
   }
 
@@ -134,7 +134,7 @@ module  {
   //       CHECK:  %[[ARG0:.+]]: !cir.ptr<!s32i, addrspace(target<2>)>
   //       CHECK:  cir.return %[[ARG0]] : !cir.ptr<!s32i, addrspace(target<2>)>
   cir.func @addrspacecastfold(%arg0: !cir.ptr<!s32i, addrspace(target<2>)>) -> !cir.ptr<!s32i, addrspace(target<2>)> {
-    %0 = cir.cast(address_space, %arg0: !cir.ptr<!s32i, addrspace(target<2>)>), !cir.ptr<!s32i, addrspace(target<2>)>
+    %0 = cir.cast address_space %arg0 : !cir.ptr<!s32i, addrspace(target<2>)> -> !cir.ptr<!s32i, addrspace(target<2>)>
     cir.return %0 : !cir.ptr<!s32i, addrspace(target<2>)>
   }
 

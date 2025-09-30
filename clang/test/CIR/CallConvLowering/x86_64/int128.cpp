@@ -9,13 +9,13 @@
 // LLVM: define dso_local { i64, i64 } @_Z5test1nn(i64 %[[#A_LO:]], i64 %[[#A_HI:]], i64 %[[#B_LO:]], i64 %[[#B_HI:]])
 __int128 test1(__int128 a, __int128 b) {
   //      CHECK: %[[#SLOT_A:]] = cir.alloca !s128i, !cir.ptr<!s128i>
-  // CHECK-NEXT: %[[#SLOT_A2:]] = cir.cast(bitcast, %[[#SLOT_A]] : !cir.ptr<!s128i>), !cir.ptr<![[I128_STRUCT]]>
+  // CHECK-NEXT: %[[#SLOT_A2:]] = cir.cast bitcast %[[#SLOT_A]] : !cir.ptr<!s128i> -> !cir.ptr<![[I128_STRUCT]]>
   // CHECK-NEXT: %[[#SLOT_A_LO:]] = cir.get_member %[[#SLOT_A2]][0] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
   // CHECK-NEXT: cir.store %[[ARG0]], %[[#SLOT_A_LO]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_A_HI:]] = cir.get_member %[[#SLOT_A2]][1] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
   // CHECK-NEXT: cir.store %arg1, %[[#SLOT_A_HI]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_B:]] = cir.alloca !s128i, !cir.ptr<!s128i>
-  // CHECK-NEXT: %[[#SLOT_B2:]] = cir.cast(bitcast, %[[#SLOT_B]] : !cir.ptr<!s128i>), !cir.ptr<![[I128_STRUCT]]>
+  // CHECK-NEXT: %[[#SLOT_B2:]] = cir.cast bitcast %[[#SLOT_B]] : !cir.ptr<!s128i> -> !cir.ptr<![[I128_STRUCT]]>
   // CHECK-NEXT: %[[#SLOT_B_LO:]] = cir.get_member %[[#SLOT_B2]][0] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
   // CHECK-NEXT: cir.store %arg2, %[[#SLOT_B_LO]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_B_HI:]] = cir.get_member %[[#SLOT_B2]][1] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
@@ -45,7 +45,7 @@ __int128 test1(__int128 a, __int128 b) {
   // LLVM-NEXT: %[[#SUM:]] = add nsw i128 %[[#A]], %[[#B]]
   // LLVM-NEXT: store i128 %[[#SUM]], ptr %[[#RET_SLOT]], align 16
 
-  //      CHECK: %[[#SLOT_RET2:]] = cir.cast(bitcast, %[[#SLOT_RET]] : !cir.ptr<!s128i>), !cir.ptr<![[I128_STRUCT]]>
+  //      CHECK: %[[#SLOT_RET2:]] = cir.cast bitcast %[[#SLOT_RET]] : !cir.ptr<!s128i> -> !cir.ptr<![[I128_STRUCT]]>
   // CHECK-NEXT: %[[#RET:]] = cir.load{{.*}} %[[#SLOT_RET2]] : !cir.ptr<![[I128_STRUCT]]>, ![[I128_STRUCT]]
   // CHECK-NEXT: cir.return %[[#RET]] : ![[I128_STRUCT]]
 

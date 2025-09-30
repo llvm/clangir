@@ -6,7 +6,7 @@
 module {
   cir.func @foo(%arg0: !cir.ptr<!s32i>, %arg1: !cir.ptr<!s32i>) -> !s32i {
     %1 = cir.ptr_diff(%arg0, %arg1) : !cir.ptr<!s32i> -> !u64i
-    %2 = cir.cast(integral, %1 : !u64i), !s32i
+    %2 = cir.cast integral %1 : !u64i -> !s32i
     cir.return %2 : !s32i
   }
 }

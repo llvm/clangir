@@ -65,7 +65,7 @@ void b1(int a) { bool b = a; }
 
 // CHECK: cir.func dso_local @_Z2b1i(%arg0: !s32i loc({{.*}}))
 // CHECK: %2 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
-// CHECK: %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+// CHECK: %3 = cir.cast int_to_bool %2 : !s32i -> !cir.bool
 // CHECK: cir.store{{.*}} %3, %1 : !cir.bool, !cir.ptr<!cir.bool>
 
 void if0(int a) {
@@ -80,7 +80,7 @@ void if0(int a) {
 // CHECK: cir.func dso_local @_Z3if0i(%arg0: !s32i loc({{.*}}))
 // CHECK: cir.scope {
 // CHECK:   %3 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
-// CHECK:   %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
+// CHECK:   %4 = cir.cast int_to_bool %3 : !s32i -> !cir.bool
 // CHECK-NEXT:   cir.if %4 {
 // CHECK-NEXT:     %5 = cir.const #cir.int<3> : !s32i
 // CHECK-NEXT:     cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -108,7 +108,7 @@ void if1(int a, bool b, bool c) {
 // CHECK: cir.func dso_local @_Z3if1ibb(%arg0: !s32i loc({{.*}}), %arg1: !cir.bool loc({{.*}}), %arg2: !cir.bool loc({{.*}}))
 // CHECK: cir.scope {
 // CHECK:   %5 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
-// CHECK:   %6 = cir.cast(int_to_bool, %5 : !s32i), !cir.bool
+// CHECK:   %6 = cir.cast int_to_bool %5 : !s32i -> !cir.bool
 // CHECK:   cir.if %6 {
 // CHECK:     %7 = cir.const #cir.int<3> : !s32i
 // CHECK:     cir.store{{.*}} %7, %3 : !s32i, !cir.ptr<!s32i>
@@ -173,7 +173,7 @@ size_type max_size() {
 // CHECK:   %0 = cir.alloca !u64i, !cir.ptr<!u64i>, ["__retval"] {alignment = 8 : i64}
 // CHECK:   %1 = cir.const #cir.int<0> : !s32i
 // CHECK:   %2 = cir.unary(not, %1) : !s32i, !s32i
-// CHECK:   %3 = cir.cast(integral, %2 : !s32i), !u64i
+// CHECK:   %3 = cir.cast integral %2 : !s32i -> !u64i
 // CHECK:   %4 = cir.const #cir.int<8> : !u64i
 // CHECK:   %5 = cir.binop(div, %3, %4) : !u64i
 

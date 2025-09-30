@@ -42,7 +42,7 @@ __m128d test_mm_undefined_pd(void) {
 __m128i test_mm_undefined_si128(void) {
   // CIR-LABEL: _mm_undefined_si128
   // CIR-CHECK: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 2>
-  // CIR-CHECK: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 2>), !cir.vector<!s64i x 2>
+  // CIR-CHECK: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 2> -> !cir.vector<!s64i x 2>
   // CIR-CHECK: cir.return %{{.*}} : !cir.vector<!s64i x 2>
 
   // LLVM-CHECK-LABEL: test_mm_undefined_si128
@@ -57,7 +57,7 @@ int test_mm_extract_epi16(__m128i A) {
     
   // CIR-CHECK-LABEL: test_mm_extract_epi16
   // CIR-CHECK %{{.*}} = cir.vec.extract %{{.*}}[%{{.*}} : {{!u32i|!u64i}}] : !cir.vector<!s16i x 8>
-  // CIR-CHECK %{{.*}} = cir.cast(integral, %{{.*}} : !u16i), !s32i
+  // CIR-CHECK %{{.*}} = cir.cast integral %{{.*}} : !u16i -> !s32i
 
   // LLVM-CHECK-LABEL: test_mm_extract_epi16
   // LLVM-CHECK: extractelement <8 x i16> %{{.*}}, {{i32|i64}} 1
