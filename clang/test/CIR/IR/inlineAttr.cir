@@ -1,4 +1,4 @@
-// RUN: cir-opt %s | FileCheck %s -check-prefix=CIR
+// RUN: cir-opt %s --verify-roundtrip | FileCheck %s -check-prefix=CIR
 // RUN: cir-opt %s -cir-to-llvm -o - | FileCheck %s -check-prefix=MLIR
 
 #fn_attr = #cir<extra({inline = #cir.inline<no>})>

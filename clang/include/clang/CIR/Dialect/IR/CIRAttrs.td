@@ -974,7 +974,7 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
   ];
 
   let assemblyFormat = [{
-    `` custom<AddressSpaceValue>($value)
+    `(` custom<AddressSpaceValue>($value) `)`
   }];
 
   let defaultValue = "cir::AddressSpace::Default";

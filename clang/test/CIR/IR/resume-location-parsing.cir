@@ -1,4 +1,4 @@
-// RUN: cir-opt %s | FileCheck %s
+// RUN: cir-opt %s --verify-roundtrip | FileCheck %s
 
 // Test ClangIR exception handling parsing fix
 // This demonstrates the syntax that was failing before the fix:
