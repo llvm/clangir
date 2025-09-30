@@ -2460,11 +2460,9 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   // point.
   auto &fnInfo = getTypes().arrangeCXXStructorDeclaration(aliasGD);
   auto fnType = getTypes().GetFunctionType(fnInfo);
-
-  auto alias = createCIRFunction(getLoc(aliasGD.getDecl()->getSourceRange()),
-                                 mangledName, fnType, aliasFD);
-  alias.setAliasee(aliasee.getName());
-  alias.setLinkage(linkage);
+  auto alias = createCIRAliasFunction(
+      getLoc(aliasGD.getDecl()->getSourceRange()), mangledName, fnType,
+      aliasee.getName(), linkage, aliasFD);
   // Declarations cannot have public MLIR visibility, just mark them private
   // but this really should have no meaning since CIR should not be using
   // this information to derive linkage information.
@@ -2476,7 +2474,8 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
 
   // Switch any previous uses to the alias.
   if (op) {
-    llvm_unreachable("NYI");
+    op->replaceAllUsesWith(alias);
+    op->erase();
   } else {
     // Name already set by createCIRFunction
   }
@@ -2707,7 +2706,43 @@ bool CIRGenModule::lookupRepresentativeDecl(StringRef mangledName,
   result = res->getValue();
   return true;
 }
+cir::AliasOp
+CIRGenModule::createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
+                                     cir::FuncType Ty, StringRef aliasee,
+                                     cir::GlobalLinkageKind linkage,
+                                     const clang::FunctionDecl *FD) {
+  // not sure whats going on here but will repeat format of func op
+  AliasOp Alias;
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
 
+    // Some global emissions are triggered while emitting a function, e.g.
+    // void s() { x.method() }
+    //
+    // Be sure to insert a new function before a current one.
+    auto *curCGF = getCurrCIRGenFun();
+    if (curCGF)
+      builder.setInsertionPoint(curCGF->CurFn);
+
+    Alias = cir::AliasOp::create(builder, loc, name, Ty, aliasee,
+                                 cir::VisibilityKind::Default, linkage, nullptr,
+                                 nullptr);
+
+    assert(Alias.isDeclaration() && "expected empty body");
+
+    // A declaration gets private visibility by default, but external linkage
+    // as the default linkage.
+    Alias.setLinkageAttr(cir::GlobalLinkageKindAttr::get(
+        &getMLIRContext(), cir::GlobalLinkageKind::ExternalLinkage));
+    mlir::SymbolTable::setSymbolVisibility(
+        Alias, mlir::SymbolTable::Visibility::Private);
+
+    if (!curCGF)
+      theModule.push_back(Alias);
+  }
+
+  return Alias;
+}
 cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
                                             cir::FuncType ty,
                                             const clang::FunctionDecl *fd) {

@@ -3020,55 +3020,67 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
     return success();
 
   cir::FuncOp fn = symbolTable.lookupNearestSymbolFrom<cir::FuncOp>(op, fnAttr);
-  if (!fn)
-    return op->emitOpError() << "'" << fnAttr.getValue()
-                             << "' does not reference a valid function";
+  cir::AliasOp alias =
+      symbolTable.lookupNearestSymbolFrom<cir::AliasOp>(op, fnAttr);
+  if (!fn && !alias)
+    return op->emitOpError()
+           << "'" << fnAttr.getValue()
+           << "' does not reference a valid function or alias";
   auto callIf = dyn_cast<cir::CIRCallOpInterface>(op);
   assert(callIf && "expected CIR call interface to be always available");
-
   // Verify that the operand and result types match the callee. Note that
   // argument-checking is disabled for functions without a prototype.
-  auto fnType = fn.getFunctionType();
-  if (!fn.getNoProto()) {
-    unsigned numCallOperands = callIf.getNumArgOperands();
-    unsigned numFnOpOperands = fnType.getNumInputs();
 
-    if (!fnType.isVarArg() && numCallOperands != numFnOpOperands)
-      return op->emitOpError("incorrect number of operands for callee");
+  auto verify = [&op, &callIf](bool getNoProto, cir::FuncType fnType,
+                               cir::CallingConv cc) -> LogicalResult {
+    if (!getNoProto) {
+      unsigned numCallOperands = callIf.getNumArgOperands();
+      unsigned numFnOpOperands = fnType.getNumInputs();
 
-    if (fnType.isVarArg() && numCallOperands < numFnOpOperands)
-      return op->emitOpError("too few operands for callee");
+      if (!fnType.isVarArg() && numCallOperands != numFnOpOperands)
+        return op->emitOpError("incorrect number of operands for callee");
 
-    for (unsigned i = 0, e = numFnOpOperands; i != e; ++i)
-      if (callIf.getArgOperand(i).getType() != fnType.getInput(i))
-        return op->emitOpError("operand type mismatch: expected operand type ")
-               << fnType.getInput(i) << ", but provided "
-               << op->getOperand(i).getType() << " for operand number " << i;
-  }
+      if (fnType.isVarArg() && numCallOperands < numFnOpOperands)
+        return op->emitOpError("too few operands for callee");
 
-  // Calling convention must match.
-  if (callIf.getCallingConv() != fn.getCallingConv())
-    return op->emitOpError("calling convention mismatch: expected ")
-           << stringifyCallingConv(fn.getCallingConv()) << ", but provided "
-           << stringifyCallingConv(callIf.getCallingConv());
+      for (unsigned i = 0, e = numFnOpOperands; i != e; ++i)
+        if (callIf.getArgOperand(i).getType() != fnType.getInput(i))
+          return op->emitOpError(
+                     "operand type mismatch: expected operand type ")
+                 << fnType.getInput(i) << ", but provided "
+                 << op->getOperand(i).getType() << " for operand number " << i;
+    }
+    // Calling convention must match.
+    if (callIf.getCallingConv() != cc)
+      return op->emitOpError("calling convention mismatch: expected ")
+             << stringifyCallingConv(cc) << ", but provided "
+             << stringifyCallingConv(callIf.getCallingConv());
 
-  // Void function must not return any results.
-  if (fnType.hasVoidReturn() && op->getNumResults() != 0)
-    return op->emitOpError("callee returns void but call has results");
+    // Void function must not return any results.
+    if (fnType.hasVoidReturn() && op->getNumResults() != 0)
+      return op->emitOpError("callee returns void but call has results");
 
-  // Non-void function calls must return exactly one result.
-  if (!fnType.hasVoidReturn() && op->getNumResults() != 1)
-    return op->emitOpError("incorrect number of results for callee");
+    // Non-void function calls must return exactly one result.
+    if (!fnType.hasVoidReturn() && op->getNumResults() != 1)
+      return op->emitOpError("incorrect number of results for callee");
 
-  // Parent function and return value types must match.
-  if (!fnType.hasVoidReturn() &&
-      op->getResultTypes().front() != fnType.getReturnType()) {
-    return op->emitOpError("result type mismatch: expected ")
-           << fnType.getReturnType() << ", but provided "
-           << op->getResult(0).getType();
-  }
+    // Parent function and return value types must match.
+    if (!fnType.hasVoidReturn() &&
+        op->getResultTypes().front() != fnType.getReturnType()) {
+      return op->emitOpError("result type mismatch: expected ")
+             << fnType.getReturnType() << ", but provided "
+             << op->getResult(0).getType();
+    }
 
-  return success();
+    return success();
+  };
+
+  if (fn)
+    return verify(fn.getNoProto(), fn.getFunctionType(), fn.getCallingConv());
+  if (alias)
+    return verify(/*getNoProto=*/true, alias.getFunctionType(),
+                  alias.getCallingConv());
+  llvm_unreachable("unreachable");
 }
 
 static mlir::ParseResult

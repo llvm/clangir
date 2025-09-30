@@ -855,6 +855,10 @@ public:
 
   void ReplaceUsesOfNonProtoTypeWithRealFunction(mlir::Operation *Old,
                                                  cir::FuncOp NewFn);
+  cir::AliasOp createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
+                                      cir::FuncType Ty, StringRef aliasee,
+                                      cir::GlobalLinkageKind linkage,
+                                      const clang::FunctionDecl *FD);
 
   // TODO: CodeGen also passes an AttributeList here. We'll have to match that
   // in CIR
