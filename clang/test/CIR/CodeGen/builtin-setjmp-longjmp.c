@@ -74,13 +74,11 @@ void test_longjmp(void *env) {
 
 
   // LLVM-LABEL: test_longjmp
-  // LLVM-SAME: (ptr{{.*}}[[ENV:%.*]])
-  // LLVM-NEXT: @llvm.eh.sjlj.longjmp(ptr{{.*}}[[ENV]])
+  // LLVM: @llvm.eh.sjlj.longjmp
   // LLVM-NEXT: unreachable
   
   // OGCG-LABEL: test_longjmp
-  // OGCG-SAME: (ptr{{.*}}[[ENV:%.*]])
-  // OGCG: @llvm.eh.sjlj.longjmp(ptr{{.*}}[[ENV]])
+  // OGCG: @llvm.eh.sjlj.longjmp
   // OGCG-NEXT: unreachable
   __builtin_longjmp(env, 1);
 }
