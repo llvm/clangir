@@ -331,29 +331,39 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
 // ObjSizeOp
 //===----------------------------------------------------------------------===//
 
-def CIR_SizeInfoType : CIR_I32EnumAttr< "SizeInfoType", "size info type", [
-  I32EnumAttrCase<"Min", 0, "min">,
-  I32EnumAttrCase<"Max", 1, "max">
-]>;
-
 def CIR_ObjSizeOp : CIR_Op<"objsize", [Pure]> {
-  let summary = "Conversion between values of different types";
+  let summary = "Implements llvm.objsize builtin.";
+  let description = [{
+    The `cir.objsize` operation models the behavior of the `llvm.objectsize`
+    builtins in Clang. It returns the number of accessible bytes past ptr.
+
+    The `kind` argument  determines whether `cir.objsize` returns 0 (if
+    true) or -1 (if false) when the object size is unknown. Corresponds to 
+    `llvm.objectsize`'s `min` argument.
+    
+    The `dynamic` attribute determines if the value should be evaluated at
+    runtime. Corresponds to `llvm.objectsize`'s `dynamic` argument.
+
+    Example:
+
+    ```mlir
+    %size = cir.objsize min %ptr : !cir.ptr<i32> -> i64
+    %dsize = cir.objsize max dynamic %ptr : !cir.ptr<i32> -> i64
+    ```
+  }];
 
   let arguments = (ins
     CIR_PointerType:$ptr,
-    CIR_SizeInfoType:$kind,
+    UnitAttr:$min,
     UnitAttr:$dynamic
   );
 
   let results = (outs CIR_AnyFundamentalIntType:$result);
 
   let assemblyFormat = [{
-    `(`
-        $ptr `:` type($ptr) `,`
-        $kind
-        (`,` `dynamic` $dynamic^)?
-    `)`
-    `->` type($result) attr-dict
+      (`min` $min^) : (`max`)?
+      (`dynamic` $dynamic^)?
+      $ptr `:` qualified(type($ptr)) `->` qualified(type($result)) attr-dict
   }];
 }
 
