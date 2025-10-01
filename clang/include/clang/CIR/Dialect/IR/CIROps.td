@@ -3767,6 +3767,37 @@ def CIR_AliasOp : CIR_Op<"alias", [
   DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
   CIRCallableOpInterface,
   CallableOpInterface, FunctionOpInterface, IsolatedFromAbove]> {
+  let summary = "Declare or define an alias.";
+
+  let description = [{
+    Declare or define an alias that can be used for either 
+    a global variable or a function (only support function for now).
+
+    This operation models the LLVMIR AliasOp to ensure easy lowering:
+    >`llvm.mlir.alias` is a top level operation that defines a global alias for
+    >global variables and functions. The operation is always initialized by
+    >using a initializer region which could be a direct map to another global
+    >value or contain some address computation on top of it.
+
+    It also mirrors CIR_FuncOp to allow for generation of functions and calling of said
+    functions. 
+
+    Examples:
+    ```
+       // Defining an alias. 
+       "cir.alias"() <{aliasee = @_ZN1AC2Ev, calling_conv = 1 : i32, function_type = !cir.func<(!cir.ptr<!rec_A>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1AC1Ev"}> ({
+        }) {sym_visibility = "private"} : () -> () 
+
+
+       // Call an alias op like how you would call a FuncOp
+       cir.call @_ZN1AC1Ev(%0) : (!cir.ptr<!rec_A>) -> () 
+
+    ```
+
+
+
+  }];
+
   let arguments = (ins 
     SymbolNameAttr:$sym_name,
     TypeAttrOf<CIR_FuncType>:$function_type, FlatSymbolRefAttr:$aliasee,
@@ -3782,9 +3813,10 @@ def CIR_AliasOp : CIR_Op<"alias", [
 
   let regions = (region AnyRegion:$body);
   let extraClassDeclaration = [{
-    /// Returns the region on the current operation that is callable. This may
-    /// return null in the case of an external callable object, e.g. an external
-    /// function.
+    /// Returns the region on the current operation that is callable.
+    /// Since this is just an alias, it should return nullptr.
+
+    /// Actualy definition will be generated once lowered to LLVMIR
     ::mlir::Region *getCallableRegion() {
       return nullptr;
     }

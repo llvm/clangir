@@ -2477,7 +2477,7 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
     op->replaceAllUsesWith(alias);
     op->erase();
   } else {
-    // Name already set by createCIRFunction
+    // Name already set by createCIRAliasFunction
   }
 
   // Finally, set up the alias with its proper name and attributes.
@@ -2711,14 +2711,10 @@ CIRGenModule::createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
                                      cir::FuncType Ty, StringRef aliasee,
                                      cir::GlobalLinkageKind linkage,
                                      const clang::FunctionDecl *FD) {
-  // not sure whats going on here but will repeat format of func op
   AliasOp Alias;
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    // Some global emissions are triggered while emitting a function, e.g.
-    // void s() { x.method() }
-    //
     // Be sure to insert a new function before a current one.
     auto *curCGF = getCurrCIRGenFun();
     if (curCGF)

@@ -45,6 +45,17 @@ let cppNamespace = "::cir" in {
 
   def CIRCallableOpInterface
       : OpInterface<"CIRCallableOpInterface"> {
+    let description = [{
+       The CIRCallableOpInterface is created due to the flexibility that 
+       either AliasOp or FuncOp is returned from the same function.
+
+       It also handles all the default and similar methods that AliasOp and FuncOp might have so
+       we don't have to define them twice.
+
+       Notice that even though we are declaring methods from CallableOpInterface and
+       FunctionOpInterface, we cannot add them to the inheritance in OpInterface<...>, as
+       it will produce clashing of definitions.
+    }];
     let methods = [
       InterfaceMethod<
           "Returns the region on the current operation that is callable. This may "
