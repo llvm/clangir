@@ -1964,12 +1964,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     return RValue::get(op);
   }
   case Builtin::BI__builtin_longjmp: {
-    Address buf = emitPointerWithAlignment(E->getArg(0));
+    mlir::Value buf = emitScalarExpr(E->getArg(0));
     mlir::Location loc = getLoc(E->getExprLoc());
 
-    cir::PointerType ppTy = builder.getPointerTo(builder.getVoidPtrTy());
-    mlir::Value castBuf = builder.createBitcast(buf.getPointer(), ppTy);
-    cir::EhLongjmpOp::create(builder, loc, castBuf);
+    cir::EhLongjmpOp::create(builder, loc, buf);
     builder.create<cir::UnreachableOp>(loc);
     return RValue::get(nullptr);
   }
