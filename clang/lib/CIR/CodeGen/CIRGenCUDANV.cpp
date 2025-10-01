@@ -59,9 +59,9 @@ protected:
   std::unique_ptr<MangleContext> deviceMC;
 
 private:
-  void emitDeviceStubBodyLegacy(CIRGenFunction &cgf, cir::FuncOp fn,
+  void emitDeviceStubBodyLegacy(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn,
                                 FunctionArgList &args);
-  void emitDeviceStubBodyNew(CIRGenFunction &cgf, cir::FuncOp fn,
+  void emitDeviceStubBodyNew(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn,
                              FunctionArgList &args);
   std::string addPrefixToName(StringRef FuncName) const;
   std::string addUnderscoredPrefixToName(StringRef FuncName) const;
@@ -70,10 +70,10 @@ public:
   CIRGenNVCUDARuntime(CIRGenModule &cgm);
   ~CIRGenNVCUDARuntime();
 
-  void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
+  void emitDeviceStub(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn,
                       FunctionArgList &args) override;
 
-  mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) override;
+  mlir::Operation *getKernelHandle(cir::CIRCallableOpInterface fn, GlobalDecl GD) override;
 
   void internalizeDeviceSideVar(const VarDecl *d,
                                 cir::GlobalLinkageKind &linkage) override;
@@ -109,13 +109,13 @@ CIRGenNVCUDARuntime::addUnderscoredPrefixToName(StringRef FuncName) const {
 }
 
 void CIRGenNVCUDARuntime::emitDeviceStubBodyLegacy(CIRGenFunction &cgf,
-                                                   cir::FuncOp fn,
+                                                   cir::CIRCallableOpInterface fn,
                                                    FunctionArgList &args) {
   llvm_unreachable("NYI");
 }
 
 void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
-                                                cir::FuncOp fn,
+                                                cir::CIRCallableOpInterface fn,
                                                 FunctionArgList &args) {
 
   // This requires arguments to be sent to kernels in a different way.
@@ -198,7 +198,7 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
       builder.createAlloca(loc, cir::PointerType::get(streamTy), streamTy,
                            "stream", cgm.getPointerAlign());
 
-  cir::FuncOp popConfig = cgm.createRuntimeFunction(
+  cir::CIRCallableOpInterface popConfig = cgm.createRuntimeFunction(
       cir::FuncType::get({gridDim.getType(), blockDim.getType(),
                           sharedMem.getType(), stream.getType()},
                          cgm.SInt32Ty),
@@ -257,7 +257,7 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
                launchArgs);
 }
 
-void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
+void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn,
                                          FunctionArgList &args) {
   if (auto globalOp =
           llvm::dyn_cast<cir::GlobalOp>(KernelHandles[fn.getSymName()])) {
@@ -275,7 +275,7 @@ void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
     emitDeviceStubBodyLegacy(cgf, fn, args);
 }
 
-mlir::Operation *CIRGenNVCUDARuntime::getKernelHandle(cir::FuncOp fn,
+mlir::Operation *CIRGenNVCUDARuntime::getKernelHandle(cir::CIRCallableOpInterface fn,
                                                       GlobalDecl GD) {
 
   // Check if we already have a kernel handle for this function

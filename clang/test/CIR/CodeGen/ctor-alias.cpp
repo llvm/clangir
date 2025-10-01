@@ -37,4 +37,4 @@ B::B() {
 // CHECK:   %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.return
 // CHECK: }
-// CHECK: cir.func private dso_local @_ZN1BC1Ev(!cir.ptr<!rec_B>) special_member<#cir.cxx_ctor<!rec_B, default>> alias(@_ZN1BC2Ev)
+// CHECK: "cir.alias"() <{aliasee = @_ZN1BC2Ev, calling_conv = 1 : i32, extra_attrs = #fn_attr1, function_type = !cir.func<(!cir.ptr<!rec_B>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1BC1Ev"}>

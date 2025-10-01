@@ -103,6 +103,59 @@ let cppNamespace = "::cir" in {
       InterfaceMethod<
           "Return if the callable is prototype defined or not",
           "bool", "getNoProto", (ins)>,
+      InterfaceMethod<
+          "Set the attribute indicating if the callable is prototype defined or not",
+          "void", "setNoProtoAttr", (ins "::mlir::UnitAttr":$noProto)>,
+      InterfaceMethod<
+          "Set the attribute indicating if the callable is prototype defined or not",
+          "::mlir::UnitAttr", "getNoProtoAttr", (ins)>,
+      InterfaceMethod<
+          "Return if the callable is builtin or not",
+          "::mlir::UnitAttr", "getBuiltinAttr", (ins)>,
+      InterfaceMethod<
+          "Set the attribute indicating if the callable is builtin or not",
+          "void", "setBuiltinAttr", (ins "::mlir::UnitAttr":$builtin)>,
+      InterfaceMethod<
+          "Set the function's calling convention",
+          "void", "setCallingConv", (ins "::cir::CallingConv":$attr)>,
+      InterfaceMethod<
+          "Set the function's calling convention",
+          "::cir::ExtraFuncAttributesAttr", "getExtraAttrs", (ins)>,
+      InterfaceMethod<
+          "Set the function's calling convention",
+          "void", "setExtraAttrsAttr", (ins "::cir::ExtraFuncAttributesAttr":$attr)>,
+      InterfaceMethod<
+          "Return if the callable is a declaration or not",
+          "bool", "isDeclaration", (ins)>,
+      InterfaceMethod<
+          "Return function symbol name",
+          "::mlir::StringRef", "getSymName", (ins)>,
+      InterfaceMethod<
+          "Return function symbol name",
+          "::mlir::StringAttr", "getSymNameAttr", (ins)>,
+      InterfaceMethod<
+          "Return function linkage kind",
+          "::cir::GlobalLinkageKind", "getLinkage", (ins)>,
+      InterfaceMethod<
+          "Set function linkage kind",
+          "void", "setLinkage", (ins "::cir::GlobalLinkageKind":$kind)>,
+      InterfaceMethod<
+          "Set function linkage kind attr",
+          "void", "setLinkageAttr", (ins "::cir::GlobalLinkageKindAttr":$kind)>,
+      InterfaceMethod<
+          "Set function linkage kind",
+          "void", "setGlobalVisibilityAttr", (ins "::cir::VisibilityAttr":$attr)>,
+      InterfaceMethod<
+          "Set function custructor priotity",
+          "void", "setGlobalCtorPriority", (ins "::std::optional<uint32_t>":$prio)>,
+      InterfaceMethod<
+          "Set function custructor priotity",
+          "void", "setGlobalDtorPriority", (ins "::std::optional<uint32_t>":$prio)>,
+      InterfaceMethod<
+          "Set special member attribute",
+          "void", "setCxxSpecialMemberAttr", (ins "mlir::Attribute":$attr)>,
+
+
 
     ];
   }

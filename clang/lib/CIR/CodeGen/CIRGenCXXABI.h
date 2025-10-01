@@ -180,7 +180,7 @@ public:
   /// \param Dtor - a function taking a single pointer argument
   /// \param Addr - a pointer to pass to the destructor function.
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
-                                  cir::FuncOp dtor, mlir::Value Addr) = 0;
+                                  cir::CIRCallableOpInterface dtor, mlir::Value Addr) = 0;
 
   virtual void emitVirtualObjectDelete(CIRGenFunction &CGF,
                                        const CXXDeleteExpr *DE, Address Ptr,

@@ -319,7 +319,7 @@ void CIRGenModule::constructAttributeList(
 static cir::CIRCallOpInterface
 emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
                cir::FuncType indirectFuncTy, mlir::Value indirectFuncVal,
-               cir::FuncOp directFuncOp,
+               cir::CIRCallableOpInterface directFuncOp,
                SmallVectorImpl<mlir::Value> &CIRCallArgs, bool isInvoke,
                cir::CallingConv callingConv, cir::SideEffect sideEffect,
                cir::ExtraFuncAttributesAttr extraFnAttrs) {
@@ -560,8 +560,8 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   // Compute the calling convention and attributes.
   mlir::NamedAttrList Attrs;
   StringRef FnName;
-  if (auto calleeFnOp = dyn_cast<cir::FuncOp>(CalleePtr))
-    FnName = calleeFnOp.getName();
+  if (auto calleeFnOp = dyn_cast<cir::CIRCallableOpInterface>(CalleePtr))
+    FnName = calleeFnOp.getSymName();
 
   cir::CallingConv callingConv;
   cir::SideEffect sideEffect;
@@ -601,7 +601,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
     auto noThrowAttr = cir::NoThrowAttr::get(&getMLIRContext());
     CannotThrow = Attrs.getNamed(noThrowAttr.getMnemonic()).has_value();
 
-    if (auto fptr = dyn_cast<cir::FuncOp>(CalleePtr))
+    if (auto fptr = dyn_cast<cir::CIRCallableOpInterface>(CalleePtr))
       if (fptr.getExtraAttrs().getElements().contains(
               noThrowAttr.getMnemonic()))
         CannotThrow = true;
@@ -618,9 +618,9 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   cir::CIRCallOpInterface theCall = [&]() {
     cir::FuncType indirectFuncTy;
     mlir::Value indirectFuncVal;
-    cir::FuncOp directFuncOp;
+    cir::CIRCallableOpInterface directFuncOp;
 
-    if (auto fnOp = dyn_cast<cir::FuncOp>(CalleePtr)) {
+    if (auto fnOp = dyn_cast<cir::CIRCallableOpInterface>(CalleePtr)) {
       directFuncOp = fnOp;
     } else if (auto getGlobalOp = dyn_cast<cir::GetGlobalOp>(CalleePtr)) {
       // FIXME(cir): This peephole optimization to avoids indirect calls for
@@ -629,7 +629,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
                                                          getGlobalOp.getName());
       assert(getGlobalOp && "undefined global function");
-      directFuncOp = llvm::dyn_cast<cir::FuncOp>(globalOp);
+      directFuncOp = llvm::dyn_cast<cir::CIRCallableOpInterface>(globalOp);
       assert(directFuncOp && "operation is not a function");
     } else {
       [[maybe_unused]] auto resultTypes = CalleePtr->getResultTypes();
@@ -738,7 +738,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 }
 
 mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
-                                            cir::FuncOp callee,
+                                            cir::CIRCallableOpInterface callee,
                                             ArrayRef<mlir::Value> args) {
   // TODO(cir): set the calling convention to this runtime call.
   assert(!cir::MissingFeatures::setCallingConv());

@@ -259,7 +259,7 @@ static void emitDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   // generated elsewhere which uses atexit instead, and it takes the destructor
   // directly.
   auto UsingExternalHelper = CGM.getCodeGenOpts().CXAAtExit;
-  cir::FuncOp fnOp;
+  cir::CIRCallableOpInterface fnOp;
   if (Record && (CanRegisterDestructor || UsingExternalHelper)) {
     assert(!D->getTLSKind() && "TLS NYI");
     assert(!Record->hasTrivialDestructor());
@@ -282,7 +282,7 @@ static void emitDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   CGM.getCXXABI().registerGlobalDtor(CGF, D, fnOp, nullptr);
 }
 
-cir::FuncOp CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
+cir::CIRCallableOpInterface CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
   const auto &FnInfo = getTypes().arrangeCXXStructorDeclaration(GD);
   auto Fn = getAddrOfCXXStructor(GD, &FnInfo, /*FnType=*/nullptr,
                                  /*DontDefer=*/true, ForDefinition);

@@ -744,7 +744,7 @@ void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl gd,
   auto ty = getTypes().GetFunctionType(fi);
 
   // Get or create the prototype for the function.
-  auto fn = dyn_cast_if_present<cir::FuncOp>(op);
+  auto fn = dyn_cast_if_present<cir::CIRCallableOpInterface>(op);
   if (!fn || fn.getFunctionType() != ty) {
     fn = GetAddrOfFunction(gd, ty, /*ForVTable=*/false,
                            /*DontDefer=*/true, ForDefinition);
@@ -781,7 +781,7 @@ void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl gd,
 }
 
 /// Track functions to be called before main() runs.
-void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor,
+void CIRGenModule::AddGlobalCtor(cir::CIRCallableOpInterface ctor,
                                  std::optional<int> priority) {
   // FIXME(cir): handle LexOrder and Associated data upon testcases.
   //
@@ -794,7 +794,7 @@ void CIRGenModule::AddGlobalCtor(cir::FuncOp ctor,
 }
 
 /// Add a function to the list that will be called when the module is unloaded.
-void CIRGenModule::AddGlobalDtor(cir::FuncOp dtor, std::optional<int> priority,
+void CIRGenModule::AddGlobalDtor(cir::CIRCallableOpInterface dtor, std::optional<int> priority,
                                  bool isDtorAttrFunc) {
   assert(isDtorAttrFunc && "NYI");
   if (codeGenOpts.RegisterGlobalDtorsWithAtExit &&
@@ -2389,7 +2389,7 @@ cir::GlobalLinkageKind CIRGenModule::getCIRLinkageForDeclarator(
 /// won't inline them. Instcombine normally deletes these calls, but it isn't
 /// run at -O0.
 void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
-    mlir::Operation *old, cir::FuncOp newFn) {
+    mlir::Operation *old, cir::CIRCallableOpInterface newFn) {
 
   // If we're redefining a global as a function, don't transform it.
   auto oldFn = dyn_cast<cir::FuncOp>(old);
@@ -2450,7 +2450,7 @@ cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl gd) {
 
 void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
                                       mlir::Operation *op, GlobalDecl aliasGD,
-                                      cir::FuncOp aliasee,
+                                      cir::CIRCallableOpInterface aliasee,
                                       cir::GlobalLinkageKind linkage) {
   auto *aliasFD = dyn_cast<FunctionDecl>(aliasGD.getDecl());
   assert(aliasFD && "expected FunctionDecl");
@@ -2462,7 +2462,7 @@ void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
   auto fnType = getTypes().GetFunctionType(fnInfo);
   auto alias = createCIRAliasFunction(
       getLoc(aliasGD.getDecl()->getSourceRange()), mangledName, fnType,
-      aliasee.getName(), linkage, aliasFD);
+      aliasee.getSymName(), linkage, aliasFD);
   // Declarations cannot have public MLIR visibility, just mark them private
   // but this really should have no meaning since CIR should not be using
   // this information to derive linkage information.
@@ -2495,7 +2495,7 @@ bool CIRGenModule::verifyModule() {
   return mlir::verify(theModule).succeeded();
 }
 
-std::pair<cir::FuncType, cir::FuncOp> CIRGenModule::getAddrAndTypeOfCXXStructor(
+std::pair<cir::FuncType, cir::CIRCallableOpInterface> CIRGenModule::getAddrAndTypeOfCXXStructor(
     GlobalDecl gd, const CIRGenFunctionInfo *fnInfo, cir::FuncType fnType,
     bool dontdefer, ForDefinition_t isForDefinition) {
   auto *md = cast<CXXMethodDecl>(gd.getDecl());
@@ -2522,7 +2522,7 @@ std::pair<cir::FuncType, cir::FuncOp> CIRGenModule::getAddrAndTypeOfCXXStructor(
   return {fnType, fn};
 }
 
-cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
+cir::CIRCallableOpInterface CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
                                             bool forVTable, bool dontDefer,
                                             ForDefinition_t isForDefinition) {
   assert(!cast<FunctionDecl>(gd.getDecl())->isConsteval() &&
@@ -2720,9 +2720,8 @@ CIRGenModule::createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
     if (curCGF)
       builder.setInsertionPoint(curCGF->CurFn);
 
-    Alias = cir::AliasOp::create(builder, loc, name, Ty, aliasee,
-                                 cir::VisibilityKind::Default, linkage, nullptr,
-                                 nullptr);
+    Alias = builder.create<cir::AliasOp>(loc,name, Ty, aliasee,
+                                  linkage);
 
     assert(Alias.isDeclaration() && "expected empty body");
 
@@ -2739,7 +2738,7 @@ CIRGenModule::createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
 
   return Alias;
 }
-cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
+cir::CIRCallableOpInterface CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
                                             cir::FuncType ty,
                                             const clang::FunctionDecl *fd) {
   // At the point we need to create the function, the insertion point
@@ -2805,7 +2804,7 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
   return f;
 }
 
-cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
+cir::CIRCallableOpInterface CIRGenModule::createRuntimeFunction(cir::FuncType ty,
                                                 StringRef name, mlir::ArrayAttr,
                                                 [[maybe_unused]] bool local,
                                                 bool assumeConvergent) {
@@ -2862,7 +2861,7 @@ static bool hasUnwindExceptions(const LangOptions &langOpts) {
 }
 
 void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
-                                                         FuncOp f) {
+                                                         cir::CIRCallableOpInterface f) {
   mlir::NamedAttrList attrs{f.getExtraAttrs().getElements().getValue()};
 
   if ((!decl || !decl->hasAttr<NoUwtableAttr>()) && codeGenOpts.UnwindTables) {
@@ -3037,14 +3036,14 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
 
 void CIRGenModule::setCIRFunctionAttributes(GlobalDecl gd,
                                             const CIRGenFunctionInfo &info,
-                                            cir::FuncOp func, bool isThunk) {
+                                            cir::CIRCallableOpInterface func, bool isThunk) {
   // TODO(cir): More logic of constructAttributeList is needed.
   cir::CallingConv callingConv;
   cir::SideEffect sideEffect;
 
   // Initialize PAL with existing attributes to merge attributes.
   mlir::NamedAttrList pal{func.getExtraAttrs().getElements().getValue()};
-  constructAttributeList(func.getName(), info, gd, pal, callingConv, sideEffect,
+  constructAttributeList(func->getName().getStringRef(), info, gd, pal, callingConv, sideEffect,
                          /*AttrOnCallSite=*/false, isThunk);
   func.setExtraAttrsAttr(
       cir::ExtraFuncAttributesAttr::get(pal.getDictionary(&getMLIRContext())));
@@ -3055,7 +3054,7 @@ void CIRGenModule::setCIRFunctionAttributes(GlobalDecl gd,
 }
 
 void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
-                                         cir::FuncOp func,
+                                         cir::CIRCallableOpInterface func,
                                          bool isIncompleteFunction,
                                          bool isThunk) {
   // NOTE(cir): Original CodeGen checks if this is an intrinsic. In CIR we
@@ -3092,7 +3091,7 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 ///
 /// If D is non-null, it specifies a decl that corresponded to this. This is
 /// used to set the attributes on the function when it is first created.
-cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
+cir::CIRCallableOpInterface CIRGenModule::GetOrCreateCIRFunction(
     StringRef mangledName, mlir::Type ty, GlobalDecl gd, bool forVTable,
     bool dontDefer, bool isThunk, ForDefinition_t isForDefinition,
     mlir::ArrayAttr extraAttrs) {
@@ -3115,8 +3114,8 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // Lookup the entry, lazily creating it if necessary.
   mlir::Operation *entry = getGlobalValue(mangledName);
   if (entry) {
-    assert(isa<cir::FuncOp>(entry) &&
-           "not implemented, only supports FuncOp for now");
+    // assert(isa<cir::FuncOp>(entry) &&
+    //        "not implemented, only supports FuncOp for now");
 
     if (WeakRefReferences.erase(entry)) {
       llvm_unreachable("NYI");
@@ -3130,7 +3129,7 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
 
     // If there are two attempts to define the same mangled name, issue an
     // error.
-    auto fn = cast<cir::FuncOp>(entry);
+    auto fn = cast<cir::CIRCallableOpInterface>(entry);
     if (isForDefinition && fn && !fn.isDeclaration()) {
       GlobalDecl otherGd;
       // CHeck that GD is not yet in DiagnosedConflictingDefinitions is required
@@ -3191,7 +3190,7 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     assert(symbolOp && "Expected a symbol-defining operation");
 
     // TODO(cir): When can this symbol be something other than a function?
-    assert(isa<cir::FuncOp>(entry) && "NYI");
+    assert(isa<cir::CIRCallableOpInterface>(entry) && "NYI");
 
     // This might be an implementation of a function without a prototype, in
     // which case, try to do special replacement of calls which match the new
@@ -3904,11 +3903,11 @@ void CIRGenModule::maybeSetTrivialComdat(const Decl &d, mlir::Operation *op) {
   assert(!cir::MissingFeatures::setComdat() && "NYI");
 }
 
-bool CIRGenModule::isInNoSanitizeList(SanitizerMask kind, cir::FuncOp fn,
+bool CIRGenModule::isInNoSanitizeList(SanitizerMask kind, cir::CIRCallableOpInterface fn,
                                       SourceLocation loc) const {
   const auto &noSanitizeL = getASTContext().getNoSanitizeList();
   // NoSanitize by function name.
-  if (noSanitizeL.containsFunction(kind, fn.getName()))
+  if (noSanitizeL.containsFunction(kind, fn.getSymName()))
     llvm_unreachable("NYI");
   // NoSanitize by location.
   if (loc.isValid())

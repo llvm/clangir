@@ -2460,14 +2460,48 @@ LogicalResult cir::VTTAddrPointOp::verify() {
            << resTy << "', but provided result type is '" << resultType << "'";
   return success();
 }
+/// Returns the name used for the linkage attribute. This *must* correspond to
+/// the name of the attribute in ODS.
+static llvm::StringRef getLinkageAttrNameString() { return "linkage"; }
 
+//===----------------------------------------------------------------------===//
+// AliasOp
+//===----------------------------------------------------------------------===//
+void cir::AliasOp::build(OpBuilder &builder, OperationState &result,
+                        llvm::StringRef name, cir::FuncType type,
+                        llvm::StringRef aliasee,
+                        GlobalLinkageKind linkage, CallingConv callingConv,
+                        ArrayRef<NamedAttribute> attrs,
+                        ArrayRef<DictionaryAttr> argAttrs) {
+  result.addRegion();
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  result.addAttribute(getFunctionTypeAttrName(result.name),
+                      TypeAttr::get(type));
+  result.addAttribute(getAliaseeAttrName(result.name),
+                    FlatSymbolRefAttr::get(builder.getContext(), aliasee));
+  result.addAttribute(getExtraAttrsAttrName(result.name),
+                    ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
+  result.addAttribute(
+      getLinkageAttrNameString(),
+      GlobalLinkageKindAttr::get(builder.getContext(), linkage));
+  result.addAttribute(getCallingConvAttrName(result.name),
+                      CallingConvAttr::get(builder.getContext(), callingConv));
+  result.addAttribute(getGlobalVisibilityAttrName(result.name),
+                      cir::VisibilityAttr::get(builder.getContext()));
+
+  result.attributes.append(attrs.begin(), attrs.end());
+  if (argAttrs.empty())
+    return;
+
+  call_interface_impl::addArgAndResultAttrs(
+      builder, result, argAttrs, ArrayRef<DictionaryAttr>{},
+      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
+}
 //===----------------------------------------------------------------------===//
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-/// Returns the name used for the linkage attribute. This *must* correspond to
-/// the name of the attribute in ODS.
-static llvm::StringRef getLinkageAttrNameString() { return "linkage"; }
 
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                         llvm::StringRef name, cir::FuncType type,

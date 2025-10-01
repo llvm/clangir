@@ -52,10 +52,10 @@ class CIRGenVTables {
   SecondaryVirtualPointerIndicesMapTy SecondaryVirtualPointerIndices;
 
   /// Cache for the pure virtual member call function.
-  cir::FuncOp PureVirtualFn = nullptr;
+  cir::CIRCallableOpInterface PureVirtualFn = nullptr;
 
   /// Cache for the deleted virtual member call function.
-  cir::FuncOp DeletedVirtualFn = nullptr;
+  cir::CIRCallableOpInterface DeletedVirtualFn = nullptr;
 
   void addVTableComponent(ConstantArrayBuilder &builder,
                           const VTableLayout &layout, unsigned componentIndex,

@@ -835,7 +835,7 @@ public:
   const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
                                mlir::ArrayAttr &value, cir::CaseOpKind &kind);
 
-  cir::FuncOp generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
+  cir::CIRCallableOpInterface generateCode(clang::GlobalDecl GD, cir::CIRCallableOpInterface Fn,
                            const CIRGenFunctionInfo &FnInfo);
 
   clang::QualType buildFunctionArgList(clang::GlobalDecl GD,
@@ -1081,7 +1081,7 @@ public:
   /// \param Loc       The location to be associated with the function.
   /// \param StartLoc  The location of the function body.
   void StartFunction(clang::GlobalDecl GD, clang::QualType RetTy,
-                     cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
+                     cir::CIRCallableOpInterface Fn, const CIRGenFunctionInfo &FnInfo,
                      const FunctionArgList &Args, clang::SourceLocation Loc,
                      clang::SourceLocation StartLoc);
 
@@ -1688,7 +1688,7 @@ public:
 private:
   /// Add OpenCL kernel arg metadata and the kernel attribute metadata to
   /// the function metadata.
-  void emitKernelMetadata(const FunctionDecl *FD, cir::FuncOp Fn);
+  void emitKernelMetadata(const FunctionDecl *FD, cir::CIRCallableOpInterface Fn);
   void emitAndUpdateRetAlloca(clang::QualType ty, mlir::Location loc,
                               clang::CharUnits alignment);
 
@@ -2356,7 +2356,7 @@ public:
 
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
 
-  mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
+  mlir::Value emitRuntimeCall(mlir::Location loc, cir::CIRCallableOpInterface callee,
                               llvm::ArrayRef<mlir::Value> args = {});
 
   mlir::Value emitScalarConstant(const ConstantEmission &Constant, Expr *E);

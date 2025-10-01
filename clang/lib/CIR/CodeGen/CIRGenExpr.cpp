@@ -46,7 +46,7 @@ using namespace clang;
 using namespace clang::CIRGen;
 using namespace cir;
 
-static cir::FuncOp emitFunctionDeclPointer(CIRGenModule &CGM, GlobalDecl GD) {
+static cir::CIRCallableOpInterface emitFunctionDeclPointer(CIRGenModule &CGM, GlobalDecl GD) {
   const auto *FD = cast<FunctionDecl>(GD.getDecl());
 
   if (FD->hasAttr<WeakRefAttr>()) {
@@ -2270,7 +2270,7 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   switch (M->getStorageDuration()) {
   case SD_Static:
   case SD_Thread: {
-    cir::FuncOp cleanupFn;
+    cir::CIRCallableOpInterface cleanupFn;
     mlir::Value cleanupArg;
     if (E->getType()->isArrayType()) {
       llvm_unreachable("SD_Static|SD_Thread + array types not implemented");

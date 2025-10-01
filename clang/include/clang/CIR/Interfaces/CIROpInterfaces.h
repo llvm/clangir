@@ -19,6 +19,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 
 namespace cir {} // namespace cir
 

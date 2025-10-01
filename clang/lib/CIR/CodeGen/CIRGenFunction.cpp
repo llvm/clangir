@@ -621,12 +621,12 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // block, it'd be deleted now. Same for unused ret allocas from ReturnValue
 }
 
-static void eraseEmptyAndUnusedBlocks(cir::FuncOp fnOp) {
+static void eraseEmptyAndUnusedBlocks(cir::CIRCallableOpInterface fnOp) {
   // Remove any left over blocks that are unrecheable and empty, since they do
   // not represent unrecheable code useful for warnings nor anything deemed
   // useful in general.
   SmallVector<mlir::Block *> blocksToDelete;
-  for (auto &blk : fnOp.getBlocks()) {
+  for (auto &blk : cast<cir::FuncOp>(fnOp).getBlocks()) {
     if (!blk.empty() || !blk.getUses().empty())
       continue;
     blocksToDelete.push_back(&blk);
@@ -635,7 +635,7 @@ static void eraseEmptyAndUnusedBlocks(cir::FuncOp fnOp) {
     b->erase();
 }
 
-static bool isInterposable(cir::FuncOp fn) {
+static bool isInterposable(cir::CIRCallableOpInterface fn) {
   if (isInterposableLinkage(fn.getLinkage()))
     return true;
 
@@ -644,7 +644,7 @@ static bool isInterposable(cir::FuncOp fn) {
   return false;
 }
 
-static void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
+static void tryMarkNoThrow(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn) {
   // LLVM treats 'nounwind' on a function as part of the type, so we
   // can't do this on functions that can be overwritten.
   if (isInterposable(fn) || cgf.mayThrow)
@@ -657,7 +657,7 @@ static void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
       extraAttrs.getDictionary(&cgf.getMLIRContext())));
 }
 
-cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
+cir::CIRCallableOpInterface CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::CIRCallableOpInterface fn,
                                          const CIRGenFunctionInfo &fnInfo) {
   assert(fn && "generating code for a null function");
   const auto *const fd = cast<FunctionDecl>(gd.getDecl());
@@ -743,7 +743,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
   SourceLocRAIIObject fnLoc{*this, loc.isValid() ? getLoc(loc) : unknownLoc};
 
   assert(fn.isDeclaration() && "Function already has body?");
-  mlir::Block *entryBb = fn.addEntryBlock();
+  mlir::Block *entryBb = cast<cir::FuncOp>(fn).addEntryBlock();
   builder.setInsertionPointToStart(entryBb);
   {
     // Initialize lexical scope information.
@@ -810,7 +810,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    if (mlir::failed(fn.verifyBody()))
+    if (mlir::failed(cast<cir::FuncOp>(fn).verifyBody()))
       return nullptr;
 
     // Emit the standard function epilogue.
@@ -981,7 +981,7 @@ static mlir::Value emitArgumentDemotion(CIRGenFunction &cgf, const VarDecl *var,
 }
 
 void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
-                                   cir::FuncOp Fn,
+                                   cir::CIRCallableOpInterface Fn,
                                    const CIRGenFunctionInfo &fnInfo,
                                    const FunctionArgList &args,
                                    SourceLocation Loc,
@@ -1249,7 +1249,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   // codegen logic.
   (void)returnBlock(retBlock);
 
-  mlir::Block *entryBb = &Fn.getBlocks().front();
+  mlir::Block *entryBb = &cast<cir::FuncOp>(Fn).getBlocks().front();
 
   if (cir::MissingFeatures::requiresReturnValueCheck())
     llvm_unreachable("NYI");

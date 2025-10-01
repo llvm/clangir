@@ -3808,10 +3808,27 @@ def CIR_AliasOp : CIR_Op<"alias", [
     OptionalAttr<DictArrayAttr>:$res_attrs,
     UnitAttr:$comdat,
     UnitAttr:$dso_local,
+    UnitAttr:$no_proto,
+    UnitAttr:$builtin,
+    CIR_OptionalPriorityAttr:$global_ctor_priority,
+    CIR_OptionalPriorityAttr:$global_dtor_priority,
+    CIR_ExtraFuncAttr:$extra_attrs,
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
     DefaultValuedAttr<CIR_CallingConv, "CallingConv::C">:$calling_conv
    );
 
   let regions = (region AnyRegion:$body);
+  let skipDefaultBuilders = 1;
+
+  let builders = [OpBuilder<(ins
+    "llvm::StringRef":$name, "FuncType":$type,
+    "llvm::StringRef":$aliasee,
+    CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
+    CArg<"CallingConv", "CallingConv::C">:$callingConv,
+    CArg<"llvm::ArrayRef<mlir::NamedAttribute>", "{}">:$attrs,
+    CArg<"llvm::ArrayRef<mlir::DictionaryAttr>", "{}">:$argAttrs)
+  >];
+
   let extraClassDeclaration = [{
     /// Returns the region on the current operation that is callable.
     /// Since this is just an alias, it should return nullptr.
@@ -3819,10 +3836,6 @@ def CIR_AliasOp : CIR_Op<"alias", [
     /// Actualy definition will be generated once lowered to LLVMIR
     ::mlir::Region *getCallableRegion() {
       return nullptr;
-    }
-
-    bool getNoProto() {
-      return true;
     }
 
     //===------------------------------------------------------------------===//

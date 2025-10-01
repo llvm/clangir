@@ -2887,7 +2887,7 @@ mlir::Value CIRGenFunction::evaluateOrEmitBuiltinObjectSize(
 
 /// Given a builtin id for a function like "__builtin_fabsf", return a Function*
 /// for "fabsf".
-cir::FuncOp CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
+cir::CIRCallableOpInterface CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
                                                 unsigned BuiltinID) {
   assert(astContext.BuiltinInfo.isLibFunction(BuiltinID));
 

@@ -113,7 +113,7 @@ public:
     return getPointerTo(cir::VoidType::get(getContext()), as);
   }
 
-  cir::MethodAttr getMethodAttr(cir::MethodType ty, cir::FuncOp methodFuncOp) {
+  cir::MethodAttr getMethodAttr(cir::MethodType ty, cir::CIRCallableOpInterface methodFuncOp) {
     auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
     return cir::MethodAttr::get(ty, methodFuncSymbolRef);
   }
@@ -681,7 +681,7 @@ public:
     return callOp;
   }
 
-  cir::CallOp createCallOp(mlir::Location loc, cir::FuncOp callee,
+  cir::CallOp createCallOp(mlir::Location loc, cir::CIRCallableOpInterface callee,
                            mlir::ValueRange operands = mlir::ValueRange(),
                            cir::CallingConv callingConv = cir::CallingConv::C,
                            cir::SideEffect sideEffect = cir::SideEffect::All,
@@ -737,7 +737,7 @@ public:
   }
 
   cir::CallOp
-  createTryCallOp(mlir::Location loc, cir::FuncOp callee,
+  createTryCallOp(mlir::Location loc, cir::CIRCallableOpInterface callee,
                   mlir::ValueRange operands,
                   cir::CallingConv callingConv = cir::CallingConv::C,
                   cir::SideEffect sideEffect = cir::SideEffect::All,

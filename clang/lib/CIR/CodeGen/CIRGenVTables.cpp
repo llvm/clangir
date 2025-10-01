@@ -224,7 +224,7 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
       llvm_unreachable("NYI");
     }
 
-    auto getSpecialVirtualFn = [&](StringRef name) -> cir::FuncOp {
+    auto getSpecialVirtualFn = [&](StringRef name) -> cir::CIRCallableOpInterface {
       // FIXME(PR43094): When merging comdat groups, lld can select a local
       // symbol as the signature symbol even though it cannot be accessed
       // outside that symbol's TU. The relative vtables ABI would make
@@ -243,13 +243,13 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
 
       cir::FuncType fnTy =
           CGM.getBuilder().getFuncType({}, CGM.getBuilder().getVoidTy());
-      cir::FuncOp fnPtr = CGM.createRuntimeFunction(fnTy, name);
+      cir::CIRCallableOpInterface fnPtr = CGM.createRuntimeFunction(fnTy, name);
       // LLVM codegen handles unnamedAddr
       assert(!cir::MissingFeatures::unnamedAddr());
       return fnPtr;
     };
 
-    cir::FuncOp fnPtr;
+    cir::CIRCallableOpInterface fnPtr;
     if (cast<CXXMethodDecl>(GD.getDecl())->isPureVirtual()) {
       // Pure virtual member functions.
       if (!PureVirtualFn)

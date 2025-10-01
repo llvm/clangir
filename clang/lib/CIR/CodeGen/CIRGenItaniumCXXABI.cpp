@@ -186,7 +186,7 @@ public:
                           bool Delegating, Address This,
                           QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
-                          cir::FuncOp dtor, mlir::Value Addr) override;
+                          cir::CIRCallableOpInterface dtor, mlir::Value Addr) override;
   void emitVirtualObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
                                Address Ptr, QualType ElementType,
                                const CXXDestructorDecl *Dtor) override;
@@ -532,8 +532,8 @@ static void emitConstructorDestructorAlias(CIRGenModule &CGM,
   auto Entry = dyn_cast_or_null<cir::FuncOp>(CGM.getGlobalValue(MangledName));
 
   // Retrieve aliasee info.
-  auto Aliasee = dyn_cast_or_null<cir::FuncOp>(CGM.GetAddrOfGlobal(TargetDecl));
-  assert(Aliasee && "expected cir.func");
+  auto Aliasee = dyn_cast_or_null<cir::CIRCallableOpInterface>(CGM.GetAddrOfGlobal(TargetDecl));
+  assert(Aliasee && "expected cir.func or cir.alias");
 
   // Populate actual alias.
   CGM.emitAliasForGlobal(MangledName, Entry, AliasDecl, Aliasee, Linkage);
@@ -2271,7 +2271,7 @@ void CIRGenItaniumCXXABI::emitDestructorCall(
 }
 
 void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
-                                             const VarDecl *D, cir::FuncOp dtor,
+                                             const VarDecl *D, cir::CIRCallableOpInterface dtor,
                                              mlir::Value Addr) {
   if (D->isNoDestroy(CGM.getASTContext()))
     return;
@@ -2435,7 +2435,7 @@ mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
   return VBaseOffset;
 }
 
-static cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
+static cir::CIRCallableOpInterface getBadCastFn(CIRGenFunction &CGF) {
   // Prototype: void __cxa_bad_cast();
 
   // TODO(cir): set the calling convention of the runtime function.
@@ -2511,7 +2511,7 @@ static CharUnits computeOffsetHint(ASTContext &astContext,
   return Offset;
 }
 
-static cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
+static cir::CIRCallableOpInterface getItaniumDynamicCastFn(CIRGenFunction &CGF) {
   // Prototype:
   // void *__dynamic_cast(const void *sub,
   //                      global_as const abi::__class_type_info *src,

@@ -38,13 +38,13 @@ public:
   CIRGenCUDARuntime(CIRGenModule &cgm) : cgm(cgm) {}
   virtual ~CIRGenCUDARuntime();
 
-  virtual void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
+  virtual void emitDeviceStub(CIRGenFunction &cgf, cir::CIRCallableOpInterface fn,
                               FunctionArgList &args) = 0;
 
   virtual RValue emitCUDAKernelCallExpr(CIRGenFunction &cgf,
                                         const CUDAKernelCallExpr *expr,
                                         ReturnValueSlot retValue);
-  virtual mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) = 0;
+  virtual mlir::Operation *getKernelHandle(cir::CIRCallableOpInterface fn, GlobalDecl GD) = 0;
   virtual void internalizeDeviceSideVar(const VarDecl *d,
                                         cir::GlobalLinkageKind &linkage) = 0;
   /// Returns function or variable name on device side even if the current

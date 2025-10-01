@@ -37,7 +37,7 @@ struct B : A {
 // LLVM: call void @_ZN1AD2Ev
 
 // Complete dtor: just an alias because there are no virtual bases.
-// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) special_member<#cir.cxx_dtor<!rec_B>> alias(@_ZN1BD2Ev)
+// CIR: "cir.alias"() <{aliasee = @_ZN1BD2Ev, calling_conv = 1 : i32, extra_attrs = #fn_attr2, function_type = !cir.func<(!cir.ptr<!rec_B>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1BD1Ev"}>
 
 // Deleting dtor: defers to the complete dtor.
 // LLVM: define{{.*}} void @_ZN1BD0Ev(ptr
@@ -46,11 +46,11 @@ struct B : A {
 
 // (aliases from C)
 // CIR: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
-// CIR: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1CD2Ev)
+// CIR: "cir.alias"() <{aliasee = @_ZN1CD2Ev, calling_conv = 1 : i32, extra_attrs = #fn_attr2, function_type = !cir.func<(!cir.ptr<!rec_C>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1CD1Ev"}>
 
 // CIR_O1-NOT: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
-// CIR_O1: cir.func private dso_local @_ZN1CD2Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1BD2Ev)
-// CIR_O1: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1CD2Ev)
+// CIR_O1: "cir.alias"() <{aliasee = @_ZN1BD2Ev, calling_conv = 1 : i32, extra_attrs = #fn_attr1, function_type = !cir.func<(!cir.ptr<!rec_C>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1CD2Ev"}> ({
+// CIR_O1: "cir.alias"() <{aliasee = @_ZN1CD2Ev, calling_conv = 1 : i32, extra_attrs = #fn_attr1, function_type = !cir.func<(!cir.ptr<!rec_C>)>, global_visibility = #cir<visibility default>, linkage = 0 : i32, sym_name = "_ZN1CD1Ev"}> ({
 
 // FIXME: LLVM output should be: @_ZN1CD2Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN1BD2Ev
 // LLVM: define dso_local void @_ZN1CD2Ev(ptr

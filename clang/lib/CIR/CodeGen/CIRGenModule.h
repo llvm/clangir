@@ -267,9 +267,9 @@ public:
 
   /// Add a global constructor or destructor to the module.
   /// The priority is optional, if not specified, the default priority is used.
-  void AddGlobalCtor(cir::FuncOp ctor,
+  void AddGlobalCtor(cir::CIRCallableOpInterface ctor,
                      std::optional<int> priority = std::nullopt);
-  void AddGlobalDtor(cir::FuncOp dtor,
+  void AddGlobalDtor(cir::CIRCallableOpInterface dtor,
                      std::optional<int> priority = std::nullopt,
                      bool isDtorAttrFunc = false);
 
@@ -559,7 +559,7 @@ public:
                                      const CXXRecordDecl *Derived,
                                      const CXXRecordDecl *VBase);
 
-  cir::FuncOp
+  cir::CIRCallableOpInterface
   getAddrOfCXXStructor(clang::GlobalDecl GD,
                        const CIRGenFunctionInfo *FnInfo = nullptr,
                        cir::FuncType FnType = nullptr, bool DontDefer = false,
@@ -645,7 +645,7 @@ public:
     DeferredDeclsToEmit.emplace_back(GD);
   }
 
-  std::pair<cir::FuncType, cir::FuncOp> getAddrAndTypeOfCXXStructor(
+  std::pair<cir::FuncType, cir::CIRCallableOpInterface> getAddrAndTypeOfCXXStructor(
       clang::GlobalDecl GD, const CIRGenFunctionInfo *FnInfo = nullptr,
       cir::FuncType FnType = nullptr, bool Dontdefer = false,
       ForDefinition_t IsForDefinition = NotForDefinition);
@@ -660,7 +660,7 @@ public:
   bool tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D);
 
   void emitAliasForGlobal(llvm::StringRef mangledName, mlir::Operation *op,
-                          GlobalDecl aliasGD, cir::FuncOp aliasee,
+                          GlobalDecl aliasGD, cir::CIRCallableOpInterface aliasee,
                           cir::GlobalLinkageKind linkage);
 
   mlir::Type convertType(clang::QualType type);
@@ -697,7 +697,7 @@ public:
   bool MayDropFunctionReturn(const clang::ASTContext &astContext,
                              clang::QualType ReturnType);
 
-  bool isInNoSanitizeList(clang::SanitizerMask Kind, cir::FuncOp Fn,
+  bool isInNoSanitizeList(clang::SanitizerMask Kind, cir::CIRCallableOpInterface Fn,
                           clang::SourceLocation) const;
 
   /// Determine whether the definition can be emitted eagerly, or should be
@@ -711,7 +711,7 @@ public:
   /// Return the address of the given function. If Ty is non-null, then this
   /// function will use the specified type if it has to create it.
   // TODO: this is a bit weird as `GetAddr` given we give back a FuncOp?
-  cir::FuncOp
+  cir::CIRCallableOpInterface
   GetAddrOfFunction(clang::GlobalDecl GD, mlir::Type Ty = nullptr,
                     bool ForVTable = false, bool Dontdefer = false,
                     ForDefinition_t IsForDefinition = NotForDefinition);
@@ -750,17 +750,17 @@ public:
   void UpdateCompletedType(const clang::TagDecl *TD);
 
   /// Set function attributes for a function declaration.
-  void setFunctionAttributes(GlobalDecl GD, cir::FuncOp F,
+  void setFunctionAttributes(GlobalDecl GD, cir::CIRCallableOpInterface F,
                              bool IsIncompleteFunction, bool IsThunk);
 
   /// Set the CIR function attributes (sext, zext, etc).
   void setCIRFunctionAttributes(GlobalDecl GD, const CIRGenFunctionInfo &info,
-                                cir::FuncOp func, bool isThunk);
+                                cir::CIRCallableOpInterface func, bool isThunk);
 
   /// Set the CIR function attributes which only apply to a function
   /// definition.
   void setCIRFunctionAttributesForDefinition(const Decl *decl,
-                                             cir::FuncOp func);
+                                             cir::CIRCallableOpInterface func);
 
   void emitGlobalDefinition(clang::GlobalDecl D, mlir::Operation *Op = nullptr);
   void emitGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
@@ -814,7 +814,7 @@ public:
   // Produce code for this constructor/destructor. This method doesn't try to
   // apply any ABI rules about which other constructors/destructors are needed
   // or if they are alias to each other.
-  cir::FuncOp codegenCXXStructor(clang::GlobalDecl GD);
+  cir::CIRCallableOpInterface codegenCXXStructor(clang::GlobalDecl GD);
 
   bool lookupRepresentativeDecl(llvm::StringRef MangledName,
                                 clang::GlobalDecl &Result) const;
@@ -839,7 +839,7 @@ public:
   cir::GlobalLinkageKind getCIRLinkageForDeclarator(const DeclaratorDecl *D,
                                                     GVALinkage Linkage,
                                                     bool IsConstantVariable);
-  void setFunctionLinkage(GlobalDecl GD, cir::FuncOp f) {
+  void setFunctionLinkage(GlobalDecl GD, cir::CIRCallableOpInterface f) {
     auto L = getFunctionLinkage(GD);
     f.setLinkageAttr(cir::GlobalLinkageKindAttr::get(&getMLIRContext(), L));
     mlir::SymbolTable::setSymbolVisibility(f,
@@ -854,7 +854,7 @@ public:
   mlir::Location getLocForFunction(const clang::FunctionDecl *FD);
 
   void ReplaceUsesOfNonProtoTypeWithRealFunction(mlir::Operation *Old,
-                                                 cir::FuncOp NewFn);
+                                                 cir::CIRCallableOpInterface NewFn);
   cir::AliasOp createCIRAliasFunction(mlir::Location loc, llvm::StringRef name,
                                       cir::FuncType Ty, StringRef aliasee,
                                       cir::GlobalLinkageKind linkage,
@@ -862,7 +862,7 @@ public:
 
   // TODO: CodeGen also passes an AttributeList here. We'll have to match that
   // in CIR
-  cir::FuncOp
+  cir::CIRCallableOpInterface
   GetOrCreateCIRFunction(llvm::StringRef MangledName, mlir::Type Ty,
                          clang::GlobalDecl D, bool ForVTable,
                          bool DontDefer = false, bool IsThunk = false,
@@ -870,11 +870,11 @@ public:
                          mlir::ArrayAttr ExtraAttrs = {});
   // Effectively create the CIR instruction, properly handling insertion
   // points.
-  cir::FuncOp createCIRFunction(mlir::Location loc, llvm::StringRef name,
+  cir::CIRCallableOpInterface createCIRFunction(mlir::Location loc, llvm::StringRef name,
                                 cir::FuncType Ty,
                                 const clang::FunctionDecl *FD);
 
-  cir::FuncOp createRuntimeFunction(cir::FuncType Ty, llvm::StringRef Name,
+  cir::CIRCallableOpInterface createRuntimeFunction(cir::FuncType Ty, llvm::StringRef Name,
                                     mlir::ArrayAttr = {}, bool Local = false,
                                     bool AssumeConvergent = false);
 
@@ -890,7 +890,7 @@ public:
 
   /// Given a builtin id for a function like "__builtin_fabsf", return a
   /// Function* for "fabsf".
-  cir::FuncOp getBuiltinLibFunction(const FunctionDecl *FD, unsigned BuiltinID);
+  cir::CIRCallableOpInterface getBuiltinLibFunction(const FunctionDecl *FD, unsigned BuiltinID);
 
   /// Emit a general error that something can't be done.
   void Error(SourceLocation loc, llvm::StringRef error);
@@ -933,7 +933,7 @@ public:
   /// \param FN is a pointer to IR function being generated.
   /// \param FD is a pointer to function declaration if any.
   /// \param CGF is a pointer to CIRGenFunction that generates this function.
-  void genKernelArgMetadata(cir::FuncOp FN, const FunctionDecl *FD = nullptr,
+  void genKernelArgMetadata(cir::CIRCallableOpInterface FN, const FunctionDecl *FD = nullptr,
                             CIRGenFunction *CGF = nullptr);
 
   /// Emits OpenCL specific Metadata e.g. OpenCL version.

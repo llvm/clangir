@@ -167,7 +167,7 @@ cir::CallOp CIRGenFunction::emitCoroIDBuiltinCall(mlir::Location loc,
 
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroId);
 
-  cir::FuncOp fnOp;
+  cir::CIRCallableOpInterface fnOp;
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroId,
@@ -189,7 +189,7 @@ cir::CallOp CIRGenFunction::emitCoroAllocBuiltinCall(mlir::Location loc) {
 
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroAlloc);
 
-  cir::FuncOp fnOp;
+  cir::CIRCallableOpInterface fnOp;
   if (!builtin) {
     fnOp = CGM.createCIRFunction(loc, CGM.builtinCoroAlloc,
                                  cir::FuncType::get({int32Ty}, boolTy),
@@ -209,7 +209,7 @@ CIRGenFunction::emitCoroBeginBuiltinCall(mlir::Location loc,
   auto int32Ty = builder.getUInt32Ty();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroBegin);
 
-  cir::FuncOp fnOp;
+  cir::CIRCallableOpInterface fnOp;
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroBegin,
@@ -230,7 +230,7 @@ cir::CallOp CIRGenFunction::emitCoroEndBuiltinCall(mlir::Location loc,
   auto boolTy = builder.getBoolTy();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroEnd);
 
-  cir::FuncOp fnOp;
+  cir::CIRCallableOpInterface fnOp;
   if (!builtin) {
     fnOp =
         CGM.createCIRFunction(loc, CGM.builtinCoroEnd,
