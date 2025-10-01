@@ -4771,8 +4771,9 @@ def CIR_EhSetjmpOp : CIR_Op<"eh.setjmp"> {
 def CIR_EhLongjmpOp : CIR_Op<"eh.longjmp"> {
   let summary = "CIR longjmp operation";
   let description = [{
-    Restore the environment (e.g., stack pointer, instruction pointer, signal mask, and other registers)
-    at the time of setjmp() call, by using the information saved in `env` by setjmp().
+    Restore the environment (e.g., stack pointer, instruction pointer,
+    signal mask, and other registers) at the time of setjmp() call, by using
+    the information saved in `env` by setjmp().
 
     Examples:
     ```mlir
