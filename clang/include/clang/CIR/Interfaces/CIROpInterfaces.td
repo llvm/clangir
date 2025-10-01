@@ -43,6 +43,59 @@ let cppNamespace = "::cir" in {
     ];
   }
 
+  def CIRCallableOpInterface
+      : OpInterface<"CIRCallableOpInterface"> {
+    let methods = [
+      InterfaceMethod<
+          "Returns the region on the current operation that is callable. This may "
+          "return null in the case of an external callable object, e.g. an external "
+          "function.",
+          "::mlir::Region*", "getCallableRegion", (ins)>,
+      InterfaceMethod<
+          "Returns the type of this function.",
+          "cir::FuncType", "getFunctionType",
+          (ins)>,
+      InterfaceMethod<
+          "Returns the results types that the callable region produces when "
+          "executed.",
+          "llvm::ArrayRef<mlir::Type>", "getCallableResults",
+          (ins), [{}],
+      /*defaultImplementation=*/[{
+          return $_op.getFunctionType().getReturnTypes();
+      }]>,
+      InterfaceMethod<
+          "Returns the result attributes for all callable region results or null if "
+          "there are none.",
+          "::mlir::ArrayAttr", "getCallableResAttrs",
+          (ins), [{}],
+      /*defaultImplementation=*/[{
+          return $_op.getResAttrs().value_or(nullptr);
+      }]>,
+      InterfaceMethod<
+          "Returns the argument types of this function.",
+          "llvm::ArrayRef<mlir::Type>", "getArgumentTypes",
+          (ins), [{}],
+      /*defaultImplementation=*/[{
+       return $_op.getFunctionType().getInputs();
+      }]>,
+      InterfaceMethod<
+          "Returns 0 or 1 result type of this function (0 in the case of a function "
+          "returing void).",
+          "llvm::ArrayRef<mlir::Type>", "getResultTypes",
+          (ins), [{}],
+      /*defaultImplementation=*/[{
+       return $_op.getFunctionType().getReturnTypes();
+      }]>,
+      InterfaceMethod<
+          "Return the calling convention of the called operation",
+          "cir::CallingConv", "getCallingConv", (ins)>,
+      InterfaceMethod<
+          "Return if the callable is prototype defined or not",
+          "bool", "getNoProto", (ins)>,
+
+    ];
+  }
+
   def CIRGlobalValueInterface
       : OpInterface<"CIRGlobalValueInterface", [Symbol]> {
 
