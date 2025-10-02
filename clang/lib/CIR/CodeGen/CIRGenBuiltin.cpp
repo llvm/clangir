@@ -3010,12 +3010,11 @@ mlir::Value CIRGenFunction::emitBuiltinObjectSize(const Expr *E, unsigned Type,
 
   // LLVM intrinsics (which CIR lowers to at some point, only supports 0
   // and 2, account for that right now.
-  cir::SizeInfoType sizeInfoTy =
-      ((Type & 2) != 0) ? cir::SizeInfoType::Min : cir::SizeInfoType::Max;
+  bool sizeInfoTy = ((Type & 2) != 0);
   // TODO(cir): Heads up for LLVM lowering, For GCC compatibility,
   // __builtin_object_size treat NULL as unknown size.
-  return builder.create<cir::ObjSizeOp>(getLoc(E->getSourceRange()), ResType,
-                                        Ptr, sizeInfoTy, IsDynamic);
+  return cir::ObjSizeOp::create(builder, getLoc(E->getSourceRange()), ResType,
+                                Ptr, sizeInfoTy, IsDynamic);
 }
 
 mlir::Value CIRGenFunction::evaluateOrEmitBuiltinObjectSize(
