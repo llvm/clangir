@@ -3375,18 +3375,20 @@ mlir::LogicalResult CIRToLLVMObjSizeOpLowering::matchAndRewrite(
   auto llvmResTy = getTypeConverter()->convertType(op.getType());
   auto loc = op->getLoc();
 
-  cir::SizeInfoType kindInfo = op.getKind();
-  auto falseValue =
-      rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), false);
-  auto trueValue =
-      rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), true);
+  auto i1Ty = rewriter.getI1Type();
 
-  replaceOpWithCallLLVMIntrinsicOp(
-      rewriter, op, "llvm.objectsize", llvmResTy,
-      mlir::ValueRange{adaptor.getPtr(),
-                       kindInfo == cir::SizeInfoType::Max ? falseValue
-                                                          : trueValue,
-                       trueValue, op.getDynamic() ? trueValue : falseValue});
+  auto i1Val = [&rewriter, &loc, &i1Ty](bool val) {
+    return mlir::LLVM::ConstantOp::create(rewriter, loc, i1Ty, val);
+  };
+
+  // clang-format off
+  replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm.objectsize", llvmResTy, {
+    /*ptr=*/adaptor.getPtr(),
+    /*min=*/i1Val(op.getMin()),
+    /*nullunknown=*/i1Val(true),
+    /*dynamic=*/i1Val(op.getDynamic())
+  });
+  // clang-format on
 
   return mlir::LogicalResult::success();
 }
