@@ -6122,6 +6122,7 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 
     // Link against aarch64 compiler-rt builtins
     cir.linker_options ["-l", "clang_rt.builtins-aarch64"]
+    ```
   }];
 
   let arguments = (ins StrArrayAttr:$options);
