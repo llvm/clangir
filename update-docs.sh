@@ -8,7 +8,7 @@
 # This should be up-to-date, use `ninja clang-cir-doc`
 BUILD="${BUILD_DIR:-../clangir/Build+Release+Libcxx+Assert}/tools/clang/docs"
 
-TEMPLATE="---\nsort : POSITION\n---\n\n# TITLE\n\n* toc\n{:toc}\n\n---\n"
+TEMPLATE="---\nparent: CIR Dialect\nnav_order: POSITION\n---\n\n# TITLE\n\n* toc\n{:toc}\n\n---\n"
 
 echo -e $TEMPLATE | sed -e "s@POSITION@1@g" -e "s@TITLE@Operations@g" > Dialect/ops.md && cat ${BUILD}/Dialects/CIROps.md >> Dialect/ops.md
 echo -e $TEMPLATE | sed -e "s@POSITION@2@g" -e "s@TITLE@Types@g" > Dialect/types.md && cat ${BUILD}/Dialects/CIRTypes.md >> Dialect/types.md

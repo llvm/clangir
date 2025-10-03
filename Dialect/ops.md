@@ -1338,6 +1338,54 @@ Effects: `MemoryEffects::Effect{}`
 | `result` | unsigned integer type of widths 8/16/32/64 |
 
 
+### `cir.blockaddress` (::cir::BlockAddressOp)
+
+_Get the address of a cir.label within a function_
+
+Syntax:
+
+```
+operation ::= `cir.blockaddress` $blockAddrInfo `->` qualified(type($addr)) attr-dict
+```
+
+ The `cir.blockaddress` operation takes a function name and a label and
+ produces a pointer value that represents the address of that cir.label within
+ the specified function.
+
+ This operation models GCC's "labels as values" extension (`&&label`), which
+ allows taking the address of a local label and using it as a computed
+ jump target (e.g., with `goto *addr;`).
+
+ Example:
+ ```mlir
+ %1 = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
+ %addr = cir.blockaddress("foo", "label") -> !cir.ptr<!cir.void>
+ cir.store align(8) %addr, %1 : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+ cir.br ^bb1
+^bb1:
+ cir.label "label"
+ ```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>blockAddrInfo</code></td><td>::cir::BlockAddrInfoAttr</td><td>Block Addres attribute</td></tr>
+</table>
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `addr` | pointer to void type |
+
+
 ### `cir.brcond` (::cir::BrCondOp)
 
 _Conditional branch_
@@ -1604,8 +1652,7 @@ _Conversion between values of different types_
 Syntax:
 
 ```
-operation ::= `cir.cast` `(` $kind `,` $src `:` type($src) `)`
-              `,` type($result) attr-dict
+operation ::= `cir.cast` $kind $src `:` type($src) `->` type($result) attr-dict
 ```
 
 Apply the usual C/C++ conversion rules between values. This operation models
@@ -1649,9 +1696,9 @@ Clang codegen:
 Example:
 
 ```mlir
-%4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
+%4 = cir.cast int_to_bool %3 : i32 -> !cir.bool
 ...
-%x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
+%x = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<i32 x 10>> -> !cir.ptr<i32>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -2559,7 +2606,7 @@ cir.do {
 }
 ```
 
-Traits: `NoRegionArguments`
+Traits: `CIR_Breakable`, `NoRegionArguments`
 
 Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
@@ -2571,12 +2618,9 @@ _Perform dynamic cast on record pointers_
 Syntax:
 
 ```
-operation ::= `cir.dyn_cast` `(`
-              $kind `,` $src `:` qualified(type($src))
-              (`,` qualified($info)^)?
-              (`relative_layout` $relative_layout^)?
-              `)`
-              `->` qualified(type($result)) attr-dict
+operation ::= `cir.dyn_cast` $kind (`relative_layout` $relative_layout^)? $src
+              `:` qualified(type($src)) `->` qualified(type($result))
+              (qualified($info)^)? attr-dict
 ```
 
 The `cir.dyn_cast` operation models part of the semantics of the
@@ -2610,6 +2654,13 @@ only present when the operation models a down-cast or a side-cast.
 The `relative_layout` argument specifies whether the Itanium C++ ABI vtable
 uses relative layout. It is only meaningful when the operation models a
 cast-to-complete operation.
+
+Example:
+
+```mlir
+%res = cir.dyn_cast ptr %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+%res = cir.dyn_cast ptr relative_layout %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+```
 
 #### Attributes:
 
@@ -2672,6 +2723,56 @@ Interfaces: `InferTypeOpInterface`
 | :----: | ----------- |
 | `exception_ptr` | pointer to void type |
 | `type_id` | 32-bit unsigned integer |
+
+
+### `cir.eh.setjmp` (::cir::EhSetjmpOp)
+
+_CIR setjmp operation_
+
+Syntax:
+
+```
+operation ::= `cir.eh.setjmp` (`builtin` $is_builtin^)?
+              $env `:` functional-type($env, results) attr-dict
+```
+
+Saves call-site information (e.g., stack pointer, instruction
+pointer, signal mask, and other registers) in memory at `env` for use by longjmp(). In this case,
+setjmp() returns 0. Following a successful longjmp(), execution proceeds
+from cir.eh.setjmp with the operation yielding a non-zero value.
+
+The presence of the `builtin` attribute refers to the setjmp() function; the lack of the attribute refers
+to the _setjmp() function.
+
+Examples:
+```mlir
+  // Specify setjmp is builtin.
+  %0 = cir.eh.setjmp builtin %arg0 : (!cir.ptr<!cir.void>) -> !s32i
+
+  // Specify setjmp is not builtin.
+  %0 = cir.eh.setjmp %arg0 : (!cir.ptr<!cir.void>) -> !s32i
+```
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>is_builtin</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `env` | CIR pointer type |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `res` | 32-bit signed integer |
 
 
 ### `cir.eh.typeid` (::cir::EhTypeIdOp)
@@ -3109,7 +3210,7 @@ cir.for cond {
 }
 ```
 
-Traits: `NoRegionArguments`
+Traits: `CIR_Breakable`, `NoRegionArguments`
 
 Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
@@ -3180,7 +3281,7 @@ Example:
 %1 = cir.get_global @d2 : !cir.ptr<!some_record>
 cir.try synthetic cleanup {
   cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_record>, !cir.ptr<!some_record>) -> () cleanup {
-    %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_record>), !cir.ptr<!void>
+    %2 = cir.cast bitcast %0 : !cir.ptr<!some_record> -> !cir.ptr<!void>
     cir.free.exception %2
     cir.yield
   }
@@ -3546,7 +3647,7 @@ operation ::= `cir.global` ($sym_visibility^)?
               (`comdat` $comdat^)?
               ($tls_model^)?
               (`dso_local` $dso_local^)?
-              ( `addrspace` `(` $addr_space^ `)` )?
+              (`addrspace` `` $addr_space^)?
               $sym_name
               custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
               ($annotations^)?
@@ -3638,7 +3739,7 @@ Example:
 ```mlir
   cir.scope {  // REGION #1
     %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+    %3 = cir.cast int_to_bool %2 : !s32i -> !cir.bool
     cir.if %3 {
       cir.goto "label"
     }
@@ -4209,6 +4310,7 @@ cir.linker_options ["/DEFAULTLIB:", "libcmt"]
 
 // Link against aarch64 compiler-rt builtins
 cir.linker_options ["-l", "clang_rt.builtins-aarch64"]
+```
 
 Traits: `HasParent<mlir::ModuleOp>`
 
@@ -4641,7 +4743,7 @@ Examples:
   // Set 2 bytes from a record to 0:
   %2 = cir.const #cir.int<2> : !u32i
   %3 = cir.const #cir.int<0> : !u32i
-  %zero = cir.cast(integral, %3 : !s32i), !u8i
+  %zero = cir.cast integral %3 : !s32i -> !u8i
   cir.libc.memset %2 bytes from %record set to %zero : !cir.ptr<!void>, !s32i, !u64i
 ```
 
@@ -4685,17 +4787,31 @@ Effects: `MemoryEffects::Effect{}`
 
 ### `cir.objsize` (::cir::ObjSizeOp)
 
-_Conversion between values of different types_
+_Implements llvm.objsize builtin._
 
 Syntax:
 
 ```
-operation ::= `cir.objsize` `(`
-              $ptr `:` type($ptr) `,`
-              $kind
-              (`,` `dynamic` $dynamic^)?
-              `)`
-              `->` type($result) attr-dict
+operation ::= `cir.objsize` (`min` $min^) : (`max`)?
+              (`dynamic` $dynamic^)?
+              $ptr `:` qualified(type($ptr)) `->` qualified(type($result)) attr-dict
+```
+
+The `cir.objsize` operation models the behavior of the `llvm.objectsize`
+builtins in Clang. It returns the number of accessible bytes past ptr.
+
+The `kind` argument  determines whether `cir.objsize` returns 0 (if
+true) or -1 (if false) when the object size is unknown. Corresponds to 
+`llvm.objectsize`'s `min` argument.
+
+The `dynamic` attribute determines if the value should be evaluated at
+runtime. Corresponds to `llvm.objectsize`'s `dynamic` argument.
+
+Example:
+
+```mlir
+%size = cir.objsize min %ptr : !cir.ptr<i32> -> i64
+%dsize = cir.objsize max dynamic %ptr : !cir.ptr<i32> -> i64
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -4708,7 +4824,7 @@ Effects: `MemoryEffects::Effect{}`
 
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>kind</code></td><td>::cir::SizeInfoTypeAttr</td><td>size info type</td></tr>
+<tr><td><code>min</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>dynamic</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
@@ -4874,8 +4990,7 @@ _Pointer access with stride_
 Syntax:
 
 ```
-operation ::= `cir.ptr_stride` `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride)) `)`
-              `,` qualified(type($result)) attr-dict
+operation ::= `cir.ptr_stride` ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
 ```
 
 Given a base pointer as first operand, provides a new pointer after applying
@@ -4883,7 +4998,13 @@ a stride (second operand).
 
 ```mlir
 %3 = cir.const 0 : i32
+
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
+
+%5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
+
+%6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
+
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -5807,7 +5928,7 @@ cir.switch(int cond) {
 }
 ```
 
-Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`, `SameVariadicOperandSize`
+Traits: `AutomaticAllocationScope`, `CIR_Breakable`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`, `SameVariadicOperandSize`
 
 Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
@@ -6964,7 +7085,7 @@ cir.while {
 }
 ```
 
-Traits: `NoRegionArguments`
+Traits: `CIR_Breakable`, `NoRegionArguments`
 
 Interfaces: `CIR_LoopOpInterface`, `LoopLikeOpInterface`, `RegionBranchOpInterface`
 
@@ -7138,7 +7259,7 @@ Interfaces: `CIRGlobalValueInterface`, `CallableOpInterface`, `FunctionOpInterfa
 <tr><td><code>global_ctor_priority</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute whose minimum value is 101 whose maximum value is 65535</td></tr>
 <tr><td><code>global_dtor_priority</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute whose minimum value is 101 whose maximum value is 65535</td></tr>
 <tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
-<tr><td><code>cxx_special_member</code></td><td>::mlir::Attribute</td><td>Marks a function as a CXX constructor or Marks a function as a CXX destructor</td></tr>
+<tr><td><code>cxx_special_member</code></td><td>::mlir::Attribute</td><td>Marks a function as a CXX constructor or Marks a function as a CXX destructor or Marks a function as a CXX assignment operator</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
 </table>
 

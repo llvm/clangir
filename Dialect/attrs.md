@@ -326,6 +326,30 @@ and position in the storage, if the bitfield is signed or not.
 | offset | `uint64_t` |  |
 | is_signed | `bool` |  |
 
+### BlockAddrInfoAttr
+
+_Block Addres attribute_
+
+Syntax:
+
+```
+#cir.block_addr_info<
+  mlir::FlatSymbolRefAttr,   # func
+  mlir::StringAttr   # label
+>
+```
+
+This attribute is used to represent the address of a basic block
+within a function. It combines the symbol reference to a function
+with the name of a label inside that function.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| func | `mlir::FlatSymbolRefAttr` |  |
+| label | `mlir::StringAttr` |  |
+
 ### BoolAttr
 
 _Represent true/false for !cir.bool types_
@@ -438,6 +462,30 @@ functions.
 | :-------: | :-------: | ----------- |
 | device_side_name | `std::string` |  |
 
+### CXXAssignAttr
+
+_Marks a function as a CXX assignment operator_
+
+Syntax:
+
+```
+#cir.cxx_assign<
+  mlir::Type,   # type
+  ::cir::AssignKind   # assignKind
+>
+```
+
+Functions with this attribute are CXX assignment operators.
+The `copy` kind is used if the assignment operator is a copy assignment operator.
+The `move` kind is used if the assignment operator is a move assignment operator.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::Type` |  |
+| assignKind | `::cir::AssignKind` | an enum of type AssignKind |
+
 ### CXXCtorAttr
 
 _Marks a function as a CXX constructor_
@@ -455,6 +503,7 @@ Functions with this attribute are CXX constructors.
 The `custom` kind is used if the constructor is a custom constructor.
 The `default` kind is used if the constructor is a default constructor.
 The `copy` kind is used if the constructor is a copy constructor.
+The `move` kind is used if the constructor is a move constructor.
 
 #### Parameters:
 
@@ -1413,7 +1462,7 @@ Syntax:
 ```
 #cir.typeinfo<
   ::mlir::Type,   # type
-  mlir::ArrayAttr   # data
+  ::mlir::ArrayAttr   # data
 >
 ```
 
@@ -1441,7 +1490,7 @@ cir.global external @type_info_B = #cir.typeinfo<<
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| data | `mlir::ArrayAttr` |  |
+| data | `::mlir::ArrayAttr` | integer or global view array attribute |
 
 ### TypeSizeInfoAttr
 
