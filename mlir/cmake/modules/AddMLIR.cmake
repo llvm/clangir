@@ -203,6 +203,12 @@ function(add_mlir_interface interface)
   add_dependencies(mlir-generic-headers MLIR${interface}IncGen)
 endfunction()
 
+# Add a dialect-specific tablegen target that generates headers in the include directory.
+# In most cases, this is what should be used after invoking `mlir_tablegen`.
+macro(add_mlir_dialect_tablegen_target target)
+  add_public_tablegen_target(${target})
+  add_dependencies(mlir-headers ${target})
+endmacro()
 
 # Generate Documentation
 function(add_mlir_doc doc_filename output_file output_directory command)
