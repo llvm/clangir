@@ -302,7 +302,7 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (useVirtualCall) {
-      CIRGenFunction* CGF = CGM.getCurrCIRGenFun();
+      CIRGenFunction *CGF = CGM.getCurrCIRGenFun();
       CGM.getCXXABI().emitVirtualDestructorCall(
           *CGF, dtor, Dtor_Complete, This.getAddress(),
           dyn_cast<CXXMemberCallExpr>(CE));
