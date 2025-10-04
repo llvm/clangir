@@ -58,7 +58,7 @@ void test_longjmp(void *env) {
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
   // BEFORE-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
   // BEFORE-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // BEFORE-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast bitcast [[ENV_LOAD]]
   // BEFORE-LOWERING-PREPARE-NEXT: cir.eh.longjmp [[CAST]] : !cir.ptr<!cir.ptr<!void>>
   // BEFORE-LOWERING-PREPARE-NEXT: cir.unreachable
 
@@ -67,7 +67,7 @@ void test_longjmp(void *env) {
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_ALLOCA:%.*]] = cir.alloca
   // AFTER-LOWERING-PREPARE-NEXT: cir.store [[ENV]], [[ENV_ALLOCA]]
   // AFTER-LOWERING-PREPARE-NEXT: [[ENV_LOAD:%.*]] = cir.load align(8) [[ENV_ALLOCA]]
-  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast(bitcast, [[ENV_LOAD]]
+  // AFTER-LOWERING-PREPARE-NEXT: [[CAST:%.*]] = cir.cast bitcast [[ENV_LOAD]]
   // AFTER-LOWERING-PREPARE-NEXT: cir.eh.longjmp [[CAST]] : !cir.ptr<!cir.ptr<!void>>
   // AFTER-LOWERING-PREPARE-NEXT: cir.unreachable
   __builtin_longjmp(env, 1);
