@@ -20,6 +20,7 @@
 #include "CIRGenModule.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Block.h"
 #include "clang/AST/Mangle.h"
 
 namespace clang::CIRGen {
@@ -352,6 +353,14 @@ public:
   virtual void
   initializeHiddenVirtualInheritanceMembers(CIRGenFunction &CGF,
                                             const CXXRecordDecl *RD) {}
+
+  /// Entry point used by ABIs without constructor variants (e.g. Microsoft)
+  /// to guard virtual base construction. Implementations may build any
+  /// required control flow and return the block where the caller should resume
+  /// emitting the remaining base/member initializers. Returning ``nullptr``
+  /// indicates that no special handling is required.
+  virtual mlir::Block *emitCtorCompleteObjectHandler(CIRGenFunction &CGF,
+                                                     const CXXRecordDecl *RD);
 
   /// Emit a single constructor/destructor with the gien type from a C++
   /// constructor Decl.

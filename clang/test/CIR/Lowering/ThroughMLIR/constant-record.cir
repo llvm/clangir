@@ -1,0 +1,13 @@
+// RUN: not cir-opt %s -cir-to-mlir 2>&1 | FileCheck %s
+
+!s32i = !cir.int<s, 32>
+!rec_S = !cir.record<struct "S" {!s32i} #cir.record.decl.ast>
+
+module {
+  cir.func @foo() {
+    %c = cir.const #cir.zero : !rec_S
+    cir.return
+  }
+}
+
+// CHECK: constant lowering: unable to convert result type !rec_S

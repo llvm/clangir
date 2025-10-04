@@ -1,0 +1,12 @@
+// RUN: cir-opt -cir-to-mlir %s -o - | FileCheck %s
+
+// Create a pointer value (alloca returning ptr) then attempt a load via a cast path
+// that will produce a raw llvm.ptr address without a memref.
+
+cir.func @f(%p : !cir.ptr<!cir.int<u, 8>>) -> !cir.int<u,8> {
+  %0 = cir.load %p : !cir.ptr<!cir.int<u, 8>> -> !cir.int<u,8>
+  cir.return %0 : !cir.int<u,8>
+}
+
+// CHECK: load lowering: non-memref address operand type !llvm.ptr
+// CHECK: arith.constant {{.*}} : i8

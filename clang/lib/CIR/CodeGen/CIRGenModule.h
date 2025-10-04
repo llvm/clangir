@@ -884,6 +884,8 @@ public:
                                     mlir::ArrayAttr = {}, bool Local = false,
                                     bool AssumeConvergent = false);
 
+  void emitNYIRemark(llvm::StringRef tag, llvm::StringRef detail);
+  
   /// Emit type info if type of an expression is a variably modified
   /// type. Also emit proper debug info for cast types.
   void emitExplicitCastExprType(const ExplicitCastExpr *E,
@@ -961,6 +963,10 @@ private:
   ReplacementsTy Replacements;
   /// Call replaceAllUsesWith on all pairs in Replacements.
   void applyReplacements();
+
+  /// Late materialization of missing Itanium C++ ctor/dtor variants referenced
+  /// by calls but not emitted (creates forwarding wrappers).
+  void synthesizeMissingItaniumStructorVariants();
 
   /// A helper function to replace all uses of OldF to NewF that replace
   /// the type of pointer arguments. This is not needed to tradtional

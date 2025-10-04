@@ -329,7 +329,6 @@ void CIRRecordLowering::lowerUnion() {
     } else {
       FieldType = getStorageType(Field);
     }
-    fields[Field->getCanonicalDecl()] = 0;
     // auto FieldType = getStorageType(Field);
     // Compute zero-initializable status.
     // This union might not be zero initialized: it may contain a pointer to
@@ -361,6 +360,8 @@ void CIRRecordLowering::lowerUnion() {
     // NOTE(cir): Track all union member's types, not just the largest one. It
     // allows for proper type-checking and retain more info for analisys.
     fieldTypes.push_back(FieldType);
+    if (!Field->isBitField())
+      fields[Field->getCanonicalDecl()] = fieldTypes.size() - 1;
   }
   // If we have no storage type just pad to the appropriate size and return.
   if (!StorageType)

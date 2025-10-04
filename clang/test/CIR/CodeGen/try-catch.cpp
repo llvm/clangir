@@ -162,6 +162,23 @@ void tc7() {
   }
 }
 
+struct RefS {
+  int v;
+};
+
+void may_throw();
+
+// CHECK-LABEL: cir.func dso_local @_Z{{.*}}tc_refcatchv()
+void tc_refcatch() {
+  try {
+    may_throw();
+  } catch (const RefS &ref) {
+    // CHECK:   %[[REF_PARAM:.*]] = cir.catch_param -> !cir.ptr<!rec_RefS>
+    // CHECK:   cir.store{{.*}} %[[REF_PARAM]], %[[REF_ADDR:.*]] : !cir.ptr<!rec_RefS>, !cir.ptr<!cir.ptr<!rec_RefS>>
+    (void)ref.v;
+  }
+}
+
 // CHECK: cir.scope {
 // CHECK:   cir.try {
 // CHECK:     %[[V2:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i

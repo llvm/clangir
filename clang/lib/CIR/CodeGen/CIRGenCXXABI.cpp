@@ -104,3 +104,16 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
 
   return E->getAllocatedType().isDestructedType();
 }
+
+mlir::Block *
+CIRGenCXXABI::emitCtorCompleteObjectHandler(CIRGenFunction &CGF,
+                                            const CXXRecordDecl *RD) {
+  if (CGM.getTarget().getCXXABI().hasConstructorVariants())
+    llvm_unreachable("ctor complete-object handler queried for unsupported ABI");
+
+  // CIR does not yet support ABIs which require this hook.  Returning nullptr
+  // allows callers to continue emitting code without introducing extra control
+  // flow while keeping the door open for a dedicated implementation once the
+  // Microsoft ABI is wired up.
+  return nullptr;
+}

@@ -1,0 +1,17 @@
+// RUN: cir-opt %s -cir-to-mlir | FileCheck %s
+
+!s32i = !cir.int<s, 32>
+
+module {
+  // CHECK-LABEL: func.func @ptr_stride_ptrptr
+  // CHECK: %[[LD:.*]] = llvm.load %arg0 : !llvm.ptr -> !llvm.ptr
+  // CHECK: %[[GEP:.*]] = llvm.getelementptr %[[LD]]{{\[}}%{{.*}}] : (!llvm.ptr, {{.*}}) -> !llvm.ptr, !llvm.ptr
+  // CHECK-NOT: cir.ptr_stride
+  cir.func @ptr_stride_ptrptr(%arg0 : !cir.ptr<!cir.ptr<!s32i>>, %arg1 : !s32i)
+      -> !cir.ptr<!s32i> {
+    %loaded = cir.load %arg0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+    %result = cir.ptr_stride %loaded, %arg1 : (!cir.ptr<!s32i>, !s32i)
+        -> !cir.ptr<!s32i>
+    cir.return %result : !cir.ptr<!s32i>
+  }
+}

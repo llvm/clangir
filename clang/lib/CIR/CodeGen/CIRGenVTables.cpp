@@ -14,11 +14,14 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/VTTBuilder.h"
 #include "clang/Basic/CodeGenOptions.h"
+#include "clang/Basic/Thunk.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
@@ -28,9 +31,112 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <algorithm>
 #include <cstdio>
+#include <optional>
 
 using namespace clang;
 using namespace clang::CIRGen;
+
+namespace {
+
+static Address castToByteAddress(CIRGenFunction &CGF, Address addr,
+                                 mlir::Location loc) {
+  auto byteTy = CGF.getBuilder().getUInt8Ty();
+  if (addr.getElementType() == byteTy)
+    return addr;
+  return CGF.getBuilder().createElementBitCast(loc, addr, byteTy);
+}
+
+static mlir::Value
+applyItaniumTypeAdjustment(CIRGenFunction &CGF, mlir::Location loc,
+                           Address initialAddr, const CXXRecordDecl *unadjusted,
+                           int64_t nonVirtual, int64_t virtualAdjustment,
+                           bool isReturnAdjustment) {
+  if (!nonVirtual && !virtualAdjustment)
+    return initialAddr.getPointer();
+
+  Address byteAddr = castToByteAddress(CGF, initialAddr, loc);
+  mlir::Value currentPtr = byteAddr.getPointer();
+  auto bytePtrTy = mlir::cast<cir::PointerType>(currentPtr.getType());
+
+  auto addByteOffset = [&](int64_t offset) {
+    if (!offset)
+      return;
+    mlir::Value offVal =
+        CGF.getBuilder().getConstInt(loc, CGF.CGM.PtrDiffTy, offset);
+    currentPtr = CGF.getBuilder().create<cir::PtrStrideOp>(loc, bytePtrTy,
+                                                           currentPtr, offVal);
+  };
+
+  if (nonVirtual && !isReturnAdjustment)
+    addByteOffset(nonVirtual);
+
+  if (virtualAdjustment) {
+    mlir::Value vtablePtr = CGF.getVTablePtr(loc, initialAddr, unadjusted);
+    auto bytePtrTyForVTable =
+        CGF.getBuilder().getPointerTo(CGF.getBuilder().getUInt8Ty());
+    mlir::Value vtableBytes = CGF.getBuilder().createCast(
+        loc, cir::CastKind::bitcast, vtablePtr, bytePtrTyForVTable);
+
+    mlir::Value offsetVal =
+        CGF.getBuilder().getConstInt(loc, CGF.CGM.PtrDiffTy, virtualAdjustment);
+    mlir::Value entryAddrValue = CGF.getBuilder().create<cir::PtrStrideOp>(
+        loc, bytePtrTyForVTable, vtableBytes, offsetVal);
+
+    bool isRelative = CGF.CGM.getItaniumVTableContext().isRelativeLayout();
+    mlir::Type loadTy =
+        isRelative ? CGF.getBuilder().getUInt32Ty() : CGF.CGM.PtrDiffTy;
+    mlir::Value entryPtrTyped =
+        CGF.getBuilder().createCast(loc, cir::CastKind::bitcast, entryAddrValue,
+                                    CGF.getBuilder().getPointerTo(loadTy));
+    Address entryAddr(entryPtrTyped, loadTy, CGF.getPointerAlign());
+    mlir::Value loadedOffset =
+        CGF.getBuilder().createLoad(loc, entryAddr).getResult();
+    if (isRelative)
+      loadedOffset =
+          CGF.getBuilder().createIntCast(loadedOffset, CGF.CGM.PtrDiffTy);
+    currentPtr = CGF.getBuilder().create<cir::PtrStrideOp>(
+        loc, bytePtrTy, currentPtr, loadedOffset);
+  }
+
+  if (nonVirtual && isReturnAdjustment)
+    addByteOffset(nonVirtual);
+
+  mlir::Value finalPtr =
+      CGF.getBuilder().createCast(loc, cir::CastKind::bitcast, currentPtr,
+                                  initialAddr.getPointer().getType());
+  return finalPtr;
+}
+
+static RValue
+performItaniumReturnAdjustment(CIRGenFunction &CGF, mlir::Location loc,
+                               RValue rv, QualType resultType,
+                               const ReturnAdjustment &adjustment) {
+  if (resultType->isVoidType() || rv.isAggregate() || adjustment.isEmpty())
+    return rv;
+
+  if (!resultType->isPointerType())
+    return rv;
+
+  assert(rv.isScalar() && "covariant returns expect scalar result");
+
+  QualType pointeeTy = resultType->getPointeeType();
+  auto *record = pointeeTy->getPointeeCXXRecordDecl();
+  if (!record)
+    record = pointeeTy->getAsCXXRecordDecl();
+  if (!record)
+    return rv;
+
+  mlir::Type elementTy = CGF.convertType(pointeeTy);
+  CharUnits align = CGF.getContext().getTypeAlignInChars(pointeeTy);
+  Address retAddr(rv.getScalarVal(), elementTy, align);
+  mlir::Value adjusted = applyItaniumTypeAdjustment(
+      CGF, loc, retAddr, record, adjustment.NonVirtual,
+      adjustment.Virtual.Itanium.VBaseOffsetOffset,
+      /*isReturnAdjustment=*/true);
+  return RValue::get(adjusted);
+}
+
+} // namespace
 
 CIRGenVTables::CIRGenVTables(CIRGenModule &CGM)
     : CGM(CGM), VTContext(CGM.getASTContext().getVTableContext()) {}
@@ -44,7 +150,18 @@ cir::FuncOp CIRGenModule::getAddrOfThunk(StringRef name, mlir::Type fnTy,
 static void setThunkProperties(CIRGenModule &cgm, const ThunkInfo &thunk,
                                cir::FuncOp thunkFn, bool forVTable,
                                GlobalDecl gd) {
-  llvm_unreachable("NYI");
+  cgm.setFunctionLinkage(gd, thunkFn);
+  cgm.getCXXABI().setThunkLinkage(thunkFn, forVTable, gd,
+                                  !thunk.Return.isEmpty());
+
+  const auto *nd = cast<NamedDecl>(gd.getDecl());
+  cgm.setGVProperties(thunkFn.getOperation(), nd);
+
+  if (!cgm.getCXXABI().exportThunk())
+    cgm.setDSOLocal(thunkFn.getOperation());
+
+  if (cgm.supportsCOMDAT() && thunkFn.isWeakForLinker())
+    thunkFn.setComdat(true);
 }
 
 static bool UseRelativeLayout(const CIRGenModule &CGM) {
@@ -65,6 +182,173 @@ mlir::Type CIRGenVTables::getVTableComponentType() {
   return CGM.getVTableComponentType();
 }
 
+void CIRGenFunction::startThunk(cir::FuncOp Fn, GlobalDecl GD,
+                                const CIRGenFunctionInfo &FnInfo,
+                                bool IsUnprototyped) {
+  assert(!CurGD.getDecl() && "CurGD already set");
+  CurGD = GD;
+  CurFuncIsThunk = true;
+
+  // Ensure a symbol table scope is active for parameter declarations.
+  SymTableScopeTy thunkVarScope(symbolTable);
+
+  const auto *MD = cast<CXXMethodDecl>(GD.getDecl());
+  QualType thisType = MD->getThisType();
+  QualType resultType;
+  if (IsUnprototyped)
+    resultType = CGM.getASTContext().VoidTy;
+  else if (CGM.getCXXABI().HasThisReturn(GD))
+    resultType = thisType;
+  else if (CGM.getCXXABI().hasMostDerivedReturn(GD))
+    resultType = CGM.getASTContext().VoidPtrTy;
+  else
+    resultType = MD->getType()->castAs<FunctionProtoType>()->getReturnType();
+
+  FnRetQualTy = resultType;
+  if (!resultType->isVoidType())
+    FnRetCIRTy = convertType(resultType);
+  else
+    FnRetCIRTy.reset();
+
+  FunctionArgList functionArgs;
+  CGM.getCXXABI().buildThisParam(*this, functionArgs);
+
+  if (!IsUnprototyped) {
+    functionArgs.append(MD->param_begin(), MD->param_end());
+    if (isa<CXXDestructorDecl>(MD))
+      CGM.getCXXABI().addImplicitStructorParams(*this, resultType,
+                                                functionArgs);
+  }
+
+  // Use the actual GlobalDecl so attributes and decl-specific logic work.
+  StartFunction(GD, resultType, Fn, FnInfo, functionArgs, MD->getLocation(),
+                MD->getLocation());
+
+  CGM.getCXXABI().emitInstanceFunctionProlog(MD->getLocation(), *this);
+  CXXThisValue = CXXABIThisValue;
+  CurCodeDecl = MD;
+  CurFuncDecl = MD;
+
+  if (!resultType->isVoidType()) {
+    auto loc = getLoc(MD->getLocation());
+    emitAndUpdateRetAlloca(resultType, loc,
+                           CGM.getNaturalTypeAlignment(resultType));
+  }
+}
+
+void CIRGenFunction::finishThunk() {
+  const auto *MD = cast<CXXMethodDecl>(CurGD.getDecl());
+  finishFunction(MD->getEndLoc());
+  CurCodeDecl = nullptr;
+  CurFuncDecl = nullptr;
+  CurGD = GlobalDecl();
+  CurFuncIsThunk = false;
+}
+
+static void storeScalarResult(CIRGenFunction &CGF, mlir::Location loc,
+                              RValue rv) {
+  if (!rv.isScalar())
+    return;
+  if (!CGF.ReturnValue.isValid())
+    return;
+  CGF.getBuilder().createStore(loc, rv.getScalarVal(), CGF.ReturnValue);
+}
+
+void CIRGenFunction::emitCallAndReturnForThunk(cir::FuncOp Callee,
+                                               const ThunkInfo *Thunk,
+                                               bool IsUnprototyped) {
+  const auto *MD = cast<CXXMethodDecl>(CurGD.getDecl());
+  mlir::Location loc = getLoc(MD->getLocation());
+
+  if (CurFnInfo->isVariadic() || IsUnprototyped)
+    llvm_unreachable("variadic or unprototyped thunks NYI in CIR");
+
+  const CXXRecordDecl *thisClass = MD->getThisType()->getPointeeCXXRecordDecl();
+  Address thisAddr = LoadCXXThisAddress();
+  mlir::Value adjustedThis = LoadCXXThis();
+  if (Thunk && !Thunk->This.isEmpty()) {
+    if (CGM.getTarget().getCXXABI().isMicrosoft())
+      llvm_unreachable("Microsoft thunk adjustments NYI");
+    if (Thunk->ThisType != nullptr)
+      thisClass = Thunk->ThisType->getPointeeCXXRecordDecl();
+    adjustedThis = applyItaniumTypeAdjustment(
+        *this, loc, thisAddr, thisClass, Thunk->This.NonVirtual,
+        Thunk->This.Virtual.Itanium.VCallOffsetOffset,
+        /*isReturnAdjustment=*/false);
+  }
+
+  CallArgList callArgs;
+  callArgs.add(RValue::get(adjustedThis), MD->getThisType());
+
+  if (isa<CXXDestructorDecl>(MD) && CGM.getTarget().getCXXABI().isMicrosoft())
+    llvm_unreachable("MS destructor thunk args NYI");
+
+  for (const ParmVarDecl *PD : MD->parameters())
+    emitDelegateCallArg(callArgs, PD, PD->getBeginLoc());
+
+  QualType resultType;
+  if (IsUnprototyped)
+    resultType = CGM.getASTContext().VoidTy;
+  else if (CGM.getCXXABI().HasThisReturn(CurGD))
+    resultType = MD->getThisType();
+  else if (CGM.getCXXABI().hasMostDerivedReturn(CurGD))
+    resultType = CGM.getASTContext().VoidPtrTy;
+  else
+    resultType = MD->getType()->castAs<FunctionProtoType>()->getReturnType();
+
+  ReturnValueSlot slot;
+  if (!resultType->isVoidType() && FnRetAlloca)
+    slot = ReturnValueSlot(ReturnValue, resultType.isVolatileQualified(),
+                           /*IsUnused=*/false,
+                           /*IsExternallyDestructed=*/true);
+
+  CIRGenCallee callee = CIRGenCallee::forDirect(
+      Callee.getOperation(),
+      CIRGenCalleeInfo(MD->getType()->castAs<FunctionProtoType>(), CurGD));
+  // Ensure a valid current source location for emitCall.
+  SourceLocRAIIObject callLocGuard(*this, loc);
+  RValue rv = emitCall(*CurFnInfo, callee, slot, callArgs);
+
+  if (Thunk && !Thunk->Return.isEmpty()) {
+    if (CGM.getTarget().getCXXABI().isMicrosoft())
+      llvm_unreachable("Microsoft return thunk adjustment NYI");
+    rv = performItaniumReturnAdjustment(*this, loc, rv, resultType,
+                                        Thunk->Return);
+  }
+
+  if (!resultType->isVoidType() && slot.isNull())
+    storeScalarResult(*this, loc, rv);
+
+  auto *retBlock = currLexScope->getOrCreateRetBlock(*this, loc);
+  emitBranchThroughCleanup(loc, returnBlock(retBlock));
+}
+
+void CIRGenFunction::generateThunk(cir::FuncOp Fn,
+                                   const CIRGenFunctionInfo &FnInfo,
+                                   GlobalDecl GD,
+                                   const ThunkInfo &ThunkAdjustments,
+                                   bool IsUnprototyped) {
+  // Ensure the thunk function has an entry block and lexical scope so that
+  // StartFunction (invoked by startThunk) can assume currLexScope is valid.
+  if (Fn.getBlocks().empty()) {
+    mlir::Block *entry = Fn.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
+  }
+  mlir::Block *entryBb = &Fn.getBlocks().front();
+  const auto *MD = cast<CXXMethodDecl>(GD.getDecl());
+  LexicalScope lexScope{*this, getLoc(MD->getLocation()), entryBb};
+  SymTableScopeTy varScope(symbolTable);
+
+  startThunk(Fn, GD, FnInfo, IsUnprototyped);
+  cir::FuncOp Callee = CGM.GetAddrOfFunction(GD, nullptr, /*forVTable=*/true,
+                                             /*dontDefer=*/false,
+                                             ForDefinition_t::NotForDefinition);
+
+  emitCallAndReturnForThunk(Callee, &ThunkAdjustments, IsUnprototyped);
+
+  finishThunk();
+}
+
 mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
   SmallVector<mlir::Type, 4> tys;
   auto componentType = getVTableComponentType();
@@ -73,7 +357,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
-  return CGM.getBuilder().getAnonRecordTy(tys, /*incomplete=*/false);
+  return CGM.getBuilder().getAnonRecordTy(tys, /*packed=*/false);
 }
 
 /// At this point in the translation unit, does it appear that can we
@@ -280,12 +564,9 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
                layout.vtable_thunks()[nextVTableThunkIndex].first ==
                    componentIndex) {
       // Thunks.
-      llvm_unreachable("NYI");
-      // auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
-
-      // nextVTableThunkIndex++;
-      // fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
-
+      auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
+      nextVTableThunkIndex++;
+      fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
     } else {
       // Otherwise we can use the method definition directly.
       auto fnTy = CGM.getTypes().GetFunctionTypeForVTable(GD);
@@ -776,7 +1057,10 @@ cir::FuncOp CIRGenVTables::maybeEmitThunk(GlobalDecl GD,
       return ThunkFn;
     llvm_unreachable("NYI method, see OG GenerateVarArgsThunk");
   } else {
-    llvm_unreachable("NYI method, see OG generateThunk");
+    CIRGenBuilderTy &moduleBuilder = CGM.getBuilder();
+    mlir::OpBuilder::InsertionGuard guard(moduleBuilder);
+    CIRGenFunction CGF(CGM, moduleBuilder);
+    CGF.generateThunk(ThunkFn, FnInfo, GD, ThunkAdjustments, IsUnprototyped);
   }
 
   setThunkProperties(CGM, ThunkAdjustments, ThunkFn, ForVTable, GD);

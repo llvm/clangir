@@ -68,31 +68,47 @@ static Address emitPreserveStructAccess(CIRGenFunction &CGF, LValue base,
 /// doesn't necessarily have the right type.
 static Address emitAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
                                       const FieldDecl *field,
-                                      llvm::StringRef fieldName,
-                                      unsigned fieldIndex) {
-  if (field->isZeroSize(CGF.getContext()))
-    llvm_unreachable("NYI");
-
+                                      llvm::StringRef fieldName) {
   auto loc = CGF.getLoc(field->getLocation());
+  const RecordDecl *rec = field->getParent();
+  auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
+
+  if (isEmptyFieldForLayout(CGF.getContext(), field) ||
+      !layout.containsField(field)) {
+    CharUnits offset =
+        CGF.getContext().toCharUnitsFromBits(
+            CGF.getContext().getFieldOffset(field));
+    if (offset.isZero())
+      return Base;
+
+    auto bytePtrTy = CGF.CGM.UInt8PtrTy;
+    auto basePtr = Base.getPointer();
+    auto castBase = CGF.getBuilder().createCast(cir::CastKind::bitcast,
+                                               basePtr, bytePtrTy);
+    auto offsetVal =
+        CGF.getBuilder().getConstInt(loc, CGF.SizeTy, offset.getQuantity());
+    auto adjusted = CGF.getBuilder().create<cir::PtrStrideOp>(
+        loc, bytePtrTy, castBase, offsetVal);
+    auto resultPtr = CGF.getBuilder().createCast(cir::CastKind::bitcast,
+                                                 adjusted, basePtr.getType());
+    return Address(resultPtr,
+                   Base.getAlignment().alignmentAtOffset(offset));
+  }
 
   auto fieldType = CGF.convertType(field->getType());
   auto fieldPtr = cir::PointerType::get(fieldType);
+  unsigned layoutIndex = layout.getCIRFieldNo(field);
   // For most cases fieldName is the same as field->getName() but for lambdas,
   // which do not currently carry the name, so it can be passed down from the
   // CaptureStmt.
   auto memberAddr = CGF.getBuilder().createGetMember(
-      loc, fieldPtr, Base.getPointer(), fieldName, fieldIndex);
+      loc, fieldPtr, Base.getPointer(), fieldName, layoutIndex);
 
-  // Retrieve layout information, compute alignment and return the final
-  // address.
-  const RecordDecl *rec = field->getParent();
-  auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
-  unsigned idx = layout.getCIRFieldNo(field);
-  auto offset = CharUnits::fromQuantity(layout.getCIRType().getElementOffset(
-      CGF.CGM.getDataLayout().layout, idx));
-  auto addr =
-      Address(memberAddr, Base.getAlignment().alignmentAtOffset(offset));
-  return addr;
+  auto offset = CharUnits::fromQuantity(
+      layout.getCIRType().getElementOffset(CGF.CGM.getDataLayout().layout,
+                                           layoutIndex));
+  return Address(memberAddr,
+                 Base.getAlignment().alignmentAtOffset(offset));
 }
 
 static bool hasAnyVptr(const QualType Type, const ASTContext &astContext) {
@@ -365,10 +381,9 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
     // NOTE(cir): the element to be loaded/stored need to type-match the
     // source/destination, so we emit a GetMemberOp here.
     llvm::StringRef fieldName = field->getName();
-    unsigned fieldIndex = field->getFieldIndex();
     if (CGM.LambdaFieldToName.count(field))
       fieldName = CGM.LambdaFieldToName[field];
-    addr = emitAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
+    addr = emitAddrOfFieldStorage(*this, addr, field, fieldName);
 
     if (CGM.getCodeGenOpts().StrictVTablePointers &&
         hasAnyVptr(FieldType, getContext()))
@@ -387,12 +402,9 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
     if (!IsInPreservedAIRegion &&
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
-      auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
-      unsigned fieldIndex = layout.getCIRFieldNo(field);
-
       if (CGM.LambdaFieldToName.count(field))
         fieldName = CGM.LambdaFieldToName[field];
-      addr = emitAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
+      addr = emitAddrOfFieldStorage(*this, addr, field, fieldName);
     } else
       // Remember the original struct field index
       addr = emitPreserveStructAccess(*this, base, addr, field);
@@ -439,11 +451,7 @@ LValue CIRGenFunction::emitLValueForFieldInitialization(
   if (!FieldType->isReferenceType())
     return emitLValueForField(Base, Field);
 
-  auto &layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
-  unsigned FieldIndex = layout.getCIRFieldNo(Field);
-
-  Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName,
-                                     FieldIndex);
+  Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName);
 
   // Make sure that the address is pointing to the right type.
   auto memTy = convertTypeForMem(FieldType);
@@ -1003,6 +1011,7 @@ static LValue emitFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
 LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
   const NamedDecl *ND = E->getDecl();
   QualType T = E->getType();
+  CIRGenBuilderTy &builder = getBuilder();
 
   assert(E->isNonOdrUse() != NOUR_Unevaluated &&
          "should not emit an unevaluated operand");
@@ -1013,7 +1022,36 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
         !VD->isLocalVarDecl())
       llvm_unreachable("NYI");
 
-    assert(E->isNonOdrUse() != NOUR_Constant && "not implemented");
+    if (E->isNonOdrUse() == NOUR_Constant &&
+        !VD->getType()->isReferenceType()) {
+      VD->getAnyInitializer(VD);
+      if (const APValue *Value = VD->evaluateValue()) {
+        auto attr = ConstantEmitter(*this).emitAbstract(E->getLocation(),
+                                                        *Value, VD->getType());
+        if (auto typedAttr = mlir::dyn_cast_or_null<mlir::TypedAttr>(attr)) {
+          auto loc = getLoc(E->getSourceRange());
+          auto align = CGM.getASTContext().getDeclAlign(VD);
+
+          auto globalName =
+              CGM.getUniqueGlobalName("__const.nonodr." + VD->getName().str());
+          auto addrSpace =
+              cir::toCIRAddressSpace(CGM.getGlobalConstantAddressSpace());
+
+          auto gv = CIRGenModule::createGlobalOp(
+              CGM, loc, globalName, typedAttr.getType(), /*isConstant=*/true,
+              addrSpace);
+
+          gv.setAlignmentAttr(CGM.getSize(align));
+          CIRGenModule::setInitializer(gv, typedAttr);
+
+          auto ptrTy = cir::PointerType::get(typedAttr.getType());
+          mlir::Value addrVal =
+              builder.create<cir::GetGlobalOp>(loc, ptrTy, gv.getSymNameAttr());
+          Address addr(addrVal, typedAttr.getType(), align);
+          return makeAddrLValue(addr, T, AlignmentSource::Decl);
+        }
+      }
+    }
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
@@ -2639,29 +2677,80 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitCallExprLValue(cast<CallExpr>(E));
   case Expr::ExprWithCleanupsClass: {
     const auto *cleanups = cast<ExprWithCleanups>(E);
-    LValue LV;
+    LValue resultLV;
+    bool hasSimpleResult = false;
+    LValueBaseInfo savedBaseInfo;
+    TBAAAccessInfo savedTBAAInfo;
+    QualType savedType;
+    Qualifiers savedQuals;
+    mlir::Type savedElementType;
+    CharUnits savedAlignment;
+    bool savedKnownNonNull = false;
+    bool savedNonGC = false;
+    bool savedNontemporal = false;
 
     auto scopeLoc = getLoc(E->getSourceRange());
-    [[maybe_unused]] auto scope = builder.create<cir::ScopeOp>(
-        scopeLoc, /*scopeBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+    bool debugScopes = std::getenv("CLANGIR_DEBUG_SCOPE");
+    if (debugScopes)
+      llvm::errs() << "[clangir] scope begin\n";
+
+    auto scope = builder.create<cir::ScopeOp>(
+        scopeLoc,
+        [&](mlir::OpBuilder &b, mlir::Type &resultTy, mlir::Location loc) {
           CIRGenFunction::LexicalScope lexScope{*this, loc,
                                                 builder.getInsertionBlock()};
 
-          LV = emitLValue(cleanups->getSubExpr());
-          if (LV.isSimple()) {
-            // Defend against branches out of gnu statement expressions
-            // surrounded by cleanups.
-            Address addr = LV.getAddress();
-            auto v = addr.getPointer();
-            LV = LValue::makeAddr(addr.withPointer(v, NotKnownNonNull),
-                                  LV.getType(), getContext(), LV.getBaseInfo(),
-                                  LV.getTBAAInfo());
+          LValue innerLV = emitLValue(cleanups->getSubExpr());
+          resultLV = innerLV;
+
+          if (!innerLV.isSimple()) {
+          if (debugScopes)
+            llvm::errs() << "[clangir]   non-simple lvalue\n";
+          resultTy = mlir::Type();
+          return;
           }
+
+          if (debugScopes)
+            llvm::errs() << "[clangir]   simple lvalue\n";
+          hasSimpleResult = true;
+          Address addr = innerLV.getAddress();
+          savedBaseInfo = innerLV.getBaseInfo();
+          savedTBAAInfo = innerLV.getTBAAInfo();
+          savedType = innerLV.getType();
+          savedQuals = innerLV.getQuals();
+          savedElementType = addr.getElementType();
+          savedAlignment = addr.getAlignment();
+          savedKnownNonNull = (addr.isKnownNonNull() == KnownNonNull);
+          savedNonGC = innerLV.isNonGC();
+          savedNontemporal = innerLV.isNontemporal();
+
+          mlir::Value ptr = addr.getPointer();
+          resultTy = ptr.getType();
+          lexScope.setRetVal(ptr);
         });
 
-    // FIXME: Is it possible to create an ExprWithCleanups that produces a
-    // bitfield lvalue or some other non-simple lvalue?
+    ensureScopeTerminator(scope, scopeLoc);
+
+    // if (mlir::failed(mlir::verify(scope))) {
+    //   scope.emitError("invalid scope generated in ExprWithCleanups");
+    //   scope.print(llvm::errs());
+    //   llvm::report_fatal_error("CIR scope verification failure");
+    // }
+
+    if (!hasSimpleResult)
+      return resultLV;
+
+    mlir::Value ptr = scope.getResult(0);
+    Address addr(ptr, savedElementType, savedAlignment,
+                 savedKnownNonNull ? KnownNonNull : NotKnownNonNull);
+    LValue LV = LValue::makeAddr(addr, savedType, savedBaseInfo, savedTBAAInfo);
+    LV.getQuals() = savedQuals;
+    LV.setNonGC(savedNonGC);
+    LV.setNontemporal(savedNontemporal);
+    if (debugScopes) {
+      llvm::errs() << "[clangir] scope end; yielded pointer\n";
+      llvm::errs().flush();
+    }
     return LV;
   }
   case Expr::CXXDefaultArgExprClass: {
@@ -2859,14 +2948,17 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
                                        mlir::Location loc, CharUnits alignment,
                                        bool insertIntoFnEntryBlock,
                                        mlir::Value arraySize) {
-  mlir::Block *entryBlock = insertIntoFnEntryBlock
-                                ? getCurFunctionEntryBlock()
-                                : currLexScope->getEntryBlock();
+  // Previous implementation attempted to place non-entry allocas at the
+  // current lexical scope entry block. This caused dominance violations when
+  // cleanups (e.g. dtors) referencing the alloca were emitted in blocks not
+  // dominated by that lexical scope entry (e.g. merged cleanup / ret blocks).
+  // For correctness, always sink allocas to the *function* entry block for
+  // now; later we can re-introduce scoped placement guarded by dominance-safe
+  // lifetime markers.
+  mlir::Block *entryBlock = getCurFunctionEntryBlock();
 
-  // If this is an alloca in the entry basic block of a cir.try and there's
-  // a surrounding cir.scope, make sure the alloca ends up in the surrounding
-  // scope instead. This is necessary in order to guarantee all SSA values are
-  // reachable during cleanups.
+  // Preserve the special-case for try/scope so that allocas live outside the
+  // try body ensuring values remain available to outer cleanups.
   if (auto tryOp =
           llvm::dyn_cast_if_present<cir::TryOp>(entryBlock->getParentOp())) {
     if (auto scopeOp = llvm::dyn_cast<cir::ScopeOp>(tryOp->getParentOp()))

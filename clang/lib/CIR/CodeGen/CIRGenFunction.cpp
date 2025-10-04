@@ -10,27 +10,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CIRGenFunction.h"
+#include "CIRGenFunction.h" // Associated header
+
 #include "CIRGenCXXABI.h"
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
-#include "clang/AST/Attrs.inc"
-#include "clang/Basic/CodeGenOptions.h"
-#include "clang/CIR/MissingFeatures.h"
+#include "CIRGenTBAA.h"
 
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/Builtins.h"
-#include "clang/Basic/DiagnosticCategories.h"
+#include "clang/Basic/CodeGenOptions.h"
+#include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/FPEnv.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
-#include "llvm/ADT/PointerIntPair.h"
+#include "clang/CIR/MissingFeatures.h"
 
-#include "CIRGenTBAA.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Support/LogicalResult.h"
 
 using namespace clang;
@@ -358,6 +356,22 @@ void CIRGenFunction::LexicalScope::cleanup() {
   auto insertCleanupAndLeave = [&](mlir::Block *insPt) {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(insPt);
+    auto getBlockEndLoc = [&](mlir::Block *block) -> mlir::Location {
+      return block->empty() ? localScope->EndLoc : block->back().getLoc();
+    };
+
+    // If the scope already has a yield terminator, temporarily remove it so
+    // cleanups can be inserted before re-emitting the final yield.
+    for (auto it = insPt->begin(), end = insPt->end(); it != end;) {
+      auto &op = *it++;
+      if (auto existingYield = dyn_cast<YieldOp>(&op)) {
+        if (!retVal && existingYield->getNumOperands() == 1)
+          retVal = existingYield->getOperand(0);
+        llvm::errs() << "[clangir][LexicalScope] stripping prior yield before "
+                        "emitting cleanups\n";
+        existingYield->erase();
+      }
+    }
 
     // If we still don't have a cleanup block, it means that `applyCleanup`
     // below might be able to get us one.
@@ -369,7 +383,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // If we now have one after `applyCleanup`, hook it up properly.
     if (!cleanupBlock && localScope->getCleanupBlock(builder)) {
       cleanupBlock = localScope->getCleanupBlock(builder);
-      builder.create<BrOp>(insPt->back().getLoc(), cleanupBlock);
+      builder.create<BrOp>(getBlockEndLoc(insPt), cleanupBlock);
       if (!cleanupBlock->mightHaveTerminator()) {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(cleanupBlock);
@@ -409,9 +423,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // End of any local scope != function
     // Ternary ops have to deal with matching arms for yielding types
     // and do return a value, it must do its own cir.yield insertion.
-    if (!localScope->isTernary() && !insPt->mightHaveTerminator()) {
-      !retVal ? builder.create<YieldOp>(localScope->EndLoc)
-              : builder.create<YieldOp>(localScope->EndLoc, retVal);
+    if (!localScope->isTernary() && insPt->mightHaveTerminator()) {
+      if (retVal)
+        builder.create<YieldOp>(localScope->EndLoc, retVal);
+      else
+        builder.create<YieldOp>(localScope->EndLoc);
     }
   };
 
@@ -452,7 +468,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
 
   // If there's a cleanup block, branch to it, nothing else to do.
   if (cleanupBlock) {
-    builder.create<BrOp>(currBlock->back().getLoc(), cleanupBlock);
+    // Compute a reasonable location for the branch: last op in the block if
+    // any, otherwise use the lexical scope end location.
+    mlir::Location brLoc =
+        currBlock->empty() ? localScope->EndLoc : currBlock->back().getLoc();
+    builder.create<BrOp>(brLoc, cleanupBlock);
     return;
   }
 
@@ -728,12 +748,15 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
   // Create a scope in the symbol table to hold variable declarations.
   SymTableScopeTy varScope(symbolTable);
   // Compiler synthetized functions might have invalid slocs...
-  auto bSrcLoc = fd->getBody()->getBeginLoc();
-  auto eSrcLoc = fd->getBody()->getEndLoc();
   auto unknownLoc = builder.getUnknownLoc();
-
-  auto fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
-  auto fnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
+  mlir::Location fnBeginLoc = unknownLoc;
+  mlir::Location fnEndLoc = unknownLoc;
+  if (body) {
+    auto bSrcLoc = body->getBeginLoc();
+    auto eSrcLoc = body->getEndLoc();
+    fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
+    fnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
+  }
   const auto fusedLoc =
       mlir::FusedLoc::get(&getMLIRContext(), {fnBeginLoc, fnEndLoc});
   SourceLocRAIIObject fnLoc{*this, loc.isValid() ? getLoc(loc) : unknownLoc};
@@ -762,12 +785,12 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
     assert(!cir::MissingFeatures::shouldInstrumentFunction());
-    if (auto dtor = dyn_cast<CXXDestructorDecl>(fd)) {
+    if (const auto *dtor = dyn_cast<CXXDestructorDecl>(fd)) {
       // Attach the special member attribute to the destructor.
       CGM.setCXXSpecialMemberAttr(fn, dtor);
 
       emitDestructorBody(args);
-    } else if (auto ctor = dyn_cast<CXXConstructorDecl>(fd)) {
+    } else if (const auto *ctor = dyn_cast<CXXConstructorDecl>(fd)) {
       cir::CtorKind ctorKind = cir::CtorKind::Custom;
       if (ctor->isDefaultConstructor())
         ctorKind = cir::CtorKind::Default;
@@ -810,8 +833,15 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    if (mlir::failed(fn.verifyBody()))
+    if (mlir::failed(fn.verifyBody())) {
+      if (std::getenv("CLANGIR_DEBUG_VERIFY")) {
+        llvm::errs() << "[clangir] verifyBody failed in function '"
+                     << fn.getSymName() << "' before epilogue\n";
+        fn.print(llvm::errs());
+        llvm::errs() << "\n[clangir] --- end body dump ---\n";
+      }
       return nullptr;
+    }
 
     // Emit the standard function epilogue.
     finishFunction(bodyRange.getEnd());
@@ -850,7 +880,10 @@ void CIRGenFunction::emitConstructorBody(FunctionArgList &args) {
 
   const FunctionDecl *definition = nullptr;
   Stmt *body = ctor->getBody(definition);
-  assert(definition == ctor && "emitting wrong constructor body");
+  if (definition && definition != ctor)
+    body = definition->getBody();
+  if (!body)
+    return;
 
   // Enter the function-try-block before the constructor prologue if
   // applicable.
@@ -1120,7 +1153,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // Apply xray attributes to the function (as a string, for now)
-  if (d->getAttr<XRayInstrumentAttr>()) {
+  if (d && d->getAttr<XRayInstrumentAttr>()) {
     assert(!cir::MissingFeatures::xray());
   }
 
@@ -1244,12 +1277,22 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // CIRGen has its own logic for entry blocks, usually per operation region.
+  // For normal functions the entry block is created by the caller before
+  // invoking StartFunction. For thunks and other synthesized functions this
+  // might not have happened yet. Ensure an entry block exists to avoid
+  // triggering a sentinel dereference when accessing front().
+  if (Fn.getBlocks().empty()) {
+    mlir::Block *created = Fn.addEntryBlock();
+    if (!builder.getBlock())
+      builder.setInsertionPointToStart(created);
+  }
+  mlir::Block *entryBb = &Fn.getBlocks().front();
+  if (!builder.getBlock())
+    builder.setInsertionPointToStart(entryBb);
   mlir::Block *retBlock = currLexScope->getOrCreateRetBlock(*this, getLoc(Loc));
   // returnBlock handles per region getJumpDestInCurrentScope LLVM traditional
   // codegen logic.
   (void)returnBlock(retBlock);
-
-  mlir::Block *entryBb = &Fn.getBlocks().front();
 
   if (cir::MissingFeatures::requiresReturnValueCheck())
     llvm_unreachable("NYI");
@@ -1285,9 +1328,11 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   if (getLangOpts().OpenMP && CurCodeDecl)
     CGM.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
 
-  if (fd && getLangOpts().HLSL) {
+  const FunctionDecl *funcDecl = dyn_cast_or_null<FunctionDecl>(CurCodeDecl);
+
+  if (funcDecl && getLangOpts().HLSL) {
     // Handle emitting HLSL entry functions.
-    if (fd->hasAttr<HLSLShaderAttr>()) {
+    if (funcDecl->hasAttr<HLSLShaderAttr>()) {
       llvm_unreachable("NYI");
     }
     llvm_unreachable("NYI");
@@ -1300,6 +1345,18 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     // function body, it will be used throughout the codegen to create
     // operations in this function.
     builder.setInsertionPointToStart(entryBb);
+
+    const Stmt *funcDeclBody = funcDecl ? funcDecl->getBody() : nullptr;
+    mlir::Location funcBodyBeginLoc = builder.getUnknownLoc();
+    mlir::Location funcBodyEndLoc = funcBodyBeginLoc;
+    if (funcDeclBody) {
+      auto beginLoc = funcDeclBody->getBeginLoc();
+      funcBodyBeginLoc =
+          beginLoc.isValid() ? getLoc(beginLoc) : builder.getUnknownLoc();
+      auto endLoc = funcDeclBody->getEndLoc();
+      funcBodyEndLoc =
+          endLoc.isValid() ? getLoc(endLoc) : builder.getUnknownLoc();
+    }
 
     // TODO: this should live in `emitFunctionProlog
     // Declare all the function arguments in the symbol table.
@@ -1327,17 +1384,14 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
-      auto fnBodyBegin = getLoc(fd->getBody()->getBeginLoc());
-      builder.CIRBaseBuilderTy::createStore(fnBodyBegin, paramVal, addr);
+      builder.CIRBaseBuilderTy::createStore(funcBodyBeginLoc, paramVal, addr);
     }
     assert(builder.getInsertionBlock() && "Should be valid");
-
-    auto fnEndLoc = getLoc(fd->getBody()->getEndLoc());
 
     // When the current function is not void, create an address to store the
     // result value.
     if (FnRetCIRTy.has_value())
-      emitAndUpdateRetAlloca(FnRetQualTy, fnEndLoc,
+      emitAndUpdateRetAlloca(FnRetQualTy, funcBodyEndLoc,
                              CGM.getNaturalTypeAlignment(FnRetQualTy));
   }
 
@@ -1973,6 +2027,41 @@ mlir::Value CIRGenFunction::emitAlignmentAssumption(
     llvm_unreachable("NYI");
   return builder.create<cir::AssumeAlignedOp>(getLoc(assumptionLoc), ptrValue,
                                               alignment, offsetValue);
+}
+
+void CIRGenFunction::ensureScopeTerminator(cir::ScopeOp scope,
+                                           mlir::Location loc) {
+  auto ensureRegion = [&](mlir::Region &region) {
+    if (region.empty()) {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.createBlock(&region);
+    }
+    for (auto &block : region) {
+      // If there's already a proper terminator, skip.
+      if (!block.empty() &&
+          block.back().hasTrait<mlir::OpTrait::IsTerminator>())
+        continue;
+      // Avoid repeatedly spamming placeholder yields: only insert if block is
+      // genuinely empty or last op is not a yield but block has no terminator.
+      bool log = block.empty();
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToEnd(&block);
+      if (log) {
+        llvm::errs() << "[clangir][ensureScopeTerminator] inserting "
+                        "placeholder yield for scope at ";
+        scope.getLoc().print(llvm::errs());
+        llvm::errs() << "\n";
+      }
+      builder.create<cir::YieldOp>(loc);
+    }
+  };
+
+  // Defensive: scope might be null in rare malformed cases; bail early.
+  if (!scope)
+    return;
+
+  ensureRegion(scope.getScopeRegion());
+  ensureRegion(scope.getCleanupRegion());
 }
 
 mlir::Value CIRGenFunction::emitAlignmentAssumption(

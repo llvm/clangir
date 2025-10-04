@@ -566,15 +566,10 @@ void CIRGenItaniumCXXABI::emitCXXStructor(GlobalDecl GD) {
       BaseDecl = GD.getWithDtorType(Dtor_Base);
 
     if (CIRGenType == StructorCIRGen::Alias ||
-        CIRGenType == StructorCIRGen::COMDAT) {
+        CIRGenType == StructorCIRGen::COMDAT ||
+        CIRGenType == StructorCIRGen::RAUW) {
+      CGM.emitGlobal(BaseDecl);
       emitConstructorDestructorAlias(CGM, GD, BaseDecl);
-      return;
-    }
-
-    if (CIRGenType == StructorCIRGen::RAUW) {
-      StringRef MangledName = CGM.getMangledName(GD);
-      auto *Aliasee = CGM.GetAddrOfGlobal(BaseDecl);
-      CGM.addReplacement(MangledName, Aliasee);
       return;
     }
   }
@@ -772,7 +767,13 @@ static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
   // If we're catching by reference, we can just cast the object
   // pointer to the appropriate pointer.
   if (isa<ReferenceType>(CatchType)) {
-    llvm_unreachable("NYI");
+    QualType CaughtType = cast<ReferenceType>(CatchType)->getPointeeType();
+
+    bool EndCatchMightThrow = CaughtType->isRecordType();
+    auto catchParam = CallBeginCatch(CGF, CIRCatchTy, EndCatchMightThrow);
+
+    CGF.getBuilder().createStore(CGF.getBuilder().getUnknownLoc(), catchParam,
+                                 ParamAddr);
     return;
   }
 
@@ -2275,8 +2276,13 @@ void CIRGenItaniumCXXABI::emitDestructorCall(
   if (getContext().getLangOpts().AppleKext && Type != Dtor_Base &&
       DD->isVirtual())
     llvm_unreachable("NYI");
-  else
-    Callee = CIRGenCallee::forDirect(CGM.getAddrOfCXXStructor(GD), GD);
+  else {
+    auto CalleeOp = CGM.getAddrOfCXXStructor(GD);
+    CGM.addDeferredDeclToEmit(GD);
+    if (GD != CGF.CurGD)
+      CGM.emitGlobal(GD);
+    Callee = CIRGenCallee::forDirect(CalleeOp, GD);
+  }
 
   CGF.emitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy, VTT, VTTTy,
                             nullptr);
@@ -2332,8 +2338,8 @@ void insertThrowAndSplit(mlir::OpBuilder &builder, mlir::Location loc,
   // This will be erased during codegen, it acts as a placeholder for the
   // operations to be inserted (if any)
   builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 b.create<cir::YieldOp>(loc);
+                               [&](mlir::OpBuilder &b, mlir::Location innerLoc) {
+                                 b.create<cir::YieldOp>(innerLoc);
                                });
 }
 
@@ -2406,14 +2412,50 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
     }
   }
 
-  // FIXME: When adding support for invoking, we should wrap the throw op
-  // below into a try, and let CFG flatten pass to generate a cir.try_call.
-  assert(!CGF.isInvokeDest() && "landing pad like logic NYI");
+  auto loc = CGF.getLoc(E->getSourceRange());
 
-  // Now throw the exception.
-  mlir::Location loc = CGF.getLoc(E->getSourceRange());
+  if (CGF.isInvokeDest()) {
+    auto getOrCreateSurroundingTryOp = [&]() -> cir::TryOp {
+      assert(CGF.currLexScope && "expected scope");
+      if (auto existing = CGF.currLexScope->getClosestTryParent())
+        return existing;
+
+      auto tryLoc = CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
+      auto tryOp = builder.create<cir::TryOp>(
+          tryLoc,
+          [&](mlir::OpBuilder &, mlir::Location) {},
+          [&](mlir::OpBuilder &b, mlir::Location handlerLoc,
+              mlir::OperationState &state) {
+            auto *region = state.addRegion();
+            builder.createBlock(region);
+            b.create<cir::ResumeOp>(handlerLoc, mlir::Value{}, mlir::Value{});
+          });
+      tryOp.setSynthetic(true);
+      return tryOp;
+    };
+
+    auto tryOp = getOrCreateSurroundingTryOp();
+    mlir::OpBuilder::InsertPoint ip = builder.saveInsertionPoint();
+    if (tryOp.getSynthetic()) {
+      mlir::Block *lastBlock = &tryOp.getTryRegion().back();
+      builder.setInsertionPointToStart(lastBlock);
+    } else {
+      assert(builder.getInsertionBlock() && "expected valid block");
+    }
+
+    insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
+    CGF.mayThrow = true;
+
+    (void)CGF.getInvokeDest(tryOp);
+
+    if (tryOp.getSynthetic()) {
+      builder.create<cir::YieldOp>(tryOp.getLoc());
+      builder.restoreInsertionPoint(ip);
+    }
+    return;
+  }
+
   insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
-
   CGF.mayThrow = true;
 }
 

@@ -303,23 +303,28 @@ mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup,
 
 mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
   auto loc = getLoc(S.getSourceRange());
-  mlir::OpBuilder::InsertPoint scopeIP;
+  mlir::Block *scopeBlock = nullptr;
 
   // Create a scope to hold try local storage for catch params.
-  [[maybe_unused]] auto s =
-      builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                     scopeIP =
-                                         getBuilder().saveInsertionPoint();
-                                   });
+  auto scopeOp = builder.create<cir::ScopeOp>(
+      loc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location innerLoc) {
+        scopeBlock = b.getInsertionBlock();
+      });
 
   auto r = mlir::success();
   {
     mlir::OpBuilder::InsertionGuard guard(getBuilder());
-    getBuilder().restoreInsertionPoint(scopeIP);
+    assert(scopeBlock && "expected valid scope block");
+    if (!scopeBlock->empty() &&
+        scopeBlock->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      getBuilder().setInsertionPoint(&scopeBlock->back());
+    else
+      getBuilder().setInsertionPointToEnd(scopeBlock);
     r = emitCXXTryStmtUnderScope(S);
     getBuilder().create<cir::YieldOp>(loc);
   }
+  ensureScopeTerminator(scopeOp, loc);
   return r;
 }
 

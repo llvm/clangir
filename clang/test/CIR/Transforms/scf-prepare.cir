@@ -203,4 +203,29 @@ module {
     }
     cir.return
   }
+
+  // Ensure we do not hoist a load whose address is produced inside the loop
+  // condition. Moving such a load would reference a value defined in the loop
+  // region and break dominance.
+  // CHECK-LABEL: @noHoistLoadWithLocalAddr
+  // CHECK: cir.for : cond {
+  // CHECK:   %[[ADDR:.*]] = cir.load %arg0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CHECK:   %[[VAL:.*]] = cir.load %[[ADDR]] : !cir.ptr<!s32i>, !s32i
+  // CHECK:   %[[ZERO:.*]] = cir.const #cir.int<0> : !s32i
+  // CHECK:   %[[CMP:.*]] = cir.cmp(ne, %[[VAL]], %[[ZERO]]) : !s32i, !cir.bool
+  // CHECK:   cir.condition(%[[CMP]])
+  cir.func @noHoistLoadWithLocalAddr(%arg0: !cir.ptr<!cir.ptr<!s32i>>) {
+    cir.for : cond {
+      %0 = cir.load %arg0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+      %1 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+      %2 = cir.const #cir.int<0> : !s32i
+      %3 = cir.cmp(ne, %1, %2) : !s32i, !cir.bool
+      cir.condition(%3)
+    } body {
+      cir.yield
+    } step {
+      cir.yield
+    }
+    cir.return
+  }
 }

@@ -29,6 +29,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Thunk.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
 #include "mlir/IR/MLIRContext.h"
@@ -59,14 +60,14 @@ class CIRGenFunction : public CIRGenTypeCache {
 public:
   CIRGenModule &CGM;
 
-private:
-  friend class ::ScalarExprEmitter;
-  friend class ::AggExprEmitter;
-
   /// The builder is a helper class to create IR inside a function. The
   /// builder is stateful, in particular it keeps an "insertion point": this
   /// is where the next operations will be introduced.
   CIRGenBuilderTy &builder;
+
+private:
+  friend class ::ScalarExprEmitter;
+  friend class ::AggExprEmitter;
 
   /// -------
   /// Goto
@@ -78,7 +79,7 @@ private:
     JumpDest() = default;
     JumpDest(mlir::Block *block, EHScopeStack::stable_iterator depth = {},
              unsigned index = 0)
-        : block(block) {}
+        : block(block), scopeDepth(depth), index(index) {}
 
     bool isValid() const { return block != nullptr; }
     mlir::Block *getBlock() const { return block; }
@@ -369,6 +370,9 @@ public:
   /// invalid iff the function has no return value.
   Address ReturnValue = Address::invalid();
 
+  /// Temporary slot used to thread normal cleanup destinations.
+  Address NormalCleanupDest = Address::invalid();
+
   /// Tracks function scope overall cleanup handling.
   EHScopeStack EHStack;
   llvm::SmallVector<char, 256> LifetimeExtendedCleanupStack;
@@ -478,9 +482,24 @@ public:
   const CIRGenModule &getCIRGenModule() const { return CGM; }
 
   mlir::Block *getCurFunctionEntryBlock() {
-    auto Fn = mlir::dyn_cast<cir::FuncOp>(CurFn);
-    assert(Fn && "other callables NYI");
-    return &Fn.getRegion().front();
+    // Normal function case.
+    if (auto fn = mlir::dyn_cast_if_present<cir::FuncOp>(CurFn))
+      return &fn.getRegion().front();
+
+    // Global initializer / static storage duration: CurFn can be a cir.global
+    // while we emit a synthetic function-like body (its ctor region). Allow
+    // allocas to sink to the first block of the ctor region.
+    if (auto glob = mlir::dyn_cast_if_present<cir::GlobalOp>(CurFn)) {
+      auto &region = glob.getCtorRegion();
+      if (region.empty())
+        region.push_back(new mlir::Block());
+      return &region.front();
+    }
+
+    // Future callable kinds (e.g. coroutine wrappers, outlined helpers) can
+    // be added here. For now keep an assert so unexpected cases are visible.
+    assert(false && "unsupported callable op kind in getCurFunctionEntryBlock");
+    return nullptr;
   }
 
   /// Sanitizers enabled for this function.
@@ -933,6 +952,9 @@ public:
                      QualType type);
 
   void pushStackRestore(CleanupKind kind, Address SPMem);
+
+  /// Get or create the slot used to store normal cleanup destinations.
+  Address getNormalCleanupDestSlot();
 
   static bool
   IsConstructorDelegationValid(const clang::CXXConstructorDecl *Ctor);
@@ -1750,6 +1772,9 @@ public:
                          mlir::OpBuilder::InsertPoint ip,
                          mlir::Value arraySize = nullptr);
 
+  /// Ensure a cir.scope has valid terminators in both its regions.
+  void ensureScopeTerminator(cir::ScopeOp scope, mlir::Location loc);
+
   /// Emit code to compute the specified expression which can have any type. The
   /// result is returned as an RValue struct. If this is an aggregate
   /// expression, the aggloc/agglocvolatile arguments indicate where the result
@@ -2109,6 +2134,14 @@ public:
   /// given parameter.
   void emitDelegateCallArg(CallArgList &args, const clang::VarDecl *param,
                            clang::SourceLocation loc);
+  void startThunk(cir::FuncOp Fn, clang::GlobalDecl GD,
+                  const CIRGenFunctionInfo &FnInfo, bool IsUnprototyped);
+  void finishThunk();
+  void generateThunk(cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
+                     clang::GlobalDecl GD, const ThunkInfo &ThunkAdjustments,
+                     bool IsUnprototyped);
+  void emitCallAndReturnForThunk(cir::FuncOp Callee, const ThunkInfo *Thunk,
+                                 bool IsUnprototyped);
 
   // It's important not to confuse this and the previous function. Delegating
   // constructors are the C++11 feature. The constructor delegate optimization

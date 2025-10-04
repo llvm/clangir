@@ -1,0 +1,13 @@
+// RUN: cir-opt -cir-to-mlir %s -o - | FileCheck %s
+
+// Simple pointer stride arithmetic: ensure ptr_stride becomes ptr->int + add + int->ptr.
+
+cir.func @g(%p : !cir.ptr<!cir.int<s,32>>, %n : !cir.int<s,32>) -> !cir.ptr<!cir.int<s,32>> {
+  %0 = cir.cast(array_to_ptrdecay, %p : !cir.ptr<!cir.int<s,32>> -> !cir.ptr<!cir.int<s,32>>)
+  %1 = cir.ptr_stride %0, %n : (!cir.ptr<!cir.int<s,32>>, !cir.int<s,32>) -> !cir.ptr<!cir.int<s,32>>
+  cir.return %1 : !cir.ptr<!cir.int<s,32>>
+}
+
+// CHECK: llvm.ptrtoint
+// CHECK: arith.addi
+// CHECK: llvm.inttoptr

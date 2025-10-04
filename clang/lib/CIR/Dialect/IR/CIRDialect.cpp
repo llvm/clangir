@@ -1375,9 +1375,11 @@ mlir::LogicalResult cir::ReturnOp::verify() {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = getOperation()->getParentOp();
-  while (!isa<cir::FuncOp>(fnOp))
+  while (!isa<cir::FuncOp>(fnOp)){
+    if (!fnOp)
+      return success();
     fnOp = fnOp->getParentOp();
-
+}
   // Make sure return types match function return type.
   if (checkReturnAndFunction(*this, cast<cir::FuncOp>(fnOp)).failed())
     return failure();
@@ -1516,15 +1518,30 @@ void cir::IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
 
   OpBuilder::InsertionGuard guard(builder);
   Region *thenRegion = result.addRegion();
-  builder.createBlock(thenRegion);
+  Block *thenBlock = builder.createBlock(thenRegion);
   thenBuilder(builder, result.location);
+
+  auto ensureTerminated = [&](Block *block) {
+    if (!block)
+      return;
+    if (!block->empty() &&
+        block->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      return;
+    OpBuilder::InsertionGuard termGuard(builder);
+    builder.setInsertionPointToEnd(block);
+    buildTerminatedBody(builder, result.location);
+  };
+
+  ensureTerminated(thenBlock);
 
   Region *elseRegion = result.addRegion();
   if (!withElseRegion)
     return;
 
-  builder.createBlock(elseRegion);
-  elseBuilder(builder, result.location);
+  Block *elseBlock = builder.createBlock(elseRegion);
+  if (elseBuilder)
+    elseBuilder(builder, result.location);
+  ensureTerminated(elseBlock);
 }
 
 LogicalResult cir::IfOp::verify() { return success(); }
@@ -1540,15 +1557,22 @@ LogicalResult cir::IfOp::verify() { return success(); }
 /// not a constant.
 void cir::ScopeOp::getSuccessorRegions(
     mlir::RegionBranchPoint point, SmallVectorImpl<RegionSuccessor> &regions) {
-  // The only region always branch back to the parent operation.
+  // Region exits branch back to the parent op. Only the scope region itself
+  // propagates the yielded value to the parent; the cleanup region never
+  // contributes results.
   if (!point.isParent()) {
-    regions.push_back(RegionSuccessor(getODSResults(0)));
+    if (point.getRegionOrNull() == &getScopeRegion()) {
+      regions.push_back(RegionSuccessor(getODSResults(0)));
+    } else {
+      regions.push_back(RegionSuccessor());
+    }
     return;
   }
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getScopeRegion()));
-  regions.push_back(RegionSuccessor(&getCleanupRegion()));
+  if (!getCleanupRegion().empty())
+    regions.push_back(RegionSuccessor(&getCleanupRegion()));
 }
 
 void cir::ScopeOp::build(

@@ -1695,6 +1695,8 @@ public:
 
   /// Return true if this "op class" can match against the specified operation.
   static bool classof(Operation *op) {
+    if (!op)
+      return false;
     if (auto info = op->getRegisteredInfo())
       return TypeID::get<ConcreteType>() == info->getTypeID();
 #ifndef NDEBUG

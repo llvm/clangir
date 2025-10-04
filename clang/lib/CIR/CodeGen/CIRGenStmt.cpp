@@ -72,15 +72,21 @@ Address CIRGenFunction::emitCompoundStmt(const CompoundStmt &S, bool getLast,
   // Add local scope to track new declared variables.
   SymTableScopeTy varScope(symbolTable);
   auto scopeLoc = getLoc(S.getSourceRange());
-  mlir::OpBuilder::InsertPoint scopeInsPt;
-  builder.create<cir::ScopeOp>(
+  mlir::Block *scopeBlock = nullptr;
+  auto compoundScope = builder.create<cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Type &type, mlir::Location loc) {
-        scopeInsPt = b.saveInsertionPoint();
+        scopeBlock = b.getInsertionBlock();
       });
+  ensureScopeTerminator(compoundScope, scopeLoc);
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.restoreInsertionPoint(scopeInsPt);
+    assert(scopeBlock && "scope block should be available");
+    if (!scopeBlock->empty() &&
+        scopeBlock->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      builder.setInsertionPoint(&scopeBlock->back());
+    else
+      builder.setInsertionPointToEnd(scopeBlock);
     LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
     retAlloca = emitCompoundStmtWithoutScope(S, getLast, slot);
   }
@@ -484,12 +490,13 @@ mlir::LogicalResult CIRGenFunction::emitIfStmt(const IfStmt &S) {
   // LexicalScope ConditionScope(*this, S.getCond()->getSourceRange());
   // The if scope contains the full source range for IfStmt.
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(
+  auto scope = builder.create<cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
         res = ifStmtBuilder();
       });
+  ensureScopeTerminator(scope, scopeLoc);
 
   return res;
 }
@@ -590,14 +597,21 @@ mlir::LogicalResult CIRGenFunction::emitReturnStmt(const ReturnStmt &S) {
     // First create cir.scope and later emit it's body. Otherwise all CIRGen
     // dispatched by `handleReturnVal()` might needs to manipulate blocks and
     // look into parents, which are all unlinked.
-    mlir::OpBuilder::InsertPoint scopeBody;
-    builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                                 [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                   scopeBody = b.saveInsertionPoint();
-                                 });
+    mlir::Block *scopeBody = nullptr;
+    auto scopeOp = builder.create<cir::ScopeOp>(
+        scopeLoc, /*scopeBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
+          scopeBody = b.getInsertionBlock();
+        });
+    ensureScopeTerminator(scopeOp, scopeLoc);
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.restoreInsertionPoint(scopeBody);
+      assert(scopeBody && "scope body block should be available");
+      if (!scopeBody->empty() &&
+          scopeBody->back().hasTrait<mlir::OpTrait::IsTerminator>())
+        builder.setInsertionPoint(&scopeBody->back());
+      else
+        builder.setInsertionPointToEnd(scopeBody);
       CIRGenFunction::LexicalScope lexScope{*this, scopeLoc,
                                             builder.getInsertionBlock()};
       handleReturnVal();
@@ -844,70 +858,75 @@ CIRGenFunction::emitCXXForRangeStmt(const CXXForRangeStmt &S,
                                     ArrayRef<const Attr *> ForAttrs) {
   cir::ForOp forOp;
 
-  // TODO(cir): pass in array of attributes.
-  auto forStmtBuilder = [&]() -> mlir::LogicalResult {
-    auto loopRes = mlir::success();
-    // Evaluate the first pieces before the loop.
-    if (S.getInit())
-      if (emitStmt(S.getInit(), /*useCurrentScope=*/true).failed())
-        return mlir::failure();
-    if (emitStmt(S.getRangeStmt(), /*useCurrentScope=*/true).failed())
-      return mlir::failure();
-    if (emitStmt(S.getBeginStmt(), /*useCurrentScope=*/true).failed())
-      return mlir::failure();
-    if (emitStmt(S.getEndStmt(), /*useCurrentScope=*/true).failed())
-      return mlir::failure();
+  auto res = mlir::success();
+  auto scopeLoc = getLoc(S.getSourceRange());
+  auto scope = builder.create<cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        // Create a cleanup scope for the condition
+        // variable cleanups. Logical equivalent from
+        // LLVM codegn for LexicalScope
+        // ConditionScope(*this, S.getSourceRange())...
+        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
+        if (S.getInit())
+          if (emitStmt(S.getInit(), /*useCurrentScope=*/true).failed()) {
+            res = mlir::failure();
+            return;
+          }
+        if (emitStmt(S.getRangeStmt(), /*useCurrentScope=*/true).failed()) {
+          res = mlir::failure();
+          return;
+        }
+        if (emitStmt(S.getBeginStmt(), /*useCurrentScope=*/true).failed()) {
+          res = mlir::failure();
+          return;
+        }
+        if (emitStmt(S.getEndStmt(), /*useCurrentScope=*/true).failed()) {
+          res = mlir::failure();
+          return;
+        }
 
-    assert(!cir::MissingFeatures::loopInfoStack());
-    // From LLVM: if there are any cleanups between here and the loop-exit
-    // scope, create a block to stage a loop exit along.
-    // We probably already do the right thing because of ScopeOp, but make
-    // sure we handle all cases.
-    assert(!cir::MissingFeatures::requiresCleanups());
+        assert(!cir::MissingFeatures::loopInfoStack());
+        assert(!cir::MissingFeatures::requiresCleanups());
 
-    forOp = builder.createFor(
-        getLoc(S.getSourceRange()),
-        /*condBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+        forOp = builder.create<cir::ForOp>(loc);
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &condRegion = forOp.getCond();
+          auto *condBlock = builder.createBlock(&condRegion);
+          builder.setInsertionPointToStart(condBlock);
           assert(!cir::MissingFeatures::createProfileWeightsForLoop());
           assert(!cir::MissingFeatures::emitCondLikelihoodViaExpectIntrinsic());
           mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          builder.createCondition(condVal);
-        },
-        /*bodyBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          // https://en.cppreference.com/w/cpp/language/for
-          // In C++ the scope of the init-statement and the scope of
-          // statement are one and the same.
+          builder.create<cir::ConditionOp>(loc, condVal);
+        }
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &bodyRegion = forOp.getBody();
+          auto *bodyBlock = builder.createBlock(&bodyRegion);
+          builder.setInsertionPointToStart(bodyBlock);
           bool useCurrentScope = true;
           if (emitStmt(S.getLoopVarStmt(), useCurrentScope).failed())
-            loopRes = mlir::failure();
+            res = mlir::failure();
           if (emitStmt(S.getBody(), useCurrentScope).failed())
-            loopRes = mlir::failure();
+            res = mlir::failure();
           emitStopPoint(&S);
-        },
-        /*stepBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+        }
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &stepRegion = forOp.getStep();
+          auto *stepBlock = builder.createBlock(&stepRegion);
+          builder.setInsertionPointToStart(stepBlock);
           if (S.getInc())
             if (emitStmt(S.getInc(), /*useCurrentScope=*/true).failed())
-              loopRes = mlir::failure();
+              res = mlir::failure();
           builder.createYield(loc);
-        });
-    return loopRes;
-  };
-
-  auto res = mlir::success();
-  auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 // Create a cleanup scope for the condition
-                                 // variable cleanups. Logical equivalent from
-                                 // LLVM codegn for LexicalScope
-                                 // ConditionScope(*this, S.getSourceRange())...
-                                 LexicalScope lexScope{
-                                     *this, loc, builder.getInsertionBlock()};
-                                 res = forStmtBuilder();
-                               });
+        }
+      });
+  ensureScopeTerminator(scope, scopeLoc);
 
   if (res.failed())
     return res;
@@ -919,118 +938,127 @@ CIRGenFunction::emitCXXForRangeStmt(const CXXForRangeStmt &S,
 mlir::LogicalResult CIRGenFunction::emitForStmt(const ForStmt &S) {
   cir::ForOp forOp;
 
-  // TODO: pass in array of attributes.
-  auto forStmtBuilder = [&]() -> mlir::LogicalResult {
-    auto loopRes = mlir::success();
-    // Evaluate the first part before the loop.
-    if (S.getInit())
-      if (emitStmt(S.getInit(), /*useCurrentScope=*/true).failed())
-        return mlir::failure();
-    assert(!cir::MissingFeatures::loopInfoStack());
-    // From LLVM: if there are any cleanups between here and the loop-exit
-    // scope, create a block to stage a loop exit along.
-    // We probably already do the right thing because of ScopeOp, but make
-    // sure we handle all cases.
-    assert(!cir::MissingFeatures::requiresCleanups());
+  auto res = mlir::success();
+  auto scopeLoc = getLoc(S.getSourceRange());
+  auto forScope = builder.create<cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
+        if (S.getInit())
+          if (emitStmt(S.getInit(), /*useCurrentScope=*/true).failed()) {
+            res = mlir::failure();
+            return;
+          }
 
-    forOp = builder.createFor(
-        getLoc(S.getSourceRange()),
-        /*condBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+        assert(!cir::MissingFeatures::loopInfoStack());
+        assert(!cir::MissingFeatures::requiresCleanups());
+
+        forOp = builder.create<cir::ForOp>(loc);
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &condRegion = forOp.getCond();
+          auto *condBlock = builder.createBlock(&condRegion);
+          builder.setInsertionPointToStart(condBlock);
           assert(!cir::MissingFeatures::createProfileWeightsForLoop());
           assert(!cir::MissingFeatures::emitCondLikelihoodViaExpectIntrinsic());
           mlir::Value condVal;
           if (S.getCond()) {
-            // If the for statement has a condition scope,
-            // emit the local variable declaration.
             if (S.getConditionVariable())
               emitDecl(*S.getConditionVariable());
-            // C99 6.8.5p2/p4: The first substatement is executed if the
-            // expression compares unequal to 0. The condition must be a
-            // scalar type.
             condVal = evaluateExprAsBool(S.getCond());
           } else {
-            condVal = b.create<cir::ConstantOp>(loc, builder.getTrueAttr());
+            condVal = builder.create<cir::ConstantOp>(loc, builder.getTrueAttr());
           }
-          builder.createCondition(condVal);
-        },
-        /*bodyBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          // The scope of the for loop body is nested within the scope of the
-          // for loop's init-statement and condition.
+          builder.create<cir::ConditionOp>(loc, condVal);
+        }
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &bodyRegion = forOp.getBody();
+          auto *bodyBlock = builder.createBlock(&bodyRegion);
+          builder.setInsertionPointToStart(bodyBlock);
           if (emitStmt(S.getBody(), /*useCurrentScope=*/false).failed())
-            loopRes = mlir::failure();
+            res = mlir::failure();
           emitStopPoint(&S);
-        },
-        /*stepBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+        }
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &stepRegion = forOp.getStep();
+          auto *stepBlock = builder.createBlock(&stepRegion);
+          builder.setInsertionPointToStart(stepBlock);
           if (S.getInc())
             if (emitStmt(S.getInc(), /*useCurrentScope=*/true).failed())
-              loopRes = mlir::failure();
+              res = mlir::failure();
           builder.createYield(loc);
-        });
-    return loopRes;
-  };
-
-  auto res = mlir::success();
-  auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 LexicalScope lexScope{
-                                     *this, loc, builder.getInsertionBlock()};
-                                 res = forStmtBuilder();
-                               });
+        }
+      });
+  ensureScopeTerminator(forScope, scopeLoc);
 
   if (res.failed())
     return res;
 
   terminateBody(builder, forOp.getBody(), getLoc(S.getEndLoc()));
+
+  if (std::getenv("CLANGIR_DEBUG_LOOP_DUMP")) {
+    auto dumpRegion = [&](llvm::StringRef label, mlir::Region &region) {
+      llvm::errs() << "[clangir] " << label << "\n";
+      unsigned blockIdx = 0;
+      for (auto &block : region) {
+        llvm::errs() << "  block " << blockIdx++ << "\n";
+        for (auto &op : block) {
+          llvm::errs() << "    op: " << op.getName().getStringRef();
+          llvm::errs() << " operands=" << op.getNumOperands()
+                       << " results=" << op.getNumResults() << "\n";
+        }
+      }
+    };
+
+    dumpRegion("for-loop cond:", forOp.getCond());
+    dumpRegion("for-loop body:", forOp.getBody());
+    dumpRegion("for-loop step:", forOp.getStep());
+    llvm::errs().flush();
+  }
   return mlir::success();
 }
 
 mlir::LogicalResult CIRGenFunction::emitDoStmt(const DoStmt &S) {
   cir::DoWhileOp doWhileOp;
 
-  // TODO: pass in array of attributes.
-  auto doStmtBuilder = [&]() -> mlir::LogicalResult {
-    auto loopRes = mlir::success();
-    assert(!cir::MissingFeatures::loopInfoStack());
-    // From LLVM: if there are any cleanups between here and the loop-exit
-    // scope, create a block to stage a loop exit along.
-    // We probably already do the right thing because of ScopeOp, but make
-    // sure we handle all cases.
-    assert(!cir::MissingFeatures::requiresCleanups());
-
-    doWhileOp = builder.createDoWhile(
-        getLoc(S.getSourceRange()),
-        /*condBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          assert(!cir::MissingFeatures::createProfileWeightsForLoop());
-          assert(!cir::MissingFeatures::emitCondLikelihoodViaExpectIntrinsic());
-          // C99 6.8.5p2/p4: The first substatement is executed if the
-          // expression compares unequal to 0. The condition must be a
-          // scalar type.
-          mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          builder.createCondition(condVal);
-        },
-        /*bodyBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          // The scope of the do-while loop body is a nested scope.
-          if (emitStmt(S.getBody(), /*useCurrentScope=*/false).failed())
-            loopRes = mlir::failure();
-          emitStopPoint(&S);
-        });
-    return loopRes;
-  };
-
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 LexicalScope lexScope{
-                                     *this, loc, builder.getInsertionBlock()};
-                                 res = doStmtBuilder();
-                               });
+  auto scope = builder.create<cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
+        assert(!cir::MissingFeatures::loopInfoStack());
+        assert(!cir::MissingFeatures::requiresCleanups());
+
+        doWhileOp = builder.create<cir::DoWhileOp>(loc);
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &bodyRegion = doWhileOp.getBody();
+          auto *bodyBlock = builder.createBlock(&bodyRegion);
+          builder.setInsertionPointToStart(bodyBlock);
+          if (emitStmt(S.getBody(), /*useCurrentScope=*/false).failed())
+            res = mlir::failure();
+          emitStopPoint(&S);
+        }
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &condRegion = doWhileOp.getCond();
+          auto *condBlock = builder.createBlock(&condRegion);
+          builder.setInsertionPointToStart(condBlock);
+          assert(!cir::MissingFeatures::createProfileWeightsForLoop());
+          assert(!cir::MissingFeatures::emitCondLikelihoodViaExpectIntrinsic());
+          mlir::Value condVal = evaluateExprAsBool(S.getCond());
+          builder.create<cir::ConditionOp>(loc, condVal);
+        }
+      });
+  ensureScopeTerminator(scope, scopeLoc);
 
   if (res.failed())
     return res;
@@ -1042,51 +1070,42 @@ mlir::LogicalResult CIRGenFunction::emitDoStmt(const DoStmt &S) {
 mlir::LogicalResult CIRGenFunction::emitWhileStmt(const WhileStmt &S) {
   cir::WhileOp whileOp;
 
-  // TODO: pass in array of attributes.
-  auto whileStmtBuilder = [&]() -> mlir::LogicalResult {
-    auto loopRes = mlir::success();
-    assert(!cir::MissingFeatures::loopInfoStack());
-    // From LLVM: if there are any cleanups between here and the loop-exit
-    // scope, create a block to stage a loop exit along.
-    // We probably already do the right thing because of ScopeOp, but make
-    // sure we handle all cases.
-    assert(!cir::MissingFeatures::requiresCleanups());
+  auto res = mlir::success();
+  auto scopeLoc = getLoc(S.getSourceRange());
+  auto scope = builder.create<cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
+        assert(!cir::MissingFeatures::loopInfoStack());
+        assert(!cir::MissingFeatures::requiresCleanups());
 
-    whileOp = builder.createWhile(
-        getLoc(S.getSourceRange()),
-        /*condBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
+        whileOp = builder.create<cir::WhileOp>(loc);
+
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &condRegion = whileOp.getCond();
+          auto *condBlock = builder.createBlock(&condRegion);
+          builder.setInsertionPointToStart(condBlock);
           assert(!cir::MissingFeatures::createProfileWeightsForLoop());
           assert(!cir::MissingFeatures::emitCondLikelihoodViaExpectIntrinsic());
           mlir::Value condVal;
-          // If the for statement has a condition scope,
-          // emit the local variable declaration.
           if (S.getConditionVariable())
             emitDecl(*S.getConditionVariable());
-          // C99 6.8.5p2/p4: The first substatement is executed if the
-          // expression compares unequal to 0. The condition must be a
-          // scalar type.
           condVal = evaluateExprAsBool(S.getCond());
-          builder.createCondition(condVal);
-        },
-        /*bodyBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          // The scope of the while loop body is a nested scope.
-          if (emitStmt(S.getBody(), /*useCurrentScope=*/false).failed())
-            loopRes = mlir::failure();
-          emitStopPoint(&S);
-        });
-    return loopRes;
-  };
+          builder.create<cir::ConditionOp>(loc, condVal);
+        }
 
-  auto res = mlir::success();
-  auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 LexicalScope lexScope{
-                                     *this, loc, builder.getInsertionBlock()};
-                                 res = whileStmtBuilder();
-                               });
+        {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          auto &bodyRegion = whileOp.getBody();
+          auto *bodyBlock = builder.createBlock(&bodyRegion);
+          builder.setInsertionPointToStart(bodyBlock);
+          if (emitStmt(S.getBody(), /*useCurrentScope=*/false).failed())
+            res = mlir::failure();
+          emitStopPoint(&S);
+        }
+      });
+  ensureScopeTerminator(scope, scopeLoc);
 
   if (res.failed())
     return res;
@@ -1172,12 +1191,13 @@ mlir::LogicalResult CIRGenFunction::emitSwitchStmt(const SwitchStmt &S) {
   // The switch scope contains the full source range for SwitchStmt.
   auto scopeLoc = getLoc(S.getSourceRange());
   auto res = mlir::success();
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 LexicalScope lexScope{
-                                     *this, loc, builder.getInsertionBlock()};
-                                 res = switchStmtBuilder();
-                               });
+  auto switchScope = builder.create<cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
+        res = switchStmtBuilder();
+      });
+  ensureScopeTerminator(switchScope, scopeLoc);
 
   llvm::SmallVector<CaseOp> cases;
   swop.collectCases(cases);

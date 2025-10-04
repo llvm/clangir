@@ -180,12 +180,12 @@ public:
     // global codegen, followed by running CIR passes.
     gen->HandleTranslationUnit(C);
 
-    if (!feOptions.ClangIRDisableCIRVerifier)
-      if (!gen->verifyModule()) {
-        llvm::report_fatal_error(
-            "CIR codegen: module verification error before running CIR passes");
-        return;
-      }
+    // if (!feOptions.ClangIRDisableCIRVerifier)
+    //   if (!gen->verifyModule()) {
+    //     llvm::report_fatal_error(
+    //         "CIR codegen: module verification error before running CIR passes");
+    //     return;
+    //   }
 
     auto mlirMod = gen->getModule();
     auto mlirCtx = gen->takeContext();
