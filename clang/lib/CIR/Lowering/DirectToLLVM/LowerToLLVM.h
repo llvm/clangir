@@ -1273,6 +1273,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMEhLongjmpOpLowering
+    : public mlir::OpConversionPattern<cir::EhLongjmpOp> {
+public:
+  using mlir::OpConversionPattern<cir::EhLongjmpOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::EhLongjmpOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMCatchParamOpLowering
     : public mlir::OpConversionPattern<cir::CatchParamOp> {
 public:
