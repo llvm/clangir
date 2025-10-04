@@ -767,7 +767,13 @@ static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
   // If we're catching by reference, we can just cast the object
   // pointer to the appropriate pointer.
   if (isa<ReferenceType>(CatchType)) {
-    llvm_unreachable("NYI");
+    QualType CaughtType = cast<ReferenceType>(CatchType)->getPointeeType();
+
+    bool EndCatchMightThrow = CaughtType->isRecordType();
+    auto catchParam = CallBeginCatch(CGF, CIRCatchTy, EndCatchMightThrow);
+
+    CGF.getBuilder().createStore(CGF.getBuilder().getUnknownLoc(), catchParam,
+                                 ParamAddr);
     return;
   }
 
@@ -2406,14 +2412,50 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
     }
   }
 
-  // FIXME: When adding support for invoking, we should wrap the throw op
-  // below into a try, and let CFG flatten pass to generate a cir.try_call.
-  assert(!CGF.isInvokeDest() && "landing pad like logic NYI");
+  auto loc = CGF.getLoc(E->getSourceRange());
 
-  // Now throw the exception.
-  mlir::Location loc = CGF.getLoc(E->getSourceRange());
+  if (CGF.isInvokeDest()) {
+    auto getOrCreateSurroundingTryOp = [&]() -> cir::TryOp {
+      assert(CGF.currLexScope && "expected scope");
+      if (auto existing = CGF.currLexScope->getClosestTryParent())
+        return existing;
+
+      auto tryLoc = CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
+      auto tryOp = builder.create<cir::TryOp>(
+          tryLoc,
+          [&](mlir::OpBuilder &, mlir::Location) {},
+          [&](mlir::OpBuilder &b, mlir::Location handlerLoc,
+              mlir::OperationState &state) {
+            auto *region = state.addRegion();
+            builder.createBlock(region);
+            b.create<cir::ResumeOp>(handlerLoc, mlir::Value{}, mlir::Value{});
+          });
+      tryOp.setSynthetic(true);
+      return tryOp;
+    };
+
+    auto tryOp = getOrCreateSurroundingTryOp();
+    mlir::OpBuilder::InsertPoint ip = builder.saveInsertionPoint();
+    if (tryOp.getSynthetic()) {
+      mlir::Block *lastBlock = &tryOp.getTryRegion().back();
+      builder.setInsertionPointToStart(lastBlock);
+    } else {
+      assert(builder.getInsertionBlock() && "expected valid block");
+    }
+
+    insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
+    CGF.mayThrow = true;
+
+    (void)CGF.getInvokeDest(tryOp);
+
+    if (tryOp.getSynthetic()) {
+      builder.create<cir::YieldOp>(tryOp.getLoc());
+      builder.restoreInsertionPoint(ip);
+    }
+    return;
+  }
+
   insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
-
   CGF.mayThrow = true;
 }
 

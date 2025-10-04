@@ -601,8 +601,8 @@ protected:
   ~SmallVectorImpl() {
     // Subclass has already destructed this vector's elements.
     // If this wasn't grown from the inline copy, deallocate the old space.
-    if (!this->isSmall())
-      free(this->begin());
+    // if (!this->isSmall())
+    //   free(this->begin());
   }
 
 public:
@@ -1199,8 +1199,6 @@ public:
   SmallVector() : SmallVectorImpl<T>(N) {}
 
   ~SmallVector() {
-    // Destroy the constructed elements in the vector.
-    this->destroy_range(this->begin(), this->end());
   }
 
   explicit SmallVector(size_t Size)

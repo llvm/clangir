@@ -68,31 +68,47 @@ static Address emitPreserveStructAccess(CIRGenFunction &CGF, LValue base,
 /// doesn't necessarily have the right type.
 static Address emitAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
                                       const FieldDecl *field,
-                                      llvm::StringRef fieldName,
-                                      unsigned fieldIndex) {
-  if (field->isZeroSize(CGF.getContext()))
-    llvm_unreachable("NYI");
-
+                                      llvm::StringRef fieldName) {
   auto loc = CGF.getLoc(field->getLocation());
+  const RecordDecl *rec = field->getParent();
+  auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
+
+  if (isEmptyFieldForLayout(CGF.getContext(), field) ||
+      !layout.containsField(field)) {
+    CharUnits offset =
+        CGF.getContext().toCharUnitsFromBits(
+            CGF.getContext().getFieldOffset(field));
+    if (offset.isZero())
+      return Base;
+
+    auto bytePtrTy = CGF.CGM.UInt8PtrTy;
+    auto basePtr = Base.getPointer();
+    auto castBase = CGF.getBuilder().createCast(cir::CastKind::bitcast,
+                                               basePtr, bytePtrTy);
+    auto offsetVal =
+        CGF.getBuilder().getConstInt(loc, CGF.SizeTy, offset.getQuantity());
+    auto adjusted = CGF.getBuilder().create<cir::PtrStrideOp>(
+        loc, bytePtrTy, castBase, offsetVal);
+    auto resultPtr = CGF.getBuilder().createCast(cir::CastKind::bitcast,
+                                                 adjusted, basePtr.getType());
+    return Address(resultPtr,
+                   Base.getAlignment().alignmentAtOffset(offset));
+  }
 
   auto fieldType = CGF.convertType(field->getType());
   auto fieldPtr = cir::PointerType::get(fieldType);
+  unsigned layoutIndex = layout.getCIRFieldNo(field);
   // For most cases fieldName is the same as field->getName() but for lambdas,
   // which do not currently carry the name, so it can be passed down from the
   // CaptureStmt.
   auto memberAddr = CGF.getBuilder().createGetMember(
-      loc, fieldPtr, Base.getPointer(), fieldName, fieldIndex);
+      loc, fieldPtr, Base.getPointer(), fieldName, layoutIndex);
 
-  // Retrieve layout information, compute alignment and return the final
-  // address.
-  const RecordDecl *rec = field->getParent();
-  auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
-  unsigned idx = layout.getCIRFieldNo(field);
-  auto offset = CharUnits::fromQuantity(layout.getCIRType().getElementOffset(
-      CGF.CGM.getDataLayout().layout, idx));
-  auto addr =
-      Address(memberAddr, Base.getAlignment().alignmentAtOffset(offset));
-  return addr;
+  auto offset = CharUnits::fromQuantity(
+      layout.getCIRType().getElementOffset(CGF.CGM.getDataLayout().layout,
+                                           layoutIndex));
+  return Address(memberAddr,
+                 Base.getAlignment().alignmentAtOffset(offset));
 }
 
 static bool hasAnyVptr(const QualType Type, const ASTContext &astContext) {
@@ -365,10 +381,9 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
     // NOTE(cir): the element to be loaded/stored need to type-match the
     // source/destination, so we emit a GetMemberOp here.
     llvm::StringRef fieldName = field->getName();
-    unsigned fieldIndex = field->getFieldIndex();
     if (CGM.LambdaFieldToName.count(field))
       fieldName = CGM.LambdaFieldToName[field];
-    addr = emitAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
+    addr = emitAddrOfFieldStorage(*this, addr, field, fieldName);
 
     if (CGM.getCodeGenOpts().StrictVTablePointers &&
         hasAnyVptr(FieldType, getContext()))
@@ -387,12 +402,9 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
     if (!IsInPreservedAIRegion &&
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
-      auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
-      unsigned fieldIndex = layout.getCIRFieldNo(field);
-
       if (CGM.LambdaFieldToName.count(field))
         fieldName = CGM.LambdaFieldToName[field];
-      addr = emitAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
+      addr = emitAddrOfFieldStorage(*this, addr, field, fieldName);
     } else
       // Remember the original struct field index
       addr = emitPreserveStructAccess(*this, base, addr, field);
@@ -439,11 +451,7 @@ LValue CIRGenFunction::emitLValueForFieldInitialization(
   if (!FieldType->isReferenceType())
     return emitLValueForField(Base, Field);
 
-  auto &layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
-  unsigned FieldIndex = layout.getCIRFieldNo(Field);
-
-  Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName,
-                                     FieldIndex);
+  Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName);
 
   // Make sure that the address is pointing to the right type.
   auto memTy = convertTypeForMem(FieldType);

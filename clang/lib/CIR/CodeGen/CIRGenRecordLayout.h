@@ -188,6 +188,11 @@ public:
     return FieldInfo.lookup(FD);
   }
 
+  bool containsField(const clang::FieldDecl *FD) const {
+    FD = FD->getCanonicalDecl();
+    return FieldInfo.count(FD);
+  }
+
   /// Check whether this record can be C++ zero-initialized with a
   /// zeroinitializer.
   bool isZeroInitializable() const { return IsZeroInitializable; }

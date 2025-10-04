@@ -423,9 +423,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // End of any local scope != function
     // Ternary ops have to deal with matching arms for yielding types
     // and do return a value, it must do its own cir.yield insertion.
-    if (!localScope->isTernary() && !insPt->mightHaveTerminator()) {
-      !retVal ? builder.create<YieldOp>(localScope->EndLoc)
-              : builder.create<YieldOp>(localScope->EndLoc, retVal);
+    if (!localScope->isTernary() && insPt->mightHaveTerminator()) {
+      if (retVal)
+        builder.create<YieldOp>(localScope->EndLoc, retVal);
+      else
+        builder.create<YieldOp>(localScope->EndLoc);
     }
   };
 

@@ -1518,15 +1518,30 @@ void cir::IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
 
   OpBuilder::InsertionGuard guard(builder);
   Region *thenRegion = result.addRegion();
-  builder.createBlock(thenRegion);
+  Block *thenBlock = builder.createBlock(thenRegion);
   thenBuilder(builder, result.location);
+
+  auto ensureTerminated = [&](Block *block) {
+    if (!block)
+      return;
+    if (!block->empty() &&
+        block->back().hasTrait<mlir::OpTrait::IsTerminator>())
+      return;
+    OpBuilder::InsertionGuard termGuard(builder);
+    builder.setInsertionPointToEnd(block);
+    buildTerminatedBody(builder, result.location);
+  };
+
+  ensureTerminated(thenBlock);
 
   Region *elseRegion = result.addRegion();
   if (!withElseRegion)
     return;
 
-  builder.createBlock(elseRegion);
-  elseBuilder(builder, result.location);
+  Block *elseBlock = builder.createBlock(elseRegion);
+  if (elseBuilder)
+    elseBuilder(builder, result.location);
+  ensureTerminated(elseBlock);
 }
 
 LogicalResult cir::IfOp::verify() { return success(); }

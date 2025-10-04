@@ -110,6 +110,9 @@ public:
   static bool classof(T val) {
     static_assert(std::is_convertible<ConcreteT, T>::value,
                   "casting from a non-convertible type");
+    if (!val){
+      return false;
+    }
     return val.getTypeID() == getTypeID();
   }
 

@@ -1950,7 +1950,18 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
 
   auto insertResult = materializedGlobalTemporaryMap.insert({expr, nullptr});
   if (!insertResult.second) {
-    llvm_unreachable("NYI");
+    auto *&existing = insertResult.first->second;
+    if (!existing) {
+      auto loc = getLoc(expr->getSourceRange());
+      auto placeholderType = getTypes().convertTypeForMem(materializedType);
+      // Give the placeholder a synthetic name; the final definition will
+      // replace it once available.
+      auto placeholder = builder.createVersionedGlobal(
+          getModule(), loc, "__cir_global_tmp", placeholderType,
+          /*isConst=*/false, cir::GlobalLinkageKind::InternalLinkage);
+      existing = placeholder;
+    }
+    return existing;
   }
 
   // FIXME: If an externally-visible declaration extends multiple temporaries,
@@ -2004,9 +2015,9 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
     const VarDecl *initVD;
     if (varDecl->isStaticDataMember() && varDecl->getAnyInitializer(initVD) &&
         isa<CXXRecordDecl>(initVD->getLexicalDeclContext())) {
-      // Temporaries defined inside a class get linkonce_odr linkage because the
-      // calss can be defined in multiple translation units.
-      llvm_unreachable("staticdatamember NYI");
+      // Temporaries defined inside a class can appear in multiple translation
+      // units, so give them ODR-compliant linkage.
+      linkage = cir::GlobalLinkageKind::LinkOnceODRLinkage;
     } else {
       // There is no need for this temporary to have external linkage if the
       // VarDecl has external linkage.
@@ -2022,18 +2033,18 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
 
   if (emitter)
     emitter->finalize(gv);
-  // Don't assign dllimport or dllexport to lcoal linkage globals
-  if (!gv.hasLocalLinkage()) {
-    llvm_unreachable("NYI");
-  }
+  // Don't assign dllimport or dllexport to local linkage globals. Ensure the
+  // visibility is compatible with the chosen linkage for materialized
+  // temporaries.
+  if (!gv.hasLocalLinkage())
+    mlir::SymbolTable::setSymbolVisibility(
+        gv, mlir::SymbolTable::Visibility::Public);
   gv.setAlignment(align.getAsAlign().value());
   if (supportsCOMDAT() && gv.isWeakForLinker())
-    llvm_unreachable("NYI");
+    gv.setComdat(true);
   if (varDecl->getTLSKind())
-    llvm_unreachable("NYI");
+    setTLSMode(gv, *varDecl);
   mlir::Operation *cv = gv;
-  if (addrSpace != LangAS::Default)
-    llvm_unreachable("NYI");
 
   // Update the map with the new temporay. If we created a placeholder above,
   // replace it with the new global now.
