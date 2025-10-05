@@ -302,7 +302,7 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (useVirtualCall) {
-      CIRGenFunction* CGF = CGM.getCurrCIRGenFun();
+      CIRGenFunction *CGF = CGM.getCurrCIRGenFun();
       CGM.getCXXABI().emitVirtualDestructorCall(
           *CGF, dtor, Dtor_Complete, This.getAddress(),
           dyn_cast<CXXMemberCallExpr>(CE));
@@ -961,7 +961,8 @@ static void StoreAnyExprIntoOneUnit(CIRGenFunction &CGF, const Expr *Init,
                        CGF.makeAddrLValue(NewPtr, AllocType), false);
     return;
   case cir::TEK_Complex:
-    llvm_unreachable("NYI");
+    CGF.emitComplexExprIntoLValue(Init, CGF.makeAddrLValue(NewPtr, AllocType),
+                                  /*isInit*/ true);
     return;
   case cir::TEK_Aggregate: {
     AggValueSlot Slot = AggValueSlot::forAddr(
