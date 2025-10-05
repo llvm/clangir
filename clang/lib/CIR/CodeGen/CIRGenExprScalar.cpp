@@ -2850,9 +2850,9 @@ mlir::Value CIRGenFunction::emitCheckedInBoundsGEP(
       builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr, IdxList[0]);
   // If the pointer overflow sanitizer isn't enabled, do nothing.
   if (!SanOpts.has(SanitizerKind::PointerOverflow)) {
-    cir::CIR_GEPNoWrapFlags nwFlags = cir::CIR_GEPNoWrapFlags::inbounds;
+    cir::GEPNoWrapFlags nwFlags = cir::GEPNoWrapFlags::inbounds;
     if (!SignedIndices && !IsSubtraction)
-      nwFlags = nwFlags | cir::CIR_GEPNoWrapFlags::nuw;
+      nwFlags = nwFlags | cir::GEPNoWrapFlags::nuw;
     return builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr,
                                             IdxList[0], nwFlags);
   }

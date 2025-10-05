@@ -401,23 +401,27 @@ def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
+
+// These mirror the GEPNoWrapFlags in LLVM IR Dialect.
 def CIR_GEPNone : I32BitEnumCaseNone<"none">;
 def CIR_GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
 def CIR_GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
 def CIR_GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
-def CIR_GEPInbounds
-    : BitEnumCaseGroup<"inbounds", [CIR_GEPInboundsFlag, CIR_GEPNusw]>;
+def CIR_GEPInbounds : BitEnumCaseGroup<"inbounds", [
+  CIR_GEPInboundsFlag, CIR_GEPNusw]>;
 
-def CIR_GEPNoWrapFlags
-    : CIR_I32BitEnum<"CIR_GEPNoWrapFlags", "::cir::CIR_GEPNoWrapFlags",
-                     [CIR_GEPNone, CIR_GEPInboundsFlag, CIR_GEPNusw, CIR_GEPNuw,
-                      CIR_GEPInbounds]> {
-  let cppNamespace = "::cir";
+def CIR_GEPNoWrapFlags : CIR_I32BitEnum<"GEPNoWrapFlags", "no-wrap flags", [
+  CIR_GEPNone, 
+  CIR_GEPInboundsFlag, 
+  CIR_GEPNusw, 
+  CIR_GEPNuw,
+  CIR_GEPInbounds
+]> {
   let printBitEnumPrimaryGroups = 1;
 }
 
 def CIR_GEPNoWrapFlagsProp : EnumProp<CIR_GEPNoWrapFlags> {
-  let defaultValue = interfaceType#"::none";
+  let defaultValue = enum.cppType # "::" # "none";
 }
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
@@ -425,33 +429,38 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 ]> {
   let summary = "Pointer access with stride";
   let description = [{
-    Given a base pointer as first operand, provides a new pointer after applying
-    a stride (second operand).
+    The `cir.ptr_stride` operation computes a new pointer from a base pointer
+    and an integer stride, similar to a single-index `getelementptr` in LLVM IR.
+    It moves the pointer by `stride * sizeof(element_type)` bytes.
+
+    Optional no-wrap flags refine pointer arithmetic semantics, that mirror
+    LLVM's GEP no-wrap semantics.
+
+    Example:
 
     ```mlir
-    %3 = cir.const 0 : i32
-
-    %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
-
-    %5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
-
-    %6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
-
+    %3 = cir.ptr_stride %1, %2 : (!cir.ptr<i32>, i32) ->!cir.ptr<i32>
+    %4 = cir.ptr_stride inbounds %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
+    %5 = cir.ptr_stride inbounds|nuw %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
     ```
   }];
 
-  let arguments = (ins CIR_PointerType:$base, CIR_AnyFundamentalIntType:$stride,
-      CIR_GEPNoWrapFlagsProp:$noWrapFlags);
+  let arguments = (ins 
+    CIR_PointerType:$base, 
+    CIR_AnyFundamentalIntType:$stride,
+    CIR_GEPNoWrapFlagsProp:$noWrapFlags
+  );
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
+    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) 
+    attr-dict
   }];
 
   let extraClassDeclaration = [{
     // Get type pointed by the base pointer.
-    mlir::Type getElementTy() {
+    mlir::Type getElementType() {
       return getBase().getType().getPointee();
     }
   }];
