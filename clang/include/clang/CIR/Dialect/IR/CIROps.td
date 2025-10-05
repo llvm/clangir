@@ -372,27 +372,29 @@ def CIR_ObjSizeOp : CIR_Op<"objsize", [Pure]> {
 //===----------------------------------------------------------------------===//
 
 def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
-
   let summary = "Pointer subtraction arithmetic";
   let description = [{
-    `cir.ptr_diff` performs a subtraction between two pointer types with the
-    same element type and produces a `cir::IntType` result.
+    The cir.ptr_diff operation computes the difference between two pointers that
+    have the same element type
 
-    Note that the result considers the pointer size according to the ABI for
-    the pointee sizes, e.g. the subtraction between two `!cir.ptr<!u64i>` might
-    yield 1, meaning 8 bytes, whereas for `void` or function type pointees,
-    yielding 8 means 8 bytes.
+    The result reflects the ABI-defined size of the pointed-to type. For example,
+    subtracting two !cir.ptr<!u64i> values may yield 1, representing an 8-byte
+    difference. In contrast, for pointers to void or function types, a result of
+    8 corresponds to an 8-byte difference.
+
+    Example:
 
     ```mlir
-    %7 = "cir.ptr_diff"(%0, %1) : !cir.ptr<!u64i> -> !u64i
+    %7 = cir.ptr_diff %0, %1 : !cir.ptr<!u64i> -> !u64i
     ```
   }];
 
-  let results = (outs CIR_AnyFundamentalIntType:$result);
   let arguments = (ins CIR_PointerType:$lhs, CIR_PointerType:$rhs);
+  let results = (outs CIR_AnyFundamentalIntType:$result);
 
   let assemblyFormat = [{
-    `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
+    $lhs `,` $rhs  `:` qualified(type($lhs)) `->` qualified(type($result)) 
+    attr-dict
   }];
 }
 
