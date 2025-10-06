@@ -52,7 +52,7 @@ unsigned char* test2(unsigned char* first, unsigned char* last, unsigned char v)
     // CHECK: %[[pattern:.*]] = cir.cast integral %[[load_pattern:.*]] : !u8i -> !s32i
 
     // CHECK-NOT: {{.*}} cir.call @_ZSt4findIPhhET_S1_S1_RKT0_(
-    // CHECK: %[[array_size:.*]] = cir.ptr_diff(%[[last]], %[[first]]) : !cir.ptr<!u8i> -> !u64i
+    // CHECK: %[[array_size:.*]] = cir.ptr_diff %[[last]], %[[first]] : !cir.ptr<!u8i> -> !u64i
 
     // CHECK: %[[result_cast:.*]] = cir.libc.memchr(%[[cast_to_void]], %[[pattern]], %[[array_size]])
     // CHECK: %[[memchr_res:.*]] = cir.cast bitcast %[[result_cast]] : !cir.ptr<!void> -> !cir.ptr<!u8i>
