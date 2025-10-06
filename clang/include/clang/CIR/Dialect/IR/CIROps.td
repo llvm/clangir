@@ -473,28 +473,23 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 def CIR_ConstantOp : CIR_Op<"const",[
   ConstantLike, Pure, AllTypesMatch<["value", "res"]>
 ]> {
-  // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
-  // type repetition in the assembly form.
-
-  let summary = "Defines a CIR constant";
+  let summary = "Create a CIR constant from a literal attribute";
   let description = [{
     The `cir.const` operation turns a literal into an SSA value. The data is
     attached to the operation as an attribute.
 
     ```mlir
-      %0 = cir.const 42 : i32
-      %1 = cir.const 4.2 : f32
-      %2 = cir.const nullptr : !cir.ptr<i32>
+      %0 = cir.const #cir.int<4> : !u32i
+      %1 = cir.const #cir.fp<1.500000e+00> : !cir.float
+      %2 = cir.const #cir.ptr<null> : !cir.ptr<!void>
     ```
   }];
 
-  // The constant operation takes an attribute as the only input.
   let arguments = (ins TypedAttrInterface:$value);
 
-  // The constant operation returns a single value of CIR_AnyType.
   let results = (outs CIR_AnyType:$res);
 
-  let assemblyFormat = "attr-dict $value";
+  let assemblyFormat = "$value attr-dict";
 
   let hasVerifier = 1;
 
