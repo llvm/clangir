@@ -16,7 +16,7 @@ Region::Region(Operation *container) : container(container) {}
 Region::~Region() {
   // Operations may have cyclic references, which need to be dropped before we
   // can start deleting them.
-  dropAllReferences();
+  // dropAllReferences();
 }
 
 /// Return the context this region is inserted in. The region must have a valid

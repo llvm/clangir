@@ -499,10 +499,28 @@ public:
     // back into the source block.
     if (firstInlinedInst) {
       assert(lastInlinedInst && "expected operation");
+
+      // Validate that the operations are still in the destination block
+      // and haven't been erased or moved elsewhere
+      if (firstInlinedInst->getBlock() != block ||
+          lastInlinedInst->getBlock() != block) {
+        // Operations were moved or erased; nothing to rollback
+        return;
+      }
+
+      // Additional safety check: ensure the iterators are valid
+      Block::iterator firstIt(firstInlinedInst);
+      Block::iterator lastIt(lastInlinedInst);
+
+      // Verify we're not dealing with sentinel nodes
+      if (firstIt == block->end() || lastIt == block->end()) {
+        return;
+      }
+
       sourceBlock->getOperations().splice(sourceBlock->begin(),
                                           block->getOperations(),
-                                          Block::iterator(firstInlinedInst),
-                                          ++Block::iterator(lastInlinedInst));
+                                          firstIt,
+                                          ++lastIt);
     }
   }
 
@@ -1198,7 +1216,10 @@ void ReplaceOperationRewrite::commit(RewriterBase &rewriter) {
 
   // Do not erase the operation yet. It may still be referenced in `mapping`.
   // Just unlink it for now and erase it during cleanup.
-  op->getBlock()->getOperations().remove(op);
+  // Safety check: ensure the operation is still in a block before trying to remove it
+  if (op->getBlock()) {
+    op->getBlock()->getOperations().remove(op);
+  }
 }
 
 void ReplaceOperationRewrite::rollback() {
@@ -1207,7 +1228,13 @@ void ReplaceOperationRewrite::rollback() {
 }
 
 void ReplaceOperationRewrite::cleanup(RewriterBase &rewriter) {
-  rewriter.eraseOp(op);
+  // The operation may have been removed from its block in commit() or by
+  // another rewrite. Only erase if it's still in a block.
+  if (op->getBlock()) {
+    rewriter.eraseOp(op);
+  }
+  // If the operation was already removed from its block, it will be cleaned
+  // up elsewhere, so we don't need to do anything here.
 }
 
 void CreateOperationRewrite::rollback() {

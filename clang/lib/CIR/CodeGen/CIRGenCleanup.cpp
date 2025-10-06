@@ -812,15 +812,18 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
     // We only actually emit the cleanup code if the cleanup is either
     // active or was used before it was deactivated.
     if (EHActiveFlag.isValid() || IsActive) {
-      auto yield = cast<YieldOp>(ehEntry->getTerminator());
+      mlir::Operation *ehTerminator = ehEntry->getTerminator();
 
       // We skip the cleanups at the end of CIR scopes as they will be handled
       // later. This prevents cases like multiple destructor calls for the same
       // object.
-      if (!isa<ScopeOp>(yield->getParentOp())) {
+      if (!isa<ScopeOp>(ehEntry->getParentOp())) {
         cleanupFlags.setIsForEHCleanup();
         mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPoint(yield);
+        if (auto yield = dyn_cast<YieldOp>(ehTerminator))
+          builder.setInsertionPoint(yield);
+        else
+          builder.setInsertionPoint(ehTerminator);
         emitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
       }
     }
@@ -836,14 +839,17 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
       while (currBlock && cleanupsToPatch.contains(currBlock)) {
         mlir::OpBuilder::InsertionGuard guard(builder);
         mlir::Block *blockToPatch = cleanupsToPatch[currBlock];
-        auto currYield = cast<YieldOp>(blockToPatch->getTerminator());
-        builder.setInsertionPoint(currYield);
+        mlir::Operation *terminator = blockToPatch->getTerminator();
+        if (auto yield = dyn_cast<YieldOp>(terminator))
+          builder.setInsertionPoint(yield);
+        else
+          builder.setInsertionPoint(terminator);
 
         // If nextAction is an EH resume block, also update all try locations
         // for these "to-patch" blocks with the appropriate resume content.
         if (nextAction == ehResumeBlock) {
           if (auto tryToPatch =
-                  currYield->getParentOp()->getParentOfType<cir::TryOp>()) {
+                  blockToPatch->getParentOp()->getParentOfType<cir::TryOp>()) {
             if (!tryToPatch.getSynthetic()) {
               mlir::Block *resumeBlockToPatch =
                   tryToPatch.getCatchUnwindEntryBlock();

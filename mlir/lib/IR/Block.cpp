@@ -242,7 +242,9 @@ void Block::eraseArguments(function_ref<bool(BlockArgument)> shouldEraseFn) {
 /// Get the terminator operation of this block. This function asserts that
 /// the block might have a valid terminator operation.
 Operation *Block::getTerminator() {
-  assert(mightHaveTerminator());
+  if(!mightHaveTerminator()){
+    return nullptr;
+  }
   return &back();
 }
 

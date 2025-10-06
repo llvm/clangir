@@ -80,7 +80,7 @@ static constexpr llvm::StringLiteral kMemrefReinterpretCastName(
 
 static mlir::Operation *getMemrefReinterpretCastOp(mlir::Value value) {
   mlir::Operation *op = value.getDefiningOp();
-  if (!op || !op->getBlock())
+  if (!op || !op->getBlock() || !op->getBlock()->getParent())
     return nullptr;
   if (op->getName().getStringRef() != kMemrefReinterpretCastName)
     return nullptr;
@@ -472,6 +472,26 @@ static mlir::Type convertTypeForMemory(const mlir::TypeConverter &converter,
   return converter.convertType(type);
 }
 
+static mlir::LLVM::AtomicOrdering
+getLLVMMemOrder(std::optional<cir::MemOrder> memorder) {
+  if (!memorder)
+    return mlir::LLVM::AtomicOrdering::not_atomic;
+  switch (*memorder) {
+  case cir::MemOrder::Relaxed:
+    return mlir::LLVM::AtomicOrdering::monotonic;
+  case cir::MemOrder::Consume:
+  case cir::MemOrder::Acquire:
+    return mlir::LLVM::AtomicOrdering::acquire;
+  case cir::MemOrder::Release:
+    return mlir::LLVM::AtomicOrdering::release;
+  case cir::MemOrder::AcquireRelease:
+    return mlir::LLVM::AtomicOrdering::acq_rel;
+  case cir::MemOrder::SequentiallyConsistent:
+    return mlir::LLVM::AtomicOrdering::seq_cst;
+  }
+  llvm_unreachable("unknown memory order");
+}
+
 static llvm::DenseMap<mlir::Value, mlir::Value> PointerBackingMemrefs;
 
 static void clearPointerBackingMemrefs() { PointerBackingMemrefs.clear(); }
@@ -842,77 +862,34 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::LoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::Operation *castToErase = nullptr;
-    mlir::Value loweredAddr = adaptor.getAddr();
-    if (!loweredAddr)
+    mlir::Value ptr = adaptor.getAddr();
+    if (!ptr)
       return replaceLoadWithSentinel(
           op, rewriter, getTypeConverter(),
           "load lowering: missing converted address operand; producing undef "
           "surrogate");
 
-    bool hasMemrefView = false;
-    if (auto view = unwrapPointerLikeToMemRef(loweredAddr, rewriter)) {
-      loweredAddr = view->memref;
-      castToErase = view->bridgingCast;
-      hasMemrefView = true;
-    } else if (auto castOp =
-                   loweredAddr
-                       .getDefiningOp<mlir::UnrealizedConversionCastOp>()) {
-      bool hasPendingAlloca =
-          llvm::any_of(castOp.getInputs(), [](mlir::Value v) {
-            return v.getDefiningOp<cir::AllocaOp>() != nullptr;
-          });
-      if (!hasPendingAlloca) {
-        for (mlir::Value input : castOp.getInputs()) {
-          llvm::errs() << "[cir][lowering][debug] load cast input type=";
-          input.getType().print(llvm::errs());
-          llvm::errs() << " has alloca="
-                       << (input.getDefiningOp<cir::AllocaOp>() != nullptr)
-                       << '\n';
-        }
-      }
-      if (hasPendingAlloca)
-        return mlir::failure();
-    }
-
-    // Diagnostic guard: if the address isn't a memref, degrade gracefully.
-    if (!loweredAddr ||
-        (loweredAddr.getDefiningOp() &&
-         loweredAddr.getDefiningOp()->getBlock() == nullptr)) {
+    mlir::Type llvmTy =
+        convertTypeForMemory(*getTypeConverter(), op.getType());
+    if (!llvmTy)
       return replaceLoadWithSentinel(
           op, rewriter, getTypeConverter(),
-          "load lowering: null address after pointer unwrap; producing undef "
-          "surrogate");
-    }
-
-    mlir::Type addrTy = loweredAddr.getType();
-    if (!addrTy || addrTy.getAsOpaquePointer() == nullptr)
-      return replaceLoadWithSentinel(
-          op, rewriter, getTypeConverter(),
-          "load lowering: address operand has no type; producing undef sentinel");
-    if (!hasMemrefView)
-      return replaceLoadWithSentinel(
-          op, rewriter, getTypeConverter(),
-          "load lowering: pointer-like address without memref view; producing "
+          "load lowering: unable to derive memory element type; producing "
           "undef sentinel");
 
-    mlir::Value base;
-    SmallVector<mlir::Value> indices;
-    SmallVector<mlir::Operation *> eraseList;
-    mlir::memref::LoadOp newLoad;
-    if (findBaseAndIndices(loweredAddr, base, indices, eraseList, rewriter)) {
-      newLoad = rewriter.create<mlir::memref::LoadOp>(
-          op.getLoc(), base, indices, op.getIsNontemporal());
-      eraseIfSafe(loweredAddr, base, eraseList, rewriter);
-    } else
-      newLoad = rewriter.create<mlir::memref::LoadOp>(
-          op.getLoc(), loweredAddr, mlir::ValueRange{}, op.getIsNontemporal());
+    unsigned alignment = 0;
+    if (auto align = op.getAlignment())
+      alignment = *align;
 
-    // Convert adapted result to its original type if needed.
-    mlir::Value result = emitFromMemory(rewriter, op, newLoad.getResult());
+    auto ordering = getLLVMMemOrder(op.getMemOrder());
+
+    auto load = rewriter.create<mlir::LLVM::LoadOp>(
+        op.getLoc(), llvmTy, ptr, alignment, op.getIsVolatile(),
+        op.getIsNontemporal(), /*invariant=*/false,
+        /*invariantGroup=*/false, ordering);
+
+    mlir::Value result = emitFromMemory(rewriter, op, load.getResult());
     rewriter.replaceOp(op, result);
-    if (castToErase && castToErase->use_empty())
-      rewriter.eraseOp(castToErase);
     return mlir::LogicalResult::success();
   }
 };
@@ -924,9 +901,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::Operation *castToErase = nullptr;
-    mlir::Value loweredAddr = adaptor.getAddr();
-    if (!loweredAddr) {
+    mlir::Value ptr = adaptor.getAddr();
+    if (!ptr) {
       op.emitRemark()
           << "store lowering: missing converted address operand; dropping "
              "store (no side effect)";
@@ -934,65 +910,17 @@ public:
       return mlir::success();
     }
 
-    bool hasMemrefView = false;
-    if (auto view = unwrapPointerLikeToMemRef(loweredAddr, rewriter)) {
-      loweredAddr = view->memref;
-      castToErase = view->bridgingCast;
-      hasMemrefView = true;
-    } else if (auto castOp =
-                   loweredAddr
-                       .getDefiningOp<mlir::UnrealizedConversionCastOp>()) {
-      bool hasPendingAlloca =
-          llvm::any_of(castOp.getInputs(), [](mlir::Value v) {
-            return v.getDefiningOp<cir::AllocaOp>() != nullptr;
-          });
-      if (!hasPendingAlloca) {
-        for (mlir::Value input : castOp.getInputs()) {
-          llvm::errs() << "[cir][lowering][debug] store cast input type=";
-          input.getType().print(llvm::errs());
-          llvm::errs() << " has alloca="
-                       << (input.getDefiningOp<cir::AllocaOp>() != nullptr)
-                       << '\n';
-        }
-      }
-    if (hasPendingAlloca)
-      return mlir::failure();
-    }
-
-    // If the address is not a memref, attempt pointer bridging.
-    if (!loweredAddr ||
-        (loweredAddr.getDefiningOp() &&
-         loweredAddr.getDefiningOp()->getBlock() == nullptr)) {
-      op.emitRemark()
-          << "store lowering: unusable address operand; dropping store (no side effect)";
-      rewriter.eraseOp(op);
-      return mlir::success();
-    }
-
-    if (!hasMemrefView) {
-      // Unknown non-memref, non-LLVM pointer address kind: keep prior degrade.
-      op.emitRemark()
-          << "store lowering: unsupported non-memref address operand type "
-          << adaptor.getAddr().getType() << "; dropping store (no side effect)";
-      rewriter.eraseOp(op);
-      return mlir::success();
-    }
-
-    mlir::Value base;
-    SmallVector<mlir::Value> indices;
-    SmallVector<mlir::Operation *> eraseList;
-
-    // Convert adapted value to its memory type if needed.
     mlir::Value value = emitToMemory(rewriter, op, adaptor.getValue());
-    if (findBaseAndIndices(loweredAddr, base, indices, eraseList, rewriter)) {
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
-          op, value, base, indices, op.getIsNontemporal());
-      eraseIfSafe(loweredAddr, base, eraseList, rewriter);
-    } else
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
-          op, value, loweredAddr, mlir::ValueRange{}, op.getIsNontemporal());
-    if (castToErase && castToErase->use_empty())
-      rewriter.eraseOp(castToErase);
+
+    unsigned alignment = 0;
+    if (auto align = op.getAlignment())
+      alignment = *align;
+
+    auto ordering = getLLVMMemOrder(op.getMemOrder());
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
+        op, value, ptr, alignment, op.getIsVolatile(),
+        op.getIsNontemporal(), /*invariantGroup=*/false, ordering);
     return mlir::LogicalResult::success();
   }
 };
@@ -1344,19 +1272,27 @@ public:
                                               : mlir::TypeRange()),
           passThroughAttrs);
 
+      // Convert types on the original region, then inline
       if (failed(rewriter.convertRegionTypes(&op.getBody(), *typeConverter,
                                              &signatureConversion)))
         return mlir::failure();
       rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
 
+      // Manually convert cir.return operations to func.return
       llvm::SmallVector<cir::ReturnOp> pendingReturns;
       fn.walk([&](cir::ReturnOp retOp) { pendingReturns.push_back(retOp); });
       llvm::ArrayRef<mlir::Type> expectedResults =
           fn.getFunctionType().getResults();
+
       for (cir::ReturnOp retOp : pendingReturns) {
+        // Set insertion point FIRST to ensure all operations are created
+        // inside the function body
+        rewriter.setInsertionPoint(retOp);
+
         llvm::SmallVector<mlir::Value> retOperands;
         retOperands.reserve(retOp.getNumOperands());
         for (mlir::Value operand : retOp.getOperands()) {
+          // Unwrap any redundant conversion casts
           if (auto castOp =
                   operand.getDefiningOp<mlir::UnrealizedConversionCastOp>()) {
             if (castOp->getNumOperands() == 1 &&
@@ -1376,6 +1312,8 @@ public:
           retOperands.push_back(operand);
         }
 
+        // Create bridge casts if needed to match expected return types
+        // These are created at the current insertion point (before retOp)
         if (expectedResults.size() == retOperands.size()) {
           for (auto [idx, value] : llvm::enumerate(retOperands)) {
             auto expectedTy = expectedResults[idx];
@@ -1387,7 +1325,6 @@ public:
           }
         }
 
-        rewriter.setInsertionPoint(retOp);
         rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(retOp, retOperands);
       }
 
@@ -2130,6 +2067,67 @@ public:
         rewriter.replaceOpWithNewOp<mlir::arith::FPToUIOp>(op, newDstType, src);
       return mlir::success();
     }
+    case CIR::ptr_to_int: {
+      // Pointer to integer conversion (e.g., for pointer arithmetic)
+      auto loc = op.getLoc();
+      auto srcType = src.getType();
+      auto newDstType = convertTy(dstType);
+
+      if (mlir::isa<mlir::LLVM::LLVMPointerType>(srcType)) {
+        // LLVM pointer: use llvm.ptrtoint
+        rewriter.replaceOpWithNewOp<mlir::LLVM::PtrToIntOp>(op, newDstType, src);
+      } else if (mlir::isa<mlir::IntegerType>(srcType)) {
+        // Already an integer (pointer represented as intptr_t)
+        // Just extend/truncate to target size if needed
+        if (srcType == newDstType) {
+          rewriter.replaceOp(op, src);
+        } else {
+          auto srcWidth = mlir::cast<mlir::IntegerType>(srcType).getWidth();
+          auto dstWidth = mlir::cast<mlir::IntegerType>(newDstType).getWidth();
+          if (srcWidth < dstWidth) {
+            // Extend
+            rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType, src);
+          } else {
+            // Truncate
+            rewriter.replaceOpWithNewOp<mlir::arith::TruncIOp>(op, newDstType, src);
+          }
+        }
+      } else {
+        return op.emitError() << "ptr_to_int cast from unsupported type: " << srcType;
+      }
+      return mlir::success();
+    }
+    case CIR::ptr_to_bool: {
+      // Pointer to boolean conversion: compare pointer against null
+      auto loc = op.getLoc();
+      auto srcType = src.getType();
+      mlir::Value cmpResult;
+
+      if (mlir::isa<mlir::LLVM::LLVMPointerType>(srcType)) {
+        // LLVM pointer: compare against null pointer
+        auto nullPtr = rewriter.create<mlir::LLVM::ZeroOp>(loc, srcType);
+        cmpResult = rewriter.create<mlir::LLVM::ICmpOp>(
+            loc, mlir::LLVM::ICmpPredicate::ne, src, nullPtr);
+      } else if (mlir::isa<mlir::IntegerType>(srcType)) {
+        // Integer (pointer represented as intptr_t): compare against zero
+        auto zero = rewriter.create<mlir::arith::ConstantOp>(
+            loc, srcType, rewriter.getIntegerAttr(srcType, 0));
+        cmpResult = rewriter.create<mlir::arith::CmpIOp>(
+            loc, mlir::arith::CmpIPredicate::ne, src, zero);
+      } else {
+        return op.emitError() << "ptr_to_bool cast from unsupported type: " << srcType;
+      }
+
+      // The result is i1, convert to target boolean type if needed
+      auto newDstType = convertTy(dstType);
+      if (newDstType == cmpResult.getType()) {
+        rewriter.replaceOp(op, cmpResult);
+      } else {
+        // Extend i1 to target integer type
+        rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType, cmpResult);
+      }
+      return mlir::success();
+    }
     case CIR::bitcast: {
       // Generic conservative lowering: if source and destination types lower
       // to the same MLIR type just forward the value. If both are memrefs but
@@ -2155,10 +2153,87 @@ public:
       rewriter.replaceOp(op, src);
       return mlir::success();
     }
+    case CIR::int_to_ptr: {
+      auto loc = op.getLoc();
+      auto newDstType = convertTy(dstType);
+
+      if (mlir::isa<mlir::IntegerType>(src.getType())) {
+        // Integer to pointer: use llvm.inttoptr
+        rewriter.replaceOpWithNewOp<mlir::LLVM::IntToPtrOp>(op, newDstType, src);
+      } else if (mlir::isa<mlir::LLVM::LLVMPointerType>(src.getType())) {
+        // Already a pointer: just forward it (bitcast-like)
+        rewriter.replaceOp(op, src);
+      } else {
+        return mlir::failure();
+      }
+      return mlir::success();
+    }
     default:
       break;
     }
     return mlir::failure();
+  }
+};
+
+class CIRSelectOpLowering : public mlir::OpConversionPattern<cir::SelectOp> {
+public:
+  using mlir::OpConversionPattern<cir::SelectOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::SelectOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto condition = adaptor.getCondition();
+    auto trueValue = adaptor.getTrueValue();
+    auto falseValue = adaptor.getFalseValue();
+
+    // Convert result type
+    auto resultType = this->getTypeConverter()->convertType(op.getType());
+    if (!resultType)
+      return mlir::failure();
+
+    // Use arith.select for the ternary operator
+    rewriter.replaceOpWithNewOp<mlir::arith::SelectOp>(
+        op, resultType, condition, trueValue, falseValue);
+    return mlir::success();
+  }
+};
+
+class CIRCopyOpLowering : public mlir::OpConversionPattern<cir::CopyOp> {
+public:
+  using mlir::OpConversionPattern<cir::CopyOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::CopyOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto src = adaptor.getSrc();
+    auto dst = adaptor.getDst();
+
+    // Get the size of the type being copied using DataLayout
+    auto cirPtrType = mlir::dyn_cast<cir::PointerType>(op.getSrc().getType());
+    if (!cirPtrType)
+      return mlir::failure();
+
+    auto pointeeType = cirPtrType.getPointee();
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    mlir::DataLayout dataLayout(module);
+    llvm::TypeSize typeSize = dataLayout.getTypeSize(pointeeType);
+    uint64_t copySize = typeSize.getFixedValue();
+
+    // Create constant for the copy size
+    auto i64Type = rewriter.getI64Type();
+    auto sizeConst = rewriter.create<mlir::arith::ConstantOp>(
+        loc, i64Type, rewriter.getIntegerAttr(i64Type, copySize));
+
+    // Use llvm.memcpy for the copy operation
+    // memcpy(dst, src, size, isVolatile)
+    auto i1Type = rewriter.getI1Type();
+    auto falseVal = rewriter.create<mlir::arith::ConstantOp>(
+        loc, i1Type, rewriter.getBoolAttr(false));
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
+        op, dst, src, sizeConst, falseVal);
+    return mlir::success();
   }
 };
 
@@ -2282,6 +2357,98 @@ class CIRGetElementOpLowering
   }
 };
 
+class CIRGetMemberOpLowering
+    : public mlir::OpConversionPattern<cir::GetMemberOp> {
+public:
+  using mlir::OpConversionPattern<cir::GetMemberOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetMemberOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+
+    // Get the converted result type (should be llvm.ptr)
+    auto convertedType = getTypeConverter()->convertType(op.getType());
+    if (!convertedType)
+      return mlir::failure();
+
+    auto basePtr = adaptor.getAddr();
+    if (!basePtr) {
+      // Input hasn't been converted yet, conversion framework will retry later
+      return mlir::failure();
+    }
+
+    if (!basePtr.getType())
+      return mlir::failure();
+
+    // Get the struct type from the original (unconverted) base pointer
+    auto basePtrType = mlir::dyn_cast<cir::PointerType>(op.getAddr().getType());
+    if (!basePtrType) {
+      return op.emitError("get_member base is not a CIR pointer type");
+    }
+
+    auto recordType = mlir::dyn_cast<cir::RecordType>(basePtrType.getPointee());
+    if (!recordType) {
+      return op.emitError("get_member base does not point to a record type");
+    }
+
+    // Get the member index
+    uint64_t memberIndex = op.getIndex();
+
+    auto members = recordType.getMembers();
+    if (memberIndex >= members.size())
+      return mlir::failure();
+
+    // Get the module to access DataLayout
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    if (!module)
+      return mlir::failure();
+
+    // Create DataLayout for accurate size/alignment queries
+    mlir::DataLayout dataLayout(module);
+
+    // Calculate byte offset with proper alignment
+    // C struct layout: each member is aligned to its natural alignment
+    uint64_t byteOffset = 0;
+
+    for (uint64_t i = 0; i < memberIndex; i++) {
+      auto memberType = members[i];
+
+      // Get the size and alignment for this member
+      llvm::TypeSize typeSize = dataLayout.getTypeSize(memberType);
+      uint64_t alignment = dataLayout.getTypeABIAlignment(memberType);
+
+      // Align the current offset to the member's alignment requirement
+      byteOffset = (byteOffset + alignment - 1) / alignment * alignment;
+
+      // Add the size of this member
+      if (typeSize.isScalable())
+        return op.emitError("scalable types not supported in struct layout");
+
+      byteOffset += typeSize.getFixedValue();
+    }
+
+    // Align to the target member's alignment before computing its address
+    if (memberIndex < members.size()) {
+      auto targetMemberType = members[memberIndex];
+      uint64_t targetAlignment = dataLayout.getTypeABIAlignment(targetMemberType);
+      byteOffset = (byteOffset + targetAlignment - 1) / targetAlignment * targetAlignment;
+    }
+
+    // Use llvm.getelementptr with byte offset
+    // For opaque pointers, we can use GEP with i8 element type
+    auto i8Type = rewriter.getI8Type();
+
+    auto gepOp = rewriter.create<mlir::LLVM::GEPOp>(
+        loc, convertedType, i8Type, basePtr,
+        mlir::ArrayRef<mlir::LLVM::GEPArg>{static_cast<int32_t>(byteOffset)},
+        mlir::LLVM::GEPNoWrapFlags::none);
+
+    rewriter.replaceOp(op, gepOp.getResult());
+    return mlir::success();
+  }
+};
+
 class CIRPtrStrideOpLowering
     : public mlir::OpConversionPattern<cir::PtrStrideOp> {
 public:
@@ -2336,10 +2503,95 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!isCastArrayToPtrConsumer(op))
-      return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProduer(op))
-      return mlir::failure();
+    // Check if this is the special array-to-pointer-decay case
+    bool isArrayPtrDecayCase = isCastArrayToPtrConsumer(op) &&
+                                isLoadStoreOrCastArrayToPtrProduer(op);
+
+    if (!isArrayPtrDecayCase) {
+      // General pointer arithmetic case: use GEP for element-wise stride
+      auto loc = op.getLoc();
+      auto base = adaptor.getBase();
+      auto stride = adaptor.getStride();
+      auto dstType = convertTy(op.getType());
+
+      if (mlir::isa<mlir::LLVM::LLVMPointerType>(base.getType())) {
+        // Base is LLVM pointer: use llvm.getelementptr with byte-based indexing
+        // Get the pointee type to calculate element size
+        auto cirPtrType = mlir::dyn_cast<cir::PointerType>(op.getBase().getType());
+        if (!cirPtrType)
+          return op.emitError() << "ptr_stride base is not a CIR pointer type";
+
+        auto pointeeType = cirPtrType.getPointee();
+
+        // Get element size using DataLayout
+        auto module = op->getParentOfType<mlir::ModuleOp>();
+        if (!module)
+          return mlir::failure();
+        mlir::DataLayout dataLayout(module);
+        llvm::TypeSize typeSize = dataLayout.getTypeSize(pointeeType);
+        if (typeSize.isScalable())
+          return op.emitError() << "scalable types not supported in ptr_stride";
+
+        uint64_t elemSize = typeSize.getFixedValue();
+
+        // Convert stride from element count to byte offset
+        mlir::Value byteStride;
+        if (elemSize == 1) {
+          // Already in bytes
+          byteStride = stride;
+        } else {
+          // Multiply stride by element size
+          auto elemSizeVal = rewriter.create<mlir::arith::ConstantOp>(
+              loc, stride.getType(),
+              rewriter.getIntegerAttr(stride.getType(), elemSize));
+          byteStride = rewriter.create<mlir::arith::MulIOp>(
+              loc, stride, elemSizeVal);
+        }
+
+        // Create GEP with i8 element type (byte-based addressing)
+        auto i8Type = rewriter.getI8Type();
+        rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+            op, dstType, i8Type, base,
+            mlir::ArrayRef<mlir::LLVM::GEPArg>{byteStride},
+            mlir::LLVM::GEPNoWrapFlags::none);
+        return mlir::success();
+      } else if (mlir::isa<mlir::IntegerType>(base.getType())) {
+        // Base is integer (pointer represented as intptr_t)
+        // Convert to byte arithmetic
+        auto cirPtrType = mlir::dyn_cast<cir::PointerType>(op.getBase().getType());
+        if (!cirPtrType)
+          return op.emitError() << "ptr_stride base is not a CIR pointer type";
+
+        auto pointeeType = cirPtrType.getPointee();
+
+        // Get element size
+        auto module = op->getParentOfType<mlir::ModuleOp>();
+        if (!module)
+          return mlir::failure();
+        mlir::DataLayout dataLayout(module);
+        llvm::TypeSize typeSize = dataLayout.getTypeSize(pointeeType);
+        if (typeSize.isScalable())
+          return op.emitError() << "scalable types not supported in ptr_stride";
+
+        uint64_t elemSize = typeSize.getFixedValue();
+
+        // Compute byte offset: stride * elemSize
+        auto elemSizeVal = rewriter.create<mlir::arith::ConstantOp>(
+            loc, stride.getType(),
+            rewriter.getIntegerAttr(stride.getType(), elemSize));
+        auto byteOffset = rewriter.create<mlir::arith::MulIOp>(
+            loc, stride, elemSizeVal);
+
+        // Add to base pointer
+        auto result = rewriter.create<mlir::arith::AddIOp>(loc, base, byteOffset);
+        rewriter.replaceOp(op, result);
+        return mlir::success();
+      } else {
+        return op.emitError() << "ptr_stride with unsupported base type: " << base.getType();
+      }
+    }
+
+    // Original array-to-pointer-decay special case handling follows:
     auto baseVal = adaptor.getBase();
     auto baseOp = getMemrefReinterpretCastOp(baseVal);
     auto dstType = op.getType();
@@ -2481,10 +2733,10 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
       CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
       CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
-      CIRGetElementOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-      CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering, CIRAbsOpLowering,
-      CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
-      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRGetElementOpLowering, CIRGetMemberOpLowering, CIRSqrtOpLowering,
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
+      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
       CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
       CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
       CIRBitParityOpLowering, CIRIfOpLowering, CIRVectorCreateLowering,
@@ -2560,6 +2812,21 @@ static mlir::TypeConverter prepareTypeConverter() {
     auto ty = converter.convertType(type.getElementType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
+
+  // Add source materialization to handle unconverted CIR operations
+  // that need to use values from converted operations
+  converter.addSourceMaterialization(
+      [&](mlir::OpBuilder &builder, mlir::Type resultType,
+          mlir::ValueRange inputs,
+          mlir::Location loc) -> mlir::Value {
+        if (inputs.size() != 1)
+          return nullptr;
+
+        // Just create an unrealized conversion cast for any needed conversions
+        return builder.create<mlir::UnrealizedConversionCastOp>(
+            loc, resultType, inputs[0]).getResult(0);
+      });
+
   return converter;
 }
 
@@ -2577,23 +2844,27 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   populateCIRToMLIRConversionPatterns(patterns, converter);
 
   mlir::ConversionTarget target(getContext());
-  target.addLegalOp<mlir::ModuleOp>();
+  target.addLegalOp<mlir::ModuleOp, mlir::UnrealizedConversionCastOp>();
   target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
                          mlir::memref::MemRefDialect, mlir::func::FuncDialect,
                          mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
                          mlir::math::MathDialect, mlir::vector::VectorDialect,
                          mlir::LLVM::LLVMDialect>();
-  // We cannot mark cir dialect as illegal before conversion.
-  // The conversion of WhileOp relies on partially preserving operations from
-  // cir dialect, for example the `cir.continue`. If we marked cir as illegal
-  // here, then MLIR would think any remaining `cir.continue` indicates a
-  // failure, which is not what we want.
 
-  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
-               CIRYieldOpLowering>(converter, context);
+  // Mark the entire CIR dialect as illegal to force conversion
+  target.addIllegalDialect<cir::CIRDialect>();
 
+  // Keep control flow markers legal for WhileOp/DoWhileOp/ForOp conversion
+  target.addLegalOp<cir::YieldOp, cir::ConditionOp, cir::ContinueOp,
+                    cir::BreakOp>();
+
+  patterns.add<CIRCastOpLowering, CIRSelectOpLowering, CIRCopyOpLowering,
+               CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(
+      converter, context);
+
+  // Use partial conversion - this allows intermediate states during conversion
   if (mlir::failed(mlir::applyPartialConversion(theModule, target,
-                                                std::move(patterns)))) {
+                                                 std::move(patterns)))) {
     signalPassFailure();
   }
 }
