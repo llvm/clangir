@@ -284,8 +284,12 @@ public:
   void VisitObjCIVarRefExpr(ObjCIvarRefExpr *E) { llvm_unreachable("NYI"); }
 
   void VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
-    llvm_unreachable("NYI");
+    AggValueSlot dest = EnsureSlot(CGF.getLoc(E->getExprLoc()), E->getType());
+    LValue destLV = CGF.makeAddrLValue(dest.getAddress(), E->getType());
+    emitInitializationToLValue(E->getBase(), destLV);
+    VisitInitListExpr(E->getUpdater());
   }
+
   void VisitAbstractConditionalOperator(const AbstractConditionalOperator *E);
   void VisitChooseExpr(const ChooseExpr *E) { llvm_unreachable("NYI"); }
   void VisitInitListExpr(InitListExpr *E);
