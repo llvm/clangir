@@ -329,3 +329,31 @@ void t_multidim_init() {
 // CHECK:    %[[ELEM_12_PTR:.*]] = cir.get_element %[[ARRAY_ELEM1_PTR]][%[[OFFSET6]]] : (!cir.ptr<!cir.array<!s32i x 3>>, !s64i) -> !cir.ptr<!s32i>
 // CHECK:    %[[ELEM_12_VAL:.*]] = cir.const #cir.int<6> : !s32i
 // CHECK:    cir.store{{.*}} %[[ELEM_12_VAL]], %[[ELEM_12_PTR]] : !s32i, !cir.ptr<!s32i>
+
+void test_new_with_complex_type() {
+  _Complex float *a = new _Complex float{1.0f, 2.0f};
+}
+
+// CHECK: cir.func{{.*}} @_Z26test_new_with_complex_typev
+// CHECK:   %[[A_ADDR:.*]] = cir.alloca !cir.ptr<!cir.complex<!cir.float>>, !cir.ptr<!cir.ptr<!cir.complex<!cir.float>>>, ["a", init]
+// CHECK:   %[[COMPLEX_SIZE:.*]] = cir.const #cir.int<8> : !u64i
+// CHECK:   %[[NEW_COMPLEX:.*]] = cir.call @_Znwm(%[[COMPLEX_SIZE]]) : (!u64i) -> !cir.ptr<!void>
+// CHECK:   %[[COMPLEX_PTR:.*]] = cir.cast bitcast %[[NEW_COMPLEX]] : !cir.ptr<!void> -> !cir.ptr<!cir.complex<!cir.float>>
+// CHECK:   %[[COMPLEX_VAL:.*]] = cir.const #cir.complex<#cir.fp<1.000000e+00> : !cir.float, #cir.fp<2.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CHECK:   cir.store{{.*}} %[[COMPLEX_VAL]], %[[COMPLEX_PTR]] : !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>
+// CHECK:   cir.store{{.*}} %[[COMPLEX_PTR]], %[[A_ADDR]] : !cir.ptr<!cir.complex<!cir.float>>, !cir.ptr<!cir.ptr<!cir.complex<!cir.float>>>
+
+// LLVM: define{{.*}} void @_Z26test_new_with_complex_typev
+// LLVM:   %[[A_ADDR:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   %[[NEW_COMPLEX:.*]] = call ptr @_Znwm(i64 8)
+// LLVM:   store { float, float } { float 1.000000e+00, float 2.000000e+00 }, ptr %[[NEW_COMPLEX]], align 8
+// LLVM:   store ptr %[[NEW_COMPLEX]], ptr %[[A_ADDR]], align 8
+
+// OGCG: define{{.*}} void @_Z26test_new_with_complex_typev
+// OGCG:   %[[A_ADDR:.*]] = alloca ptr, align 8
+// OGCG:   %[[NEW_COMPLEX:.*]] = call noalias noundef nonnull ptr @_Znwm(i64 noundef 8)
+// OGCG:   %[[COMPLEX_REAL_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[NEW_COMPLEX]], i32 0, i32 0
+// OGCG:   %[[COMPLEX_IMAG_PTR:.*]] = getelementptr inbounds nuw { float, float }, ptr %[[NEW_COMPLEX]], i32 0, i32 1
+// OGCG:   store float 1.000000e+00, ptr %[[COMPLEX_REAL_PTR]], align 8
+// OGCG:   store float 2.000000e+00, ptr %[[COMPLEX_IMAG_PTR]], align 4
+// OGCG:   store ptr %[[NEW_COMPLEX]], ptr %[[A_ADDR]], align 8
