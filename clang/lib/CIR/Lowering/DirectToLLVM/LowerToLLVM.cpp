@@ -94,8 +94,8 @@ void walkRegionSkipping(mlir::Region &region,
 
 /// Convert from a CIR PtrStrideOp kind to an LLVM IR equivalent of GEP.
 mlir::LLVM::GEPNoWrapFlags
-convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
-  using CIRFlags = cir::CIR_GEPNoWrapFlags;
+convertPtrStrideKindToGEPFlags(cir::GEPNoWrapFlags flags) {
+  using CIRFlags = cir::GEPNoWrapFlags;
   using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
 
   LLVMFlags x = LLVMFlags::none;
@@ -103,8 +103,6 @@ convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
     x = x | LLVMFlags::inboundsFlag;
   if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
     x = x | LLVMFlags::nusw;
-  if ((flags & CIRFlags::inbounds) == CIRFlags::inbounds)
-    x = x | LLVMFlags::inbounds;
   if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
     x = x | LLVMFlags::nuw;
   return x;
@@ -1021,7 +1019,7 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
   auto *tc = getTypeConverter();
   const auto resultTy = tc->convertType(ptrStrideOp.getType());
   auto elementTy =
-      convertTypeForMemory(*tc, dataLayout, ptrStrideOp.getElementTy());
+      convertTypeForMemory(*tc, dataLayout, ptrStrideOp.getElementType());
   auto *ctx = elementTy.getContext();
 
   // void and function types doesn't really have a layout to use in GEPs,
