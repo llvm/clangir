@@ -374,7 +374,9 @@ public:
 
   mlir::Value VisitVAArgExpr(VAArgExpr *E) { llvm_unreachable("NYI"); }
 
-  mlir::Value VisitAtomicExpr(AtomicExpr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitAtomicExpr(AtomicExpr *E) {
+    return CGF.emitAtomicExpr(E).getComplexVal();
+  }
 
   mlir::Value VisitPackIndexingExpr(PackIndexingExpr *E) {
     llvm_unreachable("NYI");
