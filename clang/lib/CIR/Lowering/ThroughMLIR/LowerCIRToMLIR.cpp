@@ -94,8 +94,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::ReturnOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op,
-                                                      adaptor.getOperands());
+    // Use adapted operands which have already been converted to MLIR types
+    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op, adaptor.getOperands());
     return mlir::LogicalResult::success();
   }
 };
@@ -731,14 +731,6 @@ public:
     mlir::Type mlirType =
         convertTypeForMemory(*getTypeConverter(), adaptor.getAllocaType());
 
-    llvm::errs() << "[cir][lowering] alloca convert " << adaptor.getAllocaType()
-                 << " -> ";
-    if (mlirType)
-      mlirType.print(llvm::errs());
-    else
-      llvm::errs() << "<null>";
-    llvm::errs() << '\n';
-
     // FIXME: Some types can not be converted yet (e.g. struct)
     if (!mlirType)
       return mlir::LogicalResult::failure();
@@ -1187,7 +1179,11 @@ private:
         // lowered pointer bit-width, defaulting to zero when unavailable.
         if (auto intTy = mlir::dyn_cast<mlir::IntegerType>(mlirType))
           return rewriter.getIntegerAttr(intTy, 0); // TODO: propagate value.
-        // Non-integer pointer lowering types (opaque) -> fall back to zero.
+        // For opaque LLVM pointers, we can't use an integer attribute.
+        // The caller should handle this specially by not using arith.constant.
+        // Return empty TypedAttr to signal this needs special handling.
+        if (mlir::isa<mlir::LLVM::LLVMPointerType>(mlirType))
+          return mlir::TypedAttr();
       } else if (auto boolLike = mlir::dyn_cast<cir::BoolAttr>(cirAttr)) {
         return rewriter.getIntegerAttr(mlirType, boolLike.getValue());
       } else if (auto fpLike = mlir::dyn_cast<cir::FPAttr>(cirAttr)) {
@@ -1209,9 +1205,20 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto convertedType = getTypeConverter()->convertType(op.getType());
+    auto mlirAttr = this->lowerCirAttrToMlirAttr(op.getValue(), rewriter);
+
+    // Special case: null pointer constant for LLVM opaque pointers
+    if (!mlirAttr && mlir::isa<mlir::LLVM::LLVMPointerType>(convertedType) &&
+        mlir::isa<cir::ConstPtrAttr>(op.getValue())) {
+      // Create an llvm.mlir.zero for null pointer
+      auto nullPtr = rewriter.create<mlir::LLVM::ZeroOp>(op.getLoc(), convertedType);
+      rewriter.replaceOp(op, nullPtr.getResult());
+      return mlir::LogicalResult::success();
+    }
+
     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(
-        op, getTypeConverter()->convertType(op.getType()),
-        this->lowerCirAttrToMlirAttr(op.getValue(), rewriter));
+        op, convertedType, mlirAttr);
     return mlir::LogicalResult::success();
   }
 };
@@ -1557,6 +1564,12 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
     if (scopeOp.getNumResults() == 0) {
       auto allocaScope = rewriter.create<mlir::memref::AllocaScopeOp>(
           scopeOp.getLoc(), mlir::TypeRange{});
+
+      // Convert region types before inlining to handle cir.yield properly
+      mlir::Region &scopeRegion = scopeOp.getScopeRegion();
+      if (failed(rewriter.convertRegionTypes(&scopeRegion, *getTypeConverter())))
+        return mlir::failure();
+
       rewriter.inlineRegionBefore(scopeOp.getScopeRegion(),
                                   allocaScope.getBodyRegion(),
                                   allocaScope.getBodyRegion().end());
@@ -1569,6 +1582,12 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
         return mlir::failure();
       auto exec =
           rewriter.create<mlir::scf::ExecuteRegionOp>(scopeOp.getLoc(), types);
+
+      // Convert region types before inlining to handle cir.yield properly
+      mlir::Region &scopeRegion = scopeOp.getScopeRegion();
+      if (failed(rewriter.convertRegionTypes(&scopeRegion, *getTypeConverter())))
+        return mlir::failure();
+
       rewriter.inlineRegionBefore(scopeOp.getScopeRegion(), exec.getRegion(),
                                   exec.getRegion().end());
       rewriter.replaceOp(scopeOp, exec.getResults());
@@ -1627,7 +1646,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
+        .Case<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp, mlir::scf::ExecuteRegionOp>([&](auto) {
           rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
               op, adaptor.getOperands());
           return mlir::success();
@@ -1638,6 +1657,61 @@ public:
           return mlir::success();
         })
         .Default([](auto) { return mlir::failure(); });
+  }
+};
+
+class CIRConditionOpLowering
+    : public mlir::OpConversionPattern<cir::ConditionOp> {
+public:
+  using OpConversionPattern<cir::ConditionOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::ConditionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // cir.condition is only valid in scf.while before region
+    // Convert to scf.condition with the boolean operand
+    rewriter.replaceOpWithNewOp<mlir::scf::ConditionOp>(
+        op, adaptor.getCondition(), adaptor.getOperands());
+    return mlir::success();
+  }
+};
+
+class CIRBreakOpLowering : public mlir::OpConversionPattern<cir::BreakOp> {
+public:
+  using OpConversionPattern<cir::BreakOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::BreakOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // cir.break should have been converted by SCF preparation pass.
+    // If we see it here, check parent and use appropriate yield
+    auto *parentOp = op->getParentOp();
+    if (mlir::isa<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp, mlir::scf::ExecuteRegionOp>(parentOp)) {
+      rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(op, mlir::ValueRange{});
+    } else if (mlir::isa<mlir::memref::AllocaScopeOp>(parentOp)) {
+      rewriter.replaceOpWithNewOp<mlir::memref::AllocaScopeReturnOp>(op, mlir::ValueRange{});
+    } else {
+      rewriter.replaceOpWithNewOp<cir::YieldOp>(op, mlir::ValueRange{});
+    }
+    return mlir::success();
+  }
+};
+
+class CIRContinueOpLowering : public mlir::OpConversionPattern<cir::ContinueOp> {
+public:
+  using OpConversionPattern<cir::ContinueOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::ContinueOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // cir.continue should have been converted by SCF preparation pass.
+    // If we see it here, check parent and use appropriate yield
+    auto *parentOp = op->getParentOp();
+    if (mlir::isa<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp, mlir::scf::ExecuteRegionOp>(parentOp)) {
+      rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(op, mlir::ValueRange{});
+    } else if (mlir::isa<mlir::memref::AllocaScopeOp>(parentOp)) {
+      rewriter.replaceOpWithNewOp<mlir::memref::AllocaScopeReturnOp>(op, mlir::ValueRange{});
+    } else {
+      rewriter.replaceOpWithNewOp<cir::YieldOp>(op, mlir::ValueRange{});
+    }
+    return mlir::success();
   }
 };
 
@@ -1666,6 +1740,7 @@ public:
 class CIRGlobalOpLowering : public mlir::OpConversionPattern<cir::GlobalOp> {
 public:
   using OpConversionPattern<cir::GlobalOp>::OpConversionPattern;
+
   mlir::LogicalResult
   matchAndRewrite(cir::GlobalOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -1676,18 +1751,43 @@ public:
     mlir::OpBuilder b(moduleOp.getContext());
 
     const auto cirSymType = op.getSymType();
-    auto convertedType = convertTypeForMemory(*getTypeConverter(), cirSymType);
-    // Debug print temporarily disabled to reduce noise.
-    // llvm::errs() << "[cir][lowering] global sym " << op.getSymName() << "
-    // type "
-    //              << cirSymType << " -> ";
-    // if (convertedType)
-    //   convertedType.print(llvm::errs());
-    // else
-    //   llvm::errs() << "<null>";
-    // llvm::errs() << '\n';
+    // For globals, first try regular type conversion to preserve pointer types.
+    // convertTypeForMemory is inappropriate here because it converts pointers to i64
+    // for memref compatibility, but globals can directly be llvm.ptr.
+    auto convertedType = getTypeConverter()->convertType(cirSymType);
     if (!convertedType)
       return mlir::failure();
+    // For constant arrays (like string literals), create llvm.mlir.global instead of memref.global
+    // This allows get_global operations that expect pointers to work correctly
+    bool isConstantArray = op.getConstant() && mlir::isa<mlir::MemRefType>(convertedType) &&
+                          op.getInitialValue() &&
+                          mlir::isa<cir::ConstArrayAttr>(*op.getInitialValue());
+
+    if (isConstantArray) {
+      auto memrefType = mlir::cast<mlir::MemRefType>(convertedType);
+      auto elemType = memrefType.getElementType();
+      auto shape = memrefType.getShape();
+
+      // Create an LLVM array type
+      mlir::Type llvmArrayType = elemType;
+      for (auto dim : llvm::reverse(shape)) {
+        llvmArrayType = mlir::LLVM::LLVMArrayType::get(llvmArrayType, dim);
+      }
+
+      // Get the initializer
+      auto constArr = mlir::cast<cir::ConstArrayAttr>(*op.getInitialValue());
+      auto init = lowerConstArrayAttr(constArr, getTypeConverter());
+
+      auto linkage = mlir::LLVM::Linkage::Internal;  // String literals are typically internal
+      auto nameAttr = b.getStringAttr(op.getSymName());
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, llvmArrayType, /*isConstant=*/true, linkage,
+          nameAttr.getValue(), init.value_or(mlir::Attribute()),
+          /*alignment=*/op.getAlignment().value_or(1));
+      return mlir::success();
+    }
+
     // If the lowered element type is already an LLVM pointer (opaque or typed),
     // prefer emitting an llvm.global directly instead of wrapping in a memref.
     if (auto llvmPtrTy =
@@ -1842,24 +1942,26 @@ public:
     // pointer directly instead of a memref.get_global.
     if (auto llvmGlob =
             module.lookupSymbol<mlir::LLVM::GlobalOp>(op.getName())) {
-      // If the converted type is a pointer but AddressOfOp requires the
-      // global's pointer type, just use that.
-      auto ptrTy = llvmGlob.getType();
+      // llvm.address_of returns a pointer to the global
+      // For LLVM opaque pointers, all pointers have the same type
+      auto ctx = rewriter.getContext();
+      auto ptrType = mlir::LLVM::LLVMPointerType::get(ctx);
       auto addrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-          op.getLoc(), ptrTy, llvmGlob.getSymName());
+          op.getLoc(), ptrType, llvmGlob.getSymName());
       mlir::Value addrVal = addrOp.getResult();
-      // If a specific target type was expected and differs (e.g. original CIR
-      // type lowered differently), attempt a bitcast; otherwise forward.
-      if (type && type != ptrTy &&
-          mlir::isa<mlir::LLVM::LLVMPointerType>(type)) {
-        addrVal =
-            rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), type, addrVal);
-      }
+      // The result is already the correct pointer type for opaque pointers
       rewriter.replaceOp(op, addrVal);
       return mlir::success();
     }
 
     auto symbol = op.getName();
+
+    // If the converted type is an LLVM pointer but we haven't found an llvm.global above,
+    // this is an error - we can't create memref.get_global for pointer types
+    if (mlir::isa<mlir::LLVM::LLVMPointerType>(type)) {
+      return op.emitError() << "cannot lower get_global of pointer type without corresponding llvm.global";
+    }
+
     rewriter.replaceOpWithNewOp<mlir::memref::GetGlobalOp>(op, type, symbol);
     return mlir::success();
   }
@@ -2822,9 +2924,14 @@ static mlir::TypeConverter prepareTypeConverter() {
         if (inputs.size() != 1)
           return nullptr;
 
+        // Only create materialization if the input is valid
+        auto input = inputs[0];
+        if (!input || !input.getType())
+          return nullptr;
+
         // Just create an unrealized conversion cast for any needed conversions
         return builder.create<mlir::UnrealizedConversionCastOp>(
-            loc, resultType, inputs[0]).getResult(0);
+            loc, resultType, input).getResult(0);
       });
 
   return converter;
@@ -2854,13 +2961,25 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   // Mark the entire CIR dialect as illegal to force conversion
   target.addIllegalDialect<cir::CIRDialect>();
 
-  // Keep control flow markers legal for WhileOp/DoWhileOp/ForOp conversion
-  target.addLegalOp<cir::YieldOp, cir::ConditionOp, cir::ContinueOp,
-                    cir::BreakOp>();
+  // Keep control flow markers legal only when inside CIR operations
+  target.addDynamicallyLegalOp<cir::YieldOp>([](cir::YieldOp op) {
+    auto *parentOp = op->getParentOp();
+    // Legal only if parent is still a CIR operation
+    return parentOp->getDialect()->getNamespace() == "cir";
+  });
+
+  target.addDynamicallyLegalOp<cir::ConditionOp>([](cir::ConditionOp op) {
+    auto *parentOp = op->getParentOp();
+    // Legal only if parent is still a CIR operation
+    return parentOp->getDialect()->getNamespace() == "cir";
+  });
+
+  // cir.continue and cir.break should be lowered, not kept legal
+  // They are erased as they should have been handled by SCF preparation
 
   patterns.add<CIRCastOpLowering, CIRSelectOpLowering, CIRCopyOpLowering,
-               CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(
-      converter, context);
+               CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering,
+               CIRConditionOpLowering, CIRBreakOpLowering, CIRContinueOpLowering>(converter, context);
 
   // Use partial conversion - this allows intermediate states during conversion
   if (mlir::failed(mlir::applyPartialConversion(theModule, target,
