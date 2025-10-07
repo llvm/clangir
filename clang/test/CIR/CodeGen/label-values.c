@@ -41,16 +41,18 @@ B:
 }
 
 // CIR:  cir.func dso_local @B()
-// CIR:    cir.label "B"
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
+// CIR:    cir.br ^bb1
+// CIR:   ^bb1:  // pred: ^bb0
+// CIR:    cir.label "B"
 // CIR:    [[BLOCK:%.*]] = cir.blockaddress <@B, "B"> -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.return
 
 // LLVM: define dso_local void @B
+// LLVM:   %[[PTR:.*]] = alloca ptr, i64 1, align 8
 // LLVM:   br label %[[B:.*]]
 // LLVM: [[B]]:
-// LLVM:   %[[PTR:.*]] = alloca ptr, i64 1, align 8
 // LLVM:   store ptr blockaddress(@B, %[[B]]), ptr %[[PTR]], align 8
 // LLVM:   ret void
 
