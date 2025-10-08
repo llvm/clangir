@@ -1156,3 +1156,43 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  store i64 [[RET7]], ptr @ull, align 8
   ull = __sync_nand_and_fetch(&ull, uc);
 }
+
+// CHECK-LABEL: @_Z12test_and_setPvPVv
+// LLVM-LABEL: @_Z12test_and_setPvPVv
+void test_and_set(void *p, volatile void *vp) {
+  bool x = __atomic_test_and_set(p, __ATOMIC_SEQ_CST);
+  // CHECK:      %[[VOID_PTR:.+]] = cir.load align(8) %{{.+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+  // CHECK-NEXT: %[[PTR:.+]] = cir.cast bitcast %[[VOID_PTR]] : !cir.ptr<!void> -> !cir.ptr<!s8i>
+  // CHECK:      %{{.+}} = cir.atomic.test_and_set seq_cst %[[PTR]] : !cir.ptr<!s8i> -> !cir.bool
+
+  // LLVM:      %[[PTR:.+]] = load ptr, ptr %{{.+}}, align 8
+  // LLVM-NEXT: %[[RES:.+]] = atomicrmw xchg ptr %[[PTR]], i8 1 seq_cst, align 1
+  // LLVM-NEXT: %{{.+}} = icmp ne i8 1, %[[RES]]
+
+  bool y = __atomic_test_and_set(vp, __ATOMIC_SEQ_CST);
+  // CHECK:      %[[VOID_PTR:.+]] = cir.load align(8) %{{.+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+  // CHECK-NEXT: %[[PTR:.+]] = cir.cast bitcast %[[VOID_PTR]] : !cir.ptr<!void> -> !cir.ptr<!s8i>
+  // CHECK:      %{{.+}} = cir.atomic.test_and_set seq_cst %[[PTR]] volatile : !cir.ptr<!s8i> -> !cir.bool
+
+  // LLVM:      %[[PTR:.+]] = load ptr, ptr %{{.+}}, align 8
+  // LLVM-NEXT: %[[RES:.+]] = atomicrmw volatile xchg ptr %[[PTR]], i8 1 seq_cst, align 1
+  // LLVM-NEXT: %{{.+}} = icmp ne i8 1, %[[RES]]
+}
+
+// CHECK-LABEL: @_Z5clearPvPVv
+// LLVM-LABEL: @_Z5clearPvPVv
+void clear(void *p, volatile void *vp) {
+  __atomic_clear(p, __ATOMIC_SEQ_CST);
+  // CHECK:      %[[VOID_PTR:.+]] = cir.load align(8) %{{.+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+  // CHECK-NEXT: %[[PTR:.+]] = cir.cast bitcast %[[VOID_PTR]] : !cir.ptr<!void> -> !cir.ptr<!s8i>
+  // CHECK:      cir.atomic.clear seq_cst %[[PTR]] : !cir.ptr<!s8i>
+
+  // LLVM: store atomic i8 0, ptr %{{.+}} seq_cst, align 1
+
+  __atomic_clear(vp, __ATOMIC_SEQ_CST);
+  // CHECK:      %[[VOID_PTR:.+]] = cir.load align(8) %{{.+}} : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+  // CHECK-NEXT: %[[PTR:.+]] = cir.cast bitcast %[[VOID_PTR]] : !cir.ptr<!void> -> !cir.ptr<!s8i>
+  // CHECK:      cir.atomic.clear seq_cst %[[PTR]] volatile : !cir.ptr<!s8i>
+
+  // LLVM: store atomic volatile i8 0, ptr %{{.+}} seq_cst, align 1
+}

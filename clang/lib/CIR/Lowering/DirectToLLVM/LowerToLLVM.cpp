@@ -3647,6 +3647,41 @@ mlir::LogicalResult CIRToLLVMAtomicFetchLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMAtomicTestAndSetOpLowering::matchAndRewrite(
+    cir::AtomicTestAndSetOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::LLVM::AtomicOrdering llvmOrder = getLLVMAtomicOrder(op.getMemOrder());
+  llvm::StringRef llvmSyncScope =
+      getLLVMSyncScope(adaptor.getSyncscope()).value_or(StringRef());
+
+  auto one = mlir::LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                            rewriter.getI8Type(), 1);
+  auto rmw = mlir::LLVM::AtomicRMWOp::create(
+      rewriter, op.getLoc(), mlir::LLVM::AtomicBinOp::xchg, adaptor.getPtr(),
+      one, llvmOrder, llvmSyncScope, adaptor.getAlignment().value_or(0),
+      op.getIsVolatile());
+  auto cmp = mlir::LLVM::ICmpOp::create(
+      rewriter, op.getLoc(), mlir::LLVM::ICmpPredicate::ne, one, rmw);
+
+  rewriter.replaceOp(op, cmp);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMAtomicClearOpLowering::matchAndRewrite(
+    cir::AtomicClearOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  // FIXME: add syncscope.
+  mlir::LLVM::AtomicOrdering llvmOrder = getLLVMAtomicOrder(op.getMemOrder());
+  auto zero = mlir::LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                             rewriter.getI8Type(), 0);
+  auto store = mlir::LLVM::StoreOp::create(
+      rewriter, op.getLoc(), zero, adaptor.getPtr(),
+      adaptor.getAlignment().value_or(0), op.getIsVolatile(),
+      /*isNonTemporal=*/false, /*isInvariantGroup=*/false, llvmOrder);
+  rewriter.replaceOp(op, store);
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMAtomicFenceLowering::matchAndRewrite(
     cir::AtomicFence op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4603,8 +4638,10 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMAssumeAlignedOpLowering,
       CIRToLLVMAssumeOpLowering,
       CIRToLLVMAssumeSepStorageOpLowering,
+      CIRToLLVMAtomicClearOpLowering,
       CIRToLLVMAtomicCmpXchgLowering,
       CIRToLLVMAtomicFetchLowering,
+      CIRToLLVMAtomicTestAndSetOpLowering,
       CIRToLLVMAtomicXchgLowering,
       CIRToLLVMAtomicFenceLowering,
       CIRToLLVMBaseClassAddrOpLowering,
