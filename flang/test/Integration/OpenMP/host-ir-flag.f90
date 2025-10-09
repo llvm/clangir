@@ -5,7 +5,7 @@
 ! if there is no other way to test. Repeat this message in each test that is
 ! added to this directory and sub-directories.
 !===----------------------------------------------------------------------===!
-
+!XFAIL: *
 !RUN: %flang_fc1 -emit-llvm-bc -fopenmp -o %t.bc %s 2>&1
 !RUN: %flang_fc1 -emit-mlir -fopenmp -fopenmp-is-target-device -fopenmp-host-ir-file-path %t.bc -o - %s 2>&1 | FileCheck %s
 

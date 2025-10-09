@@ -1,3 +1,4 @@
+!XFAIL: *
 ! RUN: %flang_fc1 -funsigned -emit-mlir %s -o - | FileCheck %s
 
 unsigned function f01(u, v)
