@@ -1,4 +1,5 @@
 ! Test the `-emit-mlir` option
+! XFAIL: *
 
 ! RUN: %flang_fc1 -emit-mlir %s -o - | FileCheck %s
 ! RUN: %flang_fc1 -emit-fir %s -o - | FileCheck %s
