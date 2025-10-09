@@ -533,9 +533,11 @@ static CIRGenCallee emitDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
       return CIRGenCallee::forBuiltin(builtinID, FD);
   }
 
-  auto CalleePtr = emitFunctionDeclPointer(CGM, GD);
+  mlir::Operation *CalleePtr = emitFunctionDeclPointer(CGM, GD);
 
-  assert(!CGM.getLangOpts().CUDA && "NYI");
+  if (CGM.getLangOpts().CUDA && !CGM.getLangOpts().CUDAIsDevice &&
+      FD->hasAttr<CUDAGlobalAttr>())
+    CalleePtr = CGM.getCUDARuntime().getKernelStub(CalleePtr);
 
   return CIRGenCallee::forDirect(CalleePtr, GD);
 }
@@ -1406,7 +1408,9 @@ RValue CIRGenFunction::emitCallExpr(const clang::CallExpr *E,
   if (const auto *CE = dyn_cast<CXXMemberCallExpr>(E))
     return emitCXXMemberCallExpr(CE, ReturnValue);
 
-  assert(!dyn_cast<CUDAKernelCallExpr>(E) && "CUDA NYI");
+  if (const auto *CE = dyn_cast<CUDAKernelCallExpr>(E))
+    return emitCUDAKernelCallExpr(CE, ReturnValue);
+
   if (const auto *CE = dyn_cast<CXXOperatorCallExpr>(E))
     if (const CXXMethodDecl *MD =
             dyn_cast_or_null<CXXMethodDecl>(CE->getCalleeDecl()))
@@ -2713,13 +2717,13 @@ RValue CIRGenFunction::convertTempToRValue(Address addr, clang::QualType type,
   LValue lvalue = makeAddrLValue(addr, type, AlignmentSource::Decl);
   switch (getEvaluationKind(type)) {
   case cir::TEK_Complex:
-    llvm_unreachable("NYI");
+    return RValue::getComplex(emitLoadOfComplex(lvalue, loc));
   case cir::TEK_Aggregate:
     return lvalue.asAggregateRValue();
   case cir::TEK_Scalar:
     return RValue::get(emitLoadOfScalar(lvalue, loc));
   }
-  llvm_unreachable("NYI");
+  llvm_unreachable("bad evaluation kind");
 }
 
 /// An LValue is a candidate for having its loads and stores be made atomic if

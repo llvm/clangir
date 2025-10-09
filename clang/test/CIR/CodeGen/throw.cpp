@@ -12,7 +12,7 @@ double d(int a, int b) {
 //      CIR: cir.if
 // CIR-NEXT:   %[[ADDR:.*]] = cir.alloc.exception 8
 // CIR-NEXT:   %[[STR:.*]] = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 28>>
-// CIR-NEXT:   %[[STR_ADD:.*]] = cir.cast(array_to_ptrdecay, %[[STR]] : !cir.ptr<!cir.array<!s8i x 28>>), !cir.ptr<!s8i>
+// CIR-NEXT:   %[[STR_ADD:.*]] = cir.cast array_to_ptrdecay %[[STR]] : !cir.ptr<!cir.array<!s8i x 28>> -> !cir.ptr<!s8i>
 // CIR-NEXT:   cir.store{{.*}} %[[STR_ADD]], %[[ADDR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR-NEXT:   cir.throw %[[ADDR]] : !cir.ptr<!cir.ptr<!s8i>>, @_ZTIPKc
 // CIR-NEXT:   cir.unreachable

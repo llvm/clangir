@@ -173,3 +173,25 @@ void ppp() { Entry x; }
 // CHECK: cir.func linkonce_odr @_ZN5EntryC2Ev(%arg0: !cir.ptr<!rec_Entry>
 
 // CHECK: cir.get_member %1[0] {name = "procAddr"} : !cir.ptr<!rec_Entry> -> !cir.ptr<!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>>
+
+struct CompleteS {
+  int a;
+  char b;
+};
+
+void designated_init_update_expr() {
+  CompleteS a;
+
+  struct Container {
+    CompleteS c;
+  } b = {a, .c.a = 1};
+}
+
+// CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a"]
+// CHECK: %[[B_ADDR:.*]] = cir.alloca !rec_Container, !cir.ptr<!rec_Container>, ["b", init]
+// CHECK: %[[C_ADDR:.*]] = cir.get_member %[[B_ADDR]][0] {name = "c"} : !cir.ptr<!rec_Container> -> !cir.ptr<!rec_CompleteS>
+// CHECK: cir.copy %[[A_ADDR]] to %[[C_ADDR]] : !cir.ptr<!rec_CompleteS>
+// CHECK: %[[ELEM_0_PTR:.*]] = cir.get_member %[[C_ADDR]][0] {name = "a"} : !cir.ptr<!rec_CompleteS> -> !cir.ptr<!s32i>
+// CHECK: %[[CONST_1:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK: cir.store{{.*}} %[[CONST_1]], %[[ELEM_0_PTR]] : !s32i, !cir.ptr<!s32i>
+// CHECK: %[[ELEM_1_PTR:.*]] = cir.get_member %[[C_ADDR]][1] {name = "b"} : !cir.ptr<!rec_CompleteS> -> !cir.ptr<!s8i>

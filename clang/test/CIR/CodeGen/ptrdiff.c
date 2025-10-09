@@ -6,7 +6,7 @@
 int addrcmp(const void* a, const void* b) {
   // CIR-LABEL: addrcmp
   // CIR: %[[R:.*]] = cir.ptr_diff
-  // CIR: cir.cast(integral,  %[[R]] : !s64i), !s32
+  // CIR: cir.cast integral  %[[R]] : !s64i -> !s32
 
   // LLVM-LABEL: addrcmp
   // LLVM: %[[PTR_A:.*]] = ptrtoint ptr {{.*}} to i64

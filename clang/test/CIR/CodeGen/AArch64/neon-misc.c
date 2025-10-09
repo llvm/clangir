@@ -309,7 +309,7 @@ uint8x8x2_t test_vtrn_u8(uint8x8_t a, uint8x8_t b) {
   return vtrn_u8(a, b);
 
   // CIR-LABEL: vtrn_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>) 
@@ -339,7 +339,7 @@ uint16x4x2_t test_vtrn_u16(uint16x4_t a, uint16x4_t b) {
   return vtrn_u16(a, b);
 
   // CIR-LABEL: vtrn_u16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>) 
@@ -365,7 +365,7 @@ int32x2x2_t test_vtrn_s32(int32x2_t a, int32x2_t b) {
   return vtrn_s32(a, b);
 
   // CIR-LABEL: vtrn_s32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>) 
@@ -391,7 +391,7 @@ uint8x16x2_t test_vtrnq_u8(uint8x16_t a, uint8x16_t b) {
   return vtrnq_u8(a, b);
 
   // CIR-LABEL: vtrnq_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>) 
@@ -426,7 +426,7 @@ int16x8x2_t test_vtrnq_s16(int16x8_t a, int16x8_t b) {
   return vtrnq_s16(a, b);
 
   // CIR-LABEL: vtrnq_s16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>) 
@@ -455,7 +455,7 @@ uint32x4x2_t test_vtrnq_u32(uint32x4_t a, uint32x4_t b) {
   return vtrnq_u32(a, b);
 
   // CIR-LABEL: vtrnq_u32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>) 
@@ -475,7 +475,7 @@ uint8x8x2_t test_vuzp_u8(uint8x8_t a, uint8x8_t b) {
   return vuzp_u8(a, b);
 
   // CIR-LABEL:vuzp_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>)
@@ -506,7 +506,7 @@ uint16x4x2_t test_vuzp_u16(uint16x4_t a, uint16x4_t b) {
   return vuzp_u16(a, b);
 
   // CIR-LABEL: vuzp_u16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>)
@@ -533,7 +533,7 @@ int32x2x2_t test_vuzp_s32(int32x2_t a, int32x2_t b) {
   return vuzp_s32(a, b);
 
   // CIR-LABEL: vuzp_s32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>)
@@ -560,7 +560,7 @@ float32x2x2_t test_vuzp_f32(float32x2_t a, float32x2_t b) {
   return vuzp_f32(a, b);
 
   // CIR-LABEL: vuzp_f32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 2>)
@@ -587,7 +587,7 @@ uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
   return vuzpq_u8(a, b);
 
   // CIR-LABEL: vuzpq_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>)
@@ -621,7 +621,7 @@ int16x8x2_t test_vuzpq_s16(int16x8_t a, int16x8_t b) {
   return vuzpq_s16(a, b);
 
   // CIR-LABEL: vuzpq_s16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>)
@@ -651,7 +651,7 @@ uint32x4x2_t test_vuzpq_u32(uint32x4_t a, uint32x4_t b) {
   return vuzpq_u32(a, b);
 
   // CIR-LABEL: vuzpq_u32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>)
@@ -672,7 +672,7 @@ float32x4x2_t test_vuzpq_f32(float32x4_t a, float32x4_t b) {
   return vuzpq_f32(a, b);
 
   // CIR-LABEL: vuzpq_f32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 4>)
@@ -693,7 +693,7 @@ uint8x8x2_t test_vzip_u8(uint8x8_t a, uint8x8_t b) {
   return vzip_u8(a, b);
 
   // CIR-LABEL:vzip_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 8>)
@@ -723,7 +723,7 @@ uint16x4x2_t test_vzip_u16(uint16x4_t a, uint16x4_t b) {
   return vzip_u16(a, b);
 
   // CIR-LABEL: vzip_u16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u16i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u16i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u16i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u16i x 4>)
@@ -750,7 +750,7 @@ int32x2x2_t test_vzip_s32(int32x2_t a, int32x2_t b) {
   return vzip_s32(a, b);
 
   // CIR-LABEL: vzip_s32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s32i x 2>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s32i x 2>>, !s32i) -> !cir.ptr<!cir.vector<!s32i x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s32i x 2>)
@@ -777,7 +777,7 @@ float32x2x2_t test_vzip_f32(float32x2_t a, float32x2_t b) {
   return vzip_f32(a, b);
 
   // CIR-LABEL: vzip_f32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 2>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 2>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 2>)
@@ -804,7 +804,7 @@ uint8x16x2_t test_vzipq_u8(uint8x16_t a, uint8x16_t b) {
   return vzipq_u8(a, b);
 
   // CIR-LABEL: vzipq_u8
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u8i x 16>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u8i x 16>>, !s32i) -> !cir.ptr<!cir.vector<!u8i x 16>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u8i x 16>)
@@ -838,7 +838,7 @@ int16x8x2_t test_vzipq_s16(int16x8_t a, int16x8_t b) {
   return vzipq_s16(a, b);
 
   // CIR-LABEL: vzipq_s16
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!s16i x 8>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!s16i x 8>>, !s32i) -> !cir.ptr<!cir.vector<!s16i x 8>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!s16i x 8>)
@@ -868,7 +868,7 @@ uint32x4x2_t test_vzipq_u32(uint32x4_t a, uint32x4_t b) {
   return vzipq_u32(a, b);
 
   // CIR-LABEL: vzipq_u32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!u32i x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!u32i x 4>>, !s32i) -> !cir.ptr<!cir.vector<!u32i x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!u32i x 4>)
@@ -889,7 +889,7 @@ float32x4x2_t test_vzipq_f32(float32x4_t a, float32x4_t b) {
   return vzipq_f32(a, b);
 
   // CIR-LABEL: vzipq_f32
-  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
   // CIR: [[ADDR:%.*]] = cir.ptr_stride [[PTR]], [[ZERO]] : (!cir.ptr<!cir.vector<!cir.float x 4>>, !s32i) -> !cir.ptr<!cir.vector<!cir.float x 4>>
   // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 4>)
@@ -946,8 +946,8 @@ uint8x8_t test_vtst_s8(int8x8_t v1, int8x8_t v2) {
   return vtst_s8(v1, v2);
 
   // CIR-LABEL: vtst_s8
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 8>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 8>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 8>, !cir.vector<!u8i x 8>
@@ -963,8 +963,8 @@ uint8x8_t test_vtst_u8(uint8x8_t v1, uint8x8_t v2) {
   return vtst_u8(v1, v2);
 
   // CIR-LABEL: vtst_u8
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 8>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 8>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 8>, !cir.vector<!u8i x 8>
@@ -980,8 +980,8 @@ uint16x4_t test_vtst_s16(int16x4_t v1, int16x4_t v2) {
   return vtst_s16(v1, v2);
 
   // CIR-LABEL: vtst_s16
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u16i x 4>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 4>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>
@@ -996,8 +996,8 @@ uint16x4_t test_vtst_u16(uint16x4_t v1, uint16x4_t v2) {
   return vtst_u16(v1, v2);
 
   // CIR-LABEL: vtst_u16
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u16i x 4>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 4>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>
@@ -1012,8 +1012,8 @@ uint32x2_t test_vtst_s32(int32x2_t v1, int32x2_t v2) {
   return vtst_s32(v1, v2);
 
   // CIR-LABEL: vtst_s32
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u32i x 2>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 2>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 2>, !cir.vector<!u32i x 2>
@@ -1028,8 +1028,8 @@ uint32x2_t test_vtst_u32(uint32x2_t v1, uint32x2_t v2) {
   return vtst_u32(v1, v2);
 
   // CIR-LABEL: vtst_u32
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u32i x 2>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 2>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 2>, !cir.vector<!u32i x 2>
@@ -1044,8 +1044,8 @@ uint64x1_t test_vtst_s64(int64x1_t a, int64x1_t b) {
   return vtst_s64(a, b);
 
   // CIR-LABEL: vtst_s64
-  // CIR: [[A:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1> 
-  // CIR: [[B:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[A:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1> 
+  // CIR: [[B:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
   // CIR: [[AND:%.*]] = cir.binop(and, [[A]], [[B]]) : !cir.vector<!u64i x 1>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 1>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 1>, !cir.vector<!u64i x 1>
@@ -1060,8 +1060,8 @@ uint64x1_t test_vtst_u64(uint64x1_t a, uint64x1_t b) {
   return vtst_u64(a, b);
 
   // CIR-LABEL: vtst_u64
-  // CIR: [[A:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1> 
-  // CIR: [[B:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[A:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1> 
+  // CIR: [[B:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
   // CIR: [[AND:%.*]] = cir.binop(and, [[A]], [[B]]) : !cir.vector<!u64i x 1>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 1>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 1>, !cir.vector<!u64i x 1>
@@ -1076,8 +1076,8 @@ uint8x16_t test_vtstq_s8(int8x16_t v1, int8x16_t v2) {
   return vtstq_s8(v1, v2);
 
   // CIR-LABEL: vtstq_s8
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 16>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 16>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>
@@ -1092,8 +1092,8 @@ uint8x16_t test_vtstq_u8(uint8x16_t v1, uint8x16_t v2) {
   return vtstq_u8(v1, v2);
 
   // CIR-LABEL: vtstq_u8
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16> 
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16> 
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 16>
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 16>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>
@@ -1108,8 +1108,8 @@ uint16x8_t test_vtstq_s16(int16x8_t v1, int16x8_t v2) {
   return vtstq_s16(v1, v2);
 
   // CIR-LABEL: vtstq_s16
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 8>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>
@@ -1124,8 +1124,8 @@ uint16x8_t test_vtstq_u16(uint16x8_t v1, uint16x8_t v2) {
   return vtstq_u16(v1, v2);
 
   // CIR-LABEL: vtstq_u16
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 8>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>
@@ -1140,8 +1140,8 @@ uint32x4_t test_vtstq_s32(int32x4_t v1, int32x4_t v2) {
   return vtstq_s32(v1, v2);
 
   // CIR-LABEL: vtstq_s32
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 4>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 4>, !cir.vector<!u32i x 4>
@@ -1156,8 +1156,8 @@ uint32x4_t test_vtstq_u32(uint32x4_t v1, uint32x4_t v2) {
   return vtstq_u32(v1, v2);
 
   // CIR-LABEL: vtstq_u32
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 4>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 4>, !cir.vector<!u32i x 4>
@@ -1172,8 +1172,8 @@ uint64x2_t test_vtstq_s64(int64x2_t v1, int64x2_t v2) {
   return vtstq_s64(v1, v2);
 
   // CIR-LABEL: vtstq_s64
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 2>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 2>, !cir.vector<!u64i x 2>
@@ -1188,8 +1188,8 @@ uint64x2_t test_vtstq_u64(uint64x2_t v1, uint64x2_t v2) {
   return vtstq_u64(v1, v2);
 
   // CIR-LABEL: vtstq_u64
-  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
-  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[V1:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
+  // CIR: [[V2:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
   // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
   // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 2>
   // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 2>, !cir.vector<!u64i x 2>
@@ -1264,7 +1264,7 @@ float32x2_t test_vcvt_f32_s32(int32x2_t a) {
   return vcvt_f32_s32(a);
 
   // CIR-LABEL: vcvt_f32_s32
-  // {{%.*}} = cir.cast(int_to_float, {{%.*}} : !cir.vector<!s32i x 2>), !cir.vector<!cir.float x 2>
+  // {{%.*}} = cir.cast int_to_float {{%.*}} : !cir.vector<!s32i x 2> -> !cir.vector<!cir.float x 2>
 
   // LLVM: {{.*}}test_vcvt_f32_s32(<2 x i32>{{.*}}[[a:%.*]])
   // LLVM:  [[VCVT_I:%.*]] = sitofp <2 x i32> {{.*}} to <2 x float>
@@ -1274,7 +1274,7 @@ float32x2_t test_vcvt_f32_u32(uint32x2_t a) {
   return vcvt_f32_u32(a);
 
   // CIR-LABEL: vcvt_f32_u32
-  // {{%.*}} = cir.cast(int_to_float, {{%.*}} : !cir.vector<!u32i x 2>), !cir.vector<!cir.float x 2>
+  // {{%.*}} = cir.cast int_to_float {{%.*}} : !cir.vector<!u32i x 2> -> !cir.vector<!cir.float x 2>
 
   // LLVM: {{.*}}test_vcvt_f32_u32(<2 x i32>{{.*}}[[a:%.*]])
   // LLVM:  [[VCVT_I:%.*]] = uitofp <2 x i32> {{.*}} to <2 x float>
@@ -1284,7 +1284,7 @@ float32x4_t test_vcvtq_f32_s32(int32x4_t a) {
   return vcvtq_f32_s32(a);
 
   // CIR-LABEL: vcvtq_f32_s32
-  // {{%.*}} = cir.cast(int_to_float, {{%.*}} : !cir.vector<!s32i x 4>), !cir.vector<!cir.float x 4>
+  // {{%.*}} = cir.cast int_to_float {{%.*}} : !cir.vector<!s32i x 4> -> !cir.vector<!cir.float x 4>
 
   // LLVM: {{.*}}test_vcvtq_f32_s32(<4 x i32>{{.*}}[[a:%.*]])
   // LLVM:  [[VCVT_I:%.*]] = sitofp <4 x i32> {{.*}} to <4 x float>
@@ -1294,7 +1294,7 @@ float32x4_t test_vcvtq_f32_u32(uint32x4_t a) {
   return vcvtq_f32_u32(a);
 
   // CIR-LABEL: vcvtq_f32_u32
-  // {{%.*}} = cir.cast(int_to_float, {{%.*}} : !cir.vector<!u32i x 4>), !cir.vector<!cir.float x 4>
+  // {{%.*}} = cir.cast int_to_float {{%.*}} : !cir.vector<!u32i x 4> -> !cir.vector<!cir.float x 4>
 
   // LLVM: {{.*}}test_vcvtq_f32_u32(<4 x i32>{{.*}}[[a:%.*]])
   // LLVM:  [[VCVT_I:%.*]] = uitofp <4 x i32> {{.*}} to <4 x float>
@@ -1319,7 +1319,7 @@ int16x4_t test_splat_lane_s16(int16x4_t v) {
   return (int16x4_t) __builtin_neon_splat_lane_v((int8x8_t)v, 3, 1);
 
   // CIR-LABEL: test_splat_lane_s16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s16i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s16i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s16i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s16i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s16i x 4>
@@ -1335,7 +1335,7 @@ int32x2_t test_splat_lane_s32(int32x2_t v) {
   return (int32x2_t) __builtin_neon_splat_lane_v((int8x8_t)v, 1, 2);
 
   // CIR-LABEL: test_splat_lane_s32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s32i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s32i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s32i x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s32i x 2>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!s32i x 2>
@@ -1351,7 +1351,7 @@ int64x1_t test_splat_lane_s64(int64x1_t v) {
   return (int64x1_t) __builtin_neon_splat_lane_v((int8x8_t)v, 0, 3);
 
   // CIR-LABEL: test_splat_lane_s64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s64i x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s64i x 1>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s64i x 1>) [#cir.int<0> : !s32i] : !cir.vector<!s64i x 1>
 
@@ -1366,7 +1366,7 @@ uint8x8_t test_splat_lane_u8(uint8x8_t v) {
   return (uint8x8_t) __builtin_neon_splat_lane_v((int8x8_t)v, 7, 16);
 
   // CIR-LABEL: test_splat_lane_u8
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u8i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i,
@@ -1380,7 +1380,7 @@ uint16x4_t test_splat_lane_u16(uint16x4_t v) {
   return (uint16x4_t) __builtin_neon_splat_lane_v((int8x8_t)v, 3, 17);
 
   // CIR-LABEL: test_splat_lane_u16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u16i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!u16i x 4>
@@ -1396,7 +1396,7 @@ uint32x2_t test_splat_lane_u32(uint32x2_t v) {
   return (uint32x2_t) __builtin_neon_splat_lane_v((int8x8_t)v, 1, 18);
 
   // CIR-LABEL: test_splat_lane_u32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u32i x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u32i x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!u32i x 2>
@@ -1412,7 +1412,7 @@ uint64x1_t test_splat_lane_u64(uint64x1_t v) {
   return (uint64x1_t) __builtin_neon_splat_lane_v((int8x8_t)v, 0, 19);
 
   // CIR-LABEL: test_splat_lane_u64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u64i x 1>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u64i x 1>) [#cir.int<0> : !s32i] : !cir.vector<!u64i x 1>
 
@@ -1427,7 +1427,7 @@ float32x2_t test_splat_lane_f32(float32x2_t v) {
   return (float32x2_t) __builtin_neon_splat_lane_v((int8x8_t)v, 1, 9);
 
   // CIR-LABEL: test_splat_lane_f32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.float x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.float x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.float x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.float x 2>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 2>
@@ -1443,7 +1443,7 @@ float64x1_t test_splat_lane_f64(float64x1_t v) {
   return (float64x1_t) __builtin_neon_splat_lane_v((int8x8_t)v, 0, 10);
 
   // CIR-LABEL: test_splat_lane_f64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.double x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.double x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.double x 1>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.double x 1>) [#cir.int<0> : !s32i] : !cir.vector<!cir.double x 1>
 
@@ -1476,7 +1476,7 @@ int16x8_t test_splatq_lane_s16(int16x4_t v) {
   return (int16x8_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 3, 1);
 
   // CIR-LABEL: test_splatq_lane_s16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s16i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s16i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s16i x 4>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s16i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i,
@@ -1493,7 +1493,7 @@ int32x4_t test_splatq_lane_s32(int32x2_t v) {
   return (int32x4_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 1, 2);
 
   // CIR-LABEL: test_splatq_lane_s32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s32i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s32i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s32i x 2>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s32i x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!s32i x 4>
@@ -1509,7 +1509,7 @@ int64x2_t test_splatq_lane_s64(int64x1_t v) {
   return (int64x2_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 0, 3);
 
   // CIR-LABEL: test_splatq_lane_s64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s64i x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s64i x 1>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s64i x 1>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!s64i x 2>
@@ -1525,7 +1525,7 @@ uint8x16_t test_splatq_lane_u8(uint8x8_t v) {
   return (uint8x16_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 7, 16);
 
   // CIR-LABEL: test_splatq_lane_u8
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u8i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u8i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u8i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i,
@@ -1543,7 +1543,7 @@ uint16x8_t test_splatq_lane_u16(uint16x4_t v) {
   return (uint16x8_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 3, 17);
 
   // CIR-LABEL: test_splatq_lane_u16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u16i x 4>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u16i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i,
@@ -1560,7 +1560,7 @@ uint32x4_t test_splatq_lane_u32(uint32x2_t v) {
   return (uint32x4_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 1, 18);
 
   // CIR-LABEL: test_splatq_lane_u32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u32i x 2>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u32i x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!u32i x 4>
@@ -1576,7 +1576,7 @@ uint64x2_t test_splatq_lane_u64(uint64x1_t v) {
   return (uint64x2_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 0, 19);
 
   // CIR-LABEL: test_splatq_lane_u64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u64i x 1>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u64i x 1>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!u64i x 2>
@@ -1592,7 +1592,7 @@ float32x4_t test_splatq_lane_f32(float32x2_t v) {
   return (float32x4_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 1, 9);
 
   // CIR-LABEL: test_splatq_lane_f32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.float x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.float x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.float x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.float x 2>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 4>
@@ -1608,7 +1608,7 @@ float64x2_t test_splatq_lane_f64(float64x1_t v) {
   return (float64x2_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 0, 10);
 
   // CIR-LABEL: test_splatq_lane_f64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!cir.double x 1>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.double x 1>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.double x 1>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.double x 1>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!cir.double x 2>
@@ -1640,7 +1640,7 @@ int16x4_t test_splat_laneq_s16(int16x8_t v) {
   return (int16x4_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 7, 33);
 
   // CIR-LABEL: test_splat_laneq_s16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s16i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s16i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s16i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s16i x 4>
@@ -1656,7 +1656,7 @@ int32x2_t test_splat_laneq_s32(int32x4_t v) {
   return (int32x2_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 3, 34);
 
   // CIR-LABEL: test_splat_laneq_s32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s32i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s32i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s32i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s32i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 2>
@@ -1672,7 +1672,7 @@ int64x1_t test_splat_laneq_s64(int64x2_t v) {
   return (int64x1_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 0, 35);
 
   // CIR-LABEL: test_splat_laneq_s64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s64i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s64i x 2>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s64i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<!s64i x 1>
@@ -1688,7 +1688,7 @@ float32x2_t test_splat_laneq_f32(float32x4_t v) {
   return (float32x2_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 1, 41);
 
   // CIR-LABEL: test_splat_laneq_f32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.float x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.float x 4>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 2>
@@ -1704,7 +1704,7 @@ float64x1_t test_splat_laneq_f64(float64x2_t v) {
   return (float64x1_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 0, 42);
 
   // CIR-LABEL: test_splat_laneq_f64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.double x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.double x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.double x 2>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.double x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<!cir.double x 1>
@@ -1720,7 +1720,7 @@ uint8x8_t test_splat_laneq_u8(uint8x16_t v) {
   return (uint8x8_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 15, 48);
 
   // CIR-LABEL: test_splat_laneq_u8
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u8i x 16>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i,
@@ -1736,7 +1736,7 @@ uint16x4_t test_splat_laneq_u16(uint16x8_t v) {
   return (uint16x4_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 7, 49);
 
   // CIR-LABEL: test_splat_laneq_u16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u16i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u16i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!u16i x 4>
@@ -1752,7 +1752,7 @@ uint32x2_t test_splat_laneq_u32(uint32x4_t v) {
   return (uint32x2_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 3, 50);
 
   // CIR-LABEL: test_splat_laneq_u32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u32i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!u32i x 2>
@@ -1768,7 +1768,7 @@ uint64x1_t test_splat_laneq_u64(uint64x2_t v) {
   return (uint64x1_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 0, 51);
 
   // CIR-LABEL: test_splat_laneq_u64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u64i x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u64i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<!u64i x 1>
@@ -1803,7 +1803,7 @@ int16x8_t test_splatq_laneq_s16(int16x8_t v) {
   return (int16x8_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 7, 33);
 
   // CIR-LABEL: test_splatq_laneq_s16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s16i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s16i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s16i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s16i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i,
@@ -1820,7 +1820,7 @@ int32x4_t test_splatq_laneq_s32(int32x4_t v) {
   return (int32x4_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 3, 34);
 
   // CIR-LABEL: test_splatq_laneq_s32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s32i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s32i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s32i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s32i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
@@ -1836,7 +1836,7 @@ int64x2_t test_splatq_laneq_s64(int64x2_t v) {
   return (int64x2_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 0, 35);
 
   // CIR-LABEL: test_splatq_laneq_s64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s64i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!s64i x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!s64i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!s64i x 2>
@@ -1852,7 +1852,7 @@ float32x4_t test_splatq_laneq_f32(float32x4_t v) {
   return (float32x4_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 3, 41);
 
   // CIR-LABEL: test_splatq_laneq_f32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.float x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.float x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.float x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!cir.float x 4>
@@ -1868,7 +1868,7 @@ float64x2_t test_splatq_laneq_f64(float64x2_t v) {
   return (float64x2_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 0, 42);
 
   // CIR-LABEL: test_splatq_laneq_f64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!cir.double x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.double x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!cir.double x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!cir.double x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!cir.double x 2>
@@ -1884,7 +1884,7 @@ uint8x16_t test_splatq_laneq_u8(uint8x16_t v) {
   return (uint8x16_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 15, 48);
 
   // CIR-LABEL: test_splatq_laneq_u8
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u8i x 16>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u8i x 16>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u8i x 16>)
   // CIR-SAME: [#cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i,
@@ -1903,7 +1903,7 @@ uint16x8_t test_splatq_laneq_u16(uint16x8_t v) {
   return (uint16x8_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 7, 49);
 
   // CIR-LABEL: test_splatq_laneq_u16
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u16i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u16i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i,
@@ -1920,7 +1920,7 @@ uint32x4_t test_splatq_laneq_u32(uint32x4_t v) {
   return (uint32x4_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 3, 50);
 
   // CIR-LABEL: test_splatq_laneq_u32
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u32i x 4>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u32i x 4>)
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!u32i x 4>
@@ -1936,7 +1936,7 @@ uint64x2_t test_splatq_laneq_u64(uint64x2_t v) {
   return (uint64x2_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 0, 51);
 
   // CIR-LABEL: test_splatq_laneq_u64
-  // CIR: [[VEC:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[VEC:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !cir.vector<!u64i x 2>
   // CIR: cir.vec.shuffle([[VEC]], [[POISON]] : !cir.vector<!u64i x 2>)
   // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<0> : !s32i] : !cir.vector<!u64i x 2>
@@ -1954,7 +1954,7 @@ int16x4_t test_vpadal_s8(int16x4_t a, int8x8_t b) {
   // CIR-LABEL: vpadal_s8
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s8i x 8>) -> !cir.vector<!s16i x 4>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s16i x 4>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s16i x 4>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s16i x 4>
 
   // LLVM: {{.*}}test_vpadal_s8(<4 x i16>{{.*}}[[a:%.*]], <8 x i8>{{.*}}[[b:%.*]])
@@ -1967,7 +1967,7 @@ int32x2_t test_vpadal_s16(int32x2_t a, int16x4_t b) {
   // CIR-LABEL: vpadal_s16
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s16i x 4>) -> !cir.vector<!s32i x 2>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s32i x 2>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s32i x 2>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s32i x 2>
 
   // LLVM: {{.*}}test_vpadal_s16(<2 x i32>{{.*}}[[a:%.*]], <4 x i16>{{.*}}[[b:%.*]])
@@ -1981,7 +1981,7 @@ int64x1_t test_vpadal_s32(int64x1_t a, int32x2_t b) {
   // CIR-LABEL: vpadal_s32
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s32i x 2>) -> !cir.vector<!s64i x 1>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!s64i x 1>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s64i x 1>
 
   // LLVM: {{.*}}test_vpadal_s32(<1 x i64>{{.*}}[[a:%.*]], <2 x i32>{{.*}}[[b:%.*]])
@@ -1995,7 +1995,7 @@ uint16x4_t test_vpadal_u8(uint16x4_t a, uint8x8_t b) {
   // CIR-LABEL: vpadal_u8
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u8i x 8>) -> !cir.vector<!u16i x 4>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u16i x 4>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u16i x 4>
 
   // LLVM: {{.*}}test_vpadal_u8(<4 x i16>{{.*}}[[a:%.*]], <8 x i8>{{.*}}[[b:%.*]])
@@ -2009,7 +2009,7 @@ uint32x2_t test_vpadal_u16(uint32x2_t a, uint16x4_t b) {
   // CIR-LABEL: vpadal_u16
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u16i x 4>) -> !cir.vector<!u32i x 2>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u32i x 2>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u32i x 2>
 
   // LLVM: {{.*}}test_vpadal_u16(<2 x i32>{{.*}}[[a:%.*]], <4 x i16>{{.*}}[[b:%.*]])
@@ -2023,7 +2023,7 @@ uint64x1_t test_vpadal_u32(uint64x1_t a, uint32x2_t b) {
   // CIR-LABEL: vpadal_u32
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u32i x 2>) -> !cir.vector<!u64i x 1>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u64i x 1>
 
   // LLVM: {{.*}}test_vpadal_u32(<1 x i64>{{.*}}[[a:%.*]], <2 x i32>{{.*}}[[b:%.*]])
@@ -2037,7 +2037,7 @@ int16x8_t test_vpadalq_s8(int16x8_t a, int8x16_t b) {
   // CIR-LABEL: vpadalq_s8
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s8i x 16>) -> !cir.vector<!s16i x 8>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s16i x 8>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s16i x 8>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s16i x 8>
 
   // LLVM: {{.*}}test_vpadalq_s8(<8 x i16>{{.*}}[[a:%.*]], <16 x i8>{{.*}}[[b:%.*]])
@@ -2051,7 +2051,7 @@ int32x4_t test_vpadalq_s16(int32x4_t a, int16x8_t b) {
   // CIR-LABEL: vpadalq_s16
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s16i x 8>) -> !cir.vector<!s32i x 4>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s32i x 4>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s32i x 4>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s32i x 4>
 
   // LLVM: {{.*}}test_vpadalq_s16(<4 x i32>{{.*}}[[a:%.*]], <8 x i16>{{.*}}[[b:%.*]])
@@ -2065,7 +2065,7 @@ int64x2_t test_vpadalq_s32(int64x2_t a, int32x4_t b) {
   // CIR-LABEL: vpadalq_s32
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.saddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!s32i x 4>) -> !cir.vector<!s64i x 2>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!s64i x 2>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!s64i x 2>
 
   // LLVM: {{.*}}test_vpadalq_s32(<2 x i64>{{.*}}[[a:%.*]], <4 x i32>{{.*}}[[b:%.*]])
@@ -2079,7 +2079,7 @@ uint16x8_t test_vpadalq_u8(uint16x8_t a, uint8x16_t b) {
   // CIR-LABEL: vpadalq_u8
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u8i x 16>) -> !cir.vector<!u16i x 8>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u16i x 8>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u16i x 8>
 
   // LLVM: {{.*}}test_vpadalq_u8(<8 x i16>{{.*}}[[a:%.*]], <16 x i8>{{.*}}[[b:%.*]])
@@ -2093,7 +2093,7 @@ uint32x4_t test_vpadalq_u16(uint32x4_t a, uint16x8_t b) {
   // CIR-LABEL: vpadalq_u16
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u16i x 8>) -> !cir.vector<!u32i x 4>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u32i x 4>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u32i x 4>
 
   // LLVM: {{.*}}test_vpadalq_u16(<4 x i32>{{.*}}[[a:%.*]], <8 x i16>{{.*}}[[b:%.*]])
@@ -2107,7 +2107,7 @@ uint64x2_t test_vpadalq_u32(uint64x2_t a, uint32x4_t b) {
   // CIR-LABEL: vpadalq_u32
   // CIR: [[VPADAL_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.uaddlp" {{%.*}} :
   // CIR-SAME: (!cir.vector<!u32i x 4>) -> !cir.vector<!u64i x 2>
-  // CIR: [[a:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[a:%.*]] = cir.cast bitcast {{%.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
   // CIR: {{%.*}} = cir.binop(add, [[VPADAL_I]], [[a]]) : !cir.vector<!u64i x 2>
 
   // LLVM: {{.*}}test_vpadalq_u32(<2 x i64>{{.*}}[[a:%.*]], <4 x i32>{{.*}}[[b:%.*]])

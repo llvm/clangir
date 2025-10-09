@@ -68,6 +68,15 @@ end:
 // CHECK-NEXT:     [[R]] : !s32i
 // CHECK-NEXT:   }
 
+void g3() {
+label:
+  goto label;
+}
+
+// CHECK:  cir.func dso_local @_Z2g3v
+// CHECK:    cir.br ^bb1
+// CHECK:  ^bb1:
+// CHECK:    cir.br ^bb1
 
 int shouldNotGenBranchRet(int x) {
   if (x > 5)
@@ -189,7 +198,7 @@ int jumpFromLoop(int* ar) {
   if (!ar) {
 err:
     return -1;
-}
+  }
 
   while (ar) {
     if (*ar == 42)
@@ -200,14 +209,16 @@ err:
   return 0;
 }
 // CHECK:  cir.func dso_local @_Z12jumpFromLoopPi
-// CHECK:    cir.brcond {{.*}} ^bb[[#RETURN1:]], ^bb[[#BLK3:]]
+// CHECK:    cir.brcond {{.*}} ^bb[[#LABELERR:]], ^bb[[#BLK4:]]
+// CHECK:  ^bb[[#LABELERR]]:
+// CHECK:    cir.br ^bb[[#RETURN1:]]
 // CHECK:  ^bb[[#RETURN1]]:
 // CHECK:    cir.return
-// CHECK:  ^bb[[#BLK3]]:
-// CHECK:    cir.br ^bb[[#BLK4:]]
 // CHECK:  ^bb[[#BLK4]]:
 // CHECK:    cir.br ^bb[[#BLK5:]]
 // CHECK:  ^bb[[#BLK5]]:
+// CHECK:    cir.br ^bb[[#BLK6:]]
+// CHECK:  ^bb[[#BLK6]]:
 // CHECK:    cir.br ^bb[[#COND:]]
 // CHECK:  ^bb[[#COND]]:
 // CHECK:    cir.brcond {{.*}} ^bb[[#BODY:]], ^bb[[#EXIT:]]
@@ -254,23 +265,27 @@ void flatLoopWithNoTerminatorInFront(int* ptr) {
 // CHECK:    cir.br ^bb[[#BLK5:]]
 // CHECK:  ^bb[[#BLK5]]:
 // CHECK:    cir.br ^bb[[#BODY:]]
-// CHECK:  ^bb[[#COND]]:
+// CHECK:  ^bb[[#COND:]]:
 // CHECK:    cir.brcond {{.*}} ^bb[[#BODY]], ^bb[[#EXIT:]]
 // CHECK:  ^bb[[#BODY]]:
 // CHECK:    cir.br ^bb[[#BLK8:]]
 // CHECK:  ^bb[[#BLK8]]:
-// CHECK:    cir.brcond {{.*}} ^bb[[#BLK9:]], ^bb[[#BLK10:]]
+// CHECK:    cir.br ^bb[[#BLK9:]]
 // CHECK:  ^bb[[#BLK9]]:
-// CHECK:    cir.br ^bb[[#RETURN:]]
+// CHECK:    cir.brcond {{.*}} ^bb[[#BLK10:]], ^bb[[#BLK11:]]
 // CHECK:  ^bb[[#BLK10]]:
-// CHECK:    cir.br ^bb[[#BLK11:]]
+// CHECK:    cir.br ^bb[[#RETURN:]]
 // CHECK:  ^bb[[#BLK11]]:
+// CHECK:    cir.br ^bb[[#BLK12:]]
+// CHECK:  ^bb[[#BLK12]]:
 // CHECK:    cir.br ^bb[[#LABEL_LOOP]]
 // CHECK:  ^bb[[#LABEL_LOOP]]:
-// CHECK:    cir.br ^bb[[#COND]]
-// CHECK:  ^bb[[#EXIT]]:
 // CHECK:    cir.br ^bb[[#BLK14:]]
 // CHECK:  ^bb[[#BLK14]]:
+// CHECK:    cir.br ^bb[[#COND]]
+// CHECK:  ^bb[[#EXIT]]:
+// CHECK:    cir.br ^bb[[#BLK16:]]
+// CHECK:  ^bb[[#BLK16]]:
 // CHECK:    cir.br ^bb[[#RETURN]]
 // CHECK:  ^bb[[#RETURN]]:
 // CHECK:    cir.return
@@ -290,8 +305,10 @@ void foo() {
 
 // NOFLAT: cir.func dso_local @_Z3foov()
 // NOFLAT:   cir.scope {
-// NOFLAT:     cir.label "label"
 // NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0"]
+// NOFLAT:     cir.br ^bb1
+// NOFLAT:    ^bb1:
+// NOFLAT:     cir.label "label"
 
 extern "C" void action1();
 extern "C" void action2();

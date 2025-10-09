@@ -85,7 +85,7 @@ bool to_bool(int Foo::*x) {
 
 // CIR-LABEL: @_Z7to_boolM3Fooi
 //      CIR:   %[[#x:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.data_member<!s32i in !rec_Foo>>, !cir.data_member<!s32i in !rec_Foo>
-// CIR-NEXT:   %{{.+}} = cir.cast(member_ptr_to_bool, %[[#x]] : !cir.data_member<!s32i in !rec_Foo>), !cir.bool
+// CIR-NEXT:   %{{.+}} = cir.cast member_ptr_to_bool %[[#x]] : !cir.data_member<!s32i in !rec_Foo> -> !cir.bool
 //      CIR: }
 
 auto bitcast(int Foo::*x) {
@@ -94,5 +94,5 @@ auto bitcast(int Foo::*x) {
 
 // CIR-LABEL: @_Z7bitcastM3Fooi
 //      CIR:   %[[#x:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.data_member<!s32i in !rec_Foo>>, !cir.data_member<!s32i in !rec_Foo>
-// CIR-NEXT:   %{{.+}} = cir.cast(bitcast, %[[#x]] : !cir.data_member<!s32i in !rec_Foo>), !cir.data_member<!s32i in !rec_Bar>
+// CIR-NEXT:   %{{.+}} = cir.cast bitcast %[[#x]] : !cir.data_member<!s32i in !rec_Foo> -> !cir.data_member<!s32i in !rec_Bar>
 //      CIR: }

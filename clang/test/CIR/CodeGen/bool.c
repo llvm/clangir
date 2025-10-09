@@ -19,7 +19,7 @@ void init_bool(void) {
 // CHECK:    [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>
 // CHECK:    [[TMP1:%.*]] = cir.const #cir.int<0> : !s32i
-// CHECK:    [[TMP2:%.*]] = cir.cast(int_to_bool, [[TMP1]] : !s32i), !cir.bool
+// CHECK:    [[TMP2:%.*]] = cir.cast int_to_bool [[TMP1]] : !s32i -> !cir.bool
 // CHECK:    [[TMP3:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
 // CHECK:    [[TMP4:%.*]] = cir.get_member [[TMP3]][0] {name = "x"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.bool>
 // CHECK:    cir.store{{.*}} [[TMP2]], [[TMP4]] : !cir.bool, !cir.ptr<!cir.bool>

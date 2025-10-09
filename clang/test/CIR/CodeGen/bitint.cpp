@@ -27,7 +27,7 @@ i10 test_init() {
 
 //      CHECK: cir.func dso_local @_Z9test_initv() -> !cir.int<s, 10>
 //      CHECK:   %[[#LITERAL:]] = cir.const #cir.int<42> : !s32i
-// CHECK-NEXT:   %{{.+}} = cir.cast(integral, %[[#LITERAL]] : !s32i), !cir.int<s, 10>
+// CHECK-NEXT:   %{{.+}} = cir.cast integral %[[#LITERAL]] : !s32i -> !cir.int<s, 10>
 //      CHECK: }
 
 void test_init_for_mem() {
@@ -36,7 +36,7 @@ void test_init_for_mem() {
 
 //      CHECK: cir.func dso_local @_Z17test_init_for_memv()
 //      CHECK:   %[[#LITERAL:]] = cir.const #cir.int<42> : !s32i
-// CHECK-NEXT:   %[[#INIT:]] = cir.cast(integral, %[[#LITERAL]] : !s32i), !cir.int<s, 10>
+// CHECK-NEXT:   %[[#INIT:]] = cir.cast integral %[[#LITERAL]] : !s32i -> !cir.int<s, 10>
 // CHECK-NEXT:   cir.store{{.*}} %[[#INIT]], %{{.+}} : !cir.int<s, 10>, !cir.ptr<!cir.int<s, 10>>
 //      CHECK: }
 

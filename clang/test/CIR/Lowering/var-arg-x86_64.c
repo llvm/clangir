@@ -44,9 +44,9 @@ double f1(int n, ...) {
 // CIR: cir.func dso_local @f1
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>,
 // CIR: [[RES:%.+]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res",
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
 // CIR: cir.va.start [[VASTED_VA_LIST]]
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
 // CIR: [[VAARG_RESULT:%.+]] = cir.scope
 // CIR: [[FP_OFFSET_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][1] {name = "fp_offset"}
 // CIR: [[FP_OFFSET:%.+]] = cir.load [[FP_OFFSET_P]]
@@ -67,14 +67,14 @@ double f1(int n, ...) {
 // CIR: [[OVERFLOW_ARG_AREA_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][2] {name = "overflow_arg_area"}
 // CIR: [[OVERFLOW_ARG_AREA:%.+]] = cir.load [[OVERFLOW_ARG_AREA_P]]
 // CIR: [[OFFSET:%.+]] = cir.const #cir.int<8>
-// CIR: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)
+// CIR: [[CASTED:%.+]] = cir.cast bitcast [[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>
 // CIR: [[NEW_VALUE:%.+]] = cir.ptr_stride [[CASTED]], [[OFFSET]] : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
-// CIR: [[CASTED_P:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA_P]] : !cir.ptr<!cir.ptr<!void>>)
+// CIR: [[CASTED_P:%.+]] = cir.cast bitcast [[OVERFLOW_ARG_AREA_P]] : !cir.ptr<!cir.ptr<!void>>
 // CIR: cir.store [[NEW_VALUE]], [[CASTED_P]]
 // CIR: cir.br ^[[ContBlock]]([[OVERFLOW_ARG_AREA]]
 //
 // CIR: ^[[ContBlock]]([[ARG:.+]]: !cir.ptr
-// CIR: [[CASTED_ARG_P:%.+]] = cir.cast(bitcast, [[ARG]]
+// CIR: [[CASTED_ARG_P:%.+]] = cir.cast bitcast [[ARG]]
 // CIR: [[CASTED_ARG:%.+]] = cir.load align(16) [[CASTED_ARG_P]]
 // CIR: cir.yield [[CASTED_ARG]]
 //
@@ -113,18 +113,18 @@ long double f2(int n, ...) {
 // CIR: cir.func dso_local @f2
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>, !cir.ptr<!cir.array<!rec___va_list_tag x 1>>, ["valist"]
 // CIR: [[RES:%.+]] = cir.alloca !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>>, ["res"
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
 // CIR: cir.va.start [[VASTED_VA_LIST]]
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
 // CIR: [[OVERFLOW_AREA_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][2] {name = "overflow_arg_area"}
 // CIR-DAG: [[OVERFLOW_AREA:%.+]] = cir.load [[OVERFLOW_AREA_P]]
-// CIR-DAG: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_AREA]] : !cir.ptr<!void>)
+// CIR-DAG: [[CASTED:%.+]] = cir.cast bitcast [[OVERFLOW_AREA]] : !cir.ptr<!void>
 // CIR-DAG: [[CONSTANT:%.+]] = cir.const #cir.int<15>
 // CIR-DAG: [[PTR_STRIDE:%.+]] = cir.ptr_stride [[CASTED]], [[CONSTANT]] : (!cir.ptr<!u8i>, !u32i) -> !cir.ptr<!u8i>
 // CIR-DAG: [[MINUS_ALIGN:%.+]] = cir.const #cir.int<-16>
 // CIR-DAG: [[ALIGNED:%.+]] = cir.ptr_mask([[PTR_STRIDE]], [[MINUS_ALIGN]]
 // CIR: [[ALIGN:%.+]] = cir.const #cir.int<16>
-// CIR: [[CAST_ALIGNED:%.+]] = cir.cast(bitcast, [[ALIGNED]] : !cir.ptr<!u8i>), !cir.ptr<!cir.long_double<!cir.f80>>
+// CIR: [[CAST_ALIGNED:%.+]] = cir.cast bitcast [[ALIGNED]] : !cir.ptr<!u8i> -> !cir.ptr<!cir.long_double<!cir.f80>>
 // CIR: [[CAST_ALIGNED_VALUE:%.+]] = cir.load [[CAST_ALIGNED]]
 // CIR: cir.store{{.*}} [[CAST_ALIGNED_VALUE]], [[RES]]
 // CIR. cir.via.end
@@ -180,9 +180,9 @@ const char *f3(va_list args) {
 // CIR:           %[[OVERFLOW_ARG_AREA_PTR:.*]] = cir.get_member %[[VALIST]][2] {name = "overflow_arg_area"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!cir.ptr<!void>>
 // CIR:           %[[OVERFLOW_ARG_AREA:.*]] = cir.load %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:           %[[VAL_15:.*]] = cir.const #cir.int<8> : !s32i
-// CIR:           %[[CUR_OVERFLOW_ARG_AREA:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>), !cir.ptr<!s8i>
+// CIR:           %[[CUR_OVERFLOW_ARG_AREA:.*]] = cir.cast bitcast %[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void> -> !cir.ptr<!s8i>
 // CIR:           %[[NEW_OVERFLOW_ARG_AREA:.*]] = cir.ptr_stride %[[CUR_OVERFLOW_ARG_AREA]], %[[VAL_15]] : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
-// CIR:           %[[VAL_18:.*]] = cir.cast(bitcast, %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!cir.ptr<!s8i>>
+// CIR:           %[[VAL_18:.*]] = cir.cast bitcast %[[OVERFLOW_ARG_AREA_PTR]] : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!cir.ptr<!s8i>>
 // CIR:           cir.store %[[NEW_OVERFLOW_ARG_AREA]], %[[VAL_18]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR:           cir.br ^[[CONT_BB]](%[[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)
 
@@ -199,7 +199,7 @@ void f4(va_list args) {
 //                    ... // The contents are tested elsewhere.
 // CIR:               cir.yield {{.*}} : !s32i
 // CIR:             } : !s32i
-// CIR:             %[[CMP:.*]] = cir.cast(int_to_bool, %[[VAARG_RESULT]] : !s32i), !cir.bool
+// CIR:             %[[CMP:.*]] = cir.cast int_to_bool %[[VAARG_RESULT]] : !s32i -> !cir.bool
 // CIR:             cir.condition(%[[CMP]])
 // CIR:           } body {
 // CIR:             cir.yield

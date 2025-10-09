@@ -24,7 +24,7 @@ void foo(int *iptr, char *cptr, unsigned ustride) {
   // Must convert unsigned stride to a signed one.
   *(iptr - ustride) = 1;
   // CHECK: %[[#STRIDE:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!u32i>, !u32i
-  // CHECK: %[[#SIGNSTRIDE:]] = cir.cast(integral, %[[#STRIDE]] : !u32i), !s32i
+  // CHECK: %[[#SIGNSTRIDE:]] = cir.cast integral %[[#STRIDE]] : !u32i -> !s32i
   // CHECK: %[[#NEGSTRIDE:]] = cir.unary(minus, %[[#SIGNSTRIDE]]) : !s32i, !s32i
   // CHECK: cir.ptr_stride inbounds %{{.+}}, %[[#NEGSTRIDE]] : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 }

@@ -180,7 +180,6 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
   case Stmt::CXXForRangeStmtClass:
     return emitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
 
-  case Stmt::IndirectGotoStmtClass:
   case Stmt::ReturnStmtClass:
   // When implemented, GCCAsmStmtClass should fall-through to MSAsmStmtClass.
   case Stmt::GCCAsmStmtClass:
@@ -196,6 +195,7 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
   case Stmt::OMPBarrierDirectiveClass:
     return emitOMPBarrierDirective(cast<OMPBarrierDirective>(*S));
   // Unsupported AST nodes:
+  case Stmt::IndirectGotoStmtClass:
   case Stmt::CapturedStmtClass:
   case Stmt::ObjCAtTryStmtClass:
   case Stmt::ObjCAtThrowStmtClass:
@@ -643,7 +643,7 @@ mlir::LogicalResult CIRGenFunction::emitLabel(const LabelDecl *D) {
   // to this label.
   mlir::Block *currBlock = builder.getBlock();
   mlir::Block *labelBlock = currBlock;
-  if (!currBlock->empty()) {
+  if (!currBlock->empty() || currBlock->isEntryBlock()) {
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       labelBlock = builder.createBlock(builder.getBlock()->getParent());

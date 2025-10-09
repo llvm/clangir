@@ -31,7 +31,7 @@
 __m256 test_mm256_undefined_ps(void) {
   // CIR-X64-LABEL: _mm256_undefined_ps
   // CIR-X64: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 4>
-  // CIR-X64: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 4>), !cir.vector<!cir.float x 8>
+  // CIR-X64: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 4> -> !cir.vector<!cir.float x 8>
   // CIR-X64: cir.return %{{.*}} : !cir.vector<!cir.float x 8>
 
   // LLVM-X64-LABEL: test_mm256_undefined_ps
@@ -58,7 +58,7 @@ __m256d test_mm256_undefined_pd(void) {
 __m256i test_mm256_undefined_si256(void) {
   // CIR-X64-LABEL: _mm256_undefined_si256
   // CIR-X64: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 4>
-  // CIR-X64: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 4>), !cir.vector<!s64i x 4>
+  // CIR-X64: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 4> -> !cir.vector<!s64i x 4>
   // CIR-X64: cir.return %{{.*}} : !cir.vector<!s64i x 4>
   
   // LLVM-X64-LABEL: test_mm256_undefined_si256
@@ -71,7 +71,7 @@ __m256i test_mm256_undefined_si256(void) {
 int test_mm256_extract_epi8(__m256i A) {
   // CIR-CHECK-LABEL: test_mm256_extract_epi8
   // CIR-CHECK %{{.*}} = cir.vec.extract %{{.*}}[%{{.*}} : {{!u32i|!u64i}}] : !cir.vector<!s8i x 32>
-  // CIR-CHECK %{{.*}} = cir.cast(integral, %{{.*}} : !u8i), !s32i
+  // CIR-CHECK %{{.*}} = cir.cast integral %{{.*}} : !u8i -> !s32i
 
   // LLVM-CHECK-LABEL: test_mm256_extract_epi8
   // LLVM-CHECK: extractelement <32 x i8> %{{.*}}, {{i32|i64}} 31
@@ -82,7 +82,7 @@ int test_mm256_extract_epi8(__m256i A) {
 int test_mm256_extract_epi16(__m256i A) {
   // CIR-CHECK-LABEL: test_mm256_extract_epi16
   // CIR-CHECK %{{.*}} = cir.vec.extract %{{.*}}[%{{.*}} : {{!u32i|!u64i}}] : !cir.vector<!s16i x 16>
-  // CIR-CHECK %{{.*}} = cir.cast(integral, %{{.*}} : !u16i), !s32i
+  // CIR-CHECK %{{.*}} = cir.cast integral %{{.*}} : !u16i -> !s32i
 
   // LLVM-CHECK-LABEL: test_mm256_extract_epi16
   // LLVM-CHECK: extractelement <16 x i16> %{{.*}}, {{i32|i64}} 15

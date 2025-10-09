@@ -5,10 +5,10 @@
 
 module {
   cir.func @ParamPassing(%arg0: !cir.int<s, 15>, %arg1: !cir.int<s, 31>) -> !cir.int<s, 2> {
-    %0 = cir.cast(integral, %arg0 : !cir.int<s, 15>), !s32i
-    %1 = cir.cast(integral, %arg1 : !cir.int<s, 31>), !s32i
+    %0 = cir.cast integral %arg0 : !cir.int<s, 15> -> !s32i
+    %1 = cir.cast integral %arg1 : !cir.int<s, 31> -> !s32i
     %2 = cir.binop(add, %0, %1) : !s32i
-    %3 = cir.cast(integral, %2 : !s32i), !cir.int<s, 2>
+    %3 = cir.cast integral %2 : !s32i -> !cir.int<s, 2>
     cir.return %3 : !cir.int<s, 2>
   }
 }

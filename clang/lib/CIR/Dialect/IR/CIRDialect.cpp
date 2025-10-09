@@ -17,13 +17,14 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/MissingFeatures.h"
+#include "llvm/ADT/SetOperations.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LogicalResult.h"
 #include <numeric>
 #include <optional>
-#include <set>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -2071,6 +2072,39 @@ static void printSwitchFlatOpCases(OpAsmPrinter &p, cir::SwitchFlatOp op,
 // LoopOpInterface Methods
 //===----------------------------------------------------------------------===//
 
+void cir::LoopOpInterface::getLoopOpSuccessorRegions(
+    LoopOpInterface op, mlir::RegionBranchPoint point,
+    llvm::SmallVectorImpl<mlir::RegionSuccessor> &regions) {
+  assert(point.isParent() || point.getRegionOrNull());
+
+  // Branching to first region: go to condition or body (do-while).
+  if (point.isParent()) {
+    regions.emplace_back(&op.getEntry(), op.getEntry().getArguments());
+  }
+  // Branching from condition: go to body or exit.
+  else if (&op.getCond() == point.getRegionOrNull()) {
+    regions.emplace_back(mlir::RegionSuccessor(op->getResults()));
+    regions.emplace_back(&op.getBody(), op.getBody().getArguments());
+  }
+  // Branching from body: go to step (for) or condition.
+  else if (&op.getBody() == point.getRegionOrNull()) {
+    // If there are any breaks in the body, also go to exit.
+    op.getBody().walk([&](cir::BreakOp breakOp) {
+      if (breakOp.getBreakTarget() == op)
+        regions.emplace_back(mlir::RegionSuccessor(op->getResults()));
+    });
+
+    auto *afterBody = (op.maybeGetStep() ? op.maybeGetStep() : &op.getCond());
+    regions.emplace_back(afterBody, afterBody->getArguments());
+  }
+  // Branching from step: go to condition.
+  else if (op.maybeGetStep() == point.getRegionOrNull()) {
+    regions.emplace_back(&op.getCond(), op.getCond().getArguments());
+  } else {
+    llvm_unreachable("unexpected branch origin");
+  }
+}
+
 void cir::DoWhileOp::getSuccessorRegions(
     ::mlir::RegionBranchPoint point,
     ::llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions) {
@@ -2895,23 +2929,46 @@ LogicalResult cir::FuncOp::verify() {
                            << "' must have empty body";
   }
 
-  std::set<llvm::StringRef> labels;
-  std::set<llvm::StringRef> gotos;
-
+  llvm::SmallSet<llvm::StringRef, 16> labels;
+  llvm::SmallSet<llvm::StringRef, 16> gotos;
+  llvm::SmallSet<llvm::StringRef, 16> blockAddresses;
+  bool invalidBlockAddress = false;
   getOperation()->walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<cir::LabelOp>(op)) {
-      labels.emplace(lab.getLabel());
+      labels.insert(lab.getLabel());
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
-      gotos.emplace(goTo.getLabel());
+      gotos.insert(goTo.getLabel());
+    } else if (auto blkAdd = dyn_cast<cir::BlockAddressOp>(op)) {
+      if (blkAdd.getBlockAddrInfoAttr().getFunc().getAttr() != getSymName()) {
+        // Stop the walk early, no need to continue
+        invalidBlockAddress = true;
+        return mlir::WalkResult::interrupt();
+      }
+      blockAddresses.insert(blkAdd.getBlockAddrInfoAttr().getLabel());
     }
+    return mlir::WalkResult::advance();
   });
 
-  std::vector<llvm::StringRef> mismatched;
-  std::set_difference(gotos.begin(), gotos.end(), labels.begin(), labels.end(),
-                      std::back_inserter(mismatched));
+  if (invalidBlockAddress)
+    return emitOpError() << "blockaddress references a different function";
 
-  if (!mismatched.empty())
-    return emitOpError() << "goto/label mismatch";
+  llvm::SmallSet<llvm::StringRef, 16> mismatched;
+  if (!labels.empty() || !gotos.empty()) {
+    mismatched = llvm::set_difference(gotos, labels);
+
+    if (!mismatched.empty())
+      return emitOpError() << "goto/label mismatch";
+  }
+
+  mismatched.clear();
+
+  if (!labels.empty() || !blockAddresses.empty()) {
+    mismatched = llvm::set_difference(blockAddresses, labels);
+
+    if (!mismatched.empty())
+      return emitOpError()
+             << "expects an existing label target in the referenced function";
+  }
 
   return success();
 }
@@ -3671,11 +3728,6 @@ LogicalResult cir::TypeInfoAttr::verify(
   if (cir::ConstRecordAttr::verify(emitError, type, typeinfoData).failed())
     return failure();
 
-  for (auto &member : typeinfoData) {
-    if (llvm::isa<GlobalViewAttr, IntAttr>(member))
-      continue;
-    return emitError() << "expected GlobalViewAttr or IntAttr attribute";
-  }
   return success();
 }
 

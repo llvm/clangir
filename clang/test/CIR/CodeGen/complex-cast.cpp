@@ -13,9 +13,9 @@ void complex_lvalue_bitcast() {
   (double _Complex &)a = {};
 }
 
-// CIR-BEFORE: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+// CIR-BEFORE: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.ptr<!rec_CX> -> !cir.ptr<!cir.complex<!cir.double>>
 
-// CIR-AFTER: %{{.*}} = cir.cast(bitcast, %{{.*}} : !cir.ptr<!rec_CX>), !cir.ptr<!cir.complex<!cir.double>>
+// CIR-AFTER: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.ptr<!rec_CX> -> !cir.ptr<!cir.complex<!cir.double>>
 
 // LLVM: %[[A_ADDR:.*]] = alloca %struct.CX, i64 1, align 8
 // LLVM: store { double, double } zeroinitializer, ptr %[[A_ADDR]], align 8
