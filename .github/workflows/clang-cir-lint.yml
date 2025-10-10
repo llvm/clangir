@@ -84,7 +84,7 @@ jobs:
                 -DLLVM_TARGETS_TO_BUILD=host \
                 -DCLANG_ENABLE_CIR=ON
 
-          ninja -C build $(ninja -C build -t targets all | grep IncGen | sed 's/:.*//') clang-tablegen-targets
+          ninja -C build mlir-headers clang-tablegen-targets
 
       - name: Run run-clang-tidy
         if: steps.changed-files.outputs.any_changed == 'true'
