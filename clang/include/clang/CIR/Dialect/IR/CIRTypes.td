@@ -256,7 +256,7 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
   let assemblyFormat = [{
     `<`
       $pointee
-      ( `,` `addrspace` `(` custom<AddressSpaceValue>($addrSpace)^ `)` )?
+      ( `,` `addrspace` `(` `` custom<AddressSpaceValue>($addrSpace)^ `)` )?
     `>`
   }];
 

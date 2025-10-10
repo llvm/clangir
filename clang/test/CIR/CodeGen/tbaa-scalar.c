@@ -104,12 +104,12 @@ void test_char(char *a, char* b) {
   // CIR: %[[TMP2:.*]] = cir.load{{.*}} %[[TMP1]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[CHAR]])
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.int<98> : !s32i
-  // CIR: %[[C2_CHAR:.*]] = cir.cast(integral, %[[C2]] : !s32i), !s8i
+  // CIR: %[[C2_CHAR:.*]] = cir.cast integral %[[C2]] : !s32i -> !s8i
   // CIR: %[[TMP3:.*]] = cir.load deref{{.*}} %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
   // CIR: cir.store{{.*}} %[[C2_CHAR]], %[[TMP3]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.int<0> : !s32i
-  // CIR: %[[C3_CHAR:.*]] = cir.cast(integral, %[[C3]] : !s32i), !s8i
+  // CIR: %[[C3_CHAR:.*]] = cir.cast integral %[[C3]] : !s32i -> !s8i
   // CIR: %[[TMP4:.*]] = cir.load deref{{.*}} %[[ARG_b]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
   // CIR: cir.store{{.*}} %[[C3_CHAR]], %[[TMP4]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
 

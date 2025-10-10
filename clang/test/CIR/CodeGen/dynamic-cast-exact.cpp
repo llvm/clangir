@@ -17,11 +17,11 @@ Derived *ptr_cast(Base1 *ptr) {
   return dynamic_cast<Derived *>(ptr);
   //      CHECK: %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base1>>, !cir.ptr<!rec_Base1>
   // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.vptr
-  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.vptr>
+  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast bitcast %[[#SRC]] : !cir.ptr<!rec_Base1> -> !cir.ptr<!cir.vptr>
   // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
   // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.vptr, !cir.bool
   // CHECK-NEXT: %{{.+}} = cir.ternary(%[[#SUCCESS]], true {
-  // CHECK-NEXT:   %[[#RES:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!rec_Derived>
+  // CHECK-NEXT:   %[[#RES:]] = cir.cast bitcast %[[#SRC]] : !cir.ptr<!rec_Base1> -> !cir.ptr<!rec_Derived>
   // CHECK-NEXT:   cir.yield %[[#RES]] : !cir.ptr<!rec_Derived>
   // CHECK-NEXT: }, false {
   // CHECK-NEXT:   %[[#NULL:]] = cir.const #cir.ptr<null> : !cir.ptr<!rec_Derived>
@@ -40,7 +40,7 @@ Derived &ref_cast(Base1 &ref) {
   return dynamic_cast<Derived &>(ref);
   //      CHECK: %[[#SRC:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base1>>, !cir.ptr<!rec_Base1>
   // CHECK-NEXT: %[[#EXPECTED_VPTR:]] = cir.vtable.address_point(@_ZTV7Derived, address_point = <index = 0, offset = 2>) : !cir.vptr
-  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!cir.vptr>
+  // CHECK-NEXT: %[[#SRC_VPTR_PTR:]] = cir.cast bitcast %[[#SRC]] : !cir.ptr<!rec_Base1> -> !cir.ptr<!cir.vptr>
   // CHECK-NEXT: %[[#SRC_VPTR:]] = cir.load{{.*}} %[[#SRC_VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
   // CHECK-NEXT: %[[#SUCCESS:]] = cir.cmp(eq, %[[#SRC_VPTR]], %[[#EXPECTED_VPTR]]) : !cir.vptr, !cir.bool
   // CHECK-NEXT: %[[#FAILED:]] = cir.unary(not, %[[#SUCCESS]]) : !cir.bool, !cir.bool
@@ -48,7 +48,7 @@ Derived &ref_cast(Base1 &ref) {
   // CHECK-NEXT:   cir.call @__cxa_bad_cast() : () -> ()
   // CHECK-NEXT:   cir.unreachable
   // CHECK-NEXT: }
-  // CHECK-NEXT: %{{.+}} = cir.cast(bitcast, %[[#SRC]] : !cir.ptr<!rec_Base1>), !cir.ptr<!rec_Derived>
+  // CHECK-NEXT: %{{.+}} = cir.cast bitcast %[[#SRC]] : !cir.ptr<!rec_Base1> -> !cir.ptr<!rec_Derived>
 }
 
 //      LLVM: define dso_local noundef ptr @_Z8ref_castR5Base1(ptr readonly returned captures(ret: address, provenance) %[[#SRC:]])

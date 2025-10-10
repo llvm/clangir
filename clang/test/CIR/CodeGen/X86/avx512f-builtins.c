@@ -18,7 +18,7 @@
 __m512 test_mm512_undefined(void) {
   // CIR-LABEL: _mm512_undefined
   // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
-  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!cir.float x 16>
+  // CIR: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 8> -> !cir.vector<!cir.float x 16>
   // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 16>
 
   // LLVM-LABEL: test_mm512_undefined
@@ -31,7 +31,7 @@ __m512 test_mm512_undefined(void) {
 __m512 test_mm512_undefined_ps(void) {
   // CIR-LABEL: _mm512_undefined_ps
   // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
-  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!cir.float x 16>
+  // CIR: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 8> -> !cir.vector<!cir.float x 16>
   // CIR: cir.return %{{.*}} : !cir.vector<!cir.float x 16>
 
   // LLVM-LABEL: test_mm512_undefined_ps
@@ -56,7 +56,7 @@ __m512d test_mm512_undefined_pd(void) {
 __m512i test_mm512_undefined_epi32(void) {
   // CIR-LABEL: _mm512_undefined_epi32
   // CIR: %[[A:.*]] = cir.const #cir.zero : !cir.vector<!cir.double x 8>
-  // CIR: %{{.*}} = cir.cast(bitcast, %[[A]] : !cir.vector<!cir.double x 8>), !cir.vector<!s64i x 8>
+  // CIR: %{{.*}} = cir.cast bitcast %[[A]] : !cir.vector<!cir.double x 8> -> !cir.vector<!s64i x 8>
   // CIR: cir.return %{{.*}} : !cir.vector<!s64i x 8>
 
   // LLVM-LABEL: test_mm512_undefined_epi32

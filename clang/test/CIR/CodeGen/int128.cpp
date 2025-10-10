@@ -45,11 +45,11 @@ volatile double double_var;
 // LLVM-LABEL: @_Z19integral_conversionn
 __int128 integral_conversion(__int128 x) {
   int_var = x;
-  // CHECK: %[[#VAL:]] = cir.cast(integral, %{{.+}} : !s128i), !s32i
+  // CHECK: %[[#VAL:]] = cir.cast integral %{{.+}} : !s128i -> !s32i
   // LLVM: %{{.+}} = trunc i128 %{{.+}} to i32
 
   return int_var;
-  // CHECK: %{{.+}} = cir.cast(integral, %{{.+}} : !s32i), !s128i
+  // CHECK: %{{.+}} = cir.cast integral %{{.+}} : !s32i -> !s128i
   // LLVM: %{{.+}} = sext i32 %{{.+}} to i128
 }
 
@@ -57,11 +57,11 @@ __int128 integral_conversion(__int128 x) {
 // LLVM-LABEL: @_Z16float_conversionn
 __int128 float_conversion(__int128 x) {
   double_var = x;
-  // CHECK: %[[#VAL:]] = cir.cast(int_to_float, %{{.+}} : !s128i), !cir.double
+  // CHECK: %[[#VAL:]] = cir.cast int_to_float %{{.+}} : !s128i -> !cir.double
   // LLVM: %{{.+}} = sitofp i128 %{{.+}} to double
 
   return double_var;
-  // CHECK: %{{.+}} = cir.cast(float_to_int, %{{.+}} : !cir.double), !s128i
+  // CHECK: %{{.+}} = cir.cast float_to_int %{{.+}} : !cir.double -> !s128i
   // LLVM: %{{.+}} = fptosi double %{{.+}} to i128
 }
 
@@ -69,6 +69,6 @@ __int128 float_conversion(__int128 x) {
 // LLVM-LABEL: @_Z18boolean_conversionn
 bool boolean_conversion(__int128 x) {
   return x;
-  // CHECK: %{{.+}} = cir.cast(int_to_bool, %{{.+}} : !s128i), !cir.bool
+  // CHECK: %{{.+}} = cir.cast int_to_bool %{{.+}} : !s128i -> !cir.bool
   // LLVM: %{{.+}} = icmp ne i128 %{{.+}}, 0
 }

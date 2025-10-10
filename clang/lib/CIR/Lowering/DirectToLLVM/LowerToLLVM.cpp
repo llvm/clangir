@@ -94,8 +94,8 @@ void walkRegionSkipping(mlir::Region &region,
 
 /// Convert from a CIR PtrStrideOp kind to an LLVM IR equivalent of GEP.
 mlir::LLVM::GEPNoWrapFlags
-convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
-  using CIRFlags = cir::CIR_GEPNoWrapFlags;
+convertPtrStrideKindToGEPFlags(cir::GEPNoWrapFlags flags) {
+  using CIRFlags = cir::GEPNoWrapFlags;
   using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
 
   LLVMFlags x = LLVMFlags::none;
@@ -103,8 +103,6 @@ convertPtrStrideKindToGEPFlags(cir::CIR_GEPNoWrapFlags flags) {
     x = x | LLVMFlags::inboundsFlag;
   if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
     x = x | LLVMFlags::nusw;
-  if ((flags & CIRFlags::inbounds) == CIRFlags::inbounds)
-    x = x | LLVMFlags::inbounds;
   if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
     x = x | LLVMFlags::nuw;
   return x;
@@ -1021,7 +1019,7 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
   auto *tc = getTypeConverter();
   const auto resultTy = tc->convertType(ptrStrideOp.getType());
   auto elementTy =
-      convertTypeForMemory(*tc, dataLayout, ptrStrideOp.getElementTy());
+      convertTypeForMemory(*tc, dataLayout, ptrStrideOp.getElementType());
   auto *ctx = elementTy.getContext();
 
   // void and function types doesn't really have a layout to use in GEPs,
@@ -3375,18 +3373,20 @@ mlir::LogicalResult CIRToLLVMObjSizeOpLowering::matchAndRewrite(
   auto llvmResTy = getTypeConverter()->convertType(op.getType());
   auto loc = op->getLoc();
 
-  cir::SizeInfoType kindInfo = op.getKind();
-  auto falseValue =
-      rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), false);
-  auto trueValue =
-      rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), true);
+  auto i1Ty = rewriter.getI1Type();
 
-  replaceOpWithCallLLVMIntrinsicOp(
-      rewriter, op, "llvm.objectsize", llvmResTy,
-      mlir::ValueRange{adaptor.getPtr(),
-                       kindInfo == cir::SizeInfoType::Max ? falseValue
-                                                          : trueValue,
-                       trueValue, op.getDynamic() ? trueValue : falseValue});
+  auto i1Val = [&rewriter, &loc, &i1Ty](bool val) {
+    return mlir::LLVM::ConstantOp::create(rewriter, loc, i1Ty, val);
+  };
+
+  // clang-format off
+  replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm.objectsize", llvmResTy, {
+    /*ptr=*/adaptor.getPtr(),
+    /*min=*/i1Val(op.getMin()),
+    /*nullunknown=*/i1Val(true),
+    /*dynamic=*/i1Val(op.getDynamic())
+  });
+  // clang-format on
 
   return mlir::LogicalResult::success();
 }
@@ -3644,6 +3644,41 @@ mlir::LogicalResult CIRToLLVMAtomicFetchLowering::matchAndRewrite(
   }
 
   rewriter.replaceOp(op, result);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMAtomicTestAndSetOpLowering::matchAndRewrite(
+    cir::AtomicTestAndSetOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::LLVM::AtomicOrdering llvmOrder = getLLVMAtomicOrder(op.getMemOrder());
+  llvm::StringRef llvmSyncScope =
+      getLLVMSyncScope(adaptor.getSyncscope()).value_or(StringRef());
+
+  auto one = mlir::LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                            rewriter.getI8Type(), 1);
+  auto rmw = mlir::LLVM::AtomicRMWOp::create(
+      rewriter, op.getLoc(), mlir::LLVM::AtomicBinOp::xchg, adaptor.getPtr(),
+      one, llvmOrder, llvmSyncScope, adaptor.getAlignment().value_or(0),
+      op.getIsVolatile());
+  auto cmp = mlir::LLVM::ICmpOp::create(
+      rewriter, op.getLoc(), mlir::LLVM::ICmpPredicate::ne, one, rmw);
+
+  rewriter.replaceOp(op, cmp);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMAtomicClearOpLowering::matchAndRewrite(
+    cir::AtomicClearOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  // FIXME: add syncscope.
+  mlir::LLVM::AtomicOrdering llvmOrder = getLLVMAtomicOrder(op.getMemOrder());
+  auto zero = mlir::LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                             rewriter.getI8Type(), 0);
+  auto store = mlir::LLVM::StoreOp::create(
+      rewriter, op.getLoc(), zero, adaptor.getPtr(),
+      adaptor.getAlignment().value_or(0), op.getIsVolatile(),
+      /*isNonTemporal=*/false, /*isInvariantGroup=*/false, llvmOrder);
+  rewriter.replaceOp(op, store);
   return mlir::success();
 }
 
@@ -4518,7 +4553,9 @@ mlir::LogicalResult CIRToLLVMLabelOpLowering::matchAndRewrite(
   auto blockTagOp =
       mlir::LLVM::BlockTagOp::create(rewriter, op->getLoc(), tagAttr);
   auto func = op->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-  blockInfoAddr.mapBlockTag(func.getSymName(), op.getLabel(), blockTagOp);
+  auto blockInfoAttr =
+      cir::BlockAddrInfoAttr::get(ctx, func.getSymName(), op.getLabel());
+  blockInfoAddr.mapBlockTag(blockInfoAttr, blockTagOp);
   rewriter.eraseOp(op);
 
   return mlir::success();
@@ -4530,7 +4567,7 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   mlir::MLIRContext *ctx = rewriter.getContext();
 
   mlir::LLVM::BlockTagOp matchLabel =
-      blockInfoAddr.lookupBlockTag(op.getFunc(), op.getLabel());
+      blockInfoAddr.lookupBlockTag(op.getBlockAddrInfoAttr());
   mlir::LLVM::BlockTagAttr tagAttr;
   if (!matchLabel)
     // If the BlockTagOp has not been emitted yet, use  a placeholder.
@@ -4540,13 +4577,13 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   else
     tagAttr = matchLabel.getTag();
 
-  auto blkAddr = mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(),
-                                                   op.getFuncAttr(), tagAttr);
+  auto blkAddr = mlir::LLVM::BlockAddressAttr::get(
+      rewriter.getContext(), op.getBlockAddrInfoAttr().getFunc(), tagAttr);
   rewriter.setInsertionPoint(op);
   auto newOp = mlir::LLVM::BlockAddressOp::create(
       rewriter, op.getLoc(), mlir::LLVM::LLVMPointerType::get(ctx), blkAddr);
   if (!matchLabel)
-    blockInfoAddr.addUnresolvedBlockAddress(newOp, op.getFunc(), op.getLabel());
+    blockInfoAddr.addUnresolvedBlockAddress(newOp, op.getBlockAddrInfoAttr());
   rewriter.replaceOp(op, newOp);
   return mlir::success();
 }
@@ -4601,8 +4638,10 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMAssumeAlignedOpLowering,
       CIRToLLVMAssumeOpLowering,
       CIRToLLVMAssumeSepStorageOpLowering,
+      CIRToLLVMAtomicClearOpLowering,
       CIRToLLVMAtomicCmpXchgLowering,
       CIRToLLVMAtomicFetchLowering,
+      CIRToLLVMAtomicTestAndSetOpLowering,
       CIRToLLVMAtomicXchgLowering,
       CIRToLLVMAtomicFenceLowering,
       CIRToLLVMBaseClassAddrOpLowering,
@@ -4914,7 +4953,7 @@ void buildCtorDtorList(
 // For instance, the next CIR code:
 //
 //    cir.func @foo(%arg0: !s32i) -> !s32i {
-//      %4 = cir.cast(int_to_bool, %arg0 : !s32i), !cir.bool
+//      %4 = cir.cast int_to_bool %arg0 : !s32i -> !cir.bool
 //      cir.if %4 {
 //        %5 = cir.const #cir.int<1> : !s32i
 //        cir.return %5 : !s32i
@@ -5058,10 +5097,9 @@ void ConvertCIRToLLVMPass::resolveBlockAddressOp(
   for (auto &[blockAddOp, blockInfo] :
        blockInfoAddr.getUnresolvedBlockAddress()) {
     mlir::LLVM::BlockTagOp resolvedLabel =
-        blockInfoAddr.lookupBlockTag(blockInfo.first, blockInfo.second);
+        blockInfoAddr.lookupBlockTag(blockInfo);
     assert(resolvedLabel && "expected BlockTagOp to already be emitted");
-    auto fnSym =
-        mlir::FlatSymbolRefAttr::get(module.getContext(), blockInfo.first);
+    auto fnSym = blockInfo.getFunc();
     auto blkAddTag = mlir::LLVM::BlockAddressAttr::get(
         opBuilder.getContext(), fnSym, resolvedLabel.getTagAttr());
     blockAddOp.setBlockAddrAttr(blkAddTag);

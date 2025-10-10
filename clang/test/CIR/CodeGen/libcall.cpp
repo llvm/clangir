@@ -43,7 +43,7 @@ void t(const char* fmt, ...) {
 // CHECK:   %0 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["m", init] {alignment = 8 : i64}
 
 // CHECK:   %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-// CHECK:   %4 = cir.objsize(%3 : <!s8i>, max) -> !u64i
+// CHECK:   %4 = cir.objsize max %3 : !cir.ptr<!s8i> -> !u64i
 // CHECK:   %5 = cir.call @_ZL6strlenPKcU17pass_object_size0(%3, %4) : (!cir.ptr<!s8i>, !u64i) -> !u64i
 
 // CHECK: cir.func private @__vsnprintf_chk

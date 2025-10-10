@@ -181,8 +181,8 @@ void test_bitcast(size_t n) {
 // BEFORE:    cir.store{{.*}} %arg0, %0 : !u64i, !cir.ptr<!u64i>
 // BEFORE:    %2 = cir.load{{.*}} %0 : !cir.ptr<!u64i>, !u64i
 // BEFORE:    %3 = cir.alloca !u8i, !cir.ptr<!u8i>, %2 : !u64i, ["bi_alloca"] {alignment = 16 : i64}
-// BEFORE:    %4 = cir.cast(bitcast, %3 : !cir.ptr<!u8i>), !cir.ptr<!void>
-// BEFORE:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!s32i>
+// BEFORE:    %4 = cir.cast bitcast %3 : !cir.ptr<!u8i> -> !cir.ptr<!void>
+// BEFORE:    %5 = cir.cast bitcast %4 : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // BEFORE:    cir.store{{.*}} %5, %1 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // BEFORE:    cir.return
 

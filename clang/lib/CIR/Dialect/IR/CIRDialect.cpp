@@ -2939,12 +2939,12 @@ LogicalResult cir::FuncOp::verify() {
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.insert(goTo.getLabel());
     } else if (auto blkAdd = dyn_cast<cir::BlockAddressOp>(op)) {
-      if (blkAdd.getFunc() != getSymName()) {
+      if (blkAdd.getBlockAddrInfoAttr().getFunc().getAttr() != getSymName()) {
         // Stop the walk early, no need to continue
         invalidBlockAddress = true;
         return mlir::WalkResult::interrupt();
       }
-      blockAddresses.insert(blkAdd.getLabel());
+      blockAddresses.insert(blkAdd.getBlockAddrInfoAttr().getLabel());
     }
     return mlir::WalkResult::advance();
   });

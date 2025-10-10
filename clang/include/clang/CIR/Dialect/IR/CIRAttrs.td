@@ -918,42 +918,39 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
   let description = [{
     Provide ABI specific information about a dynamic cast operation.
 
-    The `srcRtti` and the `destRtti` parameters give the RTTI of the source
+    The `src_rtti` and the `dest_rtti` parameters give the RTTI of the source
     record type and the destination record type, respectively.
 
-    The `runtimeFunc` parameter gives the `__dynamic_cast` function which is
-    provided by the runtime. The `badCastFunc` parameter gives the
+    The `runtime_func` parameter gives the `__dynamic_cast` function which is
+    provided by the runtime. The `bad_cast_func` parameter gives the
     `__cxa_bad_cast` function which is also provided by the runtime.
 
-    The `offsetHint` parameter gives the hint value that should be passed to the
-    `__dynamic_cast` runtime function.
+    The `offset_hint` parameter gives the hint value that should be passed to
+    the `__dynamic_cast` runtime function.
   }];
 
   let parameters = (ins
-    CIR_GlobalViewAttr:$srcRtti,
-    CIR_GlobalViewAttr:$destRtti,
-    "mlir::FlatSymbolRefAttr":$runtimeFunc,
-    "mlir::FlatSymbolRefAttr":$badCastFunc,
-    CIR_IntAttr:$offsetHint
+    CIR_GlobalViewAttr:$src_rtti,
+    CIR_GlobalViewAttr:$dest_rtti,
+    "mlir::FlatSymbolRefAttr":$runtime_func,
+    "mlir::FlatSymbolRefAttr":$bad_cast_func,
+    CIR_IntAttr:$offset_hint
   );
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
-                                        "GlobalViewAttr":$destRtti,
-                                        "mlir::FlatSymbolRefAttr":$runtimeFunc,
-                                        "mlir::FlatSymbolRefAttr":$badCastFunc,
-                                        "IntAttr":$offsetHint), [{
-      return $_get(srcRtti.getContext(), srcRtti, destRtti, runtimeFunc,
-                   badCastFunc, offsetHint);
+    AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$src_rtti,
+                                        "GlobalViewAttr":$dest_rtti,
+                                        "mlir::FlatSymbolRefAttr":$runtime_func,
+                                        "mlir::FlatSymbolRefAttr":$bad_cast_func,
+                                        "IntAttr":$offset_hint), [{
+      return $_get(src_rtti.getContext(), src_rtti, dest_rtti, runtime_func,
+                   bad_cast_func, offset_hint);
     }]>,
   ];
 
   let genVerifyDecl = 1;
   let assemblyFormat = [{
-    `<`
-      qualified($srcRtti) `,` qualified($destRtti) `,`
-      $runtimeFunc `,` $badCastFunc `,` qualified($offsetHint)
-    `>`
+    `<` struct(qualified($src_rtti), qualified($dest_rtti), $runtime_func, $bad_cast_func, qualified($offset_hint)) `>`
   }];
 
   let extraClassDeclaration = [{
@@ -974,7 +971,7 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
   ];
 
   let assemblyFormat = [{
-    `` custom<AddressSpaceValue>($value)
+    `(` custom<AddressSpaceValue>($value) `)`
   }];
 
   let defaultValue = "cir::AddressSpace::Default";
@@ -1504,6 +1501,31 @@ def CIR_AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
   let assemblyFormat = [{
     `<` struct($index, $offset) `>`
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// CIR_BlockAddrInfoAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_BlockAddrInfoAttr : CIR_Attr<"BlockAddrInfo", "block_addr_info"> {
+  let summary = "Block Addres attribute";
+  let description = [{
+    This attribute is used to represent the address of a basic block
+    within a function. It combines the symbol reference to a function
+    with the name of a label inside that function.
+  }];
+  let parameters = (ins "mlir::FlatSymbolRefAttr":$func,
+                        "mlir::StringAttr":$label);
+
+  let assemblyFormat = "`<` $func `,` $label `>`";
+  let builders = [
+    AttrBuilder<(ins "llvm::StringRef":$func_name,
+                     "llvm::StringRef":$label_name
+                     ), [{
+      return $_get($_ctxt, mlir::FlatSymbolRefAttr::get($_ctxt, func_name),
+                   mlir::StringAttr::get($_ctxt, label_name));
+    }]>
+  ];
 }
 
 include "clang/CIR/Dialect/IR/CIRTBAAAttrs.td"

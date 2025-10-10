@@ -50,8 +50,8 @@ static Init __ioinit2(false);
 // AFTER-NEXT:     cir.call @_ZN4InitC1Eb(%0, %1) : (!cir.ptr<!rec_Init>, !cir.bool) -> ()
 // AFTER-NEXT:     %2 = cir.get_global @_ZL8__ioinit : !cir.ptr<!rec_Init>
 // AFTER-NEXT:     %3 = cir.get_global @_ZN4InitD1Ev : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>>
-// AFTER-NEXT:     %4 = cir.cast(bitcast, %3 : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>>), !cir.ptr<!cir.func<(!cir.ptr<!void>)>>
-// AFTER-NEXT:     %5 = cir.cast(bitcast, %2 : !cir.ptr<!rec_Init>), !cir.ptr<!void>
+// AFTER-NEXT:     %4 = cir.cast bitcast %3 : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>> -> !cir.ptr<!cir.func<(!cir.ptr<!void>)>>
+// AFTER-NEXT:     %5 = cir.cast bitcast %2 : !cir.ptr<!rec_Init> -> !cir.ptr<!void>
 // AFTER-NEXT:     %6 = cir.get_global @__dso_handle : !cir.ptr<i8>
 // AFTER-NEXT:     cir.call @__cxa_atexit(%4, %5, %6) : (!cir.ptr<!cir.func<(!cir.ptr<!void>)>>, !cir.ptr<!void>, !cir.ptr<i8>) -> ()
 // AFTER-NEXT:     cir.return
@@ -62,8 +62,8 @@ static Init __ioinit2(false);
 // AFTER-NEXT:     cir.call @_ZN4InitC1Eb(%0, %1) : (!cir.ptr<!rec_Init>, !cir.bool) -> ()
 // AFTER-NEXT:     %2 = cir.get_global @_ZL9__ioinit2 : !cir.ptr<!rec_Init>
 // AFTER-NEXT:     %3 = cir.get_global @_ZN4InitD1Ev : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>>
-// AFTER-NEXT:     %4 = cir.cast(bitcast, %3 : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>>), !cir.ptr<!cir.func<(!cir.ptr<!void>)>>
-// AFTER-NEXT:     %5 = cir.cast(bitcast, %2 : !cir.ptr<!rec_Init>), !cir.ptr<!void>
+// AFTER-NEXT:     %4 = cir.cast bitcast %3 : !cir.ptr<!cir.func<(!cir.ptr<!rec_Init>)>> -> !cir.ptr<!cir.func<(!cir.ptr<!void>)>>
+// AFTER-NEXT:     %5 = cir.cast bitcast %2 : !cir.ptr<!rec_Init> -> !cir.ptr<!void>
 // AFTER-NEXT:     %6 = cir.get_global @__dso_handle : !cir.ptr<i8>
 // AFTER-NEXT:     cir.call @__cxa_atexit(%4, %5, %6) : (!cir.ptr<!cir.func<(!cir.ptr<!void>)>>, !cir.ptr<!void>, !cir.ptr<i8>) -> ()
 // AFTER-NEXT:     cir.return

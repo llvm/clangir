@@ -33,7 +33,7 @@ static void process(cir::FuncOp func) {
     } else if (auto goTo = dyn_cast<cir::GotoOp>(op)) {
       gotos.push_back(goTo);
     } else if (auto blockAddr = dyn_cast<cir::BlockAddressOp>(op)) {
-      blockAddrLabel.insert(blockAddr.getLabel());
+      blockAddrLabel.insert(blockAddr.getBlockAddrInfo().getLabel());
     }
   });
 

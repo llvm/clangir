@@ -19,7 +19,7 @@ __device__ void printer() {
 // CIR-DEVICE:   %[[#Zero:]] = cir.const #cir.int<0> : !s32i loc(#loc5)
 // CIR-DEVICE:   %[[#Field0:]] = cir.get_member %0[0]
 // CIR-DEVICE:   cir.store align(4) %[[#Zero]], %[[#Field0]]
-// CIR-DEVICE:   %[[#Output:]] = cir.cast(bitcast, %[[#Packed]] : !cir.ptr<!rec_anon_struct>)
+// CIR-DEVICE:   %[[#Output:]] = cir.cast bitcast %[[#Packed]] : !cir.ptr<!rec_anon_struct>
 // CIR-DEVICE:   cir.call @vprintf(%{{.+}}, %[[#Output]])
 // CIR-DEVICE:   cir.return
 // CIR-DEVICE: }

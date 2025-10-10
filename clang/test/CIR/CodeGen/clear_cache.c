@@ -10,12 +10,12 @@ char buffer[32] = "This is a largely unused buffer";
 
 // CIR-LABEL: main
 // CIR:  %[[VAL_1:.*]] = cir.get_global @buffer : !cir.ptr<!cir.array<!s8i x 32>>
-// CIR:  %[[VAL_2:.*]] = cir.cast(array_to_ptrdecay, %[[VAL_1]] : !cir.ptr<!cir.array<!s8i x 32>>), !cir.ptr<!s8i>
-// CIR:  %[[VAL_3:.*]] = cir.cast(bitcast, %[[VAL_2]] : !cir.ptr<!s8i>), !cir.ptr<!void>
+// CIR:  %[[VAL_2:.*]] = cir.cast array_to_ptrdecay %[[VAL_1]] : !cir.ptr<!cir.array<!s8i x 32>> -> !cir.ptr<!s8i>
+// CIR:  %[[VAL_3:.*]] = cir.cast bitcast %[[VAL_2]] : !cir.ptr<!s8i> -> !cir.ptr<!void>
 // CIR:  %[[VAL_4:.*]] = cir.get_global @buffer : !cir.ptr<!cir.array<!s8i x 32>>
 // CIR:  %[[VAL_6:.*]] = cir.const #cir.int<32> : !s32i
 // CIR:  %[[VAL_7:.*]] = cir.get_element %[[VAL_4]][%[[VAL_6]]] : (!cir.ptr<!cir.array<!s8i x 32>>, !s32i) -> !cir.ptr<!s8i>
-// CIR:  %[[VAL_8:.*]] = cir.cast(bitcast, %[[VAL_7]] : !cir.ptr<!s8i>), !cir.ptr<!void>
+// CIR:  %[[VAL_8:.*]] = cir.cast bitcast %[[VAL_7]] : !cir.ptr<!s8i> -> !cir.ptr<!void>
 // CIR:  cir.clear_cache %[[VAL_3]] : !cir.ptr<!void>, %[[VAL_8]],
 
 // LLVM-LABEL: main

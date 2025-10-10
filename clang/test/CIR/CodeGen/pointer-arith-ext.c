@@ -25,7 +25,7 @@ void *f3(int a, void *b) { return a + b; }
 void *f3_1(int a, void *b) { return (a += b); }
 // CIR-LABEL: @f3_1
 // CIR: %[[NEW_PTR:.*]] = cir.ptr_stride
-// CIR: cir.cast(ptr_to_int, %[[NEW_PTR]] : !cir.ptr<!void>), !s32i
+// CIR: cir.cast ptr_to_int %[[NEW_PTR]] : !cir.ptr<!void> -> !s32i
 
 // LLVM-LABEL: @f3_1
 // LLVM: %[[NEW_PTR:.*]] = getelementptr

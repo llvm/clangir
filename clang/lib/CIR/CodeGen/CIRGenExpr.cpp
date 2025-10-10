@@ -2717,13 +2717,13 @@ RValue CIRGenFunction::convertTempToRValue(Address addr, clang::QualType type,
   LValue lvalue = makeAddrLValue(addr, type, AlignmentSource::Decl);
   switch (getEvaluationKind(type)) {
   case cir::TEK_Complex:
-    llvm_unreachable("NYI");
+    return RValue::getComplex(emitLoadOfComplex(lvalue, loc));
   case cir::TEK_Aggregate:
     return lvalue.asAggregateRValue();
   case cir::TEK_Scalar:
     return RValue::get(emitLoadOfScalar(lvalue, loc));
   }
-  llvm_unreachable("NYI");
+  llvm_unreachable("bad evaluation kind");
 }
 
 /// An LValue is a candidate for having its loads and stores be made atomic if

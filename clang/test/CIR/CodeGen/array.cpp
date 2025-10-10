@@ -42,7 +42,7 @@ void local_stringlit() {
 // CHECK: cir.func dso_local @_Z15local_stringlitv()
 // CHECK-NEXT:  %0 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["s", init] {alignment = 8 : i64}
 // CHECK-NEXT:  %1 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 8>>
-// CHECK-NEXT:  %2 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s8i x 8>>), !cir.ptr<!s8i>
+// CHECK-NEXT:  %2 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!s8i x 8>> -> !cir.ptr<!s8i>
 // CHECK-NEXT:  cir.store{{.*}} %2, %0 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 
 int multidim(int i, int j) {

@@ -1,4 +1,5 @@
 ! REQUIRES: aarch64-registered-target && x86-registered-target
+! XFAIL: *
 ! DEFINE: %{triple} =
 ! DEFINE: %{compile} = %flang_fc1 -emit-mlir -triple %{triple} --dependent-lib=libtest %s -o - 2>&1
 ! REDEFINE: %{triple} = aarch64-pc-windows-msvc

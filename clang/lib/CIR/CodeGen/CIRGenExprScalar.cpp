@@ -229,15 +229,11 @@ public:
 
   mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *e) {
     auto func = cast<cir::FuncOp>(CGF.CurFn);
-    llvm::StringRef symName = func.getSymName();
-    mlir::FlatSymbolRefAttr funName =
-        mlir::FlatSymbolRefAttr::get(&CGF.getMLIRContext(), symName);
-    mlir::StringAttr labelName =
-        mlir::StringAttr::get(&CGF.getMLIRContext(), e->getLabel()->getName());
+    auto blockInfoAttr = cir::BlockAddrInfoAttr::get(
+        &CGF.getMLIRContext(), func.getSymName(), e->getLabel()->getName());
     return cir::BlockAddressOp::create(Builder, CGF.getLoc(e->getSourceRange()),
-                                       CGF.convertType(e->getType()), funName,
-                                       labelName);
-    ;
+                                       CGF.convertType(e->getType()),
+                                       blockInfoAttr);
   }
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");
@@ -2854,9 +2850,9 @@ mlir::Value CIRGenFunction::emitCheckedInBoundsGEP(
       builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr, IdxList[0]);
   // If the pointer overflow sanitizer isn't enabled, do nothing.
   if (!SanOpts.has(SanitizerKind::PointerOverflow)) {
-    cir::CIR_GEPNoWrapFlags nwFlags = cir::CIR_GEPNoWrapFlags::inbounds;
+    cir::GEPNoWrapFlags nwFlags = cir::GEPNoWrapFlags::inbounds;
     if (!SignedIndices && !IsSubtraction)
-      nwFlags = nwFlags | cir::CIR_GEPNoWrapFlags::nuw;
+      nwFlags = nwFlags | cir::GEPNoWrapFlags::nuw;
     return builder.create<cir::PtrStrideOp>(CGM.getLoc(Loc), PtrTy, Ptr,
                                             IdxList[0], nwFlags);
   }

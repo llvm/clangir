@@ -261,8 +261,8 @@ module {
 // CHECK-NEXT:     %[[RANGE:[0-9]+]] = cir.const #cir.int<99>
 // CHECK-NEXT:     %[[LOWER_BOUND:[0-9]+]] = cir.const #cir.int<1>
 // CHECK-NEXT:     %[[DIFF:[0-9]+]] = cir.binop(sub, %[[X]], %[[LOWER_BOUND]])
-// CHECK-NEXT:     %[[U_DIFF:[0-9]+]] = cir.cast(integral, %[[DIFF]] : !s32i), !u32i
-// CHECK-NEXT:     %[[U_RANGE:[0-9]+]] = cir.cast(integral, %[[RANGE]] : !s32i), !u32i
+// CHECK-NEXT:     %[[U_DIFF:[0-9]+]] = cir.cast integral %[[DIFF]] : !s32i -> !u32i
+// CHECK-NEXT:     %[[U_RANGE:[0-9]+]] = cir.cast integral %[[RANGE]] : !s32i -> !u32i
 // CHECK-NEXT:     %[[CMP_RESULT:[0-9]+]] = cir.cmp(le, %[[U_DIFF]], %[[U_RANGE]])
 // CHECK-NEXT:     cir.brcond %[[CMP_RESULT]] ^[[CASE_RANGE]], ^[[CASE_DEFAULT:bb[0-9]+]]
 // CHECK-NEXT:  ^[[CASE_DEFAULT]]:

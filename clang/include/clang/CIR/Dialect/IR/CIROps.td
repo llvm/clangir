@@ -225,9 +225,9 @@ def CIR_CastOp : CIR_Op<"cast",[
     Example:
 
     ```mlir
-    %4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
+    %4 = cir.cast int_to_bool %3 : i32 -> !cir.bool
     ...
-    %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
+    %x = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<i32 x 10>> -> !cir.ptr<i32>
     ```
   }];
 
@@ -235,8 +235,7 @@ def CIR_CastOp : CIR_Op<"cast",[
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    `(` $kind `,` $src `:` type($src) `)`
-    `,` type($result) attr-dict
+    $kind $src `:` type($src) `->` type($result) attr-dict
   }];
 
   // The input and output types should match the cast kind.
@@ -288,6 +287,13 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
     The `relative_layout` argument specifies whether the Itanium C++ ABI vtable
     uses relative layout. It is only meaningful when the operation models a
     cast-to-complete operation.
+
+    Example:
+
+    ```mlir
+    %res = cir.dyn_cast ptr %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+    %res = cir.dyn_cast ptr relative_layout %ptr: !cir.ptr<!rec_Base> -> !cir.ptr<!rec_Derived>
+    ```
   }];
 
   let arguments = (ins
@@ -302,12 +308,9 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
   );
 
   let assemblyFormat = [{
-    `(`
-      $kind `,` $src `:` qualified(type($src))
-      (`,` qualified($info)^)?
-      (`relative_layout` $relative_layout^)?
-    `)`
-    `->` qualified(type($result)) attr-dict
+    $kind (`relative_layout` $relative_layout^)? $src 
+    `:` qualified(type($src)) `->` qualified(type($result)) 
+    (qualified($info)^)? attr-dict
   }];
 
   let extraClassDeclaration = [{
@@ -328,29 +331,39 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
 // ObjSizeOp
 //===----------------------------------------------------------------------===//
 
-def CIR_SizeInfoType : CIR_I32EnumAttr< "SizeInfoType", "size info type", [
-  I32EnumAttrCase<"Min", 0, "min">,
-  I32EnumAttrCase<"Max", 1, "max">
-]>;
-
 def CIR_ObjSizeOp : CIR_Op<"objsize", [Pure]> {
-  let summary = "Conversion between values of different types";
+  let summary = "Implements llvm.objsize builtin.";
+  let description = [{
+    The `cir.objsize` operation models the behavior of the `llvm.objectsize`
+    builtins in Clang. It returns the number of accessible bytes past ptr.
+
+    The `kind` argument  determines whether `cir.objsize` returns 0 (if
+    true) or -1 (if false) when the object size is unknown. Corresponds to 
+    `llvm.objectsize`'s `min` argument.
+    
+    The `dynamic` attribute determines if the value should be evaluated at
+    runtime. Corresponds to `llvm.objectsize`'s `dynamic` argument.
+
+    Example:
+
+    ```mlir
+    %size = cir.objsize min %ptr : !cir.ptr<i32> -> i64
+    %dsize = cir.objsize max dynamic %ptr : !cir.ptr<i32> -> i64
+    ```
+  }];
 
   let arguments = (ins
     CIR_PointerType:$ptr,
-    CIR_SizeInfoType:$kind,
+    UnitAttr:$min,
     UnitAttr:$dynamic
   );
 
   let results = (outs CIR_AnyFundamentalIntType:$result);
 
   let assemblyFormat = [{
-    `(`
-        $ptr `:` type($ptr) `,`
-        $kind
-        (`,` `dynamic` $dynamic^)?
-    `)`
-    `->` type($result) attr-dict
+      (`min` $min^) : (`max`)?
+      (`dynamic` $dynamic^)?
+      $ptr `:` qualified(type($ptr)) `->` qualified(type($result)) attr-dict
   }];
 }
 
@@ -359,50 +372,56 @@ def CIR_ObjSizeOp : CIR_Op<"objsize", [Pure]> {
 //===----------------------------------------------------------------------===//
 
 def CIR_PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
-
   let summary = "Pointer subtraction arithmetic";
   let description = [{
-    `cir.ptr_diff` performs a subtraction between two pointer types with the
-    same element type and produces a `cir::IntType` result.
+    The cir.ptr_diff operation computes the difference between two pointers that
+    have the same element type
 
-    Note that the result considers the pointer size according to the ABI for
-    the pointee sizes, e.g. the subtraction between two `!cir.ptr<!u64i>` might
-    yield 1, meaning 8 bytes, whereas for `void` or function type pointees,
-    yielding 8 means 8 bytes.
+    The result reflects the ABI-defined size of the pointed-to type. For example,
+    subtracting two !cir.ptr<!u64i> values may yield 1, representing an 8-byte
+    difference. In contrast, for pointers to void or function types, a result of
+    8 corresponds to an 8-byte difference.
+
+    Example:
 
     ```mlir
-    %7 = "cir.ptr_diff"(%0, %1) : !cir.ptr<!u64i> -> !u64i
+    %7 = cir.ptr_diff %0, %1 : !cir.ptr<!u64i> -> !u64i
     ```
   }];
 
-  let results = (outs CIR_AnyFundamentalIntType:$result);
   let arguments = (ins CIR_PointerType:$lhs, CIR_PointerType:$rhs);
+  let results = (outs CIR_AnyFundamentalIntType:$result);
 
   let assemblyFormat = [{
-    `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
+    $lhs `,` $rhs  `:` qualified(type($lhs)) `->` qualified(type($result)) 
+    attr-dict
   }];
 }
 
 //===----------------------------------------------------------------------===//
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
+
+// These mirror the GEPNoWrapFlags in LLVM IR Dialect.
 def CIR_GEPNone : I32BitEnumCaseNone<"none">;
 def CIR_GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
 def CIR_GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
 def CIR_GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
-def CIR_GEPInbounds
-    : BitEnumCaseGroup<"inbounds", [CIR_GEPInboundsFlag, CIR_GEPNusw]>;
+def CIR_GEPInbounds : BitEnumCaseGroup<"inbounds", [
+  CIR_GEPInboundsFlag, CIR_GEPNusw]>;
 
-def CIR_GEPNoWrapFlags
-    : CIR_I32BitEnum<"CIR_GEPNoWrapFlags", "::cir::CIR_GEPNoWrapFlags",
-                     [CIR_GEPNone, CIR_GEPInboundsFlag, CIR_GEPNusw, CIR_GEPNuw,
-                      CIR_GEPInbounds]> {
-  let cppNamespace = "::cir";
+def CIR_GEPNoWrapFlags : CIR_I32BitEnum<"GEPNoWrapFlags", "no-wrap flags", [
+  CIR_GEPNone, 
+  CIR_GEPInboundsFlag, 
+  CIR_GEPNusw, 
+  CIR_GEPNuw,
+  CIR_GEPInbounds
+]> {
   let printBitEnumPrimaryGroups = 1;
 }
 
 def CIR_GEPNoWrapFlagsProp : EnumProp<CIR_GEPNoWrapFlags> {
-  let defaultValue = interfaceType#"::none";
+  let defaultValue = enum.cppType # "::" # "none";
 }
 
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
@@ -410,33 +429,38 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 ]> {
   let summary = "Pointer access with stride";
   let description = [{
-    Given a base pointer as first operand, provides a new pointer after applying
-    a stride (second operand).
+    The `cir.ptr_stride` operation computes a new pointer from a base pointer
+    and an integer stride, similar to a single-index `getelementptr` in LLVM IR.
+    It moves the pointer by `stride * sizeof(element_type)` bytes.
+
+    Optional no-wrap flags refine pointer arithmetic semantics, that mirror
+    LLVM's GEP no-wrap semantics.
+
+    Example:
 
     ```mlir
-    %3 = cir.const 0 : i32
-
-    %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
-
-    %5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
-
-    %6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
-
+    %3 = cir.ptr_stride %1, %2 : (!cir.ptr<i32>, i32) ->!cir.ptr<i32>
+    %4 = cir.ptr_stride inbounds %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
+    %5 = cir.ptr_stride inbounds|nuw %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
     ```
   }];
 
-  let arguments = (ins CIR_PointerType:$base, CIR_AnyFundamentalIntType:$stride,
-      CIR_GEPNoWrapFlagsProp:$noWrapFlags);
+  let arguments = (ins 
+    CIR_PointerType:$base, 
+    CIR_AnyFundamentalIntType:$stride,
+    CIR_GEPNoWrapFlagsProp:$noWrapFlags
+  );
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
+    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) 
+    attr-dict
   }];
 
   let extraClassDeclaration = [{
     // Get type pointed by the base pointer.
-    mlir::Type getElementTy() {
+    mlir::Type getElementType() {
       return getBase().getType().getPointee();
     }
   }];
@@ -449,28 +473,23 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride",[
 def CIR_ConstantOp : CIR_Op<"const",[
   ConstantLike, Pure, AllTypesMatch<["value", "res"]>
 ]> {
-  // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
-  // type repetition in the assembly form.
-
-  let summary = "Defines a CIR constant";
+  let summary = "Create a CIR constant from a literal attribute";
   let description = [{
     The `cir.const` operation turns a literal into an SSA value. The data is
     attached to the operation as an attribute.
 
     ```mlir
-      %0 = cir.const 42 : i32
-      %1 = cir.const 4.2 : f32
-      %2 = cir.const nullptr : !cir.ptr<i32>
+      %0 = cir.const #cir.int<4> : !u32i
+      %1 = cir.const #cir.fp<1.500000e+00> : !cir.float
+      %2 = cir.const #cir.ptr<null> : !cir.ptr<!void>
     ```
   }];
 
-  // The constant operation takes an attribute as the only input.
   let arguments = (ins TypedAttrInterface:$value);
 
-  // The constant operation returns a single value of CIR_AnyType.
   let results = (outs CIR_AnyType:$res);
 
-  let assemblyFormat = "attr-dict $value";
+  let assemblyFormat = "$value attr-dict";
 
   let hasVerifier = 1;
 
@@ -2545,7 +2564,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
        (`comdat` $comdat^)?
        ($tls_model^)?
        (`dso_local` $dso_local^)?
-       ( `addrspace` `(` $addr_space^ `)` )?
+       (`addrspace` `` $addr_space^)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        ($annotations^)?
@@ -4922,7 +4941,7 @@ def CIR_MemSetOp : CIR_Op<"libc.memset"> {
       // Set 2 bytes from a record to 0:
       %2 = cir.const #cir.int<2> : !u32i
       %3 = cir.const #cir.int<0> : !u32i
-      %zero = cir.cast(integral, %3 : !s32i), !u8i
+      %zero = cir.cast integral %3 : !s32i -> !u8i
       cir.libc.memset %2 bytes from %record set to %zero : !cir.ptr<!void>, !s32i, !u64i
     ```
   }];
@@ -5446,7 +5465,7 @@ def CIR_FreeExceptionOp : CIR_Op<"free.exception"> {
     %1 = cir.get_global @d2 : !cir.ptr<!some_record>
     cir.try synthetic cleanup {
       cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_record>, !cir.ptr<!some_record>) -> () cleanup {
-        %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_record>), !cir.ptr<!void>
+        %2 = cir.cast bitcast %0 : !cir.ptr<!some_record> -> !cir.ptr<!void>
         cir.free.exception %2
         cir.yield
       }
@@ -5865,7 +5884,7 @@ def CIR_GotoOp : CIR_Op<"goto", [Terminator]> {
   ```mlir
     cir.scope {  // REGION #1
       %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-      %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+      %3 = cir.cast int_to_bool %2 : !s32i -> !cir.bool
       cir.if %3 {
         cir.goto "label"
       }
@@ -6044,6 +6063,68 @@ def CIR_AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg", [
   let hasVerifier = 1;
 }
 
+def CIR_AtomicTestAndSetOp : CIR_Op<"atomic.test_and_set"> {
+  let summary = "Atomic test and set";
+  let description = [{
+    C/C++ atomic test and set operation. Implements the builtin function
+    `__atomic_test_and_set`.
+
+    The operation takes as its only operand a pointer to an 8-bit signed
+    integer. The operation atomically set the integer to an implementation-
+    defined non-zero "set" value. The result of the operation is a boolean value
+    indicating whether the previous value of the integer was the "set" value.
+
+    Example:
+    ```mlir
+      %res = cir.atomic.test_and_set seq_cst %ptr : !cir.ptr<!s8i> -> !cir.bool
+    ```
+  }];
+
+  let arguments = (ins
+    Arg<CIR_PtrToType<CIR_SInt8>, "", [MemRead, MemWrite]>:$ptr,
+    Arg<CIR_MemOrder, "memory order">:$mem_order,
+    OptionalAttr<CIR_MemScopeKind>:$syncscope,
+    OptionalAttr<I64Attr>:$alignment,
+    UnitAttr:$is_volatile);
+
+  let results = (outs CIR_BoolType:$result);
+
+  let assemblyFormat = [{
+    $mem_order $ptr
+    (`volatile` $is_volatile^)?
+    `:` qualified(type($ptr)) `->` qualified(type($result)) attr-dict
+  }];
+}
+
+def CIR_AtomicClearOp : CIR_Op<"atomic.clear"> {
+  let summary = "Atomic clear";
+  let description = [{
+    C/C++ atomic clear operation. Implements the builtin function
+    `__atomic_clear`.
+
+    The operation takes as its only operand a pointer to an 8-bit signed
+    integer. The operation atomically sets the integer to zero.
+
+    Example:
+    ```mlir
+      cir.atomic.clear seq_cst %ptr : !cir.ptr<!s8i>
+    ```
+  }];
+
+  let arguments = (ins
+    Arg<CIR_PtrToType<CIR_SInt8>, "", [MemRead, MemWrite]>:$ptr,
+    Arg<CIR_MemOrder, "memory order">:$mem_order,
+    OptionalAttr<CIR_MemScopeKind>:$syncscope,
+    OptionalAttr<I64Attr>:$alignment,
+    UnitAttr:$is_volatile);
+
+  let assemblyFormat = [{
+    $mem_order $ptr
+    (`volatile` $is_volatile^)?
+    `:` qualified(type($ptr)) attr-dict
+  }];
+}
+
 def CIR_AtomicFence : CIR_Op<"atomic.fence"> {
   let summary = "Atomic thread fence";
   let description = [{
@@ -6109,6 +6190,7 @@ def CIR_LinkerOptionsOp : CIR_Op<"linker_options", [
 
     // Link against aarch64 compiler-rt builtins
     cir.linker_options ["-l", "clang_rt.builtins-aarch64"]
+    ```
   }];
 
   let arguments = (ins StrArrayAttr:$options);
@@ -6144,10 +6226,10 @@ def CIR_BlockAddressOp : CIR_Op<"blockaddress", [Pure]> {
     ```
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$func, StrAttr:$label);
+  let arguments = (ins CIR_BlockAddrInfoAttr:$blockAddrInfo);
   let results = (outs CIR_VoidPtrType:$addr);
   let assemblyFormat = [{
-    `(` $func `,` $label `)` `->` qualified(type($addr)) attr-dict
+    $blockAddrInfo `->` qualified(type($addr)) attr-dict
   }];
 }
 
