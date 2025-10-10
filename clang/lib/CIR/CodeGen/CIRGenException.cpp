@@ -302,6 +302,9 @@ mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup,
 }
 
 mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
+  if (S.getTryBlock()->body_empty())
+    return mlir::LogicalResult::success();
+
   auto loc = getLoc(S.getSourceRange());
   mlir::OpBuilder::InsertPoint scopeIP;
 
