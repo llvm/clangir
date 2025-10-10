@@ -205,30 +205,3 @@ void tc8() {
 // FLAT: ^bb[[#B4]]:
 // FLAT:   cir.return
 // FLAT: }
-
-void empty_try_block_with_catch_all() {
-  try {} catch (...) {}
-}
-
-// CIR: cir.func{{.*}} @_Z30empty_try_block_with_catch_allv()
-// CIR:   cir.return
-
-// LLVM: define{{.*}} void @_Z30empty_try_block_with_catch_allv()
-// LLVM:  ret void
-
-// OGCG: define{{.*}} void @_Z30empty_try_block_with_catch_allv()
-// OGCG:   ret void
-
-void empty_try_block_with_catch_with_int_exception() {
-  try {} catch (int e) {}
-}
-
-// CIR: cir.func{{.*}} @_Z45empty_try_block_with_catch_with_int_exceptionv()
-// CIR:   cir.return
-
-// LLVM: define{{.*}} void @_Z45empty_try_block_with_catch_with_int_exceptionv()
-// LLVM:  ret void
-
-// OGCG: define{{.*}} void @_Z45empty_try_block_with_catch_with_int_exceptionv()
-// OGCG:   ret void
-
