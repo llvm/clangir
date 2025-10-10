@@ -746,11 +746,22 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
                                               cir::AtomicFetchKind::Nand);
     break;
   case AtomicExpr::AO__atomic_test_and_set: {
-    llvm_unreachable("NYI");
+    auto op = cir::AtomicTestAndSetOp::create(
+        builder, loc, Ptr.getPointer(), Order,
+        cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
+        builder.getI64IntegerAttr(Ptr.getAlignment().getQuantity()),
+        E->isVolatile());
+    builder.createStore(loc, op, Dest);
+    return;
   }
 
   case AtomicExpr::AO__atomic_clear: {
-    llvm_unreachable("NYI");
+    cir::AtomicClearOp::create(
+        builder, loc, Ptr.getPointer(), Order,
+        cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
+        builder.getI64IntegerAttr(Ptr.getAlignment().getQuantity()),
+        E->isVolatile());
+    return;
   }
   }
 

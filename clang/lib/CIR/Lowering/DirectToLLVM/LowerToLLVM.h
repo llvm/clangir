@@ -936,6 +936,26 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMAtomicTestAndSetOpLowering
+    : public mlir::OpConversionPattern<cir::AtomicTestAndSetOp> {
+public:
+  using mlir::OpConversionPattern<cir::AtomicTestAndSetOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::AtomicTestAndSetOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
+class CIRToLLVMAtomicClearOpLowering
+    : public mlir::OpConversionPattern<cir::AtomicClearOp> {
+public:
+  using mlir::OpConversionPattern<cir::AtomicClearOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::AtomicClearOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMAtomicFenceLowering
     : public mlir::OpConversionPattern<cir::AtomicFence> {
 public:
