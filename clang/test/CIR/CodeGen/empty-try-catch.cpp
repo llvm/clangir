@@ -30,3 +30,4 @@ void empty_try_block_with_catch_with_int_exception() {
 
 // OGCG: define{{.*}} void @_Z45empty_try_block_with_catch_with_int_exceptionv()
 // OGCG:   ret void
+
