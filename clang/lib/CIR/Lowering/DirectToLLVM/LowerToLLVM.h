@@ -1406,6 +1406,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMIndirectBrOpLowering
+    : public mlir::OpConversionPattern<cir::IndirectBrOp> {
+public:
+  using mlir::OpConversionPattern<cir::IndirectBrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::IndirectBrOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod);

@@ -194,8 +194,9 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
     return emitOMPTaskyieldDirective(cast<OMPTaskyieldDirective>(*S));
   case Stmt::OMPBarrierDirectiveClass:
     return emitOMPBarrierDirective(cast<OMPBarrierDirective>(*S));
-  // Unsupported AST nodes:
   case Stmt::IndirectGotoStmtClass:
+    return emitIndirectGotoStmt(cast<IndirectGotoStmt>(*S));
+  // Unsupported AST nodes:
   case Stmt::CapturedStmtClass:
   case Stmt::ObjCAtTryStmtClass:
   case Stmt::ObjCAtThrowStmtClass:
@@ -652,10 +653,26 @@ mlir::LogicalResult CIRGenFunction::emitLabel(const LabelDecl *D) {
   }
 
   builder.setInsertionPointToEnd(labelBlock);
-  builder.create<cir::LabelOp>(getLoc(D->getSourceRange()), D->getName());
+  auto label =
+      builder.create<cir::LabelOp>(getLoc(D->getSourceRange()), D->getName());
   builder.setInsertionPointToEnd(labelBlock);
-
+  auto func = cast<cir::FuncOp>(CurFn);
+  CGM.mapBlockAddress(cir::BlockAddrInfoAttr::get(builder.getContext(),
+                                                  func.getSymNameAttr(),
+                                                  label.getLabelAttr()),
+                      label);
   //  FIXME: emit debug info for labels, incrementProfileCounter
+  return mlir::success();
+}
+
+mlir::LogicalResult
+CIRGenFunction::emitIndirectGotoStmt(const IndirectGotoStmt &s) {
+  auto val = emitScalarExpr(s.getTarget());
+  assert(indirectGotoBlock &&
+         "If you jumping to a indirect branch should be alareadye emitted");
+  cir::BrOp::create(builder, getLoc(s.getSourceRange()), indirectGotoBlock,
+                    val);
+  builder.createBlock(builder.getBlock()->getParent());
   return mlir::success();
 }
 

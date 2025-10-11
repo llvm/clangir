@@ -528,6 +528,34 @@ cir::TryOp CIRGenFunction::LexicalScope::getClosestTryParent() {
   return nullptr;
 }
 
+void CIRGenFunction::resolveBlockAddresses() {
+
+  for (auto &blockAddress : CGM.unresolvedBlockAddressToLabel) {
+    cir::LabelOp labelOp =
+        CGM.lookupBlockAddressInfo(blockAddress.getBlockAddrInfo());
+    assert(labelOp && "expected cir.labelOp to already be emitted");
+    CGM.updateResolvedBlockAddress(blockAddress, labelOp);
+  }
+  CGM.unresolvedBlockAddressToLabel.clear();
+}
+
+void CIRGenFunction::finishIndirectBranch() {
+  if (!indirectGotoBlock)
+    return;
+  llvm::SmallVector<mlir::Block *> succesors;
+  llvm::SmallVector<mlir::ValueRange> rangeOperands;
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(indirectGotoBlock);
+  for (auto &[blockAdd, labelOp] : CGM.blockAddressToLabel) {
+    succesors.push_back(labelOp->getBlock());
+    rangeOperands.push_back(labelOp->getBlock()->getArguments());
+  }
+  cir::IndirectBrOp::create(builder, builder.getUnknownLoc(),
+                            indirectGotoBlock->getArgument(0), false,
+                            rangeOperands, succesors);
+  CGM.blockAddressToLabel.clear();
+}
+
 void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // CIRGen doesn't use a BreakContinueStack or evaluates OnlySimpleReturnStmts.
 
@@ -584,15 +612,24 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
 
   // If someone did an indirect goto, emit the indirect goto block at the end of
   // the function.
-  assert(!cir::MissingFeatures::indirectBranch() && "NYI");
 
+  // Resolve block address-to-label mappings, then emit the indirect branch
+  // with the corresponding targets.
+  resolveBlockAddresses();
+  finishIndirectBranch();
   // If some of our locals escaped, insert a call to llvm.localescape in the
   // entry block.
   assert(!cir::MissingFeatures::escapedLocals() && "NYI");
 
-  // If someone took the address of a label but never did an indirect goto, we
-  // made a zero entry PHI node, which is illegal, zap it now.
-  assert(!cir::MissingFeatures::indirectBranch() && "NYI");
+  // If a label address was taken but no indirect goto was used, we mark the
+  // 'indirectbr' as poison. During lowering, the associated PHI is removed,
+  // since the verifier does not allow a null addr.
+  if (indirectGotoBlock) {
+    if (indirectGotoBlock->hasNoPredecessors()) {
+      auto indrBr = cast<cir::IndirectBrOp>(indirectGotoBlock->front());
+      indrBr.setPoison(true);
+    }
+  }
 
   // CIRGen doesn't need to emit EHResumeBlock, TerminateLandingPad,
   // TerminateHandler, UnreachableBlock, TerminateFunclets, NormalCleanupDest
@@ -1963,6 +2000,17 @@ CIRGenFunction::emitArrayLength(const clang::ArrayType *origArrayType,
     llvm_unreachable("NYI");
 
   return numElements;
+}
+
+mlir::Block *CIRGenFunction::getIndirectGotoBlock(cir::BlockAddressOp op) {
+  // If we already made the indirect branch for indirect goto, return its block.
+  if (indirectGotoBlock)
+    return indirectGotoBlock;
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  indirectGotoBlock = builder.createBlock(builder.getBlock()->getParent(), {},
+                                          {op.getType()}, {op.getLoc()});
+  return indirectGotoBlock;
 }
 
 mlir::Value CIRGenFunction::emitAlignmentAssumption(

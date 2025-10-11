@@ -231,10 +231,22 @@ public:
     auto func = cast<cir::FuncOp>(CGF.CurFn);
     auto blockInfoAttr = cir::BlockAddrInfoAttr::get(
         &CGF.getMLIRContext(), func.getSymName(), e->getLabel()->getName());
-    return cir::BlockAddressOp::create(Builder, CGF.getLoc(e->getSourceRange()),
-                                       CGF.convertType(e->getType()),
-                                       blockInfoAttr);
+    auto blockAddressOp = cir::BlockAddressOp::create(
+        Builder, CGF.getLoc(e->getSourceRange()), CGF.convertType(e->getType()),
+        blockInfoAttr);
+    cir::LabelOp resolvedLabel = CGF.CGM.lookupBlockAddressInfo(blockInfoAttr);
+    if (!resolvedLabel) {
+      CGF.CGM.mapUnresolvedBlockAddress(blockAddressOp);
+      // Still add the op to maintain insertion order it will be resolved in
+      // resolveBlockAddresses
+      CGF.CGM.mapResolvedBlockAddress(blockAddressOp, nullptr);
+    } else {
+      CGF.CGM.mapResolvedBlockAddress(blockAddressOp, resolvedLabel);
+    }
+    CGF.getIndirectGotoBlock(blockAddressOp);
+    return blockAddressOp;
   }
+
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
     llvm_unreachable("NYI");
   }

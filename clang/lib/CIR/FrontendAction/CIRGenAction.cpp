@@ -179,7 +179,7 @@ public:
     // ran all over the top level decls. Here clang mostly wraps defered and
     // global codegen, followed by running CIR passes.
     gen->HandleTranslationUnit(C);
-
+    // posiblya d a dump here  for debug ?
     if (!feOptions.ClangIRDisableCIRVerifier)
       if (!gen->verifyModule()) {
         llvm::report_fatal_error(
