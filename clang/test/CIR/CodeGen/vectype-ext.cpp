@@ -563,3 +563,46 @@ void vector_shuffle_dynamic_mask_test() {
 
   // LLVM: {{.*}} = and <6 x i32> {{.*}}, splat (i32 7)
 }
+
+// Test for arrays of 3-component extended vectors
+// This documents how vec3 arrays are handled in memory accesses
+// Original CodeGen treats vec3 as vec4 for aligned memory access
+// See issue #685
+// CIR: cir.func dso_local {{@.*test_vec3_array.*}}
+// LLVM: define dso_local void {{@.*test_vec3_array.*}}
+void test_vec3_array() {
+  vi3 arr[4] = {};
+  // CIR: cir.alloca !cir.array<!cir.vector<!s32i x 3> x 4>, !cir.ptr<!cir.array<!cir.vector<!s32i x 3> x 4>>, ["arr"]
+  // LLVM: alloca [4 x <3 x i32>], i64 1, align 16
+
+  vi3 *ptr = &arr[0];
+  // CIR: cir.get_element{{.*}}!cir.array<!cir.vector<!s32i x 3> x 4>
+  // LLVM: getelementptr [4 x <3 x i32>]
+  
+  // Key behavior: Loading from array element shows vec3->vec4 optimization
+  arr[0] + arr[1];
+  // CIR: %[[#PTR0:]] = cir.get_element{{.*}}!cir.ptr<!cir.vector<!s32i x 3>>
+  // CIR-NEXT: %[[#PTR0_V4:]] = cir.cast bitcast %[[#PTR0]] : !cir.ptr<!cir.vector<!s32i x 3>> -> !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#V4_0:]] = cir.load{{.*}}%[[#PTR0_V4]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#POISON0:]] = cir.const #cir.poison : !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#V3_0:]] = cir.vec.shuffle(%[[#V4_0]], %[[#POISON0]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 3>
+  
+  // LLVM: %[[#GEP0:]] = getelementptr [4 x <3 x i32>], ptr %{{.+}}, i32 0, i64 0
+  // LLVM-NEXT: %[[#LOAD_V4_0:]] = load <4 x i32>, ptr %[[#GEP0]], align 16
+  // LLVM-NEXT: %[[#LOAD_V3_0:]] = shufflevector <4 x i32> %[[#LOAD_V4_0]], <4 x i32> poison, <3 x i32> <i32 0, i32 1, i32 2>
+
+  // Same pattern for arr[1]
+  // CIR: %[[#PTR1:]] = cir.get_element{{.*}}!cir.ptr<!cir.vector<!s32i x 3>>
+  // CIR-NEXT: %[[#PTR1_V4:]] = cir.cast bitcast %[[#PTR1]] : !cir.ptr<!cir.vector<!s32i x 3>> -> !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#V4_1:]] = cir.load{{.*}}%[[#PTR1_V4]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#POISON1:]] = cir.const #cir.poison : !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#V3_1:]] = cir.vec.shuffle(%[[#V4_1]], %[[#POISON1]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 3>
+  // CIR: cir.binop(add, %[[#V3_0]], %[[#V3_1]]) : !cir.vector<!s32i x 3>
+  
+  // LLVM: %[[#GEP1:]] = getelementptr [4 x <3 x i32>], ptr %{{.+}}, i32 0, i64 1
+  // LLVM-NEXT: %[[#LOAD_V4_1:]] = load <4 x i32>, ptr %[[#GEP1]], align 16
+  // LLVM-NEXT: %[[#LOAD_V3_1:]] = shufflevector <4 x i32> %[[#LOAD_V4_1]], <4 x i32> poison, <3 x i32> <i32 0, i32 1, i32 2>
+  // LLVM: add <3 x i32> %[[#LOAD_V3_0]], %[[#LOAD_V3_1]]
+  
+  // Note: Array element stores (arr[i] = value) are not yet implemented (NYI at CIRGenExpr.cpp:640)
+}
