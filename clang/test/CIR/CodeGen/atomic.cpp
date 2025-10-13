@@ -1196,3 +1196,78 @@ void clear(void *p, volatile void *vp) {
 
   // LLVM: store atomic volatile i8 0, ptr %{{.+}} seq_cst, align 1
 }
+
+// CHECK-LABEL: @_Z17lock_test_and_setPii
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!s32i>, {{.*}} : !s32i, seq_cst) fetch_first : !s32i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPii
+// LLVM: atomicrmw xchg ptr {{.*}}, i32 {{.*}} seq_cst, align 4
+void lock_test_and_set(int* a, int b) {
+  int c = __sync_lock_test_and_set(a, b);
+}
+
+
+// CHECK-LABEL: @_Z17lock_test_and_setPll
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!s64i>, {{.*}} : !s64i, seq_cst) fetch_first : !s64i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPll
+// LLVM: atomicrmw xchg ptr {{.*}}, i64 {{.*}} seq_cst, align 8
+void lock_test_and_set(long* a, long b) {
+  long c = __sync_lock_test_and_set(a, b);
+}
+
+// CHECK-LABEL: @_Z17lock_test_and_setPss
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!s16i>, {{.*}} : !s16i, seq_cst) fetch_first : !s16i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPss
+// LLVM: atomicrmw xchg ptr {{.*}}, i16 {{.*}} seq_cst, align 2
+void lock_test_and_set(short* a, short b) {
+  short c = __sync_lock_test_and_set(a, 2);
+}
+
+
+// CHECK-LABEL: @_Z17lock_test_and_setPcc
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!s8i>, {{.*}} : !s8i, seq_cst) fetch_first : !s8i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPcc
+// LLVM: atomicrmw xchg ptr {{.*}}, i8 {{.*}} seq_cst, align 1
+void lock_test_and_set(char* a, char b) {
+  char c = __sync_lock_test_and_set(a, b);
+}
+
+// CHECK-LABEL: @_Z17lock_test_and_setPji
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!u32i>, {{.*}} : !u32i, seq_cst) fetch_first : !u32i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPji
+// LLVM: atomicrmw xchg ptr {{.*}}, i32 {{.*}} seq_cst, align 4
+void lock_test_and_set(unsigned int* a, int b) {
+  unsigned int c = __sync_lock_test_and_set(a, b);
+}
+
+
+// CHECK-LABEL: @_Z17lock_test_and_setPml
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!u64i>, {{.*}} : !u64i, seq_cst) fetch_first : !u64i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPml
+// LLVM: atomicrmw xchg ptr {{.*}}, i64 {{.*}} seq_cst, align 8
+void lock_test_and_set(unsigned long* a, long b) {
+  unsigned long c = __sync_lock_test_and_set(a, b);
+}
+
+// CHECK-LABEL: @_Z17lock_test_and_setPts
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!u16i>, {{.*}} : !u16i, seq_cst) fetch_first : !u16i
+//
+// LLVM-LABEL: @_Z17lock_test_and_setPts
+// LLVM: atomicrmw xchg ptr {{.*}}, i16 {{.*}} seq_cst, align 2
+void lock_test_and_set(unsigned short* a, short b) {
+  unsigned long long c = __sync_lock_test_and_set(a, b);
+}
+
+// CHECK-LABEL: @_Z17lock_test_and_setPhc
+// CHECK: cir.atomic.fetch(xchg, {{.*}} : !cir.ptr<!u8i>, {{.*}} : !u8i, seq_cst) fetch_first : !u8i
+
+// LLVM-LABEL: @_Z17lock_test_and_setPhc
+// LLVM: atomicrmw xchg ptr {{.*}}, i8 {{.*}} seq_cst, align 1
+void lock_test_and_set(unsigned char* a, char b) {
+  unsigned char c = __sync_lock_test_and_set(a, b);
+}
