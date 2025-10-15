@@ -571,8 +571,8 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
     }
   }
 
-  void rewriteBreak(mlir::scf::WhileOp whileOp,
-                    mlir::ConversionPatternRewriter &rewriter) const {
+  void optimizeOnCertainBreak(mlir::scf::WhileOp whileOp,
+                              mlir::ConversionPatternRewriter &rewriter) const {
     // Collect all BreakOp inside this while.
     llvm::SmallVector<cir::BreakOp> breaks;
     whileOp->walk([&](mlir::Operation *op) {
@@ -638,13 +638,15 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
 public:
   using OpConversionPattern<cir::WhileOp>::OpConversionPattern;
 
+  /// This rewrite will do some optimizations at the same time.
+  /// Unreachable code and unnecessary loops will be eliminated.
   mlir::LogicalResult
   matchAndRewrite(cir::WhileOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     SCFWhileLoop loop(op, adaptor, &rewriter);
     auto whileOp = loop.transferToSCFWhileOp();
     rewriteContinue(whileOp, rewriter);
-    rewriteBreak(whileOp, rewriter);
+    optimizeOnCertainBreak(whileOp, rewriter);
     rewriter.eraseOp(op);
     return mlir::success();
   }
