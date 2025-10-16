@@ -195,3 +195,15 @@ void designated_init_update_expr() {
 // CHECK: %[[CONST_1:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[CONST_1]], %[[ELEM_0_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK: %[[ELEM_1_PTR:.*]] = cir.get_member %[[C_ADDR]][1] {name = "b"} : !cir.ptr<!rec_CompleteS> -> !cir.ptr<!s8i>
+
+void choose_expr() {
+  CompleteS a;
+  CompleteS b;
+  CompleteS c = __builtin_choose_expr(true, a, b);
+}
+
+// CHECK: cir.func{{.*}} @_Z11choose_exprv()
+// CHECK:   %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a"]
+// CHECK:   %[[B_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["b"]
+// CHECK:   %[[C_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["c", init]
+// CHECK:   cir.copy %[[A_ADDR]] to %[[C_ADDR]] : !cir.ptr<!rec_CompleteS>
