@@ -14,6 +14,7 @@ add_clang_library(MLIRCIRTransforms
   SCFPrepare.cpp
   CallConvLowering.cpp
   HoistAllocas.cpp
+  MLIRLoweringPrepare.cpp
 
   DEPENDS
   MLIRCIRPassIncGen
