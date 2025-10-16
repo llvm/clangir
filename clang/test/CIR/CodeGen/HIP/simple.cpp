@@ -32,3 +32,21 @@ __global__ void global_fn(int a) {}
 // The stub has the mangled name of the function
 // CIR-HOST: cir.get_global @_Z9global_fni
 // CIR-HOST: cir.call @hipLaunchKernel
+
+int main() {
+  global_fn<<<1, 1>>>(1);
+}
+// CIR-DEVICE-NOT: cir.func dso_local @main()
+
+// CIR-HOST: cir.func dso_local @main()
+// CIR-HOST: cir.call @_ZN4dim3C1Ejjj
+// CIR-HOST: cir.call @_ZN4dim3C1Ejjj
+// CIR-HOST: [[Push:%[0-9]+]] = cir.call @__hipPushCallConfiguration
+// CIR-HOST: [[ConfigOK:%[0-9]+]] = cir.cast int_to_bool [[Push]]
+// CIR-HOST: cir.if [[ConfigOK]] {
+// CIR-HOST: } else {
+// CIR-HOST:   [[Arg:%[0-9]+]] = cir.const #cir.int<1>
+// CIR-HOST:   cir.call @_Z24__device_stub__global_fni([[Arg]])
+// CIR-HOST: }
+
+
