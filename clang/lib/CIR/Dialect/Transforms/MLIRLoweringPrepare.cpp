@@ -1,3 +1,16 @@
+//===- MLIRLoweringPrepare.cpp - Lowering from CIR to LLVMIR --------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains helper function for implementing
+// lowering of CIR operations to LLVMIR.
+//
+//===----------------------------------------------------------------------===//
+
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
