@@ -179,7 +179,7 @@ public:
   }
   void VisitParenExpr(ParenExpr *PE) { Visit(PE->getSubExpr()); }
   void VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
-    llvm_unreachable("NYI");
+    Visit(GE->getResultExpr());
   }
   void VisitCoawaitExpr(CoawaitExpr *E) {
     CGF.emitCoawaitExpr(*E, Dest, IsResultUnused);
@@ -291,7 +291,7 @@ public:
   }
 
   void VisitAbstractConditionalOperator(const AbstractConditionalOperator *E);
-  void VisitChooseExpr(const ChooseExpr *E) { llvm_unreachable("NYI"); }
+  void VisitChooseExpr(const ChooseExpr *E) { Visit(E->getChosenSubExpr()); }
   void VisitInitListExpr(InitListExpr *E);
   void VisitCXXParenListInitExpr(CXXParenListInitExpr *E);
   void VisitCXXParenListOrInitListExpr(Expr *ExprToVisit, ArrayRef<Expr *> Args,

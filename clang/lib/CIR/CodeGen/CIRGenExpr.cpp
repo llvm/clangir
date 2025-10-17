@@ -2671,6 +2671,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
   }
   case Expr::ParenExprClass:
     return emitLValue(cast<ParenExpr>(E)->getSubExpr());
+  case Expr::GenericSelectionExprClass:
+    return emitLValue(cast<GenericSelectionExpr>(E)->getResultExpr());
   case Expr::DeclRefExprClass:
     return emitDeclRefLValue(cast<DeclRefExpr>(E));
   case Expr::UnaryOperatorClass:
@@ -2706,6 +2708,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     llvm_unreachable("cannot emit a property reference directly");
   case Expr::StmtExprClass:
     return emitStmtExprLValue(cast<StmtExpr>(E));
+  case Expr::ChooseExprClass:
+    return emitLValue(cast<ChooseExpr>(E)->getChosenSubExpr());
   }
 
   llvm_unreachable("NYI");
