@@ -2671,6 +2671,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
   }
   case Expr::ParenExprClass:
     return emitLValue(cast<ParenExpr>(E)->getSubExpr());
+  case Expr::GenericSelectionExprClass:
+    return emitLValue(cast<GenericSelectionExpr>(E)->getResultExpr());
   case Expr::DeclRefExprClass:
     return emitDeclRefLValue(cast<DeclRefExpr>(E));
   case Expr::UnaryOperatorClass:
