@@ -208,3 +208,15 @@ void generic_selection() {
 // CHECK: %[[C_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["c"]
 // CHECK: %[[D_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["d", init]
 // CHECK: cir.copy %[[A_ADDR]] to %[[D_ADDR]] : !cir.ptr<!rec_CompleteS>
+
+void choose_expr() {
+  CompleteS a;
+  CompleteS b;
+  CompleteS c = __builtin_choose_expr(true, a, b);
+}
+
+// CHECK: cir.func{{.*}} @_Z11choose_exprv()
+// CHECK:   %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a"]
+// CHECK:   %[[B_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["b"]
+// CHECK:   %[[C_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["c", init]
+// CHECK:   cir.copy %[[A_ADDR]] to %[[C_ADDR]] : !cir.ptr<!rec_CompleteS>
