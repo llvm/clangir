@@ -621,14 +621,13 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // entry block.
   assert(!cir::MissingFeatures::escapedLocals() && "NYI");
 
-  // If a label address was taken but no indirect goto was used, we mark the
-  // 'indirectbr' as poison. During lowering, the associated PHI is removed,
-  // since the verifier does not allow a null addr.
-  if (indirectGotoBlock) {
-    if (indirectGotoBlock->hasNoPredecessors()) {
-      auto indrBr = cast<cir::IndirectBrOp>(indirectGotoBlock->front());
-      indrBr.setPoison(true);
-    }
+  // If a label address was taken but no indirect goto was used, we can't remove
+  // the block argument here. Instead, we mark the 'indirectbr' op
+  // as poison so that the cleanup can be deferred to lowering, since the
+  // verifier doesn't allow the 'indirectbr' target address to be null.
+  if (indirectGotoBlock && indirectGotoBlock->hasNoPredecessors()) {
+    auto indrBr = cast<cir::IndirectBrOp>(indirectGotoBlock->front());
+    indrBr.setPoison(true);
   }
 
   // CIRGen doesn't need to emit EHResumeBlock, TerminateLandingPad,

@@ -4576,7 +4576,8 @@ mlir::LogicalResult CIRToLLVMIndirectBrOpLowering::matchAndRewrite(
   } else {
     targetAddr =
         mlir::LLVM::PoisonOp::create(rewriter, op->getLoc(), llvmPtrType);
-    op->getBlock()->getArgument(0).dropAllUses();
+    // Remove the block argument to avoid generating an empty PHI during
+    // lowering.
     op->getBlock()->eraseArgument(0);
   }
 
