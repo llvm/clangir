@@ -179,7 +179,7 @@ public:
   }
   void VisitParenExpr(ParenExpr *PE) { Visit(PE->getSubExpr()); }
   void VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
-    llvm_unreachable("NYI");
+    Visit(GE->getResultExpr());
   }
   void VisitCoawaitExpr(CoawaitExpr *E) {
     CGF.emitCoawaitExpr(*E, Dest, IsResultUnused);
