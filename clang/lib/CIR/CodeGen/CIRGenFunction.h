@@ -100,6 +100,15 @@ private:
   llvm::DenseMap<const clang::LabelDecl *, JumpDest> LabelMap;
   JumpDest &getJumpDestForLabel(const clang::LabelDecl *D);
 
+  /// IndirectBranch - The first time an indirect goto is seen we create a block
+  /// reserved for the indirect branch. Unlike before,the actual 'indirectbr'
+  /// is emitted at the end of the function, once all block destinations have
+  /// been resolved.
+  mlir::Block *indirectGotoBlock = nullptr;
+
+  void resolveBlockAddresses();
+  void finishIndirectBranch();
+
   // ---------------------
   // Opaque value handling
   // ---------------------
@@ -687,6 +696,8 @@ public:
                                               bool IsDynamic);
 
   int64_t getAccessedFieldNo(unsigned idx, const mlir::ArrayAttr elts);
+
+  mlir::Block *getIndirectGotoBlock(cir::BlockAddressOp op);
 
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
   void checkTargetFeatures(SourceLocation Loc, const FunctionDecl *TargetDecl);
@@ -2165,7 +2176,7 @@ public:
   mlir::LogicalResult emitFunctionBody(const clang::Stmt *Body);
 
   mlir::LogicalResult emitGotoStmt(const clang::GotoStmt &S);
-
+  mlir::LogicalResult emitIndirectGotoStmt(const IndirectGotoStmt &s);
   /// Emit an if on a boolean condition to the specified blocks.
   /// FIXME: Based on the condition, this might try to simplify the codegen of
   /// the conditional based on the branch. TrueCount should be the number of
