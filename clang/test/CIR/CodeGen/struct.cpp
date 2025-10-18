@@ -196,6 +196,14 @@ void designated_init_update_expr() {
 // CHECK: cir.store{{.*}} %[[CONST_1]], %[[ELEM_0_PTR]] : !s32i, !cir.ptr<!s32i>
 // CHECK: %[[ELEM_1_PTR:.*]] = cir.get_member %[[C_ADDR]][1] {name = "b"} : !cir.ptr<!rec_CompleteS> -> !cir.ptr<!s8i>
 
+void unary_extension() {
+  CompleteS a = __extension__ CompleteS();
+}
+
+// CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a"]
+// CHECK: %[[ZERO_INIT:.*]] = cir.const #cir.zero : !rec_CompleteS
+// CHECK: cir.store{{.*}} %[[ZERO_INIT]], %[[A_ADDR]] : !rec_CompleteS, !cir.ptr<!rec_CompleteS>
+
 void generic_selection() {
   CompleteS a;
   CompleteS b;

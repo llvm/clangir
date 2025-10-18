@@ -400,6 +400,7 @@ LANGOPT(APINotesModules, 1, 0, NotCompatible, "use module-based external API not
 LANGOPT(SwiftVersionIndependentAPINotes, 1, 0, NotCompatible, "use external API notes capturing all versions")
 
 LANGOPT(CIRWarnings, 1, 0, NotCompatible, "emit warnings with ClangIR")
+LANGOPT(EmitCIRToFile, 1, 0, NotCompatible, "emit Clang IR to disk")
 
 LANGOPT(SanitizeAddressFieldPadding, 2, 0, NotCompatible, "controls how aggressive is ASan "
                                                       "field padding (0: none, 1:least "

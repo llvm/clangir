@@ -22,6 +22,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/FileSystem.h"
@@ -192,6 +193,11 @@ class CompilerInstance : public ModuleLoader {
 
   /// Force an output buffer.
   std::unique_ptr<llvm::raw_pwrite_stream> OutputStream;
+
+  /// Diagnostics about VFS overlays that should be emitted after executing
+  /// the frontend action.
+  llvm::SmallVector<std::pair<diag::kind, std::string>, 4>
+      PendingVFSDiagnostics;
 
   CompilerInstance(const CompilerInstance &) = delete;
   void operator=(const CompilerInstance &) = delete;

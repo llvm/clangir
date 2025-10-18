@@ -6064,6 +6064,21 @@ static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
   }
 
   if (builtinID) {
+    ASTContext &Ctx = CGF.getContext();
+    if (Ctx.BuiltinInfo.isPredefinedLibFunction(builtinID) &&
+        !FD->getDeclContext()->isStdNamespace()) {
+      ASTContext::GetBuiltinTypeError Error;
+      QualType BuiltinTy = Ctx.GetBuiltinType(builtinID, Error);
+      if (!Error &&
+          !Ctx.hasSameFunctionTypeIgnoringExceptionSpec(
+              Ctx.getCanonicalType(BuiltinTy),
+              Ctx.getCanonicalType(FD->getType()))) {
+        builtinID = 0;
+      }
+    }
+  }
+
+  if (builtinID) {
     std::string NoBuiltinFD = ("no-builtin-" + FD->getName()).str();
     std::string NoBuiltins = "no-builtins";
 

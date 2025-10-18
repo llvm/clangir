@@ -5001,6 +5001,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasArg(options::OPT_fclangir_mem2reg))
     CmdArgs.push_back("-fclangir-mem2reg");
 
+  Args.AddLastArg(CmdArgs, options::OPT_fcir_output_EQ);
+  if (Args.hasArg(options::OPT_fcir_output))
+    CmdArgs.push_back("-fcir-output");
+
   bool enable_idiom_recognizer =
       Args.hasArg(options::OPT_fclangir_idiom_recognizer,
                   options::OPT_fclangir_idiom_recognizer_EQ);

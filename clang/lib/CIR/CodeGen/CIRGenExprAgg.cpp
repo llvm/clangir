@@ -186,7 +186,7 @@ public:
   }
   void VisitCoyieldExpr(CoyieldExpr *E) { llvm_unreachable("NYI"); }
   void VisitUnaryCoawait(UnaryOperator *E) { llvm_unreachable("NYI"); }
-  void VisitUnaryExtension(UnaryOperator *E) { llvm_unreachable("NYI"); }
+  void VisitUnaryExtension(UnaryOperator *E) { Visit(E->getSubExpr()); }
   void VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
     llvm_unreachable("NYI");
   }

@@ -3205,6 +3205,11 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     Opts.ClangIRLibOptOpts = A->getValue();
   }
 
+  if (const Arg *A = Args.getLastArg(OPT_fcir_output_EQ))
+    Opts.ClangIRFile = A->getValue();
+  if (Args.hasArg(OPT_fcir_output))
+    Opts.EmitClangIRFile = true;
+
   if (Args.hasArg(OPT_fclangir_mem2reg))
     Opts.ClangIREnableMem2Reg = true;
   if (Args.hasArg(OPT_aux_target_cpu))
@@ -4431,14 +4436,12 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   // Get OpenMP host file path if any and report if a non existent file is
   // found
-  if (Arg *A = Args.getLastArg(options::OPT_fopenmp_host_ir_file_path)) {
+  if (Arg *A = Args.getLastArg(options::OPT_fopenmp_host_ir_file_path))
     Opts.OMPHostIRFile = A->getValue();
-    if (!llvm::sys::fs::exists(Opts.OMPHostIRFile))
-      Diags.Report(diag::err_drv_omp_host_ir_file_not_found)
-          << Opts.OMPHostIRFile;
-  }
   if (Arg *A = Args.getLastArg(options::OPT_fcir_output_EQ))
     Opts.CIRFile = A->getValue();
+  if (Args.hasArg(options::OPT_fcir_output))
+    Opts.EmitCIRToFile = true;
   // Set CUDA mode for OpenMP target NVPTX/AMDGCN if specified in options
   Opts.OpenMPCUDAMode = Opts.OpenMPIsTargetDevice &&
                         (T.isNVPTX() || T.isAMDGCN()) &&
@@ -5071,6 +5074,28 @@ bool CompilerInvocation::CreateFromArgsImpl(
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
 
+  if (const Arg *A = Args.getLastArg(OPT_fcir_output_EQ)) {
+    LangOpts.CIRFile = A->getValue();
+    Res.getFrontendOpts().ClangIRFile = A->getValue();
+  }
+  if (Args.hasArg(OPT_fcir_output)) {
+    LangOpts.EmitCIRToFile = true;
+    Res.getFrontendOpts().EmitClangIRFile = true;
+  }
+
+  for (const char *ArgStr : CommandLineArgs) {
+    StringRef S(ArgStr);
+    if (S.consume_front("-fcir-output=")) {
+      std::string Value = S.str();
+      LangOpts.CIRFile = Value;
+      Res.getFrontendOpts().ClangIRFile = std::move(Value);
+      Res.getFrontendOpts().EmitClangIRFile = true;
+    } else if (S == "-fcir-output") {
+      LangOpts.EmitCIRToFile = true;
+      Res.getFrontendOpts().EmitClangIRFile = true;
+    }
+  }
+
   for (auto Warning : Res.getDiagnosticOpts().Warnings) {
     if (Warning == "misexpect" &&
         !Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation())) {
@@ -5358,14 +5383,16 @@ clang::createVFSFromCompilerInvocation(const CompilerInvocation &CI,
 IntrusiveRefCntPtr<llvm::vfs::FileSystem>
 clang::createVFSFromCompilerInvocation(
     const CompilerInvocation &CI, DiagnosticsEngine &Diags,
-    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS) {
+    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+    llvm::SmallVectorImpl<std::pair<diag::kind, std::string>> *DelayedDiags) {
   return createVFSFromOverlayFiles(CI.getHeaderSearchOpts().VFSOverlayFiles,
-                                   Diags, std::move(BaseFS));
+                                   Diags, std::move(BaseFS), DelayedDiags);
 }
 
 IntrusiveRefCntPtr<llvm::vfs::FileSystem> clang::createVFSFromOverlayFiles(
     ArrayRef<std::string> VFSOverlayFiles, DiagnosticsEngine &Diags,
-    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS) {
+    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+    llvm::SmallVectorImpl<std::pair<diag::kind, std::string>> *DelayedDiags) {
   if (VFSOverlayFiles.empty())
     return BaseFS;
 
@@ -5375,7 +5402,10 @@ IntrusiveRefCntPtr<llvm::vfs::FileSystem> clang::createVFSFromOverlayFiles(
     llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Buffer =
         Result->getBufferForFile(File);
     if (!Buffer) {
-      Diags.Report(diag::err_missing_vfs_overlay_file) << File;
+      if (DelayedDiags)
+        DelayedDiags->emplace_back(diag::err_missing_vfs_overlay_file, File);
+      else
+        Diags.Report(diag::err_missing_vfs_overlay_file) << File;
       continue;
     }
 
@@ -5383,7 +5413,10 @@ IntrusiveRefCntPtr<llvm::vfs::FileSystem> clang::createVFSFromOverlayFiles(
         std::move(Buffer.get()), /*DiagHandler*/ nullptr, File,
         /*DiagContext*/ nullptr, Result);
     if (!FS) {
-      Diags.Report(diag::err_invalid_vfs_overlay) << File;
+      if (DelayedDiags)
+        DelayedDiags->emplace_back(diag::err_invalid_vfs_overlay, File);
+      else
+        Diags.Report(diag::err_invalid_vfs_overlay) << File;
       continue;
     }
 

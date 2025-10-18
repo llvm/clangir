@@ -134,9 +134,28 @@ static Value *EmitTargetArchBuiltinExpr(CodeGenFunction *CGF,
   }
 }
 
+static bool isNonTSBuiltinDispatchedToTarget(unsigned BuiltinID) {
+  switch (BuiltinID) {
+  case Builtin::BI__builtin_cpu_supports:
+  case Builtin::BI__builtin_cpu_is:
+  case Builtin::BI__builtin_cpu_init:
+  case Builtin::BI__builtin_logbf:
+  case Builtin::BI__builtin_logb:
+  case Builtin::BI__builtin_scalbnf:
+  case Builtin::BI__builtin_scalbn:
+    return true;
+  default:
+    return false;
+  }
+}
+
 Value *CodeGenFunction::EmitTargetBuiltinExpr(unsigned BuiltinID,
                                               const CallExpr *E,
                                               ReturnValueSlot ReturnValue) {
+  if (!getContext().BuiltinInfo.isTSBuiltin(BuiltinID) &&
+      !isNonTSBuiltinDispatchedToTarget(BuiltinID))
+    return nullptr;
+
   if (getContext().BuiltinInfo.isAuxBuiltinID(BuiltinID)) {
     assert(getContext().getAuxTargetInfo() && "Missing aux target info");
     return EmitTargetArchBuiltinExpr(
@@ -2628,8 +2647,30 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // disable the specialized emitting below. Ideally we should communicate the
   // rename in IR, or at least avoid generating the intrinsic calls that are
   // likely to get lowered to the renamed library functions.
-  const unsigned BuiltinIDIfNoAsmLabel =
+  unsigned BuiltinIDIfNoAsmLabel =
       FD->hasAttr<AsmLabelAttr>() ? 0 : BuiltinID;
+
+  if (BuiltinIDIfNoAsmLabel) {
+    bool HasCustomTypeChecking =
+        llvm::StringRef(getContext().BuiltinInfo.getAttributesString(
+                            BuiltinIDIfNoAsmLabel))
+            .contains('t');
+    ASTContext::GetBuiltinTypeError Error;
+    QualType BuiltinTy =
+        getContext().GetBuiltinType(BuiltinIDIfNoAsmLabel, Error);
+    if (!Error && !HasCustomTypeChecking) {
+      if (const auto *Proto = BuiltinTy->getAs<FunctionProtoType>()) {
+        unsigned MinRequiredArgs = Proto->getNumParams();
+        unsigned GivenArgs = E->getNumArgs();
+        bool HasVariadic = Proto->isVariadic();
+        if ((!HasVariadic && GivenArgs != MinRequiredArgs) ||
+            (HasVariadic && GivenArgs < MinRequiredArgs)) {
+          BuiltinIDIfNoAsmLabel = 0;
+          BuiltinID = 0;
+        }
+      }
+    }
+  }
 
   std::optional<bool> ErrnoOverriden;
   // ErrnoOverriden is true if math-errno is overriden via the

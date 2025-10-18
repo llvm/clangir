@@ -2933,6 +2933,7 @@ defm gnu89_inline : BoolFOption<"gnu89-inline",
           "Use the gnu89 inline semantics">,
   NegFlag<SetFalse>>, ShouldParseIf<!strconcat("!", cplusplus.KeyPath)>;
 def fgnu_runtime : Flag<["-"], "fgnu-runtime">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Generate output compatible with the standard GNU Objective-C runtime">;
 // This used to be a standalone flag but is now mapped to
 // -Wno-error=invalid-gnu-asm-cast, which is the only thing the flag used to
@@ -3155,13 +3156,16 @@ defm clangir : BoolFOption<"clangir",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use the ClangIR pipeline to compile">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option], "Use the AST -> LLVM pipeline to compile">,
   BothFlags<[], [ClangOption, CC1Option], "">>;
-def fcir_output_EQ : Joined<["-"], "fcir-output=">,
+def fcir_output_EQ : Joined<["-"], "fcir-output=">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option]>,
+  Flags<[NoArgumentUnused]>,
   HelpText<"Write Clang IR output to <file>">,
   MarshallingInfoString<LangOpts<"CIRFile">>;
-def fcir_output : Flag<["-"], "fcir-output">,
+def fcir_output : Flag<["-"], "fcir-output">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Write Clang IR output to <input>.cir">;
+  Flags<[NoArgumentUnused]>,
+  HelpText<"Write Clang IR output to <input>.cir">,
+  MarshallingInfoFlag<LangOpts<"EmitCIRToFile">>;
 defm cir_warnings : BoolFOption<"cir-warnings",
   LangOpts<"CIRWarnings">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use">,

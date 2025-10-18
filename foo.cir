@@ -1,0 +1,18 @@
+!s32i = !cir.int<s, 32>
+#fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone, uwtable = #cir.uwtable<async>})>
+module @"/tmp/foo.c" attributes {cir.lang = #cir.lang<c>, cir.sob = #cir.signed_overflow_behavior<undefined>, cir.triple = "x86_64-unknown-linux-gnu", cir.type_size_info = #cir.type_size_info<char = 8, int = 32, size_t = 64>, cir.uwtable = #cir.uwtable<async>, dlti.dl_spec = #dlti.dl_spec<!llvm.ptr<270> = dense<32> : vector<4xi64>, !llvm.ptr<271> = dense<32> : vector<4xi64>, !llvm.ptr<272> = dense<64> : vector<4xi64>, i64 = dense<64> : vector<2xi64>, i128 = dense<128> : vector<2xi64>, f80 = dense<128> : vector<2xi64>, !llvm.ptr = dense<64> : vector<4xi64>, i1 = dense<8> : vector<2xi64>, i8 = dense<8> : vector<2xi64>, i16 = dense<16> : vector<2xi64>, i32 = dense<32> : vector<2xi64>, f16 = dense<16> : vector<2xi64>, f64 = dense<64> : vector<2xi64>, f128 = dense<128> : vector<2xi64>, "dlti.endianness" = "little", "dlti.mangling_mode" = "e", "dlti.legal_int_widths" = array<i32: 8, 16, 32, 64>, "dlti.stack_alignment" = 128 : i64>} {
+  cir.func no_proto dso_local @main() -> !s32i extra(#fn_attr) {
+    %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64} loc(#loc2)
+    %1 = cir.const #cir.int<0> : !s32i loc(#loc3)
+    cir.store %1, %0 : !s32i, !cir.ptr<!s32i> loc(#loc6)
+    %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i loc(#loc6)
+    cir.return %2 : !s32i loc(#loc6)
+  } loc(#loc5)
+} loc(#loc)
+#loc = loc("/tmp/foo.c":0:0)
+#loc1 = loc("/tmp/foo.c":1:1)
+#loc2 = loc("/tmp/foo.c":1:22)
+#loc3 = loc("/tmp/foo.c":1:20)
+#loc4 = loc("/tmp/foo.c":1:13)
+#loc5 = loc(fused[#loc1, #loc2])
+#loc6 = loc(fused[#loc4, #loc3])

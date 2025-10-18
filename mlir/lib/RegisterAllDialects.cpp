@@ -142,6 +142,7 @@ void mlir::registerAllDialects(DialectRegistry &registry) {
                   quant::QuantDialect,
                   ROCDL::ROCDLDialect,
                   scf::SCFDialect,
+                  shard::ShardDialect,
                   shape::ShapeDialect,
                   smt::SMTDialect,
                   sparse_tensor::SparseTensorDialect,
@@ -151,6 +152,7 @@ void mlir::registerAllDialects(DialectRegistry &registry) {
                   transform::TransformDialect,
                   ub::UBDialect,
                   vector::VectorDialect,
+                  wasmssa::WasmSSADialect,
                   x86vector::X86VectorDialect,
                   xegpu::XeGPUDialect,
                   xevm::XeVMDialect>();

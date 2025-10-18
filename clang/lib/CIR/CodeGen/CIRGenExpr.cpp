@@ -2042,7 +2042,8 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
     assert(0 && "NYI");
   case CK_BaseToDerived: {
     const auto *derivedClassTy = E->getType()->castAs<RecordType>();
-    auto *derivedClassDecl = cast<CXXRecordDecl>(derivedClassTy->getDecl());
+    auto *derivedClassDecl =
+        cast<CXXRecordDecl>(derivedClassTy->getOriginalDecl());
 
     LValue lv = emitLValue(E->getSubExpr());
 

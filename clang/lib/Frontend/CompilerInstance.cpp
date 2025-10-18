@@ -280,8 +280,15 @@ void CompilerInstance::createVirtualFileSystem(
   DiagnosticsEngine Diags(DiagnosticIDs::create(), DiagOpts, DC,
                           /*ShouldOwnClient=*/false);
 
+  Diags.setSeverity(diag::err_missing_vfs_overlay_file, diag::Severity::Error,
+                    SourceLocation());
+  Diags.setSeverity(diag::err_invalid_vfs_overlay, diag::Severity::Error,
+                    SourceLocation());
+
+  PendingVFSDiagnostics.clear();
   VFS = createVFSFromCompilerInvocation(getInvocation(), Diags,
-                                        std::move(BaseFS));
+                                        std::move(BaseFS),
+                                        &PendingVFSDiagnostics);
   // FIXME: Should this go into createVFSFromCompilerInvocation?
   if (getFrontendOpts().ShowStats)
     VFS =
@@ -1030,6 +1037,15 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
     } else {
       llvm::PrintStatisticsJSON(*StatS);
     }
+  }
+
+  if (!PendingVFSDiagnostics.empty()) {
+    for (const auto &DiagInfo : PendingVFSDiagnostics)
+      getDiagnostics().Report(DiagInfo.first) << DiagInfo.second;
+    llvm::errs() << PendingVFSDiagnostics.size() << " error"
+                 << (PendingVFSDiagnostics.size() == 1 ? "" : "s")
+                 << " generated.\n";
+    PendingVFSDiagnostics.clear();
   }
 
   return !getDiagnostics().getClient()->getNumErrors();

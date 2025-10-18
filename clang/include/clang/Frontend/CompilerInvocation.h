@@ -391,12 +391,16 @@ createVFSFromCompilerInvocation(const CompilerInvocation &CI,
 
 IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFSFromCompilerInvocation(
     const CompilerInvocation &CI, DiagnosticsEngine &Diags,
-    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS);
+    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+    llvm::SmallVectorImpl<std::pair<diag::kind, std::string>> *DelayedDiags =
+        nullptr);
 
 IntrusiveRefCntPtr<llvm::vfs::FileSystem>
 createVFSFromOverlayFiles(ArrayRef<std::string> VFSOverlayFiles,
                           DiagnosticsEngine &Diags,
-                          IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS);
+                          IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+                          llvm::SmallVectorImpl<std::pair<diag::kind, std::string>>
+                              *DelayedDiags = nullptr);
 
 } // namespace clang
 

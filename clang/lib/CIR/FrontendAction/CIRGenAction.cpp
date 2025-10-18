@@ -47,9 +47,11 @@
 #include "llvm/LTO/LTOBackend.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -118,6 +120,7 @@ class CIRGenConsumer : public clang::ASTConsumer {
   [[maybe_unused]] const LangOptions &langOptions;
   const FrontendOptions &feOptions;
 
+  std::string InputFileName;
   std::unique_ptr<raw_pwrite_stream> outputStream;
 
   ASTContext *astContext{nullptr};
@@ -133,13 +136,14 @@ public:
                  CodeGenOptions &codeGenOptions,
                  const TargetOptions &targetOptions,
                  const LangOptions &langOptions,
-                 const FrontendOptions &feOptions,
+                 const FrontendOptions &feOptions, StringRef InputFile,
                  std::unique_ptr<raw_pwrite_stream> os)
       : action(action), compilerInstance(compilerInstance),
         diagnosticsEngine(diagnosticsEngine),
         headerSearchOptions(headerSearchOptions),
         codeGenOptions(codeGenOptions), targetOptions(targetOptions),
         langOptions(langOptions), feOptions(feOptions),
+        InputFileName(InputFile.str()),
         outputStream(std::move(os)), FS(VFS),
         gen(std::make_unique<CIRGenerator>(diagnosticsEngine, std::move(VFS),
                                            codeGenOptions)) {}
@@ -262,6 +266,50 @@ public:
         mlir::SourceMgrDiagnosticHandler sourceMgrHandler(mlirSourceMgr,
                                                           mlirCtx.get());
         setupCIRPipelineAndExecute();
+      }
+    }
+
+    bool EmitCIR = langOptions.EmitCIRToFile || feOptions.EmitClangIRFile ||
+                   !langOptions.CIRFile.empty() ||
+                   !feOptions.ClangIRFile.empty();
+    if (EmitCIR) {
+      std::unique_ptr<raw_pwrite_stream> CIRStream;
+      llvm::SmallString<128> DefaultPath;
+      if (!feOptions.ClangIRFile.empty()) {
+        CIRStream = compilerInstance.createOutputFile(
+            feOptions.ClangIRFile,
+            /*Binary=*/false,
+            /*RemoveFileOnSignal=*/true,
+            /*UseTemporary=*/true);
+      } else if (!langOptions.CIRFile.empty()) {
+        CIRStream = compilerInstance.createOutputFile(
+            langOptions.CIRFile,
+            /*Binary=*/false,
+            /*RemoveFileOnSignal=*/true,
+            /*UseTemporary=*/true);
+      } else {
+        if (!feOptions.OutputFile.empty() && feOptions.OutputFile != "-") {
+          DefaultPath = feOptions.OutputFile;
+        } else if (!InputFileName.empty() && InputFileName != "-") {
+          DefaultPath = InputFileName;
+        } else if (!feOptions.Inputs.empty() && feOptions.Inputs[0].isFile() &&
+                   feOptions.Inputs[0].getFile() != "-") {
+          DefaultPath = feOptions.Inputs[0].getFile();
+        } else {
+          DefaultPath = "clangir-output";
+        }
+        llvm::sys::path::replace_extension(DefaultPath, "cir");
+        CIRStream = compilerInstance.createOutputFile(
+            DefaultPath,
+            /*Binary=*/false,
+            /*RemoveFileOnSignal=*/true,
+            /*UseTemporary=*/true);
+      }
+
+      if (CIRStream) {
+        mlir::OpPrintingFlags Flags;
+        Flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+        mlirMod->print(*CIRStream, Flags);
       }
     }
 
@@ -399,7 +447,7 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
   auto Result = std::make_unique<cir::CIRGenConsumer>(
       action, ci, ci.getDiagnostics(), &ci.getVirtualFileSystem(),
       ci.getHeaderSearchOpts(), ci.getCodeGenOpts(), ci.getTargetOpts(),
-      ci.getLangOpts(), ci.getFrontendOpts(), std::move(out));
+      ci.getLangOpts(), ci.getFrontendOpts(), inputFile, std::move(out));
   cgConsumer = Result.get();
 
   // Enable generating macro debug info only when debug info is not disabled and
@@ -507,7 +555,8 @@ AnalysisOnlyActionBase::CreateASTConsumer(clang::CompilerInstance &ci,
   Consumers.push_back(std::make_unique<cir::CIRGenConsumer>(
       CIRGenAction::OutputType::None, ci, ci.getDiagnostics(),
       &ci.getVirtualFileSystem(), ci.getHeaderSearchOpts(), ci.getCodeGenOpts(),
-      ci.getTargetOpts(), ci.getLangOpts(), ci.getFrontendOpts(), nullptr));
+      ci.getTargetOpts(), ci.getLangOpts(), ci.getFrontendOpts(), inFile,
+      nullptr));
   return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
