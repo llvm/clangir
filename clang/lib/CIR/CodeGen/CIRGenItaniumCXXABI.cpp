@@ -2726,9 +2726,29 @@ mlir::Value CIRGenItaniumCXXABI::emitDynamicCast(CIRGenFunction &CGF,
   // If the destination is effectively final, the cast succeeds if and only
   // if the dynamic type of the pointer is exactly the destination type.
   if (DestRecordTy->getAsCXXRecordDecl()->isEffectivelyFinal() &&
-      CGF.CGM.getCodeGenOpts().OptimizationLevel > 0)
+      CGF.CGM.getCodeGenOpts().OptimizationLevel > 0) {
+    CIRGenBuilderTy &builder = CGF.getBuilder();
+    // If this isn't a reference cast, check the pointer to see if it's null.
+    if (!isRefCast) {
+      mlir::Value srcPtrIsNull = builder.createPtrIsNull(Src.getPointer());
+      return cir::TernaryOp::create(
+                 builder, Loc, srcPtrIsNull,
+                 [&](mlir::OpBuilder, mlir::Location) {
+                   builder.createYield(
+                       Loc, builder.getNullPtr(DestCIRTy, Loc).getResult());
+                 },
+                 [&](mlir::OpBuilder &, mlir::Location) {
+                   mlir::Value exactCast = emitExactDynamicCast(
+                       *this, CGF, Loc, SrcRecordTy, DestRecordTy, DestCIRTy,
+                       isRefCast, Src);
+                   builder.createYield(Loc, exactCast);
+                 })
+          .getResult();
+    }
+
     return emitExactDynamicCast(*this, CGF, Loc, SrcRecordTy, DestRecordTy,
                                 DestCIRTy, isRefCast, Src);
+  }
 
   auto castInfo = emitDynamicCastInfo(CGF, Loc, SrcRecordTy, DestRecordTy);
   return CGF.getBuilder().createDynCast(Loc, Src.getPointer(), DestCIRTy,
