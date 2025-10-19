@@ -274,7 +274,9 @@ void CIRGenModule::constructAttributeList(
       // TODO(cir): add alloc size attr.
     }
 
-    if (TargetDecl->hasAttr<DeviceKernelAttr>() && DeviceKernelAttr::isOpenCLSpelling(TargetDecl->getAttr<DeviceKernelAttr>())) {
+    if (TargetDecl->hasAttr<DeviceKernelAttr>() &&
+        DeviceKernelAttr::isOpenCLSpelling(
+            TargetDecl->getAttr<DeviceKernelAttr>())) {
       auto cirKernelAttr = cir::OpenCLKernelAttr::get(&getMLIRContext());
       funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
 
@@ -476,7 +478,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
        I != E; ++I, ++type_it, ++ArgNo) {
 
     mlir::Type argType = convertType(*type_it);
-    if (!mlir::isa<cir::RecordType>(argType)) {
+    if (!mlir::isa<cir::RecordType, cir::ComplexType>(argType)) {
       mlir::Value V;
       assert(!I->isAggregate() && "Aggregate NYI");
       V = I->getKnownRValue().getScalarVal();
@@ -496,7 +498,8 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       // FIXME: Avoid the conversion through memory if possible.
       Address Src = Address::invalid();
       if (!I->isAggregate()) {
-        llvm_unreachable("NYI");
+        Src = CreateMemTemp(I->Ty, loc, "coerce");
+        I->copyInto(*this, Src, loc);
       } else {
         Src = I->hasLValue() ? I->getKnownLValue().getAddress()
                              : I->getKnownRValue().getAggregateAddress();
@@ -504,8 +507,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      auto STy = cast<cir::RecordType>(argType);
-      auto SrcTy = Src.getElementType();
+      auto srcTy = Src.getElementType();
       // FIXME(cir): get proper location for each argument.
       auto argLoc = loc;
 
@@ -519,13 +521,13 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       // uint64_t SrcSize = CGM.getDataLayout().getTypeAllocSize(SrcTy);
       // uint64_t DstSize = CGM.getDataLayout().getTypeAllocSize(STy);
       // if (SrcSize < DstSize) {
-      if (SrcTy != STy)
+      if (srcTy != argType)
         llvm_unreachable("NYI");
       else {
         // FIXME(cir): this currently only runs when the types are different,
         // but should be when alloc sizes are different, fix this as soon as
         // datalayout gets introduced.
-        Src = builder.createElementBitCast(argLoc, Src, STy);
+        Src = builder.createElementBitCast(argLoc, Src, argType);
       }
 
       // assert(NumCIRArgs == STy.getMembers().size());
@@ -757,6 +759,18 @@ mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
   return call->getResult(0);
 }
 
+void CallArg::copyInto(CIRGenFunction &cgf, Address addr,
+                       mlir::Location loc) const {
+  LValue dst = cgf.makeAddrLValue(addr, Ty);
+  if (!HasLV && RV.isScalar())
+    llvm_unreachable("copyInto scalar value");
+  else if (!HasLV && RV.isComplex())
+    cgf.emitStoreOfComplex(loc, RV.getComplexVal(), dst, /*isInit=*/true);
+  else
+    llvm_unreachable("copyInto hasLV");
+  IsUsed = true;
+}
+
 void CIRGenFunction::emitCallArg(CallArgList &args, const Expr *E,
                                  QualType type) {
   // TODO: Add the DisableDebugLocationUpdates helper
@@ -982,7 +996,8 @@ static void appendParameterTypes(
   for (unsigned I = 0, E = FPT->getNumParams(); I != E; ++I) {
     prefix.push_back(FPT->getParamType(I));
     if (ExtInfos[I].hasPassObjectSize())
-      prefix.push_back(CGT.getContext().getCanonicalType(CGT.getContext().getSizeType()));
+      prefix.push_back(
+          CGT.getContext().getCanonicalType(CGT.getContext().getSizeType()));
   }
 
   addExtParameterInfosForCall(paramInfos, FPT.getTypePtr(), PrefixSize,
