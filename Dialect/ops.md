@@ -444,6 +444,46 @@ Traits: `SameTypeOperands`
 | `ptr2` | pointer to void type |
 
 
+### `cir.atomic.clear` (::cir::AtomicClearOp)
+
+_Atomic clear_
+
+Syntax:
+
+```
+operation ::= `cir.atomic.clear` $mem_order $ptr
+              (`volatile` $is_volatile^)?
+              `:` qualified(type($ptr)) attr-dict
+```
+
+C/C++ atomic clear operation. Implements the builtin function
+`__atomic_clear`.
+
+The operation takes as its only operand a pointer to an 8-bit signed
+integer. The operation atomically sets the integer to zero.
+
+Example:
+```mlir
+  cir.atomic.clear seq_cst %ptr : !cir.ptr<!s8i>
+```
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>mem_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>memory scope kind</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | pointer to 8-bit signed integer |
+
+
 ### `cir.atomic.cmp_xchg` (::cir::AtomicCmpXchg)
 
 _Atomic compare exchange_
@@ -600,6 +640,56 @@ Interfaces: `InferTypeOpInterface`
 | Result | Description |
 | :----: | ----------- |
 | `result` | integer or floating point type |
+
+
+### `cir.atomic.test_and_set` (::cir::AtomicTestAndSetOp)
+
+_Atomic test and set_
+
+Syntax:
+
+```
+operation ::= `cir.atomic.test_and_set` $mem_order $ptr
+              (`volatile` $is_volatile^)?
+              `:` qualified(type($ptr)) `->` qualified(type($result)) attr-dict
+```
+
+C/C++ atomic test and set operation. Implements the builtin function
+`__atomic_test_and_set`.
+
+The operation takes as its only operand a pointer to an 8-bit signed
+integer. The operation atomically set the integer to an implementation-
+defined non-zero "set" value. The result of the operation is a boolean value
+indicating whether the previous value of the integer was the "set" value.
+
+Example:
+```mlir
+  %res = cir.atomic.test_and_set seq_cst %ptr : !cir.ptr<!s8i> -> !cir.bool
+```
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>mem_order</code></td><td>::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>syncscope</code></td><td>::cir::MemScopeKindAttr</td><td>memory scope kind</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | pointer to 8-bit signed integer |
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR bool type |
 
 
 ### `cir.atomic.xchg` (::cir::AtomicXchg)
@@ -2243,21 +2333,21 @@ Interfaces: `CIR_ConditionOpInterface`, `RegionBranchTerminatorOpInterface`
 
 ### `cir.const` (::cir::ConstantOp)
 
-_Defines a CIR constant_
+_Create a CIR constant from a literal attribute_
 
 Syntax:
 
 ```
-operation ::= `cir.const` attr-dict $value
+operation ::= `cir.const` $value attr-dict
 ```
 
 The `cir.const` operation turns a literal into an SSA value. The data is
 attached to the operation as an attribute.
 
 ```mlir
-  %0 = cir.const 42 : i32
-  %1 = cir.const 4.2 : f32
-  %2 = cir.const nullptr : !cir.ptr<i32>
+  %0 = cir.const #cir.int<4> : !u32i
+  %1 = cir.const #cir.fp<1.500000e+00> : !cir.float
+  %2 = cir.const #cir.ptr<null> : !cir.ptr<!void>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `ConstantLike`
@@ -4919,19 +5009,22 @@ _Pointer subtraction arithmetic_
 Syntax:
 
 ```
-operation ::= `cir.ptr_diff` `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
+operation ::= `cir.ptr_diff` $lhs `,` $rhs  `:` qualified(type($lhs)) `->` qualified(type($result))
+              attr-dict
 ```
 
-`cir.ptr_diff` performs a subtraction between two pointer types with the
-same element type and produces a `cir::IntType` result.
+The cir.ptr_diff operation computes the difference between two pointers that
+have the same element type
 
-Note that the result considers the pointer size according to the ABI for
-the pointee sizes, e.g. the subtraction between two `!cir.ptr<!u64i>` might
-yield 1, meaning 8 bytes, whereas for `void` or function type pointees,
-yielding 8 means 8 bytes.
+The result reflects the ABI-defined size of the pointed-to type. For example,
+subtracting two !cir.ptr<!u64i> values may yield 1, representing an 8-byte
+difference. In contrast, for pointers to void or function types, a result of
+8 corresponds to an 8-byte difference.
+
+Example:
 
 ```mlir
-%7 = "cir.ptr_diff"(%0, %1) : !cir.ptr<!u64i> -> !u64i
+%7 = cir.ptr_diff %0, %1 : !cir.ptr<!u64i> -> !u64i
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
@@ -4990,21 +5083,23 @@ _Pointer access with stride_
 Syntax:
 
 ```
-operation ::= `cir.ptr_stride` ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results) attr-dict
+operation ::= `cir.ptr_stride` ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results)
+              attr-dict
 ```
 
-Given a base pointer as first operand, provides a new pointer after applying
-a stride (second operand).
+The `cir.ptr_stride` operation computes a new pointer from a base pointer
+and an integer stride, similar to a single-index `getelementptr` in LLVM IR.
+It moves the pointer by `stride * sizeof(element_type)` bytes.
+
+Optional no-wrap flags refine pointer arithmetic semantics, that mirror
+LLVM's GEP no-wrap semantics.
+
+Example:
 
 ```mlir
-%3 = cir.const 0 : i32
-
-%4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
-
-%5 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds), !cir.ptr<i32>
-
-%6 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32, inbounds|nuw), !cir.ptr<i32>
-
+%3 = cir.ptr_stride %1, %2 : (!cir.ptr<i32>, i32) ->!cir.ptr<i32>
+%4 = cir.ptr_stride inbounds %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
+%5 = cir.ptr_stride inbounds|nuw %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`

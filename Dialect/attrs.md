@@ -728,35 +728,35 @@ Syntax:
 
 ```
 #cir.dyn_cast_info<
-  ::cir::GlobalViewAttr,   # srcRtti
-  ::cir::GlobalViewAttr,   # destRtti
-  mlir::FlatSymbolRefAttr,   # runtimeFunc
-  mlir::FlatSymbolRefAttr,   # badCastFunc
-  ::cir::IntAttr   # offsetHint
+  ::cir::GlobalViewAttr,   # src_rtti
+  ::cir::GlobalViewAttr,   # dest_rtti
+  mlir::FlatSymbolRefAttr,   # runtime_func
+  mlir::FlatSymbolRefAttr,   # bad_cast_func
+  ::cir::IntAttr   # offset_hint
 >
 ```
 
 Provide ABI specific information about a dynamic cast operation.
 
-The `srcRtti` and the `destRtti` parameters give the RTTI of the source
+The `src_rtti` and the `dest_rtti` parameters give the RTTI of the source
 record type and the destination record type, respectively.
 
-The `runtimeFunc` parameter gives the `__dynamic_cast` function which is
-provided by the runtime. The `badCastFunc` parameter gives the
+The `runtime_func` parameter gives the `__dynamic_cast` function which is
+provided by the runtime. The `bad_cast_func` parameter gives the
 `__cxa_bad_cast` function which is also provided by the runtime.
 
-The `offsetHint` parameter gives the hint value that should be passed to the
-`__dynamic_cast` runtime function.
+The `offset_hint` parameter gives the hint value that should be passed to
+the `__dynamic_cast` runtime function.
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| srcRtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
-| destRtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
-| runtimeFunc | `mlir::FlatSymbolRefAttr` |  |
-| badCastFunc | `mlir::FlatSymbolRefAttr` |  |
-| offsetHint | `::cir::IntAttr` | An Attribute containing a integer value |
+| src_rtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
+| dest_rtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
+| runtime_func | `mlir::FlatSymbolRefAttr` |  |
+| bad_cast_func | `mlir::FlatSymbolRefAttr` |  |
+| offset_hint | `::cir::IntAttr` | An Attribute containing a integer value |
 
 ### ExtraFuncAttributesAttr
 
