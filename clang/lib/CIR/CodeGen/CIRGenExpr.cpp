@@ -535,9 +535,16 @@ static CIRGenCallee emitDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
 
   mlir::Operation *CalleePtr = emitFunctionDeclPointer(CGM, GD);
 
-  if (CGM.getLangOpts().CUDA && !CGM.getLangOpts().CUDAIsDevice &&
-      FD->hasAttr<CUDAGlobalAttr>())
-    CalleePtr = CGM.getCUDARuntime().getKernelStub(CalleePtr);
+  if ((CGM.getLangOpts().HIP || CGM.getLangOpts().CUDA) &&
+      !CGM.getLangOpts().CUDAIsDevice && FD->hasAttr<CUDAGlobalAttr>()) {
+
+    // Ensure the handle is created and use it as the lookup key.
+    auto *Handle = CGM.getCUDARuntime().getKernelHandle(
+        llvm::cast<cir::FuncOp>(CalleePtr), GD);
+
+    // Now look up the stub via the handle
+    CalleePtr = CGM.getCUDARuntime().getKernelStub(Handle);
+  }
 
   return CIRGenCallee::forDirect(CalleePtr, GD);
 }
@@ -1559,8 +1566,6 @@ RValue CIRGenFunction::emitCall(clang::QualType CalleeType,
     Fn = builder.createBitcast(Addr, CalleePtrTy).getDefiningOp();
     Callee.setFunctionPointer(Fn);
   }
-
-  assert(!CGM.getLangOpts().HIP && "HIP NYI");
 
   assert(!MustTailCall && "Must tail NYI");
   cir::CIRCallOpInterface callOP;
