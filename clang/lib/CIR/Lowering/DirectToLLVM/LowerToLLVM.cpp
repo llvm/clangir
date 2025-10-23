@@ -4588,6 +4588,40 @@ mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMIndirectBrOpLowering::matchAndRewrite(
+    cir::IndirectBrOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+
+  llvm::SmallVector<mlir::Block *, 8> successors;
+  llvm::SmallVector<mlir::ValueRange, 8> succOperands;
+  bool poison = op.getPoison();
+  for (auto suc : op->getSuccessors()) {
+    successors.push_back(suc);
+  }
+
+  for (auto operand : op.getSuccOperands()) {
+    succOperands.push_back(operand);
+  }
+
+  auto llvmPtrType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+  mlir::Value targetAddr;
+  if (!poison) {
+    targetAddr = mlir::LLVM::BitcastOp::create(rewriter, op.getLoc(),
+                                               llvmPtrType, adaptor.getAddr());
+  } else {
+    targetAddr =
+        mlir::LLVM::PoisonOp::create(rewriter, op->getLoc(), llvmPtrType);
+    // Remove the block argument to avoid generating an empty PHI during
+    // lowering.
+    op->getBlock()->eraseArgument(0);
+  }
+
+  auto newOp = mlir::LLVM::IndirectBrOp::create(
+      rewriter, op.getLoc(), targetAddr, succOperands, successors);
+  rewriter.replaceOp(op, newOp);
+  return mlir::success();
+}
+
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
     mlir::DataLayout &dataLayout, cir::LowerModule *lowerModule,
@@ -4680,6 +4714,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMGetMemberOpLowering,
       CIRToLLVMInsertMemberOpLowering,
       CIRToLLVMDeleteArrayOpLowering,
+      CIRToLLVMIndirectBrOpLowering,
       CIRToLLVMIsConstantOpLowering,
       CIRToLLVMIsFPClassOpLowering,
       CIRToLLVMLinkerOptionsOpLowering,
