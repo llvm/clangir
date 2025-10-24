@@ -204,7 +204,8 @@ static void emitDeclInit(CIRGenFunction &cgf, const VarDecl *varDecl,
       cgf.emitScalarInit(init, cgf.getLoc(varDecl->getLocation()), lv, false);
     return;
   case cir::TEK_Complex:
-    llvm_unreachable("complext evaluation NYI");
+    cgf.emitComplexExprIntoLValue(init, lv, /*isInit=*/true);
+    return;
   case cir::TEK_Aggregate:
     cgf.emitAggExpr(init,
                     AggValueSlot::forLValue(lv, AggValueSlot::IsDestructed,
