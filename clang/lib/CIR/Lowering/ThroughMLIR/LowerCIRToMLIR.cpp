@@ -697,6 +697,16 @@ private:
       }
       return mlir::DenseElementsAttr::get(
           mlir::cast<mlir::ShapedType>(mlirType), mlirValues);
+    } else if (auto zeroAttr = mlir::dyn_cast<cir::ZeroAttr>(cirAttr)) {
+      (void)zeroAttr;
+      return rewriter.getZeroAttr(mlirType);
+    } else if (auto complexAttr = mlir::dyn_cast<cir::ComplexAttr>(cirAttr)) {
+      auto vecType = mlir::dyn_cast<mlir::VectorType>(mlirType);
+      assert(vecType && "complex attribute lowered type should be a vector");
+      SmallVector<mlir::Attribute, 2> elements{
+          this->lowerCirAttrToMlirAttr(complexAttr.getReal(), rewriter),
+          this->lowerCirAttrToMlirAttr(complexAttr.getImag(), rewriter)};
+      return mlir::DenseElementsAttr::get(vecType, elements);
     } else if (auto boolAttr = mlir::dyn_cast<cir::BoolAttr>(cirAttr)) {
       return rewriter.getIntegerAttr(mlirType, boolAttr.getValue());
     } else if (auto floatAttr = mlir::dyn_cast<cir::FPAttr>(cirAttr)) {
@@ -1133,7 +1143,18 @@ public:
           initialValue = init.value();
         else
           llvm_unreachable("GlobalOp lowering array with initial value fail");
-      } else if (auto constArr = mlir::dyn_cast<cir::ZeroAttr>(init.value())) {
+      } else if (auto constComplex =
+                     mlir::dyn_cast<cir::ComplexAttr>(init.value())) {
+        if (auto lowered =
+                cir::direct::lowerConstComplexAttr(constComplex,
+                                                   getTypeConverter());
+            lowered.has_value())
+          initialValue = lowered.value();
+        else
+          llvm_unreachable(
+              "GlobalOp lowering complex with initial value failed");
+      } else if (auto zeroAttr = mlir::dyn_cast<cir::ZeroAttr>(init.value())) {
+        (void)zeroAttr;
         if (memrefType.getShape().size()) {
           auto elementType = memrefType.getElementType();
           auto rtt =
@@ -1141,10 +1162,11 @@ public:
           if (mlir::isa<mlir::IntegerType>(elementType))
             initialValue = mlir::DenseIntElementsAttr::get(rtt, 0);
           else if (mlir::isa<mlir::FloatType>(elementType)) {
-            auto floatZero = mlir::FloatAttr::get(elementType, 0.0).getValue();
+            auto floatZero =
+                mlir::FloatAttr::get(elementType, 0.0).getValue();
             initialValue = mlir::DenseFPElementsAttr::get(rtt, floatZero);
           } else
-            llvm_unreachable("GlobalOp lowering unsuppored element type");
+            initialValue = mlir::Attribute();
         } else {
           auto rtt = mlir::RankedTensorType::get({}, convertedType);
           if (mlir::isa<mlir::IntegerType>(convertedType))
@@ -1154,7 +1176,7 @@ public:
                 mlir::FloatAttr::get(convertedType, 0.0).getValue();
             initialValue = mlir::DenseFPElementsAttr::get(rtt, floatZero);
           } else
-            llvm_unreachable("GlobalOp lowering unsuppored type");
+            initialValue = mlir::Attribute();
         }
       } else if (auto intAttr = mlir::dyn_cast<cir::IntAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
@@ -1203,6 +1225,67 @@ public:
     auto type = getTypeConverter()->convertType(op.getType());
     auto symbol = op.getName();
     rewriter.replaceOpWithNewOp<mlir::memref::GetGlobalOp>(op, type, symbol);
+    return mlir::success();
+  }
+};
+
+class CIRComplexCreateOpLowering
+    : public mlir::OpConversionPattern<cir::ComplexCreateOp> {
+public:
+  using OpConversionPattern<cir::ComplexCreateOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ComplexCreateOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto vecType =
+        mlir::cast<mlir::VectorType>(getTypeConverter()->convertType(
+            op.getType()));
+    auto zeroAttr = rewriter.getZeroAttr(vecType);
+    mlir::Value result =
+        rewriter.create<mlir::arith::ConstantOp>(loc, vecType, zeroAttr)
+            .getResult();
+    SmallVector<int64_t, 1> realIdx{0};
+    SmallVector<int64_t, 1> imagIdx{1};
+    result = rewriter
+                 .create<mlir::vector::InsertOp>(loc, adaptor.getReal(), result,
+                                                 realIdx)
+                 .getResult();
+    result = rewriter
+                 .create<mlir::vector::InsertOp>(loc, adaptor.getImag(), result,
+                                                 imagIdx)
+                 .getResult();
+    rewriter.replaceOp(op, result);
+    return mlir::success();
+  }
+};
+
+class CIRComplexRealOpLowering
+    : public mlir::OpConversionPattern<cir::ComplexRealOp> {
+public:
+  using OpConversionPattern<cir::ComplexRealOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ComplexRealOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    SmallVector<int64_t, 1> idx{0};
+    rewriter.replaceOpWithNewOp<mlir::vector::ExtractOp>(
+        op, adaptor.getOperand(), idx);
+    return mlir::success();
+  }
+};
+
+class CIRComplexImagOpLowering
+    : public mlir::OpConversionPattern<cir::ComplexImagOp> {
+public:
+  using OpConversionPattern<cir::ComplexImagOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ComplexImagOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    SmallVector<int64_t, 1> idx{1};
+    rewriter.replaceOpWithNewOp<mlir::vector::ExtractOp>(
+        op, adaptor.getOperand(), idx);
     return mlir::success();
   }
 };
@@ -1601,12 +1684,13 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
       CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
       CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-      CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
-      CIRGetElementOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-      CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
-      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering,
-      CIRSinOpLowering, CIRTanOpLowering, CIRShiftOpLowering,
+      CIRGetGlobalOpLowering, CIRComplexCreateOpLowering,
+      CIRComplexRealOpLowering, CIRComplexImagOpLowering, CIRCastOpLowering,
+      CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
+      CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
+      CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
+      CIRRoundOpLowering, CIRSinOpLowering, CIRTanOpLowering, CIRShiftOpLowering,
       CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
       CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
       CIRIfOpLowering, CIRScopeOpLowering, CIRVectorCreateLowering,
@@ -1678,6 +1762,12 @@ static mlir::TypeConverter prepareTypeConverter() {
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getElementType());
     return mlir::VectorType::get(type.getSize(), ty);
+  });
+  converter.addConversion([&](cir::ComplexType type) -> mlir::Type {
+    auto elemTy = converter.convertType(type.getElementType());
+    if (!elemTy)
+      return nullptr;
+    return mlir::VectorType::get(2, elemTy);
   });
   return converter;
 }

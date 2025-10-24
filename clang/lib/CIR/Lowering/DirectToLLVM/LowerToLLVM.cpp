@@ -2738,7 +2738,22 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstComplex(
   auto constComplex = mlir::cast<cir::ComplexAttr>(init);
   if (auto val = lowerConstComplexAttr(constComplex, getTypeConverter());
       val.has_value()) {
-    init = val.value();
+    auto loweredAttr = val.value();
+    if (auto dense = mlir::dyn_cast<mlir::DenseElementsAttr>(loweredAttr)) {
+      llvm::SmallVector<mlir::Attribute, 2> components;
+      components.reserve(dense.getNumElements());
+      auto elementType = dense.getElementType();
+      if (mlir::isa<mlir::IntegerType>(elementType)) {
+        for (auto value : dense.getValues<mlir::APInt>())
+          components.push_back(mlir::IntegerAttr::get(elementType, value));
+      } else if (mlir::isa<mlir::FloatType>(elementType)) {
+        for (auto value : dense.getValues<mlir::APFloat>())
+          components.push_back(mlir::FloatAttr::get(elementType, value));
+      }
+      if (!components.empty())
+        loweredAttr = mlir::ArrayAttr::get(rewriter.getContext(), components);
+    }
+    init = loweredAttr;
     useInitializerRegion = false;
   } else
     useInitializerRegion = true;

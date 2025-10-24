@@ -145,7 +145,7 @@ void convertToDenseElementsAttrImpl(
     elementsSizeInCurrentDim *= currentDims[i];
 
   auto attrArray =
-      mlir::ArrayAttr::get(attr.getContext(), {attr.getImag(), attr.getReal()});
+      mlir::ArrayAttr::get(attr.getContext(), {attr.getReal(), attr.getImag()});
   for (auto eltAttr : attrArray) {
     if (auto valueAttr = mlir::dyn_cast<AttrTy>(eltAttr)) {
       values[currentIndex++] = valueAttr.getValue();
@@ -206,9 +206,13 @@ mlir::DenseElementsAttr convertToDenseElementsAttr(
       array_size, getZeroInitFromType<StorageTy>(elementType));
   convertToDenseElementsAttrImpl<AttrTy>(attr, values, dims, /*currentDim=*/0,
                                          /*initialIndex=*/0);
-  return mlir::DenseElementsAttr::get(
-      mlir::RankedTensorType::get(dims, convertedElementType),
-      llvm::ArrayRef(values));
+  mlir::ShapedType shapedType;
+  if (dims.size() == 1) {
+    shapedType = mlir::VectorType::get(dims, convertedElementType);
+  } else {
+    shapedType = mlir::RankedTensorType::get(dims, convertedElementType);
+  }
+  return mlir::DenseElementsAttr::get(shapedType, llvm::ArrayRef(values));
 }
 
 std::optional<mlir::Attribute>
@@ -259,28 +263,20 @@ lowerConstComplexAttr(cir::ComplexAttr constComplex,
   if (!convertedElementType)
     return std::nullopt;
 
-  llvm::SmallVector<mlir::Attribute, 2> components;
-  components.reserve(2);
+  llvm::SmallVector<int64_t, 1> dims{2};
 
-  if (auto cirIntTy = mlir::dyn_cast<cir::IntType>(elementType)) {
-    (void)cirIntTy;
-    auto real = mlir::cast<cir::IntAttr>(constComplex.getReal());
-    auto imag = mlir::cast<cir::IntAttr>(constComplex.getImag());
-    components.push_back(
-        mlir::IntegerAttr::get(convertedElementType, real.getValue()));
-    components.push_back(
-        mlir::IntegerAttr::get(convertedElementType, imag.getValue()));
-    return mlir::ArrayAttr::get(constComplex.getContext(), components);
+  if (mlir::isa<cir::IntType>(elementType)) {
+    auto dense =
+        convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
+            constComplex, dims, elementType, convertedElementType);
+    return std::optional<mlir::Attribute>(dense);
   }
 
   if (mlir::isa<cir::FPTypeInterface>(elementType)) {
-    auto real = mlir::cast<cir::FPAttr>(constComplex.getReal());
-    auto imag = mlir::cast<cir::FPAttr>(constComplex.getImag());
-    components.push_back(
-        mlir::FloatAttr::get(convertedElementType, real.getValue()));
-    components.push_back(
-        mlir::FloatAttr::get(convertedElementType, imag.getValue()));
-    return mlir::ArrayAttr::get(constComplex.getContext(), components);
+    auto dense =
+        convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
+            constComplex, dims, elementType, convertedElementType);
+    return std::optional<mlir::Attribute>(dense);
   }
 
   return std::nullopt;

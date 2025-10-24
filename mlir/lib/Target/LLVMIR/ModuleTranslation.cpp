@@ -571,6 +571,22 @@ llvm::Constant *mlir::LLVM::detail::getLLVMConstant(
   if (auto *structType = dyn_cast<::llvm::StructType>(llvmType)) {
     auto arrayAttr = dyn_cast<ArrayAttr>(attr);
     if (!arrayAttr) {
+      if (auto dense = dyn_cast<DenseElementsAttr>(attr)) {
+        SmallVector<Attribute> elementAttrs;
+        elementAttrs.reserve(dense.getNumElements());
+        Type elementType = dense.getElementType();
+        if (isa<IntegerType>(elementType)) {
+          for (const APInt &value : dense.getValues<APInt>())
+            elementAttrs.push_back(IntegerAttr::get(elementType, value));
+        } else if (isa<FloatType>(elementType)) {
+          for (const APFloat &value : dense.getValues<APFloat>())
+            elementAttrs.push_back(FloatAttr::get(elementType, value));
+        }
+        if (!elementAttrs.empty())
+          arrayAttr = ArrayAttr::get(attr.getContext(), elementAttrs);
+      }
+    }
+    if (!arrayAttr) {
       emitError(loc, "expected an array attribute for a struct constant");
       return nullptr;
     }

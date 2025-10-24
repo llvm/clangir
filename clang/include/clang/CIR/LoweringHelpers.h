@@ -12,6 +12,7 @@
 #ifndef LLVM_CLANG_CIR_LOWERINGHELPERS_H
 #define LLVM_CLANG_CIR_LOWERINGHELPERS_H
 
+#include <cstdint>
 #include <optional>
 
 #include "llvm/ADT/SmallVector.h"
@@ -34,20 +35,37 @@ template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty);
 mlir::Type getNestedTypeAndElemQuantity(mlir::Type Ty, unsigned &elemQuantity);
 
 template <typename AttrTy, typename StorageTy>
-void convertToDenseElementsAttrImpl(cir::ConstArrayAttr attr,
-                                    llvm::SmallVectorImpl<StorageTy> &values);
+void convertToDenseElementsAttrImpl(
+    cir::ConstArrayAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
+    const llvm::SmallVectorImpl<int64_t> &currentDims, int64_t dimIndex,
+    int64_t currentIndex);
 
 template <typename AttrTy, typename StorageTy>
-mlir::DenseElementsAttr
-convertToDenseElementsAttr(cir::ConstArrayAttr attr,
-                           const llvm::SmallVectorImpl<int64_t> &dims,
-                           mlir::Type type);
+void convertToDenseElementsAttrImpl(
+    cir::ConstVectorAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
+    const llvm::SmallVectorImpl<int64_t> &currentDims, int64_t dimIndex,
+    int64_t currentIndex);
 
 template <typename AttrTy, typename StorageTy>
-mlir::DenseElementsAttr
-convertToDenseElementsAttr(cir::ConstVectorAttr attr,
-                           const llvm::SmallVectorImpl<int64_t> &dims,
-                           mlir::Type type);
+void convertToDenseElementsAttrImpl(
+    cir::ComplexAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
+    const llvm::SmallVectorImpl<int64_t> &currentDims, int64_t dimIndex,
+    int64_t currentIndex);
+
+template <typename AttrTy, typename StorageTy>
+mlir::DenseElementsAttr convertToDenseElementsAttr(
+    cir::ConstArrayAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
+    mlir::Type elementType, mlir::Type convertedElementType);
+
+template <typename AttrTy, typename StorageTy>
+mlir::DenseElementsAttr convertToDenseElementsAttr(
+    cir::ConstVectorAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
+    mlir::Type elementType, mlir::Type convertedElementType);
+
+template <typename AttrTy, typename StorageTy>
+mlir::DenseElementsAttr convertToDenseElementsAttr(
+    cir::ComplexAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
+    mlir::Type elementType, mlir::Type convertedElementType);
 
 std::optional<mlir::Attribute>
 lowerConstArrayAttr(cir::ConstArrayAttr constArr,
