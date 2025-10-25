@@ -271,13 +271,10 @@ void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
     auto &builder = cgm.getBuilder();
     auto fnPtrTy = globalOp.getSymType();
     auto sym = mlir::FlatSymbolRefAttr::get(fn.getSymNameAttr());
-    auto gv = cir::GlobalViewAttr::get(fnPtrTy, sym); // (Type, Sym)
-                                                      //
-    // Set the proper attribute initializer
+    auto gv = cir::GlobalViewAttr::get(fnPtrTy, sym);
+
     globalOp->setAttr("initial_value", gv);
     globalOp->removeAttr("sym_visibility");
-
-    // Keep your alignment/visibility as before
     globalOp->setAttr("alignment", builder.getI64IntegerAttr(
                                        cgm.getPointerAlign().getQuantity()));
   }
