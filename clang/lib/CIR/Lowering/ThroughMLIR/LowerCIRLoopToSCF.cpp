@@ -482,6 +482,7 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
       auto cond = LoadOp::create(
           rewriter, loc, boolTy, condAlloca, /*isDeref=*/false,
           /*volatile=*/false, /*nontemporal=*/false, alignment,
+          /*sync_scope=*/cir::SyncScopeKindAttr{},
           /*memorder=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
       auto ifnot = IfOp::create(rewriter, loc, cond, /*withElseRegion=*/false,
                                 [&](mlir::OpBuilder &, mlir::Location) {

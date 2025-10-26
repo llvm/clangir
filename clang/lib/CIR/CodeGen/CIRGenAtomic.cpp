@@ -17,6 +17,7 @@
 #include "CIRGenOpenMPRuntime.h"
 #include "TargetInfo.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/Basic/SyncScope.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -350,6 +351,20 @@ static cir::IntAttr extractIntAttr(mlir::Value v) {
   return {};
 }
 
+// Maps SyncScope::SingleScope to SyncScopeKind::SingleThread,
+// SyncScope::SystemScope to SyncScopeKind::System,
+// and asserts (llvm_unreachable) for anything else.
+static cir::SyncScopeKind convertSyncScopeToCIR(clang::SyncScope scope) {
+  switch (scope) {
+  case clang::SyncScope::SingleScope:
+    return cir::SyncScopeKind::SingleThread;
+  case clang::SyncScope::SystemScope:
+    return cir::SyncScopeKind::System;
+  default:
+    llvm_unreachable("NYI");
+  }
+}
+
 // Inspect a value that is the strong/weak flag for a compare-exchange.  If it
 // is a constant of intergral or boolean type, set `val` to the constant's
 // boolean value and return true.  Otherwise leave `val` unchanged and return
@@ -418,7 +433,7 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
                               Address Val2, uint64_t Size,
                               cir::MemOrder SuccessOrder,
                               cir::MemOrder FailureOrder,
-                              cir::MemScopeKind Scope) {
+                              cir::SyncScopeKind Scope) {
   auto &builder = CGF.getBuilder();
   auto loc = CGF.getLoc(E->getSourceRange());
   auto Expected = builder.createLoad(loc, Val1);
@@ -428,7 +443,7 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
       builder, loc, Expected.getType(), boolTy, Ptr.getPointer(), Expected,
       Desired, cir::MemOrderAttr::get(&CGF.getMLIRContext(), SuccessOrder),
       cir::MemOrderAttr::get(&CGF.getMLIRContext(), FailureOrder),
-      cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
+      cir::SyncScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
       builder.getI64IntegerAttr(Ptr.getAlignment().getAsAlign().value()));
   cmpxchg.setIsVolatile(E->isVolatile());
   cmpxchg.setWeak(IsWeak);
@@ -456,7 +471,7 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
 static void emitAtomicCmpXchgFailureSet(
     CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak, Address Dest, Address Ptr,
     Address Val1, Address Val2, mlir::Value FailureOrderVal, uint64_t Size,
-    cir::MemOrder SuccessOrder, cir::MemScopeKind Scope) {
+    cir::MemOrder SuccessOrder, cir::SyncScopeKind Scope) {
 
   cir::MemOrder FailureOrder;
   if (auto ordAttr = extractIntAttr(FailureOrderVal)) {
@@ -546,8 +561,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
                          Address Ptr, Address Val1, Address Val2,
                          mlir::Value IsWeak, mlir::Value FailureOrder,
                          uint64_t Size, cir::MemOrder Order,
-                         cir::MemScopeKind Scope) {
-  assert(!cir::MissingFeatures::syncScopeID());
+                         cir::SyncScopeKind Scope) {
   StringRef Op;
 
   auto &builder = CGF.getBuilder();
@@ -594,9 +608,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__scoped_atomic_load_n:
   case AtomicExpr::AO__scoped_atomic_load: {
     auto load = builder.createLoad(loc, Ptr);
-    // FIXME(cir): add scope information.
-    assert(!cir::MissingFeatures::syncScopeID());
-    load.setMemOrder(Order);
+    load.setAtomic(Order, Scope);
     load.setIsVolatile(E->isVolatile());
 
     // TODO(cir): this logic should be part of createStore, but doing so
@@ -619,7 +631,6 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__scoped_atomic_store_n: {
     auto loadVal1 = builder.createLoad(loc, Val1);
     // FIXME(cir): add scope information.
-    assert(!cir::MissingFeatures::syncScopeID());
     builder.createStore(loc, loadVal1, Ptr, E->isVolatile(),
                         /*isNontemporal=*/false,
                         /*alignment=*/mlir::IntegerAttr{}, orderAttr);
@@ -748,7 +759,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_test_and_set: {
     auto op = cir::AtomicTestAndSetOp::create(
         builder, loc, Ptr.getPointer(), Order,
-        cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
+        cir::SyncScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
         builder.getI64IntegerAttr(Ptr.getAlignment().getQuantity()),
         E->isVolatile());
     builder.createStore(loc, op, Dest);
@@ -758,7 +769,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_clear: {
     cir::AtomicClearOp::create(
         builder, loc, Ptr.getPointer(), Order,
-        cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
+        cir::SyncScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
         builder.getI64IntegerAttr(Ptr.getAlignment().getQuantity()),
         E->isVolatile());
     return;
@@ -811,16 +822,17 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *Expr, Address Dest,
   // LLVM atomic instructions always have synch scope. If clang atomic
   // expression has no scope operand, use default LLVM synch scope.
   if (!ScopeModel) {
-    assert(!cir::MissingFeatures::syncScopeID());
     emitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
-                 Order, cir::MemScopeKind::System);
+                 Order, cir::SyncScopeKind::System);
     return;
   }
 
   // Handle constant scope.
-  if (extractIntAttr(Scope)) {
-    assert(!cir::MissingFeatures::syncScopeID());
-    llvm_unreachable("NYI");
+  if (auto scopeAttr = extractIntAttr(Scope)) {
+    auto mappedScope =
+        convertSyncScopeToCIR(ScopeModel->map(scopeAttr.getUInt()));
+    emitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
+                 Order, mappedScope);
     return;
   }
 

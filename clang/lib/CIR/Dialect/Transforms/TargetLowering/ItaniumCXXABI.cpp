@@ -386,7 +386,9 @@ void ItaniumCXXABI::lowerGetMethod(
         rewriter, op.getLoc(), vtablePtrPtr, /*isDeref=*/false,
         /*isVolatile=*/false,
         /*isNontemporal=*/false,
-        /*alignment=*/mlir::IntegerAttr(), /*mem_order=*/cir::MemOrderAttr(),
+        /*alignment=*/mlir::IntegerAttr(),
+        /*sync_scope=*/cir::SyncScopeKindAttr{},
+        /*mem_order=*/cir::MemOrderAttr(),
         /*tbaa=*/mlir::ArrayAttr());
 
     // Get the vtable offset.
@@ -421,6 +423,7 @@ void ItaniumCXXABI::lowerGetMethod(
                                       /*isDeref=*/false, /*isVolatile=*/false,
                                       /*isNontemporal=*/false,
                                       /*alignment=*/mlir::IntegerAttr(),
+                                      /*sync_scope=*/cir::SyncScopeKindAttr{},
                                       /*mem_order=*/cir::MemOrderAttr(),
                                       /*tbaa=*/mlir::ArrayAttr());
       }

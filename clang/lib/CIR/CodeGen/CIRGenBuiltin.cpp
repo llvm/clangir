@@ -370,7 +370,7 @@ static mlir::Value makeAtomicCmpXchgValue(CIRGenFunction &cgf,
                         cir::MemOrder::SequentiallyConsistent),
       MemOrderAttr::get(&cgf.getMLIRContext(),
                         cir::MemOrder::SequentiallyConsistent),
-      MemScopeKindAttr::get(&cgf.getMLIRContext(), cir::MemScopeKind::System),
+      SyncScopeKindAttr::get(&cgf.getMLIRContext(), cir::SyncScopeKind::System),
       builder.getI64IntegerAttr(destAddr.getAlignment().getAsAlign().value()));
 
   return returnBool ? op.getResult(1) : op.getResult(0);
@@ -378,7 +378,7 @@ static mlir::Value makeAtomicCmpXchgValue(CIRGenFunction &cgf,
 
 static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
                                         const CallExpr *expr,
-                                        cir::MemScopeKind syncScope) {
+                                        cir::SyncScopeKind syncScope) {
   auto &builder = cgf.getBuilder();
   mlir::Value orderingVal = cgf.emitScalarExpr(expr->getArg(0));
 
@@ -392,7 +392,7 @@ static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
 
     cir::AtomicFence::create(
         builder, cgf.getLoc(expr->getSourceRange()), ordering,
-        MemScopeKindAttr::get(&cgf.getMLIRContext(), syncScope));
+        SyncScopeKindAttr::get(&cgf.getMLIRContext(), syncScope));
   }
 
   return mlir::Value();
@@ -2155,10 +2155,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__atomic_thread_fence:
     return RValue::get(
-        makeAtomicFenceValue(*this, E, cir::MemScopeKind::System));
+        makeAtomicFenceValue(*this, E, cir::SyncScopeKind::System));
   case Builtin::BI__atomic_signal_fence:
     return RValue::get(
-        makeAtomicFenceValue(*this, E, cir::MemScopeKind::SingleThread));
+        makeAtomicFenceValue(*this, E, cir::SyncScopeKind::SingleThread));
   case Builtin::BI__c11_atomic_thread_fence:
   case Builtin::BI__c11_atomic_signal_fence:
     llvm_unreachable("BI__c11_atomic_thread_fence like NYI");

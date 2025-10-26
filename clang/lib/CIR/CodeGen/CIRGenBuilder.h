@@ -870,6 +870,7 @@ public:
     return cir::LoadOp::create(
         *this, loc, addr.getElementType(), addr.getPointer(), /*isDeref=*/false,
         /*is_volatile=*/isVolatile, /*is_nontemporal=*/isNontemporal, align,
+        /*sync_scope=*/cir::SyncScopeKindAttr{},
         /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
   }
 

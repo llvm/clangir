@@ -534,6 +534,15 @@ def CIR_MemOrder : CIR_I32EnumAttr<
 ]>;
 
 //===----------------------------------------------------------------------===//
+// C/C++ sync scope definitions
+//===----------------------------------------------------------------------===//
+
+def CIR_SyncScopeKind : CIR_I32EnumAttr<"SyncScopeKind", "sync scope kind", [
+  I32EnumAttrCase<"SingleThread", 0, "single_thread">,
+  I32EnumAttrCase<"System", 1, "system">
+]>;
+
+//===----------------------------------------------------------------------===//
 // AllocaOp
 //===----------------------------------------------------------------------===//
 
@@ -670,7 +679,8 @@ def CIR_LoadOp : CIR_Op<"load", [
     %4 = cir.load volatile %0 : !cir.ptr<i32>, i32
 
     // Others
-    %x = cir.load align(16) atomic(seq_cst) %0 : !cir.ptr<i32>, i32
+    %x = cir.load align(16) syncscope(single_thread) atomic(seq_cst)
+      %0 : !cir.ptr<i32>, i32
     ```
   }];
 
@@ -679,6 +689,7 @@ def CIR_LoadOp : CIR_Op<"load", [
                        UnitAttr:$is_volatile,
                        UnitAttr:$is_nontemporal,
                        OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<CIR_SyncScopeKind>:$sync_scope,
                        OptionalAttr<CIR_MemOrder>:$mem_order,
                        OptionalAttr<CIR_AnyTBAAAttr>:$tbaa
                        );
@@ -689,6 +700,7 @@ def CIR_LoadOp : CIR_Op<"load", [
     (`volatile` $is_volatile^)?
     (`nontemporal` $is_nontemporal^)?
     (`align` `(` $alignment^ `)`)?
+    (`syncscope` `(` $sync_scope^ `)`)?
     (`atomic` `(` $mem_order^ `)`)?
     $addr `:` qualified(type($addr)) `,` type($result) attr-dict
     (`tbaa` `(` $tbaa^ `)`)?
@@ -698,7 +710,8 @@ def CIR_LoadOp : CIR_Op<"load", [
     // TODO(CIR): The final interface here should include an argument for the
     // SyncScope::ID.
     // This should be used over the ODS generated setMemOrder.
-    void setAtomic(cir::MemOrder order);
+    void setAtomic(cir::MemOrder order,
+                   cir::SyncScopeKind scope);
   }];
 
   // FIXME: add verifier.
@@ -6094,11 +6107,6 @@ def CIR_AtomicXchg : CIR_Op<"atomic.xchg", [
   let hasVerifier = 1;
 }
 
-def CIR_MemScopeKind : CIR_I32EnumAttr<"MemScopeKind", "memory scope kind", [
-  I32EnumAttrCase<"SingleThread", 0, "single_thread">,
-  I32EnumAttrCase<"System", 1, "system">
-]>;
-
 def CIR_AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg", [
   AllTypesMatch<["old", "expected", "desired"]>
 ]> {
@@ -6122,7 +6130,7 @@ def CIR_AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg", [
                        CIR_AnyType:$desired,
                        Arg<CIR_MemOrder, "success memory order">:$succ_order,
                        Arg<CIR_MemOrder, "failure memory order">:$fail_order,
-                       OptionalAttr<CIR_MemScopeKind>:$syncscope,
+                       OptionalAttr<CIR_SyncScopeKind>:$sync_scope,
                        OptionalAttr<I64Attr>:$alignment,
                        UnitAttr:$weak,
                        UnitAttr:$is_volatile);
@@ -6135,7 +6143,7 @@ def CIR_AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg", [
     `success` `=`  $succ_order `,`
     `failure` `=`  $fail_order
     `)`
-    (`syncscope` `(` $syncscope^ `)`)?
+    (`syncscope` `(` $sync_scope^ `)`)?
     (`align` `(` $alignment^ `)`)?
     (`weak` $weak^)?
     (`volatile` $is_volatile^)?
@@ -6165,7 +6173,7 @@ def CIR_AtomicTestAndSetOp : CIR_Op<"atomic.test_and_set"> {
   let arguments = (ins
     Arg<CIR_PtrToType<CIR_SInt8>, "", [MemRead, MemWrite]>:$ptr,
     Arg<CIR_MemOrder, "memory order">:$mem_order,
-    OptionalAttr<CIR_MemScopeKind>:$syncscope,
+    OptionalAttr<CIR_SyncScopeKind>:$sync_scope,
     OptionalAttr<I64Attr>:$alignment,
     UnitAttr:$is_volatile);
 
@@ -6196,7 +6204,7 @@ def CIR_AtomicClearOp : CIR_Op<"atomic.clear"> {
   let arguments = (ins
     Arg<CIR_PtrToType<CIR_SInt8>, "", [MemRead, MemWrite]>:$ptr,
     Arg<CIR_MemOrder, "memory order">:$mem_order,
-    OptionalAttr<CIR_MemScopeKind>:$syncscope,
+    OptionalAttr<CIR_SyncScopeKind>:$sync_scope,
     OptionalAttr<I64Attr>:$alignment,
     UnitAttr:$is_volatile);
 
@@ -6230,11 +6238,11 @@ def CIR_AtomicFence : CIR_Op<"atomic.fence"> {
 
   let arguments = (ins
     Arg<CIR_MemOrder, "memory order">:$ordering,
-    OptionalAttr<CIR_MemScopeKind>:$syncscope
+    OptionalAttr<CIR_SyncScopeKind>:$sync_scope
   );
 
   let assemblyFormat = [{
-    (`syncscope` `(` $syncscope^ `)`)? $ordering attr-dict
+    (`syncscope` `(` $sync_scope^ `)`)? $ordering attr-dict
   }];
 }
 
