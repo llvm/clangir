@@ -3990,7 +3990,13 @@ void CIRGenModule::applyReplacements() {
     if (oldF.replaceAllSymbolUses(newF.getSymNameAttr(), theModule).failed())
       llvm_unreachable("internal error, cannot RAUW symbol");
     if (newF) {
-      newF->moveBefore(oldF);
+      // Only move newF before oldF if newF is already in a block.
+      // If newF is not in a block, it means it was created but not yet
+      // inserted into the module, which can happen with certain alias
+      // scenarios. In such cases, the symbol replacement above is sufficient.
+      if (newF->getBlock()) {
+        newF->moveBefore(oldF);
+      }
       oldF->erase();
     }
   }
