@@ -21,7 +21,7 @@ for extra context about the project.
 
 # Talks and posts
 
-- Oct 2025: US LLVM Developers Meeting Keynote. ClangIR: Upstreaming an Incubator Project. video, [pdf](Files/2025_ClangIR_UpstreamingIncubator.pdf)
+- Oct 2025: US LLVM Developers Meeting (keynote). *ClangIR: Upstreaming an Incubator Project*. video, [pdf](Files/2025_ClangIR_UpstreamingIncubator.pdf)
 - Oct 2025: [A High-Level Overview of Address Spaces: Their Place in ClangIR and LLVM](Files/2025_ClangIR_UpstreamingIncubator.pdf)
 - Jun 2025: Asia LLVM. *ClangIR’s Footprint: A quick compile-time impact report*. [video](https://www.youtube.com/watch?v=Dh_RObp5SUE), [pdf](Files/asiallvm-brunolopes-25-cir-compile-time.pdf)
 - Mar 2025: Cambridge Computer Science [Group Projects](https://group-projects.cst.cam.ac.uk/#__tabbed_1_2). Award on technical achievement. *[CUDA Support for ClangIR](https://wiki.cam.ac.uk/cl-design-projects/CUDA_Support_for_ClangIR)*. [video](https://www.youtube.com/watch?v=CO1w_L3yIbQ)
