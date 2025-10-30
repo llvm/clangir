@@ -11,7 +11,7 @@ void complex_functional_cast() {
 }
 
 // CIR: %[[INIT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["a", init]
-// CIR: %[[COMPLEX:.*]] = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
+// CIR: %[[COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[COMPLEX]], %[[INIT]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 
 // LLVM: %[[INIT:.*]] = alloca { i32, i32 }, i64 1, align 4
@@ -90,7 +90,7 @@ int _Complex complex_real_operator_on_rvalue() {
 // CIR: %[[CALL:.*]] = cir.call @_Z31complex_real_operator_on_rvaluev() : () -> !cir.complex<!s32i>
 // CIR: %[[REAL:.*]] = cir.complex.real %[[CALL]] : !cir.complex<!s32i> -> !s32i
 // CIR: cir.store{{.*}} %[[REAL]], %[[REAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
+// CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[RET_COMPLEX]], %[[RET_ADDR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 // CIR: %[[TMP_RET:.*]] = cir.load %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CIR: cir.return %[[TMP_RET]] : !cir.complex<!s32i>
@@ -137,7 +137,7 @@ int _Complex complex_imag_operator_on_rvalue() {
 // CIR: %[[CALL:.*]] = cir.call @_Z31complex_imag_operator_on_rvaluev() : () -> !cir.complex<!s32i>
 // CIR: %[[IMAG:.*]] = cir.complex.imag %[[CALL]] : !cir.complex<!s32i> -> !s32i
 // CIR: cir.store{{.*}} %[[IMAG]], %[[IMAG_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
+// CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[RET_COMPLEX]], %[[RET_ADDR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 // CIR: %[[TMP_RET:.*]] = cir.load %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CIR: cir.return %[[TMP_RET]] : !cir.complex<!s32i>
@@ -197,7 +197,7 @@ void complex_cxx_default_init_expr() {
 
 // CIR: %[[W_ADDR:.*]] = cir.alloca !rec_FPComplexWrapper, !cir.ptr<!rec_FPComplexWrapper>, ["w", init]
 // CIR: %[[C_ADDR:.*]] = cir.get_member %[[W_ADDR]][0] {name = "c"} : !cir.ptr<!rec_FPComplexWrapper> -> !cir.ptr<!cir.complex<!cir.float>>
-// CIR: %[[CONST_COMPLEX:.*]] = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.float, #cir.fp<0.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CIR: %[[CONST_COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!cir.float>
 // CIR: cir.store{{.*}} %[[CONST_COMPLEX]], %[[C_ADDR]] : !cir.complex<!cir.float>, !cir.ptr<!cir.complex<!cir.float>>
 
 // LLVM: %[[W_ADDR:.*]] = alloca %struct.FPComplexWrapper, i64 1, align 4
