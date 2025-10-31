@@ -918,25 +918,19 @@ ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *IL) {
 }
 
 mlir::Value ComplexExprEmitter::VisitInitListExpr(InitListExpr *E) {
+  mlir::Location loc = CGF.getLoc(E->getExprLoc());
   if (E->getNumInits() == 2) {
     mlir::Value Real = CGF.emitScalarExpr(E->getInit(0));
     mlir::Value Imag = CGF.emitScalarExpr(E->getInit(1));
-    return Builder.createComplexCreate(CGF.getLoc(E->getExprLoc()), Real, Imag);
+    return Builder.createComplexCreate(loc, Real, Imag);
   }
 
   if (E->getNumInits() == 1)
     return Visit(E->getInit(0));
 
   assert(E->getNumInits() == 0 && "Unexpected number of inits");
-  mlir::Location loc = CGF.getLoc(E->getExprLoc());
-  QualType complexElemTy =
-      E->getType()->castAs<clang::ComplexType>()->getElementType();
-  mlir::Type complexElemLLVMTy = CGF.convertType(complexElemTy);
-  mlir::TypedAttr defaultValue = Builder.getZeroInitAttr(complexElemLLVMTy);
-  auto complexTy = cir::ComplexType::get(complexElemLLVMTy);
-  auto complexAttr =
-      cir::ComplexAttr::get(complexTy, defaultValue, defaultValue);
-  return Builder.create<cir::ConstantOp>(loc, complexAttr);
+  mlir::Type complexTy = CGF.convertType(E->getType());
+  return Builder.getNullValue(complexTy, loc);
 }
 
 mlir::Value CIRGenFunction::emitPromotedComplexExpr(const Expr *E,
