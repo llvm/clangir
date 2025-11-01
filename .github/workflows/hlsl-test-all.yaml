@@ -29,25 +29,25 @@ jobs:
     runs-on: ${{ inputs.SKU }}
     steps:
       - name: Checkout DXC
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: Microsoft/DirectXShaderCompiler
           ref: main
           path: DXC
           submodules: true
       - name: Checkout LLVM
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.LLVM-branch }}
           path: llvm-project
       - name: Checkout OffloadTest
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: llvm/offload-test-suite
           ref: main
           path: OffloadTest
       - name: Checkout Golden Images
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: llvm/offload-golden-images
           ref: main
@@ -80,7 +80,7 @@ jobs:
             ninja check-hlsl-unit
             ninja ${{ inputs.TestTarget }}
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/macos@3a74b2957438d0b6e2e61d67b05318aa25c9e6c6 # v2
+        uses: EnricoMi/publish-unit-test-result-action/macos@34d7c956a59aed1bfebf31df77b8de55db9bbaaf # v2
         if: always() && runner.os == 'macOS'
         with:
           comment_mode: off
