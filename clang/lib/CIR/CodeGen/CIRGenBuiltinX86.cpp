@@ -161,9 +161,9 @@ static mlir::Value emitX86SExtMask(CIRGenFunction &cgf, mlir::Value op,
 static mlir::Value emitX86PSLLDQIByteShift(CIRGenFunction &cgf,
                                            const CallExpr *E,
                                            ArrayRef<mlir::Value> Ops) {
-  auto &builder = cgf.getBuilder();
+  CIRGenBuilderTy &builder = cgf.getBuilder();
   unsigned shiftVal = getIntValueFromConstOp(Ops[1]) & 0xff;
-  auto loc = cgf.getLoc(E->getExprLoc());
+  mlir::Location loc = cgf.getLoc(E->getExprLoc());
   auto resultType = cast<cir::VectorType>(Ops[0].getType());
 
   // If pslldq is shifting the vector more than 15 bytes, emit zero.
