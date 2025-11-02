@@ -1991,7 +1991,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       if (!C)
         return {};
 
-      assert(mlir::isa<mlir::TypedAttr>(C) && "This should always be a TypedAttr.");
+      assert(mlir::isa<mlir::TypedAttr>(C) &&
+             "This should always be a TypedAttr.");
       auto CTyped = mlir::cast<mlir::TypedAttr>(C);
 
       if (I == 0)
@@ -2115,20 +2116,20 @@ mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
   if (const auto *methodDecl = dyn_cast<CXXMethodDecl>(decl)) {
     auto ty = mlir::cast<cir::MethodType>(convertType(E->getType()));
     if (methodDecl->isVirtual())
-      return builder.create<cir::ConstantOp>(
-          loc, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
+      return cir::ConstantOp::create(
+          builder, loc, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
 
     auto methodFuncOp = GetAddrOfFunction(methodDecl);
-    return builder.create<cir::ConstantOp>(
-        loc, builder.getMethodAttr(ty, methodFuncOp));
+    return cir::ConstantOp::create(builder, loc,
+                                   builder.getMethodAttr(ty, methodFuncOp));
   }
 
   auto ty = mlir::cast<cir::DataMemberType>(convertType(E->getType()));
 
   // Otherwise, a member data pointer.
   const auto *fieldDecl = cast<FieldDecl>(decl);
-  return builder.create<cir::ConstantOp>(
-      loc, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
+  return cir::ConstantOp::create(
+      builder, loc, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
 }
 
 mlir::Attribute ConstantEmitter::emitAbstract(const Expr *E,

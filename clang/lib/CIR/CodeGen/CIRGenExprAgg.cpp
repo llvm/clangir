@@ -450,9 +450,9 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
   auto loc = CGF.getLoc(ExprToVisit->getSourceRange());
 
   // Cast from cir.ptr<cir.array<elementType> to cir.ptr<elementType>
-  auto begin = CGF.getBuilder().create<cir::CastOp>(
-      loc, cirElementPtrType, cir::CastKind::array_to_ptrdecay,
-      DestPtr.getPointer());
+  auto begin = cir::CastOp::create(CGF.getBuilder(), loc, cirElementPtrType,
+                                   cir::CastKind::array_to_ptrdecay,
+                                   DestPtr.getPointer());
 
   CharUnits elementSize = CGF.getContext().getTypeSizeInChars(elementType);
   CharUnits elementAlign =
@@ -488,8 +488,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
 
     // Advance to the next element.
     if (i > 0) {
-      element = CGF.getBuilder().create<cir::PtrStrideOp>(
-          loc, cirElementPtrType, begin, one);
+      element = cir::PtrStrideOp::create(CGF.getBuilder(), loc,
+                                         cirElementPtrType, begin, one);
 
       // Tell the cleanup that it needs to destroy up to this
       // element.  TODO: some of these stores can be trivially
@@ -521,8 +521,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
     if (NumInitElements) {
       auto one =
           builder.getConstInt(loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
-      element = builder.create<cir::PtrStrideOp>(loc, cirElementPtrType,
-                                                 element, one);
+      element = cir::PtrStrideOp::create(builder, loc, cirElementPtrType,
+                                         element, one);
 
       assert(!endOfInit.isValid() && "destructed types NIY");
     }
@@ -537,8 +537,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
     // Compute the end of array
     auto numArrayElementsConst = builder.getConstInt(
         loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), NumArrayElements);
-    mlir::Value end = builder.create<cir::PtrStrideOp>(
-        loc, cirElementPtrType, begin, numArrayElementsConst);
+    mlir::Value end = cir::PtrStrideOp::create(builder, loc, cirElementPtrType,
+                                               begin, numArrayElementsConst);
 
     builder.createDoWhile(
         loc,
@@ -546,8 +546,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           auto currentElement = builder.createLoad(loc, tmpAddr);
           mlir::Type boolTy = CGF.convertType(CGF.getContext().BoolTy);
-          auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
-                                                currentElement, end);
+          auto cmp = cir::CmpOp::create(
+              builder, loc, boolTy, cir::CmpOpKind::ne, currentElement, end);
           builder.createCondition(cmp);
         },
         /*bodyBuilder=*/
@@ -572,8 +572,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
           // Advance pointer and store them to temporary variable
           auto one = builder.getConstInt(
               loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
-          auto nextElement = builder.create<cir::PtrStrideOp>(
-              loc, cirElementPtrType, currentElement, one);
+          auto nextElement = cir::PtrStrideOp::create(
+              builder, loc, cirElementPtrType, currentElement, one);
           CGF.emitStoreThroughLValue(RValue::get(nextElement), tmpLV);
 
           builder.createYield(loc);
@@ -856,10 +856,10 @@ void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   auto &builder = CGF.getBuilder();
   auto scopeLoc = CGF.getLoc(E->getSourceRange());
   mlir::OpBuilder::InsertPoint scopeBegin;
-  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 scopeBegin = b.saveInsertionPoint();
-                               });
+  cir::ScopeOp::create(builder, scopeLoc, /*scopeBuilder=*/
+                       [&](mlir::OpBuilder &b, mlir::Location loc) {
+                         scopeBegin = b.saveInsertionPoint();
+                       });
 
   {
     mlir::OpBuilder::InsertionGuard guard(builder);

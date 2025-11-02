@@ -66,7 +66,7 @@ void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenBuilderTy &builder,
     // TODO(cir): This could change in the near future when OpenMP 5.0 gets
     // supported by MLIR
     llvm_unreachable("NYI");
-    // builder.create<mlir::omp::TaskwaitOp>(Loc);
+    // mlir::omp::TaskwaitOp::create(builder, Loc);
   } else {
     llvm_unreachable("NYI");
   }
@@ -80,7 +80,7 @@ void CIRGenOpenMPRuntime::emitBarrierCall(CIRGenBuilderTy &builder,
   assert(!cir::MissingFeatures::openMPRegionInfo());
 
   if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
-    builder.create<mlir::omp::BarrierOp>(Loc);
+    mlir::omp::BarrierOp::create(builder, Loc);
     return;
   }
 
@@ -98,7 +98,7 @@ void CIRGenOpenMPRuntime::emitTaskyieldCall(CIRGenBuilderTy &builder,
     return;
 
   if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
-    builder.create<mlir::omp::TaskyieldOp>(Loc);
+    mlir::omp::TaskyieldOp::create(builder, Loc);
   } else {
     llvm_unreachable("NYI");
   }

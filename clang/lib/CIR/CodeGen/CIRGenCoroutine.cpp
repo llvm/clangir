@@ -266,20 +266,19 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
 
   auto storeAddr = coroFrame.getPointer();
   builder.CIRBaseBuilderTy::createStore(openCurlyLoc, nullPtrCst, storeAddr);
-  builder.create<cir::IfOp>(openCurlyLoc, coroAlloc.getResult(),
-                            /*withElseRegion=*/false,
-                            /*thenBuilder=*/
-                            [&](mlir::OpBuilder &b, mlir::Location loc) {
-                              builder.CIRBaseBuilderTy::createStore(
-                                  loc, emitScalarExpr(S.getAllocate()),
-                                  storeAddr);
-                              builder.create<cir::YieldOp>(loc);
-                            });
+  cir::IfOp::create(builder, openCurlyLoc, coroAlloc.getResult(),
+                    /*withElseRegion=*/false,
+                    /*thenBuilder=*/
+                    [&](mlir::OpBuilder &b, mlir::Location loc) {
+                      builder.CIRBaseBuilderTy::createStore(
+                          loc, emitScalarExpr(S.getAllocate()), storeAddr);
+                      cir::YieldOp::create(builder, loc);
+                    });
 
   CurCoro.Data->CoroBegin =
       emitCoroBeginBuiltinCall(
           openCurlyLoc,
-          builder.create<cir::LoadOp>(openCurlyLoc, allocaTy, storeAddr))
+          cir::LoadOp::create(builder, openCurlyLoc, allocaTy, storeAddr))
           .getResult();
 
   // Handle allocation failure if 'ReturnStmtOnAllocFailure' was provided.
@@ -417,8 +416,8 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
   auto UnbindOnExit = llvm::make_scope_exit([&] { Binder.unbind(CGF); });
   auto &builder = CGF.getBuilder();
 
-  [[maybe_unused]] auto awaitOp = builder.create<cir::AwaitOp>(
-      CGF.getLoc(S.getSourceRange()), Kind,
+  [[maybe_unused]] auto awaitOp = cir::AwaitOp::create(
+      builder, CGF.getLoc(S.getSourceRange()), Kind,
       /*readyBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         Expr *condExpr = S.getReadyExpr()->IgnoreParens();
@@ -441,7 +440,7 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
         }
 
         // Signals the parent that execution flows to next region.
-        builder.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(builder, loc);
       },
       /*resumeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -479,7 +478,7 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
         }
 
         // Returns control back to parent.
-        builder.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(builder, loc);
       });
 
   assert(awaitBuild.succeeded() && "Should know how to codegen");
@@ -513,8 +512,9 @@ static RValue emitSuspendExpr(CIRGenFunction &CGF,
     return rval;
 
   if (rval.isScalar()) {
-    rval = RValue::get(CGF.getBuilder().create<cir::LoadOp>(
-        scopeLoc, rval.getScalarVal().getType(), tmpResumeRValAddr));
+    rval = RValue::get(cir::LoadOp::create(CGF.getBuilder(), scopeLoc,
+                                           rval.getScalarVal().getType(),
+                                           tmpResumeRValAddr));
   } else if (rval.isAggregate()) {
     // This is probably already handled via AggSlot, remove this assertion
     // once we have a testcase and prove all pieces work.
@@ -558,7 +558,8 @@ mlir::LogicalResult CIRGenFunction::emitCoreturnStmt(CoreturnStmt const &S) {
   // scope cleanup handling.
   auto loc = getLoc(S.getSourceRange());
   auto *retBlock = currLexScope->getOrCreateRetBlock(*this, loc);
-  CurCoro.Data->FinalSuspendInsPoint = builder.create<cir::BrOp>(loc, retBlock);
+  CurCoro.Data->FinalSuspendInsPoint =
+      cir::BrOp::create(builder, loc, retBlock);
 
   // Insert the new block to continue codegen after branch to ret block,
   // this will likely be an empty block.

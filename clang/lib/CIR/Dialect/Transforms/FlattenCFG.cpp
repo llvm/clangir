@@ -98,8 +98,8 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
     }
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    rewriter.create<cir::BrCondOp>(loc, ifOp.getCondition(), thenBeforeBody,
-                                   elseBeforeBody);
+    cir::BrCondOp::create(rewriter, loc, ifOp.getCondition(), thenBeforeBody,
+                          elseBeforeBody);
 
     if (!emptyElse) {
       rewriter.setInsertionPointToEnd(elseAfterBody);
@@ -149,10 +149,10 @@ public:
     // Save stack and then branch into the body of the region.
     rewriter.setInsertionPointToEnd(currentBlock);
     // TODO(CIR): stackSaveOp
-    // auto stackSaveOp = rewriter.create<mlir::LLVM::StackSaveOp>(
+    // auto stackSaveOp = mlir::LLVM::StackSaveOp::create(rewriter,
     //     loc, mlir::LLVM::LLVMPointerType::get(
     //              mlir::IntegerType::get(scopeOp.getContext(), 8)));
-    rewriter.create<cir::BrOp>(loc, mlir::ValueRange(), beforeBody);
+    cir::BrOp::create(rewriter, loc, mlir::ValueRange(), beforeBody);
 
     // Replace the scopeop return with a branch that jumps out of the body.
     // Stack restore before leaving the body region.
@@ -212,8 +212,8 @@ public:
                                      cir::CatchParamKind::Begin));
 
     rewriter.setInsertionPoint(yieldOp);
-    rewriter.create<cir::CatchParamOp>(
-        catchLoc, mlir::Type{}, nullptr,
+    cir::CatchParamOp::create(
+        rewriter, catchLoc, mlir::Type{}, nullptr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
                                      cir::CatchParamKind::End));
 
@@ -267,8 +267,8 @@ public:
                                      cir::CatchParamKind::Begin));
 
     rewriter.setInsertionPoint(yieldOp);
-    rewriter.create<cir::CatchParamOp>(
-        catchLoc, mlir::Type{}, nullptr,
+    cir::CatchParamOp::create(
+        rewriter, catchLoc, mlir::Type{}, nullptr,
         cir::CatchParamKindAttr::get(rewriter.getContext(),
                                      cir::CatchParamKind::End));
 
@@ -302,8 +302,8 @@ public:
                        mlir::Type typeIdType) const {
     rewriter.setInsertionPointToEnd(landingPadBlock);
     mlir::ArrayAttr symlist = collectTypeSymbols(tryOp);
-    auto inflightEh = rewriter.create<cir::EhInflightOp>(
-        tryOp.getLoc(), exceptionPtrType, typeIdType,
+    auto inflightEh = cir::EhInflightOp::create(
+        rewriter, tryOp.getLoc(), exceptionPtrType, typeIdType,
         tryOp.getCleanup() ? mlir::UnitAttr::get(tryOp.getContext()) : nullptr,
         symlist);
     auto selector = inflightEh.getTypeId();
@@ -328,8 +328,8 @@ public:
              "expected two arguments in place");
       dispatcherInitOps.push_back(selector);
     }
-    rewriter.create<cir::BrOp>(tryOp.getLoc(), catchDispatcher,
-                               dispatcherInitOps);
+    cir::BrOp::create(rewriter, tryOp.getLoc(), catchDispatcher,
+                      dispatcherInitOps);
     return;
   }
 
@@ -379,13 +379,13 @@ public:
     if (auto typeIdGlobal = dyn_cast<cir::GlobalViewAttr>(catchAttr)) {
       auto *previousDispatcher = dispatcher;
       auto typeId =
-          rewriter.create<cir::EhTypeIdOp>(loc, typeIdGlobal.getSymbol());
+          cir::EhTypeIdOp::create(rewriter, loc, typeIdGlobal.getSymbol());
       auto ehPtr = previousDispatcher->getArgument(0);
       auto ehSel = previousDispatcher->getArgument(1);
 
-      auto match = rewriter.create<cir::CmpOp>(
-          loc, cir::BoolType::get(rewriter.getContext()), cir::CmpOpKind::eq,
-          ehSel, typeId);
+      auto match = cir::CmpOp::create(rewriter, loc,
+                                      cir::BoolType::get(rewriter.getContext()),
+                                      cir::CmpOpKind::eq, ehSel, typeId);
 
       mlir::Block *typeCatchBlock =
           buildTypeCase(rewriter, catchRegion, afterTry, ehPtr.getType());
@@ -401,8 +401,9 @@ public:
         nextDispatchOps.push_back(ehSel);
       }
 
-      rewriter.create<cir::BrCondOp>(loc, match, typeCatchBlock, nextDispatcher,
-                                     mlir::ValueRange{ehPtr}, nextDispatchOps);
+      cir::BrCondOp::create(rewriter, loc, match, typeCatchBlock,
+                            nextDispatcher, mlir::ValueRange{ehPtr},
+                            nextDispatchOps);
       rewriter.setInsertionPointToEnd(nextDispatcher);
     } else if (auto catchAll = dyn_cast<cir::CatchAllAttr>(catchAttr)) {
       // In case the catch(...) is all we got, `dispatcher` shall be
@@ -480,7 +481,7 @@ public:
 
     // Branch into the body of the region.
     rewriter.setInsertionPointToEnd(beforeTryScopeBlock);
-    rewriter.create<cir::BrOp>(loc, mlir::ValueRange(), beforeBody);
+    cir::BrOp::create(rewriter, loc, mlir::ValueRange(), beforeBody);
     return afterTry;
   }
 
@@ -582,7 +583,7 @@ public:
 
     // Setup loop entry branch.
     rewriter.setInsertionPointToEnd(entry);
-    rewriter.create<cir::BrOp>(op.getLoc(), &op.getEntry().front());
+    cir::BrOp::create(rewriter, op.getLoc(), &op.getEntry().front());
 
     // Branch from condition region to body or exit.
     auto conditionOp = cast<cir::ConditionOp>(cond->getTerminator());
@@ -658,26 +659,27 @@ public:
     auto sIntType = cir::IntType::get(op.getContext(), 32, true);
     auto uIntType = cir::IntType::get(op.getContext(), 32, false);
 
-    auto rangeLength = rewriter.create<cir::ConstantOp>(
-        op.getLoc(), cir::IntAttr::get(sIntType, upperBound - lowerBound));
+    auto rangeLength = cir::ConstantOp::create(
+        rewriter, op.getLoc(),
+        cir::IntAttr::get(sIntType, upperBound - lowerBound));
 
-    auto lowerBoundValue = rewriter.create<cir::ConstantOp>(
-        op.getLoc(), cir::IntAttr::get(sIntType, lowerBound));
+    auto lowerBoundValue = cir::ConstantOp::create(
+        rewriter, op.getLoc(), cir::IntAttr::get(sIntType, lowerBound));
     auto diffValue =
-        rewriter.create<cir::BinOp>(op.getLoc(), sIntType, cir::BinOpKind::Sub,
-                                    op.getCondition(), lowerBoundValue);
+        cir::BinOp::create(rewriter, op.getLoc(), sIntType, cir::BinOpKind::Sub,
+                           op.getCondition(), lowerBoundValue);
 
     // Use unsigned comparison to check if the condition is in the range.
-    auto uDiffValue = rewriter.create<cir::CastOp>(
-        op.getLoc(), uIntType, CastKind::integral, diffValue);
-    auto uRangeLength = rewriter.create<cir::CastOp>(
-        op.getLoc(), uIntType, CastKind::integral, rangeLength);
+    auto uDiffValue = cir::CastOp::create(rewriter, op.getLoc(), uIntType,
+                                          CastKind::integral, diffValue);
+    auto uRangeLength = cir::CastOp::create(rewriter, op.getLoc(), uIntType,
+                                            CastKind::integral, rangeLength);
 
-    auto cmpResult = rewriter.create<cir::CmpOp>(
-        op.getLoc(), cir::BoolType::get(op.getContext()), cir::CmpOpKind::le,
-        uDiffValue, uRangeLength);
-    rewriter.create<cir::BrCondOp>(op.getLoc(), cmpResult, rangeDestination,
-                                   defaultDestination);
+    auto cmpResult = cir::CmpOp::create(
+        rewriter, op.getLoc(), cir::BoolType::get(op.getContext()),
+        cir::CmpOpKind::le, uDiffValue, uRangeLength);
+    cir::BrCondOp::create(rewriter, op.getLoc(), cmpResult, rangeDestination,
+                          defaultDestination);
     return resBlock;
   }
 
@@ -724,7 +726,7 @@ public:
         rewriteYieldOp(rewriter, switchYield, exitBlock);
 
       rewriter.setInsertionPointToEnd(originalBlock);
-      rewriter.create<cir::BrOp>(op.getLoc(), swopBlock);
+      cir::BrOp::create(rewriter, op.getLoc(), swopBlock);
     }
 
     // Allocate required data structures (disconsider default case in
@@ -793,8 +795,8 @@ public:
           mlir::Block *newBlock =
               rewriter.splitBlock(oldBlock, nextOp->getIterator());
           rewriter.setInsertionPointToEnd(oldBlock);
-          rewriter.create<cir::BrOp>(nextOp->getLoc(), mlir::ValueRange(),
-                                     newBlock);
+          cir::BrOp::create(rewriter, nextOp->getLoc(), mlir::ValueRange(),
+                            newBlock);
           rewriteYieldOp(rewriter, yieldOp, newBlock);
         }
       }
@@ -808,7 +810,7 @@ public:
 
       // Create a branch to the entry of the inlined region.
       rewriter.setInsertionPointToEnd(oldBlock);
-      rewriter.create<cir::BrOp>(caseOp.getLoc(), &entryBlock);
+      cir::BrOp::create(rewriter, caseOp.getLoc(), &entryBlock);
     }
 
     // Remove all cases since we've inlined the regions.
@@ -891,7 +893,7 @@ public:
     rewriter.inlineRegionBefore(falseRegion, remainingOpsBlock);
 
     rewriter.setInsertionPointToEnd(condBlock);
-    rewriter.create<cir::BrCondOp>(loc, op.getCond(), trueBlock, falseBlock);
+    cir::BrCondOp::create(rewriter, loc, op.getCond(), trueBlock, falseBlock);
 
     if (auto rt = op.getResultTypes(); rt.size()) {
       auto args = remainingOpsBlock->addArguments(rt, op.getLoc());

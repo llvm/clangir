@@ -700,8 +700,8 @@ RValue CIRGenFunction::emitLoadOfLValue(LValue LV, SourceLocation Loc) {
 
   if (LV.isVectorElt()) {
     auto load = builder.createLoad(getLoc(Loc), LV.getVectorAddress());
-    return RValue::get(builder.create<cir::VecExtractOp>(getLoc(Loc), load,
-                                                         LV.getVectorIdx()));
+    return RValue::get(cir::VecExtractOp::create(builder, getLoc(Loc), load,
+                                                 LV.getVectorIdx()));
   }
 
   if (LV.isExtVectorElt()) {
@@ -739,7 +739,7 @@ RValue CIRGenFunction::emitLoadOfExtVectorElementLValue(LValue LV) {
     int64_t InIdx = getAccessedFieldNo(0, Elts);
     cir::ConstantOp Elt =
         builder.getConstInt(loc, builder.getSInt64Ty(), InIdx);
-    return RValue::get(builder.create<cir::VecExtractOp>(loc, Vec, Elt));
+    return RValue::get(cir::VecExtractOp::create(builder, loc, Vec, Elt));
   }
 
   // Always use shuffle vector to try to retain the original program structure
@@ -837,7 +837,7 @@ void CIRGenFunction::emitStoreThroughExtVectorComponentLValue(RValue Src,
     unsigned InIdx = getAccessedFieldNo(0, Elts);
     auto Elt = builder.getSInt64(InIdx, loc);
 
-    Vec = builder.create<cir::VecInsertOp>(loc, Vec, SrcVal, Elt);
+    Vec = cir::VecInsertOp::create(builder, loc, Vec, SrcVal, Elt);
   }
 
   builder.createStore(loc, Vec, Dst.getExtVectorAddress(),
@@ -851,8 +851,8 @@ void CIRGenFunction::emitStoreThroughLValue(RValue Src, LValue Dst,
       // Read/modify/write the vector, inserting the new element
       mlir::Location loc = Dst.getVectorPointer().getLoc();
       mlir::Value Vector = builder.createLoad(loc, Dst.getVectorAddress());
-      Vector = builder.create<cir::VecInsertOp>(loc, Vector, Src.getScalarVal(),
-                                                Dst.getVectorIdx());
+      Vector = cir::VecInsertOp::create(builder, loc, Vector,
+                                        Src.getScalarVal(), Dst.getVectorIdx());
       builder.createStore(loc, Vector, Dst.getVectorAddress());
       return;
     }
@@ -992,15 +992,15 @@ static LValue emitFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
 
   mlir::Type fnTy = funcOp.getFunctionType();
   auto ptrTy = cir::PointerType::get(fnTy);
-  mlir::Value addr = CGF.getBuilder().create<cir::GetGlobalOp>(
-      loc, ptrTy, funcOp.getSymName());
+  mlir::Value addr = cir::GetGlobalOp::create(CGF.getBuilder(), loc, ptrTy,
+                                              funcOp.getSymName());
 
   if (funcOp.getFunctionType() != CGF.convertType(FD->getType())) {
     fnTy = CGF.convertType(FD->getType());
     ptrTy = cir::PointerType::get(fnTy);
 
-    addr = CGF.getBuilder().create<cir::CastOp>(addr.getLoc(), ptrTy,
-                                                cir::CastKind::bitcast, addr);
+    addr = cir::CastOp::create(CGF.getBuilder(), addr.getLoc(), ptrTy,
+                               cir::CastKind::bitcast, addr);
   }
 
   return CGF.makeAddrLValue(Address(addr, fnTy, align), E->getType(),
@@ -1556,8 +1556,8 @@ RValue CIRGenFunction::emitCall(clang::QualType CalleeType,
     auto *Fn = Callee.getFunctionPointer();
     mlir::Value Addr;
     if (auto funcOp = llvm::dyn_cast<cir::FuncOp>(Fn)) {
-      Addr = builder.create<cir::GetGlobalOp>(
-          getLoc(E->getSourceRange()),
+      Addr = cir::GetGlobalOp::create(
+          builder, getLoc(E->getSourceRange()),
           cir::PointerType::get(funcOp.getFunctionType()), funcOp.getSymName());
     } else {
       Addr = Fn->getResult(0);
@@ -2510,63 +2510,61 @@ CIRGenFunction::emitConditionalBlocks(const AbstractConditionalOperator *E,
 
       // Block does not return: build empty yield.
       if (mlir::isa<cir::VoidType>(yieldTy)) {
-        builder.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(builder, loc);
       } else { // Block returns: set null yield value.
         mlir::Value op0 = builder.getNullValue(yieldTy, loc);
-        builder.create<cir::YieldOp>(loc, op0);
+        cir::YieldOp::create(builder, loc, op0);
       }
     }
   };
 
-  Info.Result =
-      builder
-          .create<cir::TernaryOp>(
-              loc, condV, /*trueBuilder=*/
-              [&](mlir::OpBuilder &b, mlir::Location loc) {
-                CIRGenFunction::LexicalScope lexScope{*this, loc,
-                                                      b.getInsertionBlock()};
-                CGF.currLexScope->setAsTernary();
+  Info.Result = cir::TernaryOp::create(
+                    builder, loc, condV, /*trueBuilder=*/
+                    [&](mlir::OpBuilder &b, mlir::Location loc) {
+                      CIRGenFunction::LexicalScope lexScope{
+                          *this, loc, b.getInsertionBlock()};
+                      CGF.currLexScope->setAsTernary();
 
-                assert(!cir::MissingFeatures::incrementProfileCounter());
-                eval.begin(CGF);
-                Info.LHS = BranchGenFunc(CGF, trueExpr);
-                auto lhs = Info.LHS->getPointer();
-                eval.end(CGF);
+                      assert(!cir::MissingFeatures::incrementProfileCounter());
+                      eval.begin(CGF);
+                      Info.LHS = BranchGenFunc(CGF, trueExpr);
+                      auto lhs = Info.LHS->getPointer();
+                      eval.end(CGF);
 
-                if (lhs) {
-                  yieldTy = lhs.getType();
-                  b.create<cir::YieldOp>(loc, lhs);
-                  return;
-                }
-                // If LHS or RHS is a throw or void expression we need
-                // to patch arms as to properly match yield types.
-                insertPoints.push_back(b.saveInsertionPoint());
-              },
-              /*falseBuilder=*/
-              [&](mlir::OpBuilder &b, mlir::Location loc) {
-                CIRGenFunction::LexicalScope lexScope{*this, loc,
-                                                      b.getInsertionBlock()};
-                CGF.currLexScope->setAsTernary();
+                      if (lhs) {
+                        yieldTy = lhs.getType();
+                        cir::YieldOp::create(b, loc, lhs);
+                        return;
+                      }
+                      // If LHS or RHS is a throw or void expression we need
+                      // to patch arms as to properly match yield types.
+                      insertPoints.push_back(b.saveInsertionPoint());
+                    },
+                    /*falseBuilder=*/
+                    [&](mlir::OpBuilder &b, mlir::Location loc) {
+                      CIRGenFunction::LexicalScope lexScope{
+                          *this, loc, b.getInsertionBlock()};
+                      CGF.currLexScope->setAsTernary();
 
-                assert(!cir::MissingFeatures::incrementProfileCounter());
-                eval.begin(CGF);
-                Info.RHS = BranchGenFunc(CGF, falseExpr);
-                auto rhs = Info.RHS->getPointer();
-                eval.end(CGF);
+                      assert(!cir::MissingFeatures::incrementProfileCounter());
+                      eval.begin(CGF);
+                      Info.RHS = BranchGenFunc(CGF, falseExpr);
+                      auto rhs = Info.RHS->getPointer();
+                      eval.end(CGF);
 
-                if (rhs) {
-                  yieldTy = rhs.getType();
-                  b.create<cir::YieldOp>(loc, rhs);
-                } else {
-                  // If LHS or RHS is a throw or void expression we
-                  // need to patch arms as to properly match yield
-                  // types.
-                  insertPoints.push_back(b.saveInsertionPoint());
-                }
+                      if (rhs) {
+                        yieldTy = rhs.getType();
+                        cir::YieldOp::create(b, loc, rhs);
+                      } else {
+                        // If LHS or RHS is a throw or void expression we
+                        // need to patch arms as to properly match yield
+                        // types.
+                        insertPoints.push_back(b.saveInsertionPoint());
+                      }
 
-                patchVoidOrThrowSites();
-              })
-          .getResult();
+                      patchVoidOrThrowSites();
+                    })
+                    .getResult();
   return Info;
 }
 
@@ -2647,8 +2645,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     LValue LV;
 
     auto scopeLoc = getLoc(E->getSourceRange());
-    [[maybe_unused]] auto scope = builder.create<cir::ScopeOp>(
-        scopeLoc, /*scopeBuilder=*/
+    [[maybe_unused]] auto scope = cir::ScopeOp::create(
+        builder, scopeLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           CIRGenFunction::LexicalScope lexScope{*this, loc,
                                                 builder.getInsertionBlock()};
@@ -2799,9 +2797,9 @@ cir::IfOp CIRGenFunction::emitIfOnBoolExpr(
 
   // Emit the code with the fully general case.
   mlir::Value condV = emitOpOnBoolExpr(loc, cond);
-  return builder.create<cir::IfOp>(loc, condV, elseLoc.has_value(),
-                                   /*thenBuilder=*/thenBuilder,
-                                   /*elseBuilder=*/elseBuilder);
+  return cir::IfOp::create(builder, loc, condV, elseLoc.has_value(),
+                           /*thenBuilder=*/thenBuilder,
+                           /*elseBuilder=*/elseBuilder);
 }
 
 /// TODO(cir): PGO data
@@ -2830,18 +2828,17 @@ mlir::Value CIRGenFunction::emitOpOnBoolExpr(mlir::Location loc,
     mlir::Value condV = emitOpOnBoolExpr(loc, CondOp->getCond());
 
     auto ternaryOpRes =
-        builder
-            .create<cir::TernaryOp>(
-                loc, condV, /*thenBuilder=*/
-                [this, trueExpr](mlir::OpBuilder &b, mlir::Location loc) {
-                  auto lhs = emitScalarExpr(trueExpr);
-                  b.create<cir::YieldOp>(loc, lhs);
-                },
-                /*elseBuilder=*/
-                [this, falseExpr](mlir::OpBuilder &b, mlir::Location loc) {
-                  auto rhs = emitScalarExpr(falseExpr);
-                  b.create<cir::YieldOp>(loc, rhs);
-                })
+        cir::TernaryOp::create(
+            builder, loc, condV, /*thenBuilder=*/
+            [this, trueExpr](mlir::OpBuilder &b, mlir::Location loc) {
+              auto lhs = emitScalarExpr(trueExpr);
+              cir::YieldOp::create(b, loc, lhs);
+            },
+            /*elseBuilder=*/
+            [this, falseExpr](mlir::OpBuilder &b, mlir::Location loc) {
+              auto rhs = emitScalarExpr(falseExpr);
+              cir::YieldOp::create(b, loc, rhs);
+            })
             .getResult();
 
     return emitScalarConversion(ternaryOpRes, CondOp->getType(),
@@ -3039,8 +3036,8 @@ Address CIRGenFunction::emitLoadOfReference(LValue refLVal, mlir::Location loc,
                                             TBAAAccessInfo *pointeeTBAAInfo) {
   assert(!refLVal.isVolatile() && "NYI");
   cir::LoadOp load =
-      builder.create<cir::LoadOp>(loc, refLVal.getAddress().getElementType(),
-                                  refLVal.getAddress().getPointer());
+      cir::LoadOp::create(builder, loc, refLVal.getAddress().getElementType(),
+                          refLVal.getAddress().getPointer());
 
   CGM.decorateOperationWithTBAA(load, refLVal.getTBAAInfo());
 
@@ -3064,7 +3061,7 @@ LValue CIRGenFunction::emitLoadOfReferenceLValue(LValue RefLVal,
 void CIRGenFunction::emitUnreachable(SourceLocation Loc) {
   if (SanOpts.has(SanitizerKind::Unreachable))
     llvm_unreachable("NYI");
-  builder.create<cir::UnreachableOp>(getLoc(Loc));
+  cir::UnreachableOp::create(builder, getLoc(Loc));
 }
 
 //===----------------------------------------------------------------------===//

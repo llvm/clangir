@@ -335,8 +335,8 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
     if (op)
       return op;
 
-    op = builder.create<cir::TryOp>(
-        *CGF.currSrcLoc, /*scopeBuilder=*/
+    op = cir::TryOp::create(
+        builder, *CGF.currSrcLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {},
         // Don't emit the code right away for catch clauses, for
         // now create the regions and consume the try scope result.
@@ -348,7 +348,7 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
           // handler: unwind.
           auto *r = result.addRegion();
           builder.createBlock(r);
-          builder.create<cir::ResumeOp>(loc, mlir::Value{}, mlir::Value{});
+          cir::ResumeOp::create(builder, loc, mlir::Value{}, mlir::Value{});
         });
     op.setSynthetic(true);
     return op;
@@ -391,7 +391,7 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
     CGF.callWithExceptionCtx = nullptr;
 
     if (tryOp.getSynthetic()) {
-      builder.create<cir::YieldOp>(tryOp.getLoc());
+      cir::YieldOp::create(builder, tryOp.getLoc());
       builder.restoreInsertionPoint(ip);
     }
     return callOpWithExceptions;
@@ -1432,7 +1432,7 @@ mlir::Value CIRGenFunction::emitVAArg(VAArgExpr *VE, Address &VAListAddr) {
   auto loc = CGM.getLoc(VE->getExprLoc());
   auto type = convertType(VE->getType());
   auto vaList = emitVAListRef(VE->getSubExpr()).getPointer();
-  return builder.create<cir::VAArgOp>(loc, type, vaList);
+  return cir::VAArgOp::create(builder, loc, type, vaList);
 }
 
 static void getTrivialDefaultFunctionAttributes(

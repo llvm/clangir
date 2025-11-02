@@ -48,19 +48,17 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
-#include "clang/CIR/LowerToLLVM.h"
-#include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace cir;
@@ -167,22 +165,23 @@ public:
                 mlir::IntegerType::get(context, 8),
                 initialvalueAttr.getNumElements());
 
-            auto llvmglobalOp = rewriter.create<mlir::LLVM::GlobalOp>(
-                globalOp->getLoc(), type, true, mlir::LLVM::Linkage::Internal,
+            auto llvmglobalOp = mlir::LLVM::GlobalOp::create(
+                rewriter, globalOp->getLoc(), type, true,
+                mlir::LLVM::Linkage::Internal,
                 "printf_format_" + globalOp.getSymName().str(),
                 initialvalueAttr, 0);
 
             rewriter.setInsertionPoint(getGlobalOp);
 
             // Insert llvmir dialect ops to retrive the !llvm.ptr of the global
-            auto globalPtrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-                getGlobalOp->getLoc(), llvmglobalOp);
+            auto globalPtrOp = mlir::LLVM::AddressOfOp::create(
+                rewriter, getGlobalOp->getLoc(), llvmglobalOp);
 
-            mlir::Value cst0 = rewriter.create<mlir::LLVM::ConstantOp>(
-                getGlobalOp->getLoc(), rewriter.getI8Type(),
+            mlir::Value cst0 = mlir::LLVM::ConstantOp::create(
+                rewriter, getGlobalOp->getLoc(), rewriter.getI8Type(),
                 rewriter.getIndexAttr(0));
-            auto gepPtrOp = rewriter.create<mlir::LLVM::GEPOp>(
-                getGlobalOp->getLoc(),
+            auto gepPtrOp = mlir::LLVM::GEPOp::create(
+                rewriter, getGlobalOp->getLoc(),
                 mlir::LLVM::LLVMPointerType::get(context),
                 llvmglobalOp.getType(), globalPtrOp,
                 ArrayRef<mlir::Value>({cst0, cst0}));
@@ -381,12 +380,12 @@ public:
     mlir::memref::LoadOp newLoad;
     if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
                            rewriter)) {
-      newLoad = rewriter.create<mlir::memref::LoadOp>(
-          op.getLoc(), base, indices, op.getIsNontemporal());
+      newLoad = mlir::memref::LoadOp::create(rewriter, op.getLoc(), base,
+                                             indices, op.getIsNontemporal());
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
-      newLoad = rewriter.create<mlir::memref::LoadOp>(
-          op.getLoc(), adaptor.getAddr(), mlir::ValueRange{},
+      newLoad = mlir::memref::LoadOp::create(
+          rewriter, op.getLoc(), adaptor.getAddr(), mlir::ValueRange{},
           op.getIsNontemporal());
 
     // Convert adapted result to its original type if needed.
@@ -531,24 +530,24 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto inputTy = adaptor.getInput().getType();
     auto zero = getConst(rewriter, op.getLoc(), inputTy, 0);
-    auto isNeg = rewriter.create<mlir::arith::CmpIOp>(
-        op.getLoc(),
+    auto isNeg = mlir::arith::CmpIOp::create(
+        rewriter, op.getLoc(),
         mlir::arith::CmpIPredicateAttr::get(rewriter.getContext(),
                                             mlir::arith::CmpIPredicate::slt),
         adaptor.getInput(), zero);
 
     auto negOne = getConst(rewriter, op.getLoc(), inputTy, -1);
-    auto flipped = rewriter.create<mlir::arith::XOrIOp>(
-        op.getLoc(), adaptor.getInput(), negOne);
+    auto flipped = mlir::arith::XOrIOp::create(rewriter, op.getLoc(),
+                                               adaptor.getInput(), negOne);
 
-    auto select = rewriter.create<mlir::arith::SelectOp>(
-        op.getLoc(), isNeg, flipped, adaptor.getInput());
+    auto select = mlir::arith::SelectOp::create(rewriter, op.getLoc(), isNeg,
+                                                flipped, adaptor.getInput());
 
     auto clz =
-        rewriter.create<mlir::math::CountLeadingZerosOp>(op->getLoc(), select);
+        mlir::math::CountLeadingZerosOp::create(rewriter, op->getLoc(), select);
 
     auto one = getConst(rewriter, op.getLoc(), inputTy, 1);
-    auto res = rewriter.create<mlir::arith::SubIOp>(op.getLoc(), clz, one);
+    auto res = mlir::arith::SubIOp::create(rewriter, op.getLoc(), clz, one);
     rewriter.replaceOp(op, res);
 
     return mlir::LogicalResult::success();
@@ -563,22 +562,22 @@ public:
   matchAndRewrite(cir::BitFfsOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto inputTy = adaptor.getInput().getType();
-    auto ctz = rewriter.create<mlir::math::CountTrailingZerosOp>(
-        op.getLoc(), adaptor.getInput());
+    auto ctz = mlir::math::CountTrailingZerosOp::create(rewriter, op.getLoc(),
+                                                        adaptor.getInput());
 
     auto one = getConst(rewriter, op.getLoc(), inputTy, 1);
     auto ctzAddOne =
-        rewriter.create<mlir::arith::AddIOp>(op.getLoc(), ctz, one);
+        mlir::arith::AddIOp::create(rewriter, op.getLoc(), ctz, one);
 
     auto zero = getConst(rewriter, op.getLoc(), inputTy, 0);
-    auto isZero = rewriter.create<mlir::arith::CmpIOp>(
-        op.getLoc(),
+    auto isZero = mlir::arith::CmpIOp::create(
+        rewriter, op.getLoc(),
         mlir::arith::CmpIPredicateAttr::get(rewriter.getContext(),
                                             mlir::arith::CmpIPredicate::eq),
         adaptor.getInput(), zero);
 
-    auto res = rewriter.create<mlir::arith::SelectOp>(op.getLoc(), isZero, zero,
-                                                      ctzAddOne);
+    auto res = mlir::arith::SelectOp::create(rewriter, op.getLoc(), isZero,
+                                             zero, ctzAddOne);
     rewriter.replaceOp(op, res);
 
     return mlir::LogicalResult::success();
@@ -607,9 +606,9 @@ public:
   matchAndRewrite(cir::BitParityOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto count =
-        rewriter.create<mlir::math::CtPopOp>(op.getLoc(), adaptor.getInput());
-    auto countMod2 = rewriter.create<mlir::arith::AndIOp>(
-        op.getLoc(), count,
+        mlir::math::CtPopOp::create(rewriter, op.getLoc(), adaptor.getInput());
+    auto countMod2 = mlir::arith::AndIOp::create(
+        rewriter, op.getLoc(), count,
         getConst(rewriter, op.getLoc(), count.getType(), 1));
     rewriter.replaceOp(op, countMod2);
     return mlir::LogicalResult::success();
@@ -690,8 +689,8 @@ public:
         auto llvmFnType =
             mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmPtrTy,
                                               /*isVarArg=*/true);
-        auto printfFunc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-            op.getLoc(), "printf", llvmFnType);
+        auto printfFunc = mlir::LLVM::LLVMFuncOp::create(rewriter, op.getLoc(),
+                                                         "printf", llvmFnType);
         rewriter.replaceOp(op, printfFunc);
       } else {
         rewriter.eraseOp(op);
@@ -717,8 +716,8 @@ public:
 
       mlir::Type resultType =
           getTypeConverter()->convertType(fnType.getReturnType());
-      auto fn = rewriter.create<mlir::func::FuncOp>(
-          op.getLoc(), op.getName(),
+      auto fn = mlir::func::FuncOp::create(
+          rewriter, op.getLoc(), op.getName(),
           rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
                                    resultType ? mlir::TypeRange(resultType)
                                               : mlir::TypeRange()),
@@ -747,14 +746,14 @@ public:
 
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
-      auto One = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), mlir::IntegerAttr::get(type, 1));
+      auto One = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
       rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, One);
       break;
     }
     case cir::UnaryOpKind::Dec: {
-      auto One = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), mlir::IntegerAttr::get(type, 1));
+      auto One = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
       rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, One);
       break;
     }
@@ -763,14 +762,14 @@ public:
       break;
     }
     case cir::UnaryOpKind::Minus: {
-      auto Zero = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), mlir::IntegerAttr::get(type, 0));
+      auto Zero = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 0));
       rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, Zero, input);
       break;
     }
     case cir::UnaryOpKind::Not: {
-      auto MinusOne = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), mlir::IntegerAttr::get(type, -1));
+      auto MinusOne = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, -1));
       rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, MinusOne,
                                                        input);
       break;
@@ -937,8 +936,8 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
 
     // For scopes without results, use memref.alloca_scope
     if (scopeOp.getNumResults() == 0) {
-      auto allocaScope = rewriter.create<mlir::memref::AllocaScopeOp>(
-          scopeOp.getLoc(), mlir::TypeRange{});
+      auto allocaScope = mlir::memref::AllocaScopeOp::create(
+          rewriter, scopeOp.getLoc(), mlir::TypeRange{});
       rewriter.inlineRegionBefore(scopeOp.getScopeRegion(),
                                   allocaScope.getBodyRegion(),
                                   allocaScope.getBodyRegion().end());
@@ -946,11 +945,11 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
     } else {
       // For scopes with results, use scf.execute_region
       SmallVector<mlir::Type> types;
-      if (mlir::failed(
-              getTypeConverter()->convertTypes(scopeOp->getResultTypes(), types)))
+      if (mlir::failed(getTypeConverter()->convertTypes(
+              scopeOp->getResultTypes(), types)))
         return mlir::failure();
       auto exec =
-          rewriter.create<mlir::scf::ExecuteRegionOp>(scopeOp.getLoc(), types);
+          mlir::scf::ExecuteRegionOp::create(rewriter, scopeOp.getLoc(), types);
       rewriter.inlineRegionBefore(scopeOp.getScopeRegion(), exec.getRegion(),
                                   exec.getRegion().end());
       rewriter.replaceOp(scopeOp, exec.getResults());
@@ -987,8 +986,8 @@ public:
                                                       resultTypes)))
       return mlir::failure();
 
-    auto ifOp = rewriter.create<mlir::scf::IfOp>(op.getLoc(), resultTypes,
-                                                 adaptor.getCond(), true);
+    auto ifOp = mlir::scf::IfOp::create(rewriter, op.getLoc(), resultTypes,
+                                        adaptor.getCond(), true);
     auto *thenBlock = &ifOp.getThenRegion().front();
     auto *elseBlock = &ifOp.getElseRegion().front();
     rewriter.inlineBlockBefore(&op.getTrueRegion().front(), thenBlock,
@@ -1030,8 +1029,9 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::IfOp ifop, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto newIfOp = rewriter.create<mlir::scf::IfOp>(
-        ifop->getLoc(), ifop->getResultTypes(), adaptor.getCondition());
+    auto newIfOp =
+        mlir::scf::IfOp::create(rewriter, ifop->getLoc(),
+                                ifop->getResultTypes(), adaptor.getCondition());
     auto *thenBlock = rewriter.createBlock(&newIfOp.getThenRegion());
     rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock,
                                thenBlock->end());
@@ -1166,8 +1166,8 @@ public:
     auto elementTy = typeConverter->convertType(vecTy.getElementType());
     auto loc = op.getLoc();
     auto zeroElement = rewriter.getZeroAttr(elementTy);
-    mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
-        loc,
+    mlir::Value result = mlir::arith::ConstantOp::create(
+        rewriter, loc,
         mlir::DenseElementsAttr::get(
             mlir::VectorType::get(vecTy.getSize(), elementTy), zeroElement));
     assert(vecTy.getSize() == op.getElements().size() &&
@@ -1175,8 +1175,8 @@ public:
     for (uint64_t i = 0; i < vecTy.getSize(); ++i) {
       mlir::Value indexValue =
           getConst(rewriter, loc, rewriter.getI64Type(), i);
-      result = rewriter.create<mlir::vector::InsertElementOp>(
-          loc, adaptor.getElements()[i], result, indexValue);
+      result = mlir::vector::InsertElementOp::create(
+          rewriter, loc, adaptor.getElements()[i], result, indexValue);
     }
     rewriter.replaceOp(op, result);
     return mlir::success();
@@ -1226,13 +1226,13 @@ public:
         mlir::cast<cir::VectorType>(op.getLhs().getType()).getElementType();
     mlir::Value bitResult;
     if (auto intType = mlir::dyn_cast<cir::IntType>(elementType)) {
-      bitResult = rewriter.create<mlir::arith::CmpIOp>(
-          op.getLoc(),
+      bitResult = mlir::arith::CmpIOp::create(
+          rewriter, op.getLoc(),
           convertCmpKindToCmpIPredicate(op.getKind(), intType.isSigned()),
           adaptor.getLhs(), adaptor.getRhs());
     } else if (mlir::isa<cir::FPTypeInterface>(elementType)) {
-      bitResult = rewriter.create<mlir::arith::CmpFOp>(
-          op.getLoc(), convertCmpKindToCmpFPredicate(op.getKind()),
+      bitResult = mlir::arith::CmpFOp::create(
+          rewriter, op.getLoc(), convertCmpKindToCmpFPredicate(op.getKind()),
           adaptor.getLhs(), adaptor.getRhs());
     } else {
       return op.emitError() << "unsupported type for VecCmpOp: " << elementType;
@@ -1268,9 +1268,9 @@ public:
       return mlir::success();
     }
     case CIR::int_to_bool: {
-      auto zero = rewriter.create<cir::ConstantOp>(
-          src.getLoc(), op.getSrc().getType(),
-          cir::IntAttr::get(op.getSrc().getType(), 0));
+      auto zero =
+          cir::ConstantOp::create(rewriter, src.getLoc(), op.getSrc().getType(),
+                                  cir::IntAttr::get(op.getSrc().getType(), 0));
       rewriter.replaceOpWithNewOp<cir::CmpOp>(
           op, cir::BoolType::get(getContext()), cir::CmpOpKind::ne, op.getSrc(),
           zero);
@@ -1308,8 +1308,9 @@ public:
       auto kind = mlir::arith::CmpFPredicate::UNE;
 
       // Check if float is not equal to zero.
-      auto zeroFloat = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), src.getType(), mlir::FloatAttr::get(src.getType(), 0.0));
+      auto zeroFloat = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), src.getType(),
+          mlir::FloatAttr::get(src.getType(), 0.0));
 
       rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(op, kind, src,
                                                        zeroFloat);
@@ -1387,8 +1388,8 @@ class CIRGetElementOpLowering
     auto index = adaptor.getIndex();
     auto indexType = rewriter.getIndexType();
     if (index.getType() != indexType)
-      index = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
-                                                        index);
+      index = mlir::arith::IndexCastOp::create(rewriter, op.getLoc(), indexType,
+                                               index);
 
     // Convert the destination type.
     auto dstType =
@@ -1475,8 +1476,8 @@ public:
     auto indexType = rewriter.getIndexType();
     // Generate casting if the stride is not index type.
     if (stride.getType() != indexType)
-      stride = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
-                                                         stride);
+      stride = mlir::arith::IndexCastOp::create(rewriter, op.getLoc(),
+                                                indexType, stride);
     rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
         op, newDstType, base, stride, mlir::ValueRange{}, mlir::ValueRange{},
         llvm::ArrayRef<mlir::NamedAttribute>{});
@@ -1507,9 +1508,10 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.setInsertionPointAfter(op);
     auto trapIntrinsicName = rewriter.getStringAttr("llvm.trap");
-    rewriter.create<mlir::LLVM::CallIntrinsicOp>(op.getLoc(), trapIntrinsicName,
-                                                 /*args=*/mlir::ValueRange());
-    rewriter.create<mlir::LLVM::UnreachableOp>(op.getLoc());
+    mlir::LLVM::CallIntrinsicOp::create(rewriter, op.getLoc(),
+                                        trapIntrinsicName,
+                                        /*args=*/mlir::ValueRange());
+    mlir::LLVM::UnreachableOp::create(rewriter, op.getLoc());
     rewriter.eraseOp(op);
     return mlir::success();
   }
@@ -1519,24 +1521,23 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
-           CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
-           CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
-           CIRFuncOpLowering, CIRBrCondOpLowering,
-           CIRTernaryOpLowering, CIRYieldOpLowering, CIRCosOpLowering,
-           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-           CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
-           CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
-           CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
-           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-           CIRRoundOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-           CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-           CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-           CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
-           CIRTrapOpLowering>(converter, patterns.getContext());
+  patterns.add<
+      CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
+      CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
+      CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+      CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+      CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
+      CIRGetElementOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
+      CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering, CIRAbsOpLowering,
+      CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering, CIRVectorCreateLowering,
+      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
+      CIRACosOpLowering, CIRASinOpLowering, CIRUnreachableOpLowering,
+      CIRTanOpLowering, CIRTrapOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1610,7 +1611,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   mlir::ModuleOp theModule = getOperation();
 
   auto converter = prepareTypeConverter();
-  
+
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
@@ -1628,10 +1629,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   // cir dialect, for example the `cir.continue`. If we marked cir as illegal
   // here, then MLIR would think any remaining `cir.continue` indicates a
   // failure, which is not what we want.
-  
-  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(converter, context);
 
-  if (mlir::failed(mlir::applyPartialConversion(theModule, target, 
+  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
+               CIRYieldOpLowering>(converter, context);
+
+  if (mlir::failed(mlir::applyPartialConversion(theModule, target,
                                                 std::move(patterns)))) {
     signalPassFailure();
   }

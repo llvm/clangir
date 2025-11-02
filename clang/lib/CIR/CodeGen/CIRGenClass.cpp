@@ -748,8 +748,8 @@ static Address ApplyNonVirtualAndVirtualOffset(
   mlir::Type charPtrType = CGF.CGM.UInt8PtrTy;
   mlir::Value charPtr =
       CGF.getBuilder().createCast(cir::CastKind::bitcast, ptr, charPtrType);
-  mlir::Value adjusted = CGF.getBuilder().create<cir::PtrStrideOp>(
-      loc, charPtrType, charPtr, baseOffset);
+  mlir::Value adjusted = cir::PtrStrideOp::create(
+      CGF.getBuilder(), loc, charPtrType, charPtr, baseOffset);
   ptr = CGF.getBuilder().createCast(cir::CastKind::bitcast, adjusted,
                                     ptr.getType());
 
@@ -807,8 +807,8 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   // vtable field is derived from `this` pointer, therefore they should be in
   // the same addr space.
   assert(!cir::MissingFeatures::addressSpace());
-  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
-      loc, builder.getPtrToVPtrType(), ClassAddr.getPointer());
+  auto VTablePtr = cir::VTableGetVPtrOp::create(
+      builder, loc, builder.getPtrToVPtrType(), ClassAddr.getPointer());
   Address VTableField = Address(VTablePtr, ClassAddr.getAlignment());
   auto storeOp = builder.createStore(loc, VTableAddressPoint, VTableField);
   TBAAAccessInfo TBAAInfo =
@@ -1196,7 +1196,7 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
   if (DtorType != Dtor_Base && Dtor->getParent()->isAbstract()) {
     SourceLocation Loc =
         Dtor->hasBody() ? Dtor->getBody()->getBeginLoc() : Dtor->getLocation();
-    builder.create<cir::TrapOp>(getLoc(Loc));
+    cir::TrapOp::create(builder, getLoc(Loc));
     // The corresponding clang/CodeGen logic clears the insertion point here,
     // but MLIR's builder requires a valid insertion point, so we create a dummy
     // block (since the trap is a block terminator).
@@ -1706,8 +1706,8 @@ void CIRGenFunction::emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD,
 
 mlir::Value CIRGenFunction::getVTablePtr(mlir::Location Loc, Address This,
                                          const CXXRecordDecl *RD) {
-  auto VTablePtr = builder.create<cir::VTableGetVPtrOp>(
-      Loc, builder.getPtrToVPtrType(), This.getPointer());
+  auto VTablePtr = cir::VTableGetVPtrOp::create(
+      builder, Loc, builder.getPtrToVPtrType(), This.getPointer());
   Address VTablePtrAddr = Address(VTablePtr, This.getAlignment());
 
   auto VTable = builder.createLoad(Loc, VTablePtrAddr);
@@ -1892,8 +1892,9 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
 
     // Emit the constructor call that will execute for every array element.
     auto arrayOp = builder.createPtrBitcast(arrayBase.getPointer(), arrayTy);
-    builder.create<cir::ArrayCtor>(
-        *currSrcLoc, arrayOp, [&](mlir::OpBuilder &b, mlir::Location loc) {
+    cir::ArrayCtor::create(
+        builder, *currSrcLoc, arrayOp,
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
           auto arg = b.getInsertionBlock()->addArgument(ptrToElmType, loc);
           Address curAddr = Address(arg, elementType, eltAlignment);
           auto currAVS = AggValueSlot::forAddr(
@@ -1905,7 +1906,7 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
           emitCXXConstructorCall(ctor, Ctor_Complete,
                                  /*ForVirtualBase=*/false,
                                  /*Delegating=*/false, currAVS, E);
-          builder.create<cir::YieldOp>(loc);
+          cir::YieldOp::create(builder, loc);
         });
   }
 }

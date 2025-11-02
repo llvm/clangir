@@ -76,7 +76,7 @@ private:
   void bitcast(mlir::Value src, mlir::Type newTy) {
     if (src.getType() != newTy) {
       auto cast =
-          rewriter.create<CastOp>(src.getLoc(), newTy, CastKind::bitcast, src);
+          CastOp::create(rewriter, src.getLoc(), newTy, CastKind::bitcast, src);
       rewriter.replaceAllUsesExcept(src, cast, cast);
     }
   }

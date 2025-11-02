@@ -52,7 +52,7 @@ static void process(cir::FuncOp func) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(goTo);
     Block *dest = labels[goTo.getLabel()];
-    rewriter.create<cir::BrOp>(goTo.getLoc(), dest);
+    cir::BrOp::create(rewriter, goTo.getLoc(), dest);
     goTo.erase();
   }
 }
