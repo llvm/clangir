@@ -9,6 +9,7 @@ add_clang_library(clangCIRLoweringThroughMLIR
   LowerCIRLoopToSCF.cpp
   LowerCIRToMLIR.cpp
   LowerMLIRToLLVM.cpp
+  MLIRLoweringPrepare.cpp
 
   DEPENDS
   MLIRCIROpsIncGen
