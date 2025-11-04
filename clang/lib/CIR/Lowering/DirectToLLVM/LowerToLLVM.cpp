@@ -1145,42 +1145,6 @@ mlir::LogicalResult CIRToLLVMDerivedClassAddrOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
-mlir::LogicalResult CIRToLLVMBaseDataMemberOpLowering::matchAndRewrite(
-    cir::BaseDataMemberOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::Value loweredResult =
-      lowerMod->getCXXABI().lowerBaseDataMember(op, adaptor.getSrc(), rewriter);
-  rewriter.replaceOp(op, loweredResult);
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMDerivedDataMemberOpLowering::matchAndRewrite(
-    cir::DerivedDataMemberOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::Value loweredResult = lowerMod->getCXXABI().lowerDerivedDataMember(
-      op, adaptor.getSrc(), rewriter);
-  rewriter.replaceOp(op, loweredResult);
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMBaseMethodOpLowering::matchAndRewrite(
-    cir::BaseMethodOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::Value loweredResult =
-      lowerMod->getCXXABI().lowerBaseMethod(op, adaptor.getSrc(), rewriter);
-  rewriter.replaceOp(op, loweredResult);
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMDerivedMethodOpLowering::matchAndRewrite(
-    cir::DerivedMethodOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::Value loweredResult =
-      lowerMod->getCXXABI().lowerDerivedMethod(op, adaptor.getSrc(), rewriter);
-  rewriter.replaceOp(op, loweredResult);
-  return mlir::success();
-}
-
 static mlir::Value
 getValueForVTableSymbol(mlir::Operation *op,
                         mlir::ConversionPatternRewriter &rewriter,
@@ -1409,20 +1373,6 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   case cir::CastKind::bitcast: {
     auto dstTy = castOp.getType();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
-
-    if (mlir::isa<cir::DataMemberType, cir::MethodType>(
-            castOp.getSrc().getType())) {
-      mlir::Value loweredResult;
-      if (mlir::isa<cir::DataMemberType>(castOp.getSrc().getType()))
-        loweredResult = lowerMod->getCXXABI().lowerDataMemberBitcast(
-            castOp, llvmDstTy, src, rewriter);
-      else
-        loweredResult = lowerMod->getCXXABI().lowerMethodBitcast(
-            castOp, llvmDstTy, src, rewriter);
-      rewriter.replaceOp(castOp, loweredResult);
-      return mlir::success();
-    }
-
     auto llvmSrcVal = adaptor.getSrc();
     rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, llvmDstTy,
                                                        llvmSrcVal);
@@ -1443,17 +1393,6 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::AddrSpaceCastOp>(castOp, llvmDstTy,
                                                              llvmSrcVal);
-    break;
-  }
-  case cir::CastKind::member_ptr_to_bool: {
-    mlir::Value loweredResult;
-    if (mlir::isa<cir::MethodType>(castOp.getSrc().getType()))
-      loweredResult =
-          lowerMod->getCXXABI().lowerMethodToBoolCast(castOp, src, rewriter);
-    else
-      loweredResult = lowerMod->getCXXABI().lowerDataMemberToBoolCast(
-          castOp, src, rewriter);
-    rewriter.replaceOp(castOp, loweredResult);
     break;
   }
   default: {
@@ -1970,22 +1909,6 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
       return mlir::success();
     }
     attr = op.getValue();
-  } else if (mlir::isa<cir::DataMemberType>(op.getType())) {
-    assert(lowerMod && "lower module is not available");
-    auto dataMember = mlir::cast<cir::DataMemberAttr>(op.getValue());
-    mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
-    mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerDataMemberConstant(
-        dataMember, layout, *typeConverter);
-    rewriter.replaceOpWithNewOp<ConstantOp>(op, abiValue);
-    return mlir::success();
-  } else if (mlir::isa<cir::MethodType>(op.getType())) {
-    assert(lowerMod && "lower module is not available");
-    auto method = mlir::cast<cir::MethodAttr>(op.getValue());
-    mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
-    mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerMethodConstant(
-        method, layout, *typeConverter);
-    rewriter.replaceOpWithNewOp<ConstantOp>(op, abiValue);
-    return mlir::success();
   }
   // TODO(cir): constant arrays are currently just pushed into the stack using
   // the store instruction, instead of being stored as global variables and
@@ -2612,16 +2535,6 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
   } else if (mlir::isa<cir::ComplexAttr>(init)) {
     return lowerInitializerForConstComplex(rewriter, op, init,
                                            useInitializerRegion);
-  } else if (auto dataMemberAttr = mlir::dyn_cast<cir::DataMemberAttr>(init)) {
-    assert(lowerMod && "lower module is not available");
-    mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
-    mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerDataMemberConstant(
-        dataMemberAttr, layout, *typeConverter);
-    init = abiValue;
-    llvmType = convertTypeForMemory(*getTypeConverter(), dataLayout,
-                                    abiValue.getType());
-    // Recursively lower the CIR attribute produced by CXXABI.
-    return lowerInitializer(rewriter, op, llvmType, init, useInitializerRegion);
   } else {
     op.emitError() << "unsupported initializer '" << init << "'";
     return mlir::failure();
@@ -3206,21 +3119,6 @@ mlir::LogicalResult CIRToLLVMCmpOpLowering::matchAndRewrite(
     cir::CmpOp cmpOp, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto type = cmpOp.getLhs().getType();
-
-  if (mlir::isa<cir::DataMemberType, cir::MethodType>(type)) {
-    assert(lowerMod && "lowering module is not available");
-
-    mlir::Value loweredResult;
-    if (mlir::isa<cir::DataMemberType>(type))
-      loweredResult = lowerMod->getCXXABI().lowerDataMemberCmp(
-          cmpOp, adaptor.getLhs(), adaptor.getRhs(), rewriter);
-    else
-      loweredResult = lowerMod->getCXXABI().lowerMethodCmp(
-          cmpOp, adaptor.getLhs(), adaptor.getRhs(), rewriter);
-
-    rewriter.replaceOp(cmpOp, loweredResult);
-    return mlir::success();
-  }
 
   // Lower to LLVM comparison op.
   // if (auto intTy = mlir::dyn_cast<cir::IntType>(type)) {
@@ -3853,28 +3751,6 @@ mlir::LogicalResult CIRToLLVMInsertMemberOpLowering::matchAndRewrite(
 
   rewriter.replaceOpWithNewOp<mlir::LLVM::InsertValueOp>(
       op, adaptor.getRecord(), adaptor.getValue(), indecies);
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMGetMethodOpLowering::matchAndRewrite(
-    cir::GetMethodOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  assert(lowerMod && "lowering module is not available");
-  mlir::Value loweredResults[2];
-  lowerMod->getCXXABI().lowerGetMethod(op, loweredResults, adaptor.getMethod(),
-                                       adaptor.getObject(), rewriter);
-  rewriter.replaceOp(op, loweredResults);
-  return mlir::success();
-}
-
-mlir::LogicalResult CIRToLLVMGetRuntimeMemberOpLowering::matchAndRewrite(
-    cir::GetRuntimeMemberOp op, OpAdaptor adaptor,
-    mlir::ConversionPatternRewriter &rewriter) const {
-  assert(lowerMod && "lowering module is not available");
-  mlir::Type llvmResTy = getTypeConverter()->convertType(op.getType());
-  mlir::Operation *llvmOp = lowerMod->getCXXABI().lowerGetRuntimeMember(
-      op, llvmResTy, adaptor.getAddr(), adaptor.getMember(), rewriter);
-  rewriter.replaceOp(op, llvmOp);
   return mlir::success();
 }
 
@@ -4649,27 +4525,20 @@ void populateCIRToLLVMConversionPatterns(
                                          blockAddrInfo);
   patterns.add<
       // clang-format off
-      CIRToLLVMCastOpLowering,
       CIRToLLVMLoadOpLowering,
-      CIRToLLVMStoreOpLowering,
-      CIRToLLVMGlobalOpLowering,
-      CIRToLLVMConstantOpLowering
+      CIRToLLVMStoreOpLowering
       // clang-format on
       >(converter, patterns.getContext(), lowerModule, dataLayout);
   patterns.add<
       // clang-format off
-      CIRToLLVMBaseDataMemberOpLowering,
-      CIRToLLVMBaseMethodOpLowering,
-      CIRToLLVMCmpOpLowering,
-      CIRToLLVMDerivedDataMemberOpLowering,
-      CIRToLLVMDerivedMethodOpLowering,
-      CIRToLLVMGetMethodOpLowering,
-      CIRToLLVMGetRuntimeMemberOpLowering,
       CIRToLLVMInvariantGroupOpLowering
       // clang-format on
       >(converter, patterns.getContext(), lowerModule);
   patterns.add<
       // clang-format off
+      CIRToLLVMCastOpLowering,
+      CIRToLLVMConstantOpLowering,
+      CIRToLLVMGlobalOpLowering,
       CIRToLLVMPtrStrideOpLowering,
       CIRToLLVMGetElementOpLowering,
       CIRToLLVMInlineAsmOpLowering
@@ -4703,6 +4572,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMCallOpLowering,
       CIRToLLVMCatchParamOpLowering,
       CIRToLLVMClearCacheOpLowering,
+      CIRToLLVMCmpOpLowering,
       CIRToLLVMCmpThreeWayOpLowering,
       CIRToLLVMComplexCreateOpLowering,
       CIRToLLVMComplexImagOpLowering,
@@ -4775,16 +4645,6 @@ void populateCIRToLLVMConversionPatterns(
       >(converter, patterns.getContext());
 }
 
-std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
-  mlir::PatternRewriter rewriter{module->getContext()};
-  // If the triple is not present, e.g. CIR modules parsed from text, we
-  // cannot init LowerModule properly.
-  assert(!cir::MissingFeatures::makeTripleAlwaysPresent());
-  if (!module->hasAttr(cir::CIRDialect::getTripleAttrName()))
-    return {};
-  return cir::createLowerModule(module, rewriter);
-}
-
 static unsigned
 getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
                                    cir::LowerModule *lowerModule) {
@@ -4813,19 +4673,6 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&](cir::VPtrType type) -> mlir::Type {
     assert(!cir::MissingFeatures::addressSpace());
     return mlir::LLVM::LLVMPointerType::get(type.getContext());
-  });
-  converter.addConversion(
-      [&, lowerModule](cir::DataMemberType type) -> mlir::Type {
-        assert(lowerModule && "CXXABI is not available");
-        mlir::Type abiType =
-            lowerModule->getCXXABI().lowerDataMemberType(type, converter);
-        return converter.convertType(abiType);
-      });
-  converter.addConversion([&, lowerModule](cir::MethodType type) -> mlir::Type {
-    assert(lowerModule && "CXXABI is not available");
-    mlir::Type abiType =
-        lowerModule->getCXXABI().lowerMethodType(type, converter);
-    return converter.convertType(abiType);
   });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
     auto ty =
@@ -5171,7 +5018,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
-  std::unique_ptr<cir::LowerModule> lowerModule = prepareLowerModule(module);
+  mlir::PatternRewriter rewriter{module->getContext()};
+  std::unique_ptr<cir::LowerModule> lowerModule =
+      cir::createLowerModule(module, rewriter);
   prepareTypeConverter(converter, dataLayout, lowerModule.get());
 
   mlir::RewritePatternSet patterns(&getContext());

@@ -40,6 +40,9 @@ std::unique_ptr<Pass> createFlattenCFGPass();
 std::unique_ptr<Pass> createHoistAllocasPass();
 std::unique_ptr<Pass> createGotoSolverPass();
 
+/// Create a pass to expand ABI-dependent types and operations.
+std::unique_ptr<Pass> createABILoweringPass();
+
 /// Create a pass to lower ABI-independent function definitions/calls.
 std::unique_ptr<Pass> createCallConvLoweringPass();
 

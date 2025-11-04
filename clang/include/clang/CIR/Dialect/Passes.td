@@ -180,6 +180,27 @@ def LibOpt : Pass<"cir-lib-opt"> {
   ];
 }
 
+def ABILowering : Pass<"cir-abi-lowering"> {
+  let summary = "Expands ABI-dependent types and operations";
+  let description = [{
+    This pass expands ABI-dependent CIR types and operations to more "primitive"
+    ABI-independent CIR types and operations according to the target ABI
+    specification.
+
+    Some CIR types, such as pointers to members, may have different layouts and
+    representations under different target ABIs. This pass expands these types
+    to their underlying representations as specified by the target ABI. For
+    example, when targeting Itanium ABI, this pass will replace pointers to
+    member functions with a struct with two ptrdiff_t fields.
+
+    Similarly, some CIR operations may also behave differently under different
+    target ABIs. This pass also expands these operations to more "primitive"
+    CIR operations as specified by the target ABI.
+  }];
+  let constructor = "mlir::createABILoweringPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 def CallConvLowering : Pass<"cir-call-conv-lowering"> {
   let summary = "Handle calling conventions for CIR functions";
   let description = [{
