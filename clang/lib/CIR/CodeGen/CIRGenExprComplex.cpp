@@ -174,7 +174,8 @@ public:
     return Visit(E->getSubExpr());
   }
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
-    llvm_unreachable("NYI");
+    CIRGenFunction::CXXDefaultArgExprScope scope(CGF, DAE);
+    return Visit(DAE->getExpr());
   }
 
   mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
