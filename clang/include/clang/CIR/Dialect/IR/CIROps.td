@@ -6015,7 +6015,8 @@ def CIR_AtomicFetchKind : CIR_I32EnumAttr<
     I32EnumAttrCase<"Or",   4, "or">,
     I32EnumAttrCase<"Nand", 5, "nand">,
     I32EnumAttrCase<"Max",  6, "max">,
-    I32EnumAttrCase<"Min",  7, "min">
+    I32EnumAttrCase<"Min",  7, "min">,
+    I32EnumAttrCase<"Xchg", 8, "xchg">
 ]>;
 
 def CIR_AtomicFetch : CIR_Op<"atomic.fetch", [
