@@ -48,19 +48,17 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
-#include "clang/CIR/LowerToLLVM.h"
-#include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace cir;
@@ -946,8 +944,8 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
     } else {
       // For scopes with results, use scf.execute_region
       SmallVector<mlir::Type> types;
-      if (mlir::failed(
-              getTypeConverter()->convertTypes(scopeOp->getResultTypes(), types)))
+      if (mlir::failed(getTypeConverter()->convertTypes(
+              scopeOp->getResultTypes(), types)))
         return mlir::failure();
       auto exec =
           rewriter.create<mlir::scf::ExecuteRegionOp>(scopeOp.getLoc(), types);
@@ -1006,6 +1004,28 @@ public:
   using OpConversionPattern<cir::YieldOp>::OpConversionPattern;
   mlir::LogicalResult
   matchAndRewrite(cir::YieldOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto *parentOp = op->getParentOp();
+    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
+        .Case<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
+          rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
+              op, adaptor.getOperands());
+          return mlir::success();
+        })
+        .Case<mlir::memref::AllocaScopeOp>([&](auto) {
+          rewriter.replaceOpWithNewOp<mlir::memref::AllocaScopeReturnOp>(
+              op, adaptor.getOperands());
+          return mlir::success();
+        })
+        .Default([](auto) { return mlir::failure(); });
+  }
+};
+
+class CIRBreakOpLowering : public mlir::OpConversionPattern<cir::BreakOp> {
+public:
+  using OpConversionPattern<cir::BreakOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::BreakOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
@@ -1519,24 +1539,23 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
-           CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
-           CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
-           CIRFuncOpLowering, CIRBrCondOpLowering,
-           CIRTernaryOpLowering, CIRYieldOpLowering, CIRCosOpLowering,
-           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-           CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
-           CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
-           CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
-           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-           CIRRoundOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-           CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-           CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-           CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
-           CIRTrapOpLowering>(converter, patterns.getContext());
+  patterns.add<
+      CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
+      CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
+      CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+      CIRYieldOpLowering, CIRBreakOpLowering, CIRCosOpLowering,
+      CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
+      CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
+      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering, CIRVectorCreateLowering,
+      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
+      CIRACosOpLowering, CIRASinOpLowering, CIRUnreachableOpLowering,
+      CIRTanOpLowering, CIRTrapOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1610,7 +1629,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   mlir::ModuleOp theModule = getOperation();
 
   auto converter = prepareTypeConverter();
-  
+
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
@@ -1628,10 +1647,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   // cir dialect, for example the `cir.continue`. If we marked cir as illegal
   // here, then MLIR would think any remaining `cir.continue` indicates a
   // failure, which is not what we want.
-  
-  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(converter, context);
 
-  if (mlir::failed(mlir::applyPartialConversion(theModule, target, 
+  patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
+               CIRYieldOpLowering, CIRBreakOpLowering>(converter, context);
+
+  if (mlir::failed(mlir::applyPartialConversion(theModule, target,
                                                 std::move(patterns)))) {
     signalPassFailure();
   }
