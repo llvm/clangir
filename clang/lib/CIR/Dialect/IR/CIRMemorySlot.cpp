@@ -43,8 +43,8 @@ llvm::SmallVector<MemorySlot> cir::AllocaOp::getPromotableSlots() {
 
 Value cir::AllocaOp::getDefaultValue(const MemorySlot &slot,
                                      OpBuilder &builder) {
-  return builder.create<cir::ConstantOp>(getLoc(), slot.elemType,
-                                         cir::UndefAttr::get(slot.elemType));
+  return cir::ConstantOp::create(builder, getLoc(), slot.elemType,
+                                 cir::UndefAttr::get(slot.elemType));
 }
 
 void cir::AllocaOp::handleBlockArgument(const MemorySlot &slot,
@@ -141,7 +141,7 @@ bool cir::CopyOp::storesTo(const MemorySlot &slot) {
 
 Value cir::CopyOp::getStored(const MemorySlot &slot, OpBuilder &builder,
                              Value reachingDef, const DataLayout &dataLayout) {
-  return builder.create<cir::LoadOp>(getLoc(), slot.elemType, getSrc());
+  return cir::LoadOp::create(builder, getLoc(), slot.elemType, getSrc());
 }
 
 DeletionKind cir::CopyOp::removeBlockingUses(
@@ -149,10 +149,10 @@ DeletionKind cir::CopyOp::removeBlockingUses(
     OpBuilder &builder, Value reachingDefinition,
     const DataLayout &dataLayout) {
   if (loadsFrom(slot))
-    builder.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(),
-                                 /*is_volatile=*/false,
-                                 /*is_nontemporal=*/false, mlir::IntegerAttr{},
-                                 cir::MemOrderAttr(), cir::TBAAAttr{});
+    cir::StoreOp::create(builder, getLoc(), reachingDefinition, getDst(),
+                         /*is_volatile=*/false,
+                         /*is_nontemporal=*/false, mlir::IntegerAttr{},
+                         cir::MemOrderAttr(), cir::TBAAAttr{});
   return DeletionKind::Delete;
 }
 

@@ -620,9 +620,9 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
   operands.push_back(InArgs);
   operands.push_back(InOutArgs);
 
-  auto IA = builder.create<cir::InlineAsmOp>(
-      getLoc(S.getAsmLoc()), ResultType, operands, AsmString, Constraints,
-      HasSideEffect, inferFlavor(CGM, S), mlir::ArrayAttr());
+  auto IA = cir::InlineAsmOp::create(
+      builder, getLoc(S.getAsmLoc()), ResultType, operands, AsmString,
+      Constraints, HasSideEffect, inferFlavor(CGM, S), mlir::ArrayAttr());
 
   if (false /*IsGCCAsmGoto*/) {
     assert(!cir::MissingFeatures::asmGoto());

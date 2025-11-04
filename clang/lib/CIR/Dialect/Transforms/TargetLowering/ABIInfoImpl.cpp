@@ -44,8 +44,8 @@ mlir::Value emitRoundPointerUpToAlignment(cir::CIRBaseBuilderTy &builder,
       loc, builder.createPtrBitcast(ptr, builder.getUIntNTy(8)),
       builder.getUnsignedInt(loc, alignment - 1, /*width=*/32));
   auto dataLayout = mlir::DataLayout::closest(roundUp.getDefiningOp());
-  return builder.create<cir::PtrMaskOp>(
-      loc, roundUp.getType(), roundUp,
+  return cir::PtrMaskOp::create(
+      builder, loc, roundUp.getType(), roundUp,
       builder.getSignedInt(loc, -(signed)alignment,
                            dataLayout.getTypeSizeInBits(roundUp.getType())));
 }

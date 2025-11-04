@@ -372,7 +372,7 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
                        getASTContext().getDeclAlign(varDecl));
       emitDeclInit(cgf, varDecl, declAddr);
       builder.setInsertionPointToEnd(block);
-      builder.create<cir::YieldOp>(addr->getLoc());
+      cir::YieldOp::create(builder, addr->getLoc());
     }
 
     if (varDecl->getType().isConstantStorage(getASTContext(), true,
@@ -396,7 +396,7 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
         // Don't confuse lexical cleanup.
         builder.clearInsertionPoint();
       } else
-        builder.create<cir::YieldOp>(addr->getLoc());
+        cir::YieldOp::create(builder, addr->getLoc());
     }
     return;
   }
@@ -428,5 +428,5 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
     cgf.emitStoreOfScalar(rv.getScalarVal(), declAddr, false, ty);
   }
   builder.setInsertionPointToEnd(block);
-  builder.create<cir::YieldOp>(addr->getLoc());
+  cir::YieldOp::create(builder, addr->getLoc());
 }

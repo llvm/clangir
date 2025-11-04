@@ -71,13 +71,13 @@ CIRGenFunction::emitOMPParallelDirective(const OMPParallelDirective &S) {
   mlir::LogicalResult res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
   // Create a `omp.parallel` op.
-  auto parallelOp = builder.create<ParallelOp>(scopeLoc);
+  auto parallelOp = ParallelOp::create(builder, scopeLoc);
   mlir::Block &block = parallelOp.getRegion().emplaceBlock();
   mlir::OpBuilder::InsertionGuard guardCase(builder);
   builder.setInsertionPointToEnd(&block);
   // Create a scope for the OpenMP region.
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
+  cir::ScopeOp::create(
+      builder, scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
         // Emit the body of the region.
@@ -88,7 +88,7 @@ CIRGenFunction::emitOMPParallelDirective(const OMPParallelDirective &S) {
           res = mlir::failure();
       });
   // Add the terminator for `omp.parallel`.
-  builder.create<TerminatorOp>(getLoc(S.getSourceRange().getEnd()));
+  TerminatorOp::create(builder, getLoc(S.getSourceRange().getEnd()));
   return res;
 }
 

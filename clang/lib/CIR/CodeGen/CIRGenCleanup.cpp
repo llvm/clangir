@@ -42,7 +42,7 @@ cir::BrOp CIRGenFunction::emitBranchThroughCleanup(mlir::Location Loc,
   // Insert a branch: to the cleanup block (unsolved) or to the already
   // materialized label. Keep track of unsolved goto's.
   assert(Dest.getBlock() && "assumes incoming valid dest");
-  auto brOp = builder.create<BrOp>(Loc, Dest.getBlock());
+  auto brOp = BrOp::create(builder, Loc, Dest.getBlock());
 
   // Calculate the innermost active normal cleanup.
   EHScopeStack::stable_iterator TopCleanup =
@@ -319,11 +319,11 @@ static void emitCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
 
   if (ActiveFlag.isValid()) {
     mlir::Value isActive = builder.createLoad(loc, ActiveFlag);
-    builder.create<cir::IfOp>(loc, isActive, false,
-                              [&](mlir::OpBuilder &b, mlir::Location) {
-                                emitCleanup();
-                                builder.createYield(loc);
-                              });
+    cir::IfOp::create(builder, loc, isActive, false,
+                      [&](mlir::OpBuilder &b, mlir::Location) {
+                        emitCleanup();
+                        builder.createYield(loc);
+                      });
   } else {
     emitCleanup();
   }

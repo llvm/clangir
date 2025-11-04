@@ -131,7 +131,8 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   auto first = findOp.getOperand(0);
   auto last = findOp.getOperand(1);
   auto value = findOp->getOperand(2);
-  if (!mlir::isa<PointerType>(first.getType()) || !mlir::isa<PointerType>(last.getType()))
+  if (!mlir::isa<PointerType>(first.getType()) ||
+      !mlir::isa<PointerType>(last.getType()))
     return;
 
   // Transformation:
@@ -163,7 +164,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
 
   // FIXME: get datalayout based "int" instead of fixed size 4.
   auto loadPattern =
-      builder.create<LoadOp>(value.getLoc(), underlyingDataTy, value);
+      LoadOp::create(builder, value.getLoc(), underlyingDataTy, value);
   auto memchrOp1 = builder.createIntCast(
       loadPattern, IntType::get(builder.getContext(), 32, true));
 
@@ -177,22 +178,22 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
       // Both operands have the same type, use iterBegin.
 
       // Look at this pointer to retrieve container information.
-      auto thisPtr =
-          mlir::cast<PointerType>(iterBegin.getOperand().getType()).getPointee();
+      auto thisPtr = mlir::cast<PointerType>(iterBegin.getOperand().getType())
+                         .getPointee();
       auto containerTy = mlir::dyn_cast<RecordType>(thisPtr);
 
       unsigned staticSize = 0;
       if (containerTy && isSequentialContainer(containerTy) &&
           containerHasStaticSize(containerTy, staticSize)) {
-        return builder.create<MemChrOp>(
-            findOp.getLoc(), memchrOp0, memchrOp1,
-            builder.create<ConstantOp>(
-                findOp.getLoc(), cir::IntAttr::get(uInt64Ty, staticSize)));
+        return MemChrOp::create(
+            builder, findOp.getLoc(), memchrOp0, memchrOp1,
+            ConstantOp::create(builder, findOp.getLoc(),
+                               cir::IntAttr::get(uInt64Ty, staticSize)));
       }
     }
-    return builder.create<MemChrOp>(
-        findOp.getLoc(), memchrOp0, memchrOp1,
-        builder.create<PtrDiffOp>(findOp.getLoc(), uInt64Ty, last, first));
+    return MemChrOp::create(
+        builder, findOp.getLoc(), memchrOp0, memchrOp1,
+        PtrDiffOp::create(builder, findOp.getLoc(), uInt64Ty, last, first));
   }();
 
   auto MemChrResult =
@@ -203,17 +204,17 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
   // else
   // return last;
   auto NullPtr = builder.getNullPtr(first.getType(), findOp.getLoc());
-  auto CmpResult = builder.create<CmpOp>(
-      findOp.getLoc(), BoolType::get(builder.getContext()), CmpOpKind::eq,
-      NullPtr.getRes(), MemChrResult);
+  auto CmpResult = CmpOp::create(builder, findOp.getLoc(),
+                                 BoolType::get(builder.getContext()),
+                                 CmpOpKind::eq, NullPtr.getRes(), MemChrResult);
 
-  auto result = builder.create<TernaryOp>(
-      findOp.getLoc(), CmpResult.getResult(),
+  auto result = TernaryOp::create(
+      builder, findOp.getLoc(), CmpResult.getResult(),
       [&](mlir::OpBuilder &ob, mlir::Location Loc) {
-        ob.create<YieldOp>(Loc, last);
+        YieldOp::create(ob, Loc, last);
       },
       [&](mlir::OpBuilder &ob, mlir::Location Loc) {
-        ob.create<YieldOp>(Loc, MemChrResult);
+        YieldOp::create(ob, Loc, MemChrResult);
       });
 
   findOp.replaceAllUsesWith(result);

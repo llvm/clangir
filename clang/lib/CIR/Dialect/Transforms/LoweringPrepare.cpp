@@ -210,7 +210,7 @@ GlobalOp LoweringPreparePass::buildRuntimeVariable(
   GlobalOp g = dyn_cast_or_null<GlobalOp>(SymbolTable::lookupNearestSymbolFrom(
       theModule, StringAttr::get(theModule->getContext(), name)));
   if (!g) {
-    g = builder.create<cir::GlobalOp>(loc, name, type);
+    g = cir::GlobalOp::create(builder, loc, name, type);
     g.setLinkageAttr(
         cir::GlobalLinkageKindAttr::get(builder.getContext(), linkage));
     mlir::SymbolTable::setSymbolVisibility(
@@ -225,7 +225,7 @@ FuncOp LoweringPreparePass::buildRuntimeFunction(
   FuncOp f = dyn_cast_or_null<FuncOp>(SymbolTable::lookupNearestSymbolFrom(
       theModule, StringAttr::get(theModule->getContext(), name)));
   if (!f) {
-    f = builder.create<cir::FuncOp>(loc, name, type);
+    f = cir::FuncOp::create(builder, loc, name, type);
     f.setLinkageAttr(
         cir::GlobalLinkageKindAttr::get(builder.getContext(), linkage));
     mlir::SymbolTable::setSymbolVisibility(
@@ -306,15 +306,15 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
     mlir::Value args[3];
     auto dtorPtrTy = cir::PointerType::get(dtorFunc.getFunctionType());
     // dtorPtrTy
-    args[0] = builder.create<cir::GetGlobalOp>(dtorCall.getLoc(), dtorPtrTy,
-                                               dtorFunc.getSymName());
-    args[0] = builder.create<cir::CastOp>(dtorCall.getLoc(), voidFnPtrTy,
-                                          cir::CastKind::bitcast, args[0]);
-    args[1] = builder.create<cir::CastOp>(dtorCall.getLoc(), voidPtrTy,
-                                          cir::CastKind::bitcast,
-                                          dtorCall.getArgOperand(0));
-    args[2] = builder.create<cir::GetGlobalOp>(Handle.getLoc(), HandlePtrTy,
-                                               Handle.getSymName());
+    args[0] = cir::GetGlobalOp::create(builder, dtorCall.getLoc(), dtorPtrTy,
+                                       dtorFunc.getSymName());
+    args[0] = cir::CastOp::create(builder, dtorCall.getLoc(), voidFnPtrTy,
+                                  cir::CastKind::bitcast, args[0]);
+    args[1] =
+        cir::CastOp::create(builder, dtorCall.getLoc(), voidPtrTy,
+                            cir::CastKind::bitcast, dtorCall.getArgOperand(0));
+    args[2] = cir::GetGlobalOp::create(builder, Handle.getLoc(), HandlePtrTy,
+                                       Handle.getSymName());
     builder.createCallOp(dtorCall.getLoc(), fnAtExit, args);
     dtorCall->erase();
     entryBB->getOperations().splice(entryBB->end(), dtorBlock.getOperations(),
@@ -335,7 +335,7 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   }
 
   assert(isa<YieldOp>(*yieldOp));
-  builder.create<ReturnOp>(yieldOp->getLoc());
+  ReturnOp::create(builder, yieldOp->getLoc());
   return f;
 }
 
@@ -352,9 +352,8 @@ static void canonicalizeIntrinsicThreeWayCmp(CIRBaseBuilderTy &builder,
   auto canonicalizedCmpInfo =
       cir::CmpThreeWayInfoAttr::get(builder.getContext(), -1, 0, 1);
   mlir::Value result =
-      builder
-          .create<cir::CmpThreeWayOp>(loc, op.getType(), op.getLhs(),
-                                      op.getRhs(), canonicalizedCmpInfo)
+      cir::CmpThreeWayOp::create(builder, loc, op.getType(), op.getLhs(),
+                                 op.getRhs(), canonicalizedCmpInfo)
           .getResult();
 
   auto compareAndYield = [&](mlir::Value input, int64_t test,
@@ -665,18 +664,17 @@ static mlir::Value lowerComplexMul(LoweringPreparePass &pass,
   auto resultImagIsNaN = builder.createIsNaN(loc, resultImag);
   auto resultRealAndImagAreNaN =
       builder.createLogicalAnd(loc, resultRealIsNaN, resultImagIsNaN);
-  return builder
-      .create<cir::TernaryOp>(
-          loc, resultRealAndImagAreNaN,
-          [&](mlir::OpBuilder &, mlir::Location) {
-            auto libCallResult = buildComplexBinOpLibCall(
-                pass, builder, &getComplexMulLibCallName, loc, ty, lhsReal,
-                lhsImag, rhsReal, rhsImag);
-            builder.createYield(loc, libCallResult);
-          },
-          [&](mlir::OpBuilder &, mlir::Location) {
-            builder.createYield(loc, algebraicResult);
-          })
+  return cir::TernaryOp::create(
+             builder, loc, resultRealAndImagAreNaN,
+             [&](mlir::OpBuilder &, mlir::Location) {
+               auto libCallResult = buildComplexBinOpLibCall(
+                   pass, builder, &getComplexMulLibCallName, loc, ty, lhsReal,
+                   lhsImag, rhsReal, rhsImag);
+               builder.createYield(loc, libCallResult);
+             },
+             [&](mlir::OpBuilder &, mlir::Location) {
+               builder.createYield(loc, algebraicResult);
+             })
       .getResult();
 }
 
@@ -773,11 +771,11 @@ buildRangeReductionComplexDiv(CIRBaseBuilderTy &builder, mlir::Location loc,
     builder.createYield(loc, result);
   };
 
-  auto cFabs = builder.create<cir::FAbsOp>(loc, c);
-  auto dFabs = builder.create<cir::FAbsOp>(loc, d);
+  auto cFabs = cir::FAbsOp::create(builder, loc, c);
+  auto dFabs = cir::FAbsOp::create(builder, loc, d);
   auto cmpResult = builder.createCompare(loc, cir::CmpOpKind::ge, cFabs, dFabs);
-  auto ternary = builder.create<cir::TernaryOp>(
-      loc, cmpResult, trueBranchBuilder, falseBranchBuilder);
+  auto ternary = cir::TernaryOp::create(builder, loc, cmpResult,
+                                        trueBranchBuilder, falseBranchBuilder);
 
   return ternary.getResult();
 }
@@ -853,8 +851,8 @@ void LoweringPreparePass::lowerThreeWayCmpOp(CmpThreeWayOp op) {
   auto cmpInfo = op.getInfo();
 
   auto buildCmpRes = [&](int64_t value) -> mlir::Value {
-    return builder.create<cir::ConstantOp>(
-        loc, cir::IntAttr::get(op.getType(), value));
+    return cir::ConstantOp::create(builder, loc,
+                                   cir::IntAttr::get(op.getType(), value));
   };
   auto ltRes = buildCmpRes(cmpInfo.getLt());
   auto eqRes = buildCmpRes(cmpInfo.getEq());
@@ -862,7 +860,7 @@ void LoweringPreparePass::lowerThreeWayCmpOp(CmpThreeWayOp op) {
 
   auto buildCmp = [&](CmpOpKind kind) -> mlir::Value {
     auto ty = BoolType::get(&getContext());
-    return builder.create<cir::CmpOp>(loc, ty, kind, op.getLhs(), op.getRhs());
+    return cir::CmpOp::create(builder, loc, ty, kind, op.getLhs(), op.getRhs());
   };
   auto buildSelect = [&](mlir::Value condition, mlir::Value trueResult,
                          mlir::Value falseResult) -> mlir::Value {
@@ -988,7 +986,7 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
     builder.createCallOp(f.getLoc(), f);
   }
 
-  builder.create<ReturnOp>(f.getLoc());
+  ReturnOp::create(builder, f.getLoc());
 }
 
 void LoweringPreparePass::buildCUDAModuleCtor() {
@@ -1058,8 +1056,8 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   // OG gives an empty name to this global constant,
   // which is not allowed in CIR.
   std::string fatbinStrName = addUnderscoredPrefix(cudaPrefix, "_fatbin_str");
-  GlobalOp fatbinStr = builder.create<GlobalOp>(
-      loc, fatbinStrName, fatbinType, /*isConstant=*/true,
+  GlobalOp fatbinStr = GlobalOp::create(
+      builder, loc, fatbinStrName, fatbinType, /*isConstant=*/true,
       /*linkage=*/cir::GlobalLinkageKind::PrivateLinkage);
   fatbinStr.setAlignment(8);
   fatbinStr.setInitialValueAttr(cir::ConstArrayAttr::get(
@@ -1077,8 +1075,8 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
 
   std::string fatbinWrapperName =
       addUnderscoredPrefix(cudaPrefix, "_fatbin_wrapper");
-  GlobalOp fatbinWrapper = builder.create<GlobalOp>(
-      loc, fatbinWrapperName, fatbinWrapperType, /*isConstant=*/true,
+  GlobalOp fatbinWrapper = GlobalOp::create(
+      builder, loc, fatbinWrapperName, fatbinWrapperType, /*isConstant=*/true,
       /*linkage=*/cir::GlobalLinkageKind::InternalLinkage);
   fatbinWrapper.setPrivate();
   fatbinWrapper.setSection(fatbinSectionName);
@@ -1097,8 +1095,8 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   // GPU fat binary handle is also a global variable in OG.
   std::string gpubinHandleName =
       addUnderscoredPrefix(cudaPrefix, "_gpubin_handle");
-  auto gpubinHandle = builder.create<GlobalOp>(
-      loc, gpubinHandleName, voidPtrPtrTy,
+  auto gpubinHandle = GlobalOp::create(
+      builder, loc, gpubinHandleName, voidPtrPtrTy,
       /*isConstant=*/false, /*linkage=*/GlobalLinkageKind::InternalLinkage);
   gpubinHandle.setInitialValueAttr(builder.getConstNullPtrAttr(voidPtrPtrTy));
   gpubinHandle.setPrivate();
@@ -1165,13 +1163,13 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
         globalBuilder, "atexit", loc,
         FuncType::get(PointerType::get(dtor->getFunctionType()), intTy));
 
-    mlir::Value dtorFunc = builder.create<GetGlobalOp>(
-        loc, PointerType::get(dtor->getFunctionType()),
+    mlir::Value dtorFunc = GetGlobalOp::create(
+        builder, loc, PointerType::get(dtor->getFunctionType()),
         mlir::FlatSymbolRefAttr::get(dtor->getSymNameAttr()));
     builder.createCallOp(loc, atexit, dtorFunc);
   }
 
-  builder.create<cir::ReturnOp>(loc);
+  cir::ReturnOp::create(builder, loc);
 }
 
 std::optional<FuncOp> LoweringPreparePass::buildCUDARegisterGlobals() {
@@ -1203,7 +1201,7 @@ std::optional<FuncOp> LoweringPreparePass::buildCUDARegisterGlobals() {
 
   // TODO(cir): registration for global variables.
 
-  builder.create<ReturnOp>(loc);
+  ReturnOp::create(builder, loc);
   return regGlobalFunc;
 }
 
@@ -1245,8 +1243,8 @@ void LoweringPreparePass::buildCUDARegisterGlobalFunctions(
   auto makeConstantString = [&](llvm::StringRef str) -> GlobalOp {
     auto strType = ArrayType::get(&getContext(), charTy, 1 + str.size());
 
-    auto tmpString = globalBuilder.create<GlobalOp>(
-        loc, (".str" + str).str(), strType, /*isConstant=*/true,
+    auto tmpString = GlobalOp::create(
+        globalBuilder, loc, (".str" + str).str(), strType, /*isConstant=*/true,
         /*linkage=*/cir::GlobalLinkageKind::PrivateLinkage);
 
     // We must make the string zero-terminated.
@@ -1263,14 +1261,14 @@ void LoweringPreparePass::buildCUDARegisterGlobalFunctions(
     mlir::Value deviceFunc = builder.createBitcast(
         builder.createGetGlobal(deviceFuncStr), voidPtrTy);
     mlir::Value hostFunc = builder.createBitcast(
-        builder.create<GetGlobalOp>(
-            loc, PointerType::get(deviceStub.getFunctionType()),
+        GetGlobalOp::create(
+            builder, loc, PointerType::get(deviceStub.getFunctionType()),
             mlir::FlatSymbolRefAttr::get(deviceStub.getSymNameAttr())),
         voidPtrTy);
     builder.createCallOp(
         loc, cudaRegisterFunction,
         {fatbinHandle, hostFunc, deviceFunc, deviceFunc,
-         builder.create<ConstantOp>(loc, IntAttr::get(intTy, -1)), cirNullPtr,
+         ConstantOp::create(builder, loc, IntAttr::get(intTy, -1)), cirNullPtr,
          cirNullPtr, cirNullPtr, cirNullPtr, cirNullPtr});
   }
 }
@@ -1315,7 +1313,7 @@ std::optional<FuncOp> LoweringPreparePass::buildCUDAModuleDtor() {
   mlir::Value gpubinAddress = builder.createGetGlobal(gpubinGlobal);
   mlir::Value gpubin = builder.createLoad(loc, gpubinAddress);
   builder.createCallOp(loc, unregisterFunc, gpubin);
-  builder.create<ReturnOp>(loc);
+  ReturnOp::create(builder, loc);
 
   return dtor;
 }
@@ -1343,13 +1341,13 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
   auto ptrDiffTy =
       cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
   uint64_t endOffset = isCtor ? arrayLen : arrayLen - 1;
-  mlir::Value endOffsetVal = builder.create<cir::ConstantOp>(
-      loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, endOffset));
+  mlir::Value endOffsetVal = cir::ConstantOp::create(
+      builder, loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, endOffset));
 
-  auto begin = builder.create<cir::CastOp>(
-      loc, eltTy, cir::CastKind::array_to_ptrdecay, arrayAddr);
+  auto begin = cir::CastOp::create(builder, loc, eltTy,
+                                   cir::CastKind::array_to_ptrdecay, arrayAddr);
   mlir::Value end =
-      builder.create<cir::PtrStrideOp>(loc, eltTy, begin, endOffsetVal);
+      cir::PtrStrideOp::create(builder, loc, eltTy, begin, endOffsetVal);
   mlir::Value start = isCtor ? begin : end;
   mlir::Value stop = isCtor ? end : begin;
 
@@ -1362,15 +1360,15 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
       loc,
       /*condBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = b.create<cir::LoadOp>(loc, eltTy, tmpAddr);
+        auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
         mlir::Type boolTy = cir::BoolType::get(b.getContext());
-        auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
-                                              currentElement, stop);
+        auto cmp = cir::CmpOp::create(builder, loc, boolTy, cir::CmpOpKind::ne,
+                                      currentElement, stop);
         builder.createCondition(cmp);
       },
       /*bodyBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = b.create<cir::LoadOp>(loc, eltTy, tmpAddr);
+        auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
 
         CallOp ctorCall;
         op->walk([&](CallOp c) { ctorCall = c; });
@@ -1378,18 +1376,18 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
 
         cir::ConstantOp stride;
         if (isCtor)
-          stride = builder.create<cir::ConstantOp>(
-              loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, 1));
+          stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
+                                           cir::IntAttr::get(ptrDiffTy, 1));
         else
-          stride = builder.create<cir::ConstantOp>(
-              loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, -1));
+          stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
+                                           cir::IntAttr::get(ptrDiffTy, -1));
 
         ctorCall->moveBefore(stride);
         ctorCall->setOperand(0, currentElement);
 
         // Advance pointer and store them to temporary variable
-        auto nextElement = builder.create<cir::PtrStrideOp>(
-            loc, eltTy, currentElement, stride);
+        auto nextElement = cir::PtrStrideOp::create(builder, loc, eltTy,
+                                                    currentElement, stride);
         builder.createStore(loc, nextElement, tmpAddr);
         builder.createYield(loc);
       });

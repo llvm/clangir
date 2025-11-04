@@ -466,32 +466,31 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
     auto boolTy = rewriter.getType<BoolType>();
     auto boolPtrTy = cir::PointerType::get(boolTy);
     auto alignment = rewriter.getI64IntegerAttr(4);
-    auto condAlloca = rewriter.create<AllocaOp>(loc, boolPtrTy, boolTy,
-                                                "condition", alignment);
+    auto condAlloca = AllocaOp::create(rewriter, loc, boolPtrTy, boolTy,
+                                       "condition", alignment);
 
     rewriter.setInsertionPoint(ifOp);
-    auto negated = rewriter.create<UnaryOp>(loc, boolTy, UnaryOpKind::Not,
-                                            ifOp.getCondition());
-    rewriter.create<StoreOp>(loc, negated, condAlloca);
+    auto negated = UnaryOp::create(rewriter, loc, boolTy, UnaryOpKind::Not,
+                                   ifOp.getCondition());
+    StoreOp::create(rewriter, loc, negated, condAlloca);
 
     // On each layer, surround everything after runner in its parent with a
     // guard: `if (!condAlloca)`.
     for (mlir::Operation *runner = ifOp; runner != whileOp;
          runner = runner->getParentOp()) {
       rewriter.setInsertionPointAfter(runner);
-      auto cond = rewriter.create<LoadOp>(
-          loc, boolTy, condAlloca, /*isDeref=*/false,
+      auto cond = LoadOp::create(
+          rewriter, loc, boolTy, condAlloca, /*isDeref=*/false,
           /*volatile=*/false, /*nontemporal=*/false, alignment,
           /*memorder=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
-      auto ifnot =
-          rewriter.create<IfOp>(loc, cond, /*withElseRegion=*/false,
+      auto ifnot = IfOp::create(rewriter, loc, cond, /*withElseRegion=*/false,
                                 [&](mlir::OpBuilder &, mlir::Location) {
                                   /* Intentionally left empty */
                                 });
 
       auto &region = ifnot.getThenRegion();
       rewriter.setInsertionPointToEnd(&region.back());
-      auto terminator = rewriter.create<YieldOp>(loc);
+      auto terminator = YieldOp::create(rewriter, loc);
 
       bool inserted = false;
       for (mlir::Operation *op = ifnot->getNextNode(); op;) {
@@ -509,7 +508,7 @@ class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
         rewriter.eraseOp(ifnot);
     }
     rewriter.setInsertionPoint(continueOp);
-    rewriter.create<mlir::scf::YieldOp>(continueOp->getLoc());
+    mlir::scf::YieldOp::create(rewriter, continueOp->getLoc());
     rewriter.eraseOp(continueOp);
   }
 

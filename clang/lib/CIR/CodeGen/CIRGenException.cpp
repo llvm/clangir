@@ -221,8 +221,8 @@ struct FreeException final : EHScopeStack::Cleanup {
     CIRGenBuilderTy &builder = CGF.getBuilder();
     mlir::Location loc =
         CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
-    builder.create<cir::FreeExceptionOp>(
-        loc, builder.createBitcast(exn, builder.getVoidPtrTy()));
+    cir::FreeExceptionOp::create(
+        builder, loc, builder.createBitcast(exn, builder.getVoidPtrTy()));
   }
 };
 } // end anonymous namespace
@@ -281,7 +281,7 @@ void CIRGenFunction::emitEHResumeBlock(bool isCleanup,
     llvm_unreachable("NYI");
   }
 
-  getBuilder().create<cir::ResumeOp>(loc, mlir::Value{}, mlir::Value{});
+  cir::ResumeOp::create(getBuilder(), loc, mlir::Value{}, mlir::Value{});
   getBuilder().restoreInsertionPoint(ip);
   mayThrow = true;
 }
@@ -310,18 +310,17 @@ mlir::LogicalResult CIRGenFunction::emitCXXTryStmt(const CXXTryStmt &S) {
 
   // Create a scope to hold try local storage for catch params.
   [[maybe_unused]] auto s =
-      builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                     scopeIP =
-                                         getBuilder().saveInsertionPoint();
-                                   });
+      cir::ScopeOp::create(builder, loc, /*scopeBuilder=*/
+                           [&](mlir::OpBuilder &b, mlir::Location loc) {
+                             scopeIP = getBuilder().saveInsertionPoint();
+                           });
 
   auto r = mlir::success();
   {
     mlir::OpBuilder::InsertionGuard guard(getBuilder());
     getBuilder().restoreInsertionPoint(scopeIP);
     r = emitCXXTryStmtUnderScope(S);
-    getBuilder().create<cir::YieldOp>(loc);
+    cir::YieldOp::create(getBuilder(), loc);
   }
   return r;
 }
@@ -353,8 +352,8 @@ CIRGenFunction::emitCXXTryStmtUnderScope(const CXXTryStmt &S) {
   // don't populate right away. Reserve some space to store the exception
   // info but don't emit the bulk right away, for now only make sure the
   // scope returns the exception information.
-  auto tryOp = builder.create<cir::TryOp>(
-      tryLoc, /*scopeBuilder=*/
+  auto tryOp = cir::TryOp::create(
+      builder, tryLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         beginInsertTryBody = getBuilder().saveInsertionPoint();
       },

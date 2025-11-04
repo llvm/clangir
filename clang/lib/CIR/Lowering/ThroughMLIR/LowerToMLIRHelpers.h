@@ -20,11 +20,11 @@ inline mlir::Value getConst(mlir::ConversionPatternRewriter &rewriter,
          "expected integer or floating-point type");
 
   if (mlir::isa<mlir::IntegerType>(ty))
-    return rewriter.create<mlir::arith::ConstantOp>(
-        loc, ty, mlir::IntegerAttr::get(ty, value));
+    return mlir::arith::ConstantOp::create(rewriter, loc, ty,
+                                           mlir::IntegerAttr::get(ty, value));
 
-  return rewriter.create<mlir::arith::ConstantOp>(
-      loc, ty, mlir::FloatAttr::get(ty, value));
+  return mlir::arith::ConstantOp::create(rewriter, loc, ty,
+                                         mlir::FloatAttr::get(ty, value));
 }
 
 inline mlir::Value createIntCast(mlir::ConversionPatternRewriter &rewriter,
@@ -39,12 +39,12 @@ inline mlir::Value createIntCast(mlir::ConversionPatternRewriter &rewriter,
   auto loc = src.getLoc();
 
   if (dstWidth > srcWidth && isSigned)
-    return rewriter.create<mlir::arith::ExtSIOp>(loc, dstTy, src);
+    return mlir::arith::ExtSIOp::create(rewriter, loc, dstTy, src);
   if (dstWidth > srcWidth)
-    return rewriter.create<mlir::arith::ExtUIOp>(loc, dstTy, src);
+    return mlir::arith::ExtUIOp::create(rewriter, loc, dstTy, src);
   if (dstWidth < srcWidth)
-    return rewriter.create<mlir::arith::TruncIOp>(loc, dstTy, src);
-  return rewriter.create<mlir::arith::BitcastOp>(loc, dstTy, src);
+    return mlir::arith::TruncIOp::create(rewriter, loc, dstTy, src);
+  return mlir::arith::BitcastOp::create(rewriter, loc, dstTy, src);
 }
 
 inline mlir::arith::CmpIPredicate

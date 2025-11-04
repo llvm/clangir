@@ -42,9 +42,8 @@ private:
   template <size_t... Indices>
   static TargetOp buildCall(CIRBaseBuilderTy &builder, CallOp call,
                             std::index_sequence<Indices...>) {
-    return builder.create<TargetOp>(call.getLoc(), call.getResult().getType(),
-                                    call.getCalleeAttr(),
-                                    call.getOperand(Indices)...);
+    return TargetOp::create(builder, call.getLoc(), call.getResult().getType(),
+                            call.getCalleeAttr(), call.getOperand(Indices)...);
   }
 
 public:
@@ -170,15 +169,15 @@ bool IdiomRecognizerPass::raiseIteratorBeginEnd(CallOp call) {
   if (callExprAttr.isIteratorBeginCall()) {
     if (opts.emitRemarkFoundCalls())
       emitRemark(call.getLoc()) << "found call to begin() iterator";
-    iterOp = builder.create<cir::IterBeginOp>(
-        call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-        call.getOperand(0));
+    iterOp = cir::IterBeginOp::create(builder, call.getLoc(),
+                                      call.getResult().getType(),
+                                      call.getCalleeAttr(), call.getOperand(0));
   } else if (callExprAttr.isIteratorEndCall()) {
     if (opts.emitRemarkFoundCalls())
       emitRemark(call.getLoc()) << "found call to end() iterator";
-    iterOp = builder.create<cir::IterEndOp>(
-        call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-        call.getOperand(0));
+    iterOp = cir::IterEndOp::create(builder, call.getLoc(),
+                                    call.getResult().getType(),
+                                    call.getCalleeAttr(), call.getOperand(0));
   } else {
     return false;
   }

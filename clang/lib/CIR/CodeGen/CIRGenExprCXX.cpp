@@ -1319,8 +1319,8 @@ void CIRGenFunction::emitCXXDeleteExpr(const CXXDeleteExpr *E) {
   assert(convertTypeForMem(DeleteTy) == Ptr.getElementType());
 
   if (E->isArrayForm()) {
-    builder.create<cir::DeleteArrayOp>(Ptr.getPointer().getLoc(),
-                                       Ptr.getPointer());
+    cir::DeleteArrayOp::create(builder, Ptr.getPointer().getLoc(),
+                               Ptr.getPointer());
   } else {
     (void)EmitObjectDelete(*this, E, Ptr, DeleteTy);
   }
@@ -1449,11 +1449,11 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
     nullCmpResult = builder.createCompare(loc, cir::CmpOpKind::ne,
                                           allocation.getPointer(), nullPtr);
     preIfBody = builder.saveInsertionPoint();
-    builder.create<cir::IfOp>(loc, nullCmpResult,
-                              /*withElseRegion=*/false,
-                              [&](mlir::OpBuilder &, mlir::Location) {
-                                ifBody = builder.saveInsertionPoint();
-                              });
+    cir::IfOp::create(builder, loc, nullCmpResult,
+                      /*withElseRegion=*/false,
+                      [&](mlir::OpBuilder &, mlir::Location) {
+                        ifBody = builder.saveInsertionPoint();
+                      });
     postIfBody = builder.saveInsertionPoint();
   }
 
@@ -1483,7 +1483,7 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
                           allocatorArgs);
     operatorDeleteCleanup = EHStack.stable_begin();
     cleanupDominator =
-        builder.create<cir::UnreachableOp>(getLoc(E->getSourceRange()))
+        cir::UnreachableOp::create(builder, getLoc(E->getSourceRange()))
             .getOperation();
   }
 
@@ -1554,7 +1554,7 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
 
     // Reset insertion point to resume back to post ifOp.
     if (postIfBody.isSet()) {
-      builder.create<cir::YieldOp>(loc);
+      cir::YieldOp::create(builder, loc);
       builder.restoreInsertionPoint(postIfBody);
     }
   }

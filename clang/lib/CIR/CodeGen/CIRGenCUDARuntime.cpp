@@ -31,13 +31,13 @@ RValue CIRGenCUDARuntime::emitCUDAKernelCallExpr(CIRGenFunction &cgf,
   cgf.emitIfOnBoolExpr(
       expr->getConfig(),
       [&](mlir::OpBuilder &b, mlir::Location l) {
-        b.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(b, loc);
       },
       loc,
       [&](mlir::OpBuilder &b, mlir::Location l) {
         CIRGenCallee callee = cgf.emitCallee(expr->getCallee());
         cgf.emitCall(expr->getCallee()->getType(), callee, expr, retValue);
-        b.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(b, loc);
       },
       loc);
 

@@ -142,7 +142,7 @@ static void processConstAlloca(cir::AllocaOp alloca) {
     // operation.
     mlir::OpBuilder builder(alloca);
     auto invariantGroupOp =
-        builder.create<cir::InvariantGroupOp>(alloca.getLoc(), alloca);
+        cir::InvariantGroupOp::create(builder, alloca.getLoc(), alloca);
 
     // And replace all uses of the original alloca-ed pointer with the marked
     // pointer (which carries invariant group information).

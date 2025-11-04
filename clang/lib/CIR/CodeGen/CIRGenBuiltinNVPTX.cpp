@@ -35,9 +35,8 @@ mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
                                                  const CallExpr *expr) {
   [[maybe_unused]] auto getIntrinsic = [&](const char *name) {
     mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 32, false);
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(getLoc(expr->getExprLoc()),
-                                          builder.getStringAttr(name), intTy)
+    return cir::LLVMIntrinsicCallOp::create(builder, getLoc(expr->getExprLoc()),
+                                            builder.getStringAttr(name), intTy)
         .getResult();
   };
   switch (builtinId) {
@@ -552,66 +551,58 @@ mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
   case NVPTX::BI__nvvm_getctarank_shared_cluster:
     llvm_unreachable("getctarank_shared_cluster NYI");
   case NVPTX::BI__nvvm_barrier_cluster_arrive:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cluster.arrive"),
-            builder.getVoidTy())
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cluster.arrive"),
+               builder.getVoidTy())
         .getResult();
   case NVPTX::BI__nvvm_barrier_cluster_arrive_relaxed:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cluster.arrive.relaxed"),
-            builder.getVoidTy())
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cluster.arrive.relaxed"),
+               builder.getVoidTy())
         .getResult();
   case NVPTX::BI__nvvm_barrier_cluster_wait:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cluster.wait"),
-            builder.getVoidTy())
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cluster.wait"),
+               builder.getVoidTy())
         .getResult();
   case NVPTX::BI__nvvm_fence_sc_cluster:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.fence.sc.cluster"), builder.getVoidTy(),
-            mlir::ValueRange{})
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.fence.sc.cluster"),
+               builder.getVoidTy(), mlir::ValueRange{})
         .getResult();
   case NVPTX::BI__nvvm_bar_sync:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cta.sync.aligned.all"),
-            builder.getVoidTy(),
-            mlir::ValueRange{emitScalarExpr(expr->getArg(0))})
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cta.sync.aligned.all"),
+               builder.getVoidTy(),
+               mlir::ValueRange{emitScalarExpr(expr->getArg(0))})
         .getResult();
   case NVPTX::BI__syncthreads:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cta.sync.aligned.all"),
-            builder.getVoidTy(),
-            mlir::ValueRange{
-                builder.getConstInt(getLoc(expr->getExprLoc()), SInt32Ty, 0)})
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cta.sync.aligned.all"),
+               builder.getVoidTy(),
+               mlir::ValueRange{builder.getConstInt(getLoc(expr->getExprLoc()),
+                                                    SInt32Ty, 0)})
         .getResult();
   case NVPTX::BI__nvvm_barrier_sync:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cta.sync.all"),
-            builder.getVoidTy(),
-            mlir::ValueRange{emitScalarExpr(expr->getArg(0))})
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cta.sync.all"),
+               builder.getVoidTy(),
+               mlir::ValueRange{emitScalarExpr(expr->getArg(0))})
         .getResult();
   case NVPTX::BI__nvvm_barrier_sync_cnt:
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(expr->getExprLoc()),
-            builder.getStringAttr("nvvm.barrier.cta.sync.count"),
-            builder.getVoidTy(),
-            mlir::ValueRange{emitScalarExpr(expr->getArg(0)),
-                             emitScalarExpr(expr->getArg(1))})
+    return cir::LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("nvvm.barrier.cta.sync.count"),
+               builder.getVoidTy(),
+               mlir::ValueRange{emitScalarExpr(expr->getArg(0)),
+                                emitScalarExpr(expr->getArg(1))})
         .getResult();
   default:
     return nullptr;

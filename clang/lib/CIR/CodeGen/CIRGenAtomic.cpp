@@ -378,8 +378,8 @@ static bool isCstWeak(mlir::Value weakVal, bool &val) {
 static void emitDefaultCase(CIRGenBuilderTy &builder, mlir::Location loc) {
   auto EmptyArrayAttr = builder.getArrayAttr({});
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(loc, EmptyArrayAttr, cir::CaseOpKind::Default,
-                              insertPoint);
+  cir::CaseOp::create(builder, loc, EmptyArrayAttr, cir::CaseOpKind::Default,
+                      insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -392,8 +392,8 @@ static void emitSingleMemOrderCase(CIRGenBuilderTy &builder, mlir::Location loc,
       cir::IntAttr::get(Type, static_cast<int>(Order))};
   auto OneAttribute = builder.getArrayAttr(OneOrder);
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(loc, OneAttribute, cir::CaseOpKind::Equal,
-                              insertPoint);
+  cir::CaseOp::create(builder, loc, OneAttribute, cir::CaseOpKind::Equal,
+                      insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -408,8 +408,8 @@ static void emitDoubleMemOrderCase(CIRGenBuilderTy &builder, mlir::Location loc,
       cir::IntAttr::get(Type, static_cast<int>(Order2))};
   auto TwoAttributes = builder.getArrayAttr(TwoOrders);
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(loc, TwoAttributes, cir::CaseOpKind::Anyof,
-                              insertPoint);
+  cir::CaseOp::create(builder, loc, TwoAttributes, cir::CaseOpKind::Anyof,
+                      insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -424,9 +424,9 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
   auto Expected = builder.createLoad(loc, Val1);
   auto Desired = builder.createLoad(loc, Val2);
   auto boolTy = builder.getBoolTy();
-  auto cmpxchg = builder.create<cir::AtomicCmpXchg>(
-      loc, Expected.getType(), boolTy, Ptr.getPointer(), Expected, Desired,
-      cir::MemOrderAttr::get(&CGF.getMLIRContext(), SuccessOrder),
+  auto cmpxchg = cir::AtomicCmpXchg::create(
+      builder, loc, Expected.getType(), boolTy, Ptr.getPointer(), Expected,
+      Desired, cir::MemOrderAttr::get(&CGF.getMLIRContext(), SuccessOrder),
       cir::MemOrderAttr::get(&CGF.getMLIRContext(), FailureOrder),
       cir::MemScopeKindAttr::get(&CGF.getMLIRContext(), Scope),
       builder.getI64IntegerAttr(Ptr.getAlignment().getAsAlign().value()));
@@ -434,8 +434,8 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
   cmpxchg.setWeak(IsWeak);
 
   auto cmp = builder.createNot(cmpxchg.getCmp());
-  builder.create<cir::IfOp>(
-      loc, cmp, false, [&](mlir::OpBuilder &, mlir::Location) {
+  cir::IfOp::create(
+      builder, loc, cmp, false, [&](mlir::OpBuilder &, mlir::Location) {
         auto ptrTy = mlir::cast<cir::PointerType>(Val1.getPointer().getType());
         if (Val1.getElementType() != ptrTy.getPointee()) {
           Val1 = Val1.withPointer(builder.createPtrBitcast(
@@ -496,8 +496,8 @@ static void emitAtomicCmpXchgFailureSet(
   // can't handle a runtime value; all memory orders must be hard coded.
   // Generate a "switch" statement that converts the runtime value into a
   // compile-time value.
-  CGF.getBuilder().create<cir::SwitchOp>(
-      FailureOrderVal.getLoc(), FailureOrderVal,
+  cir::SwitchOp::create(
+      CGF.getBuilder(), FailureOrderVal.getLoc(), FailureOrderVal,
       [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {
         auto &builder = CGF.getBuilder();
 
@@ -1268,8 +1268,8 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
   // can't handle runtime memory orders; the memory order must be hard coded.
   // Generate a "switch" statement that converts a runtime value into a
   // compile-time value.
-  builder.create<cir::SwitchOp>(
-      Order.getLoc(), Order,
+  cir::SwitchOp::create(
+      builder, Order.getLoc(), Order,
       [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {
         mlir::Block *switchBlock = builder.getBlock();
 

@@ -46,17 +46,17 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
   auto destPtrTy = cir::PointerType::get(DestTy);
 
   if (auto load = Src.getDefiningOp<cir::LoadOp>())
-    return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
-                                            CastKind::bitcast, load.getAddr());
+    return CastOp::create(CGF.getRewriter(), Src.getLoc(), destPtrTy,
+                          CastKind::bitcast, load.getAddr());
 
-  return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
-                                          CastKind::bitcast, Src);
+  return CastOp::create(CGF.getRewriter(), Src.getLoc(), destPtrTy,
+                        CastKind::bitcast, Src);
 }
 
 // FIXME(cir): Create a custom rewriter class to abstract this away.
 mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
+  return CastOp::create(LF.getRewriter(), Src.getLoc(), Ty, CastKind::bitcast,
+                        Src);
 }
 
 /// Given a record pointer that we are accessing some number of bytes out of it,
@@ -97,7 +97,7 @@ mlir::Value enterRecordPointerForCoercedAccess(mlir::Value SrcPtr,
     // that may or may not be the first one. Thus, getMemberOp verification
     // may fail.
     auto cast = createBitcast(addr, ptrTy, CGF);
-    SrcPtr = rw.create<LoadOp>(SrcPtr.getLoc(), cast);
+    SrcPtr = LoadOp::create(rw, SrcPtr.getLoc(), cast);
   }
 
   if (auto sty = mlir::dyn_cast<RecordType>(SrcPtr.getType()))
@@ -123,10 +123,10 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
   if (mlir::isa<PointerType>(val.getType())) {
     // If this is Pointer->Pointer avoid conversion to and from int.
     if (mlir::isa<PointerType>(typ))
-      return bld.create<CastOp>(val.getLoc(), typ, CastKind::bitcast, val);
+      return CastOp::create(bld, val.getLoc(), typ, CastKind::bitcast, val);
 
     // Convert the pointer to an integer so we can play with its width.
-    val = bld.create<CastOp>(val.getLoc(), typ, CastKind::ptr_to_int, val);
+    val = CastOp::create(bld, val.getLoc(), typ, CastKind::ptr_to_int, val);
   }
 
   auto dstIntTy = typ;
@@ -144,23 +144,24 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
       auto loc = val.getLoc();
       if (srcSize > dstSize) {
         auto intAttr = IntAttr::get(val.getType(), diff);
-        auto amount = bld.create<ConstantOp>(loc, intAttr);
-        val = bld.create<ShiftOp>(loc, val.getType(), val, amount, false);
-        val = bld.create<CastOp>(loc, dstIntTy, CastKind::integral, val);
+        auto amount = ConstantOp::create(bld, loc, intAttr);
+        val = ShiftOp::create(bld, loc, val.getType(), val, amount, false);
+        val = CastOp::create(bld, loc, dstIntTy, CastKind::integral, val);
       } else {
-        val = bld.create<CastOp>(loc, dstIntTy, CastKind::integral, val);
+        val = CastOp::create(bld, loc, dstIntTy, CastKind::integral, val);
         auto intAttr = IntAttr::get(val.getType(), diff);
-        auto amount = bld.create<ConstantOp>(loc, intAttr);
-        val = bld.create<ShiftOp>(loc, val.getType(), val, amount, true);
+        auto amount = ConstantOp::create(bld, loc, intAttr);
+        val = ShiftOp::create(bld, loc, val.getType(), val, amount, true);
       }
     } else {
       // Little-endian targets preserve the low bits. No shifts required.
-      val = bld.create<CastOp>(val.getLoc(), dstIntTy, CastKind::integral, val);
+      val =
+          CastOp::create(bld, val.getLoc(), dstIntTy, CastKind::integral, val);
     }
   }
 
   if (mlir::isa<PointerType>(typ))
-    val = bld.create<CastOp>(val.getLoc(), typ, CastKind::int_to_ptr, val);
+    val = CastOp::create(bld, val.getLoc(), typ, CastKind::int_to_ptr, val);
 
   return val;
 }
@@ -183,7 +184,7 @@ AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
   auto align = LF.LM.getDataLayout().getABITypeAlign(ty);
   auto alignAttr = rw.getI64IntegerAttr(align.value());
   auto ptrTy = PointerType::get(ty);
-  return rw.create<AllocaOp>(loc, ptrTy, ty, "tmp", alignAttr);
+  return AllocaOp::create(rw, loc, ptrTy, ty, "tmp", alignAttr);
 }
 
 bool isVoidPtr(mlir::Value v) {
@@ -207,8 +208,8 @@ MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value dst, mlir::Value src,
     dst = createBitcast(dst, voidPtr, LF);
 
   auto i64Ty = IntType::get(ctxt, 64, false);
-  auto length = rw.create<ConstantOp>(src.getLoc(), IntAttr::get(i64Ty, len));
-  return rw.create<MemCpyOp>(src.getLoc(), dst, src, length);
+  auto length = ConstantOp::create(rw, src.getLoc(), IntAttr::get(i64Ty, len));
+  return MemCpyOp::create(rw, src.getLoc(), dst, src, length);
 }
 
 cir::AllocaOp findAlloca(mlir::Operation *op) {
@@ -285,11 +286,12 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
     auto dstIntTy = IntType::get(ctxt, DstSize.getFixedValue() * 8, false);
     Src = coerceIntOrPtrToIntOrPtr(Src, dstIntTy, CGF);
     auto ptrTy = PointerType::get(dstIntTy);
-    auto addr = bld.create<CastOp>(Dst.getLoc(), ptrTy, CastKind::bitcast, Dst);
-    bld.create<StoreOp>(Dst.getLoc(), Src, addr);
+    auto addr =
+        CastOp::create(bld, Dst.getLoc(), ptrTy, CastKind::bitcast, Dst);
+    StoreOp::create(bld, Dst.getLoc(), Src, addr);
   } else {
     auto tmp = createTmpAlloca(CGF, Src.getLoc(), SrcTy);
-    CGF.getRewriter().create<StoreOp>(Src.getLoc(), Src, tmp);
+    StoreOp::create(CGF.getRewriter(), Src.getLoc(), Src, tmp);
     createMemCpy(CGF, Dst, tmp, DstSize.getFixedValue());
   }
 }
@@ -350,8 +352,8 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
   if (mlir::Value addr = findAddr(Src)) {
     auto tmpAlloca = createTmpAlloca(CGF, addr.getLoc(), Ty);
     createMemCpy(CGF, tmpAlloca, addr, SrcSize.getFixedValue());
-    return CGF.getRewriter().create<LoadOp>(addr.getLoc(),
-                                            tmpAlloca.getResult());
+    return LoadOp::create(CGF.getRewriter(), addr.getLoc(),
+                          tmpAlloca.getResult());
   }
 
   cir_cconv_unreachable("NYI");
@@ -374,13 +376,13 @@ mlir::Value createCoercedNonFundamental(mlir::Value src, mlir::Type ty,
     auto addr = load.getAddr();
 
     auto oldAlloca = addr.getDefiningOp<cir::AllocaOp>();
-    auto alloca = bld.create<AllocaOp>(
-        src.getLoc(), cir::PointerType::get(ty), ty,
+    auto alloca = AllocaOp::create(
+        bld, src.getLoc(), cir::PointerType::get(ty), ty,
         /*name=*/llvm::StringRef(""), oldAlloca.getAlignmentAttr());
 
     auto tySize = LF.LM.getDataLayout().getTypeStoreSize(ty);
     createMemCpy(LF, alloca, addr, tySize.getFixedValue());
-    auto newLoad = bld.create<LoadOp>(src.getLoc(), alloca.getResult());
+    auto newLoad = LoadOp::create(bld, src.getLoc(), alloca.getResult());
     bld.replaceAllOpUsesWith(load, newLoad);
 
     return newLoad;
@@ -435,7 +437,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
     auto Cast = createCoercedBitcast(Src, Ty, LF);
-    return LF.getRewriter().create<LoadOp>(Src.getLoc(), Cast);
+    return LoadOp::create(LF.getRewriter(), Src.getLoc(), Cast);
   }
 
   // Otherwise do coercion through memory.
@@ -443,7 +445,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
     auto &rewriter = LF.getRewriter();
     auto tmp = createTmpAlloca(LF, Src.getLoc(), Ty);
     createMemCpy(LF, tmp, addr, SrcSize.getFixedValue());
-    return rewriter.create<LoadOp>(Src.getLoc(), tmp.getResult());
+    return LoadOp::create(rewriter, Src.getLoc(), tmp.getResult());
   }
 
   cir_cconv_unreachable("NYI");
@@ -581,10 +583,10 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
       // the pointer type to be explicitly passed.
       // FIXME(cir): Get the original name of the argument, as well as the
       // proper alignment for the given type being allocated.
-      auto Alloca = rewriter.create<AllocaOp>(
-          Fn.getLoc(), cir::PointerType::get(Ty), Ty,
-          /*name=*/llvm::StringRef(""),
-          /*alignment=*/rewriter.getI64IntegerAttr(4));
+      auto Alloca =
+          AllocaOp::create(rewriter, Fn.getLoc(), cir::PointerType::get(Ty), Ty,
+                           /*name=*/llvm::StringRef(""),
+                           /*alignment=*/rewriter.getI64IntegerAttr(4));
 
       mlir::Value Ptr = buildAddressAtOffset(*this, Alloca.getResult(), ArgI);
 
@@ -606,9 +608,10 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
 
           mlir::Value addrToStoreInto;
           if (srcSize <= dstSize) {
-            addrToStoreInto = rewriter.create<CastOp>(
-                Ptr.getLoc(), PointerType::get(STy, ptrType.getAddrSpace()),
-                CastKind::bitcast, Ptr);
+            addrToStoreInto =
+                CastOp::create(rewriter, Ptr.getLoc(),
+                               PointerType::get(STy, ptrType.getAddrSpace()),
+                               CastKind::bitcast, Ptr);
           } else {
             addrToStoreInto = createTmpAlloca(*this, Ptr.getLoc(), STy);
           }
@@ -617,12 +620,12 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
           for (unsigned i = 0, e = STy.getNumElements(); i != e; ++i) {
             mlir::Value ai = Fn.getArgument(FirstIRArg + i);
             mlir::Type elementTy = STy.getMembers()[i];
-            mlir::Value eltPtr = rewriter.create<GetMemberOp>(
-                ai.getLoc(),
+            mlir::Value eltPtr = GetMemberOp::create(
+                rewriter, ai.getLoc(),
                 PointerType::get(elementTy, ptrType.getAddrSpace()),
                 addrToStoreInto,
                 /*name=*/"", /*index=*/i);
-            rewriter.create<StoreOp>(ai.getLoc(), ai, eltPtr);
+            StoreOp::create(rewriter, ai.getLoc(), ai, eltPtr);
           }
 
           if (srcSize > dstSize) {
@@ -682,15 +685,15 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
           rewriter.setInsertionPoint(argAlloca.getDefiningOp());
           auto align = LM.getDataLayout().getABITypeAlign(ptrTy);
           auto alignAttr = rewriter.getI64IntegerAttr(align.value());
-          auto newAlloca = rewriter.create<AllocaOp>(
-              Fn.getLoc(), cir::PointerType::get(ptrTy), ptrTy,
-              /*name=*/llvm::StringRef(""),
-              /*alignment=*/alignAttr);
+          auto newAlloca = AllocaOp::create(rewriter, Fn.getLoc(),
+                                            cir::PointerType::get(ptrTy), ptrTy,
+                                            /*name=*/llvm::StringRef(""),
+                                            /*alignment=*/alignAttr);
 
-          rewriter.create<StoreOp>(newAlloca.getLoc(), AI,
-                                   newAlloca.getResult());
-          auto load = rewriter.create<LoadOp>(newAlloca.getLoc(),
-                                              newAlloca.getResult());
+          StoreOp::create(rewriter, newAlloca.getLoc(), AI,
+                          newAlloca.getResult());
+          auto load = LoadOp::create(rewriter, newAlloca.getLoc(),
+                                     newAlloca.getResult());
 
           rewriter.replaceAllUsesWith(argAlloca, load);
           rewriter.eraseOp(firstStore);
@@ -884,16 +887,16 @@ void LowerFunction::buildAggregateStore(mlir::Value Val, mlir::Value Dest,
                       LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
                      "Incompatible types");
     auto loc = Val.getLoc();
-    Val = rewriter.create<CastOp>(loc, pointeeTy, CastKind::bitcast, Val);
+    Val = CastOp::create(rewriter, loc, pointeeTy, CastKind::bitcast, Val);
   }
 
-  rewriter.create<StoreOp>(Val.getLoc(), Val, Dest);
+  StoreOp::create(rewriter, Val.getLoc(), Val, Dest);
 }
 
 mlir::Value LowerFunction::buildAggregateBitcast(mlir::Value Val,
                                                  mlir::Type DestTy) {
   auto Cast = createCoercedBitcast(Val, DestTy, *this);
-  return rewriter.create<LoadOp>(Val.getLoc(), Cast);
+  return LoadOp::create(rewriter, Val.getLoc(), Cast);
 }
 
 /// Rewrite a call operation to abide to the ABI calling convention.
@@ -1007,9 +1010,9 @@ mlir::Value createAlloca(mlir::Location loc, mlir::Type type,
                          LowerFunction &CGF) {
   auto align = CGF.LM.getDataLayout().getABITypeAlign(type);
   auto alignAttr = CGF.getRewriter().getI64IntegerAttr(align.value());
-  return CGF.getRewriter().create<AllocaOp>(
-      loc, cir::PointerType::get(type), type,
-      /*name=*/llvm::StringRef(""), alignAttr);
+  return AllocaOp::create(CGF.getRewriter(), loc, cir::PointerType::get(type),
+                          type,
+                          /*name=*/llvm::StringRef(""), alignAttr);
 }
 
 // NOTE(cir): This method has partial parity to CodeGenFunction's EmitCall
@@ -1148,7 +1151,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           if (SrcSize < DstSize) {
             auto Alloca = createTmpAlloca(*this, loc, STy);
             auto SrcAlloca = createTmpAlloca(*this, loc, SrcTy);
-            rewriter.create<cir::StoreOp>(loc, Src, SrcAlloca);
+            cir::StoreOp::create(rewriter, loc, Src, SrcAlloca);
             createMemCpy(*this, Alloca, SrcAlloca, SrcSize);
             Src = Alloca;
           } else {
@@ -1157,10 +1160,11 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
           assert(NumIRArgs == STy.getNumElements());
           for (unsigned I = 0; I != STy.getNumElements(); ++I) {
-            mlir::Value Member = rewriter.create<cir::GetMemberOp>(
-                loc, PointerType::get(STy.getMembers()[I]), Src, /*name=*/"",
+            mlir::Value Member = cir::GetMemberOp::create(
+                rewriter, loc, PointerType::get(STy.getMembers()[I]), Src,
+                /*name=*/"",
                 /*index=*/I);
-            mlir::Value Load = rewriter.create<cir::LoadOp>(loc, Member);
+            mlir::Value Load = cir::LoadOp::create(rewriter, loc, Member);
             cir_cconv_assert(!cir::MissingFeatures::argHasMaybeUndefAttr());
             IRCallArgs[FirstIRArg + I] = Load;
           }
@@ -1257,11 +1261,11 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     auto val = Caller.getIndirectCall();
     auto ptrTy = PointerType::get(IRFuncTy);
     auto callee =
-        rewriter.create<CastOp>(val.getLoc(), ptrTy, CastKind::bitcast, val);
-    newCallOp = rewriter.create<CallOp>(loc, callee, IRFuncTy, IRCallArgs);
+        CastOp::create(rewriter, val.getLoc(), ptrTy, CastKind::bitcast, val);
+    newCallOp = CallOp::create(rewriter, loc, callee, IRFuncTy, IRCallArgs);
   } else {
-    newCallOp = rewriter.create<CallOp>(loc, Caller.getCalleeAttr(),
-                                        IRFuncTy.getReturnType(), IRCallArgs);
+    newCallOp = CallOp::create(rewriter, loc, Caller.getCalleeAttr(),
+                               IRFuncTy.getReturnType(), IRCallArgs);
   }
 
   auto extraAttrs =
@@ -1355,7 +1359,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       return RetVal;
     }
     case ABIArgInfo::Indirect: {
-      auto load = rewriter.create<LoadOp>(loc, sRetPtr);
+      auto load = LoadOp::create(rewriter, loc, sRetPtr);
       return load.getResult();
     }
     default:

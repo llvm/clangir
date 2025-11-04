@@ -160,8 +160,8 @@ struct SimplifyPtrStrideOp : public OpRewritePattern<PtrStrideOp> {
         return mlir::failure();
 
       base = getElemOp.getBase();
-      index = rewriter.create<cir::BinOp>(op->getLoc(), cir::BinOpKind::Add,
-                                          elemIndex, index);
+      index = cir::BinOp::create(rewriter, op->getLoc(), cir::BinOpKind::Add,
+                                 elemIndex, index);
 
     } else {
       return mlir::failure();
@@ -202,7 +202,7 @@ struct SimplifyCastOp : public OpRewritePattern<cir::CastOp> {
     auto intType = cast<cir::IntType>(dataLayout.getIntType(context));
     auto zeroAttr = rewriter.getAttr<cir::IntAttr>(
         intType, llvm::APInt(intType.getWidth(), 0));
-    auto index = rewriter.create<cir::ConstantOp>(op->getLoc(), zeroAttr);
+    auto index = cir::ConstantOp::create(rewriter, op->getLoc(), zeroAttr);
 
     rewriter.replaceOpWithNewOp<cir::GetElementOp>(op, op.getType(),
                                                    op.getOperand(), index);

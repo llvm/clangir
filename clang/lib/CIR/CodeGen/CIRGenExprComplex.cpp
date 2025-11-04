@@ -343,23 +343,22 @@ public:
     Expr *cond = E->getCond()->IgnoreParens();
     mlir::Value condValue = CGF.evaluateExprAsBool(cond);
 
-    return Builder
-        .create<cir::TernaryOp>(
-            loc, condValue,
-            /*thenBuilder=*/
-            [&](mlir::OpBuilder &b, mlir::Location loc) {
-              eval.begin(CGF);
-              mlir::Value trueValue = Visit(E->getTrueExpr());
-              b.create<cir::YieldOp>(loc, trueValue);
-              eval.end(CGF);
-            },
-            /*elseBuilder=*/
-            [&](mlir::OpBuilder &b, mlir::Location loc) {
-              eval.begin(CGF);
-              mlir::Value falseValue = Visit(E->getFalseExpr());
-              b.create<cir::YieldOp>(loc, falseValue);
-              eval.end(CGF);
-            })
+    return cir::TernaryOp::create(
+               Builder, loc, condValue,
+               /*thenBuilder=*/
+               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                 eval.begin(CGF);
+                 mlir::Value trueValue = Visit(E->getTrueExpr());
+                 cir::YieldOp::create(b, loc, trueValue);
+                 eval.end(CGF);
+               },
+               /*elseBuilder=*/
+               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                 eval.begin(CGF);
+                 mlir::Value falseValue = Visit(E->getFalseExpr());
+                 cir::YieldOp::create(b, loc, falseValue);
+                 eval.end(CGF);
+               })
         .getResult();
   }
 
