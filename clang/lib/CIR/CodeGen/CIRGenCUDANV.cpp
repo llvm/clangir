@@ -265,12 +265,20 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
 
 void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
                                          FunctionArgList &args) {
+
   if (auto globalOp =
           llvm::dyn_cast<cir::GlobalOp>(KernelHandles[fn.getSymName()])) {
-    auto symbol = mlir::FlatSymbolRefAttr::get(fn.getSymNameAttr());
-    // Set the initializer for the global
-    cgm.setInitializer(globalOp, symbol);
+    auto &builder = cgm.getBuilder();
+    auto fnPtrTy = globalOp.getSymType();
+    auto sym = mlir::FlatSymbolRefAttr::get(fn.getSymNameAttr());
+    auto gv = cir::GlobalViewAttr::get(fnPtrTy, sym);
+
+    globalOp->setAttr("initial_value", gv);
+    globalOp->removeAttr("sym_visibility");
+    globalOp->setAttr("alignment", builder.getI64IntegerAttr(
+                                       cgm.getPointerAlign().getQuantity()));
   }
+
   // CUDA 9.0 changed the way to launch kernels.
   if (CudaFeatureEnabled(cgm.getTarget().getSDKVersion(),
                          CudaFeature::CUDA_USES_NEW_LAUNCH) ||
@@ -322,12 +330,11 @@ mlir::Operation *CIRGenNVCUDARuntime::getKernelHandle(cir::FuncOp fn,
             cgm, fn->getLoc(), globalName,
             builder.getPointerTo(fn.getFunctionType()), true,
             cir::AddressSpace::Default,
-            /*insertPoint=*/nullptr, fn.getLinkage());
+            /*insertPoint=*/nullptr);
       });
 
   globalOp->setAttr("alignment", builder.getI64IntegerAttr(
                                      cgm.getPointerAlign().getQuantity()));
-  globalOp->setAttr("visibility", fn->getAttr("sym_visibility"));
 
   // Store references
   KernelHandles[fn.getSymName()] = globalOp;
