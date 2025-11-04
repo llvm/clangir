@@ -18,6 +18,11 @@
 #include <memory>
 
 namespace cir {
+/// Create a pass for transforming CIR operations to more 'scf' dialect-friendly
+/// forms. It rewrites operations that aren't supported by 'scf', such as breaks
+/// and continues.
+std::unique_ptr<mlir::Pass> createMLIRLoweringPreparePass();
+
 /// Create a pass for lowering from MLIR builtin dialects such as `Affine` and
 /// `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> createConvertMLIRToLLVMPass();
