@@ -3782,6 +3782,8 @@ mlir::LLVM::AtomicBinOp CIRToLLVMAtomicFetchLowering::getLLVMAtomicBinOp(
     return isSignedInt ? mlir::LLVM::AtomicBinOp::min
                        : mlir::LLVM::AtomicBinOp::umin;
   }
+  case cir::AtomicFetchKind::Xchg:
+    return mlir::LLVM::AtomicBinOp::xchg;
   }
   llvm_unreachable("Unknown atomic fetch opcode");
 }
