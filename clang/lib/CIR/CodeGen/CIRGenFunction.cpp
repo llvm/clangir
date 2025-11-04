@@ -369,11 +369,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // If we now have one after `applyCleanup`, hook it up properly.
     if (!cleanupBlock && localScope->getCleanupBlock(builder)) {
       cleanupBlock = localScope->getCleanupBlock(builder);
-      builder.create<BrOp>(insPt->back().getLoc(), cleanupBlock);
+      BrOp::create(builder, insPt->back().getLoc(), cleanupBlock);
       if (!cleanupBlock->mightHaveTerminator()) {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(cleanupBlock);
-        builder.create<YieldOp>(localScope->EndLoc);
+        YieldOp::create(builder, localScope->EndLoc);
       }
     }
 
@@ -398,7 +398,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
               brOp.setSuccessor(cleanupBlock);
             }
           }
-          builder.create<BrOp>(loc, retBlock);
+          BrOp::create(builder, loc, retBlock);
           return;
         }
       }
@@ -410,8 +410,8 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // Ternary ops have to deal with matching arms for yielding types
     // and do return a value, it must do its own cir.yield insertion.
     if (!localScope->isTernary() && !insPt->mightHaveTerminator()) {
-      !retVal ? builder.create<YieldOp>(localScope->EndLoc)
-              : builder.create<YieldOp>(localScope->EndLoc, retVal);
+      !retVal ? YieldOp::create(builder, localScope->EndLoc)
+              : YieldOp::create(builder, localScope->EndLoc, retVal);
     }
   };
 
@@ -452,7 +452,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
 
   // If there's a cleanup block, branch to it, nothing else to do.
   if (cleanupBlock) {
-    builder.create<BrOp>(currBlock->back().getLoc(), cleanupBlock);
+    BrOp::create(builder, currBlock->back().getLoc(), cleanupBlock);
     return;
   }
 
@@ -472,10 +472,10 @@ cir::ReturnOp CIRGenFunction::LexicalScope::emitReturn(mlir::Location loc) {
 
   if (CGF.FnRetCIRTy.has_value()) {
     // If there's anything to return, load it first.
-    auto val = builder.create<LoadOp>(loc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
-    return builder.create<ReturnOp>(loc, llvm::ArrayRef(val.getResult()));
+    auto val = LoadOp::create(builder, loc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
+    return ReturnOp::create(builder, loc, llvm::ArrayRef(val.getResult()));
   }
-  return builder.create<ReturnOp>(loc);
+  return ReturnOp::create(builder, loc);
 }
 
 void CIRGenFunction::LexicalScope::emitImplicitReturn() {
@@ -502,14 +502,14 @@ void CIRGenFunction::LexicalScope::emitImplicitReturn() {
       llvm_unreachable("NYI");
     } else if (shouldEmitUnreachable) {
       if (CGF.CGM.getCodeGenOpts().OptimizationLevel == 0) {
-        builder.create<cir::TrapOp>(localScope->EndLoc);
+        cir::TrapOp::create(builder, localScope->EndLoc);
         builder.clearInsertionPoint();
         return;
       }
     }
 
     if (CGF.SanOpts.has(SanitizerKind::Return) || shouldEmitUnreachable) {
-      builder.create<cir::UnreachableOp>(localScope->EndLoc);
+      cir::UnreachableOp::create(builder, localScope->EndLoc);
       builder.clearInsertionPoint();
       return;
     }
@@ -863,8 +863,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
 mlir::Value CIRGenFunction::createLoad(const VarDecl *vd, const char *name) {
   auto addr = GetAddrOfLocalVar(vd);
-  return builder.create<LoadOp>(getLoc(vd->getLocation()),
-                                addr.getElementType(), addr.getPointer());
+  return LoadOp::create(builder, getLoc(vd->getLocation()),
+                        addr.getElementType(), addr.getPointer());
 }
 
 void CIRGenFunction::emitConstructorBody(FunctionArgList &args) {
@@ -2018,8 +2018,8 @@ mlir::Value CIRGenFunction::emitAlignmentAssumption(
     mlir::Value offsetValue) {
   if (SanOpts.has(SanitizerKind::Alignment))
     llvm_unreachable("NYI");
-  return builder.create<cir::AssumeAlignedOp>(getLoc(assumptionLoc), ptrValue,
-                                              alignment, offsetValue);
+  return cir::AssumeAlignedOp::create(builder, getLoc(assumptionLoc), ptrValue,
+                                      alignment, offsetValue);
 }
 
 mlir::Value CIRGenFunction::emitAlignmentAssumption(

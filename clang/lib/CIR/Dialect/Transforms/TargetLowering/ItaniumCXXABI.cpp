@@ -277,12 +277,12 @@ mlir::Operation *ItaniumCXXABI::lowerGetRuntimeMember(
   auto byteTy = IntType::get(op.getContext(), 8, true);
   auto bytePtrTy = PointerType::get(
       byteTy, mlir::cast<PointerType>(op.getAddr().getType()).getAddrSpace());
-  auto objectBytesPtr = builder.create<CastOp>(op.getLoc(), bytePtrTy,
-                                               CastKind::bitcast, op.getAddr());
-  auto memberBytesPtr = builder.create<PtrStrideOp>(
-      op.getLoc(), bytePtrTy, objectBytesPtr, loweredMember);
-  return builder.create<CastOp>(op.getLoc(), op.getType(), CastKind::bitcast,
-                                memberBytesPtr);
+  auto objectBytesPtr = CastOp::create(builder, op.getLoc(), bytePtrTy,
+                                       CastKind::bitcast, op.getAddr());
+  auto memberBytesPtr = PtrStrideOp::create(builder, op.getLoc(), bytePtrTy,
+                                            objectBytesPtr, loweredMember);
+  return CastOp::create(builder, op.getLoc(), op.getType(), CastKind::bitcast,
+                        memberBytesPtr);
 }
 
 void ItaniumCXXABI::lowerGetMethod(
@@ -315,11 +315,11 @@ void ItaniumCXXABI::lowerGetMethod(
   mlir::Type calleePtrTy = op.getCallee().getType();
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
-  mlir::Value ptrdiffOne = rewriter.create<cir::ConstantOp>(
-      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 1));
+  mlir::Value ptrdiffOne = cir::ConstantOp::create(
+      rewriter, op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 1));
 
-  mlir::Value adj = rewriter.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredMethod, 1);
+  mlir::Value adj = cir::ExtractMemberOp::create(
+      rewriter, op.getLoc(), ptrdiffCIRTy, loweredMethod, 1);
   if (UseARMMethodPtrABI)
     llvm_unreachable("ARM method ptr abi NYI");
 
@@ -327,23 +327,24 @@ void ItaniumCXXABI::lowerGetMethod(
   mlir::Type thisVoidPtrTy =
       cir::PointerType::get(cir::VoidType::get(rewriter.getContext()),
                             op.getObject().getType().getAddrSpace());
-  mlir::Value thisVoidPtr = rewriter.create<cir::CastOp>(
-      op.getLoc(), thisVoidPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
-  adjustedThis = rewriter.create<cir::PtrStrideOp>(op.getLoc(), thisVoidPtrTy,
-                                                   thisVoidPtr, adj);
+  mlir::Value thisVoidPtr =
+      cir::CastOp::create(rewriter, op.getLoc(), thisVoidPtrTy,
+                          cir::CastKind::bitcast, loweredObjectPtr);
+  adjustedThis = cir::PtrStrideOp::create(rewriter, op.getLoc(), thisVoidPtrTy,
+                                          thisVoidPtr, adj);
 
   // Load the "ptr" field of the member function pointer and determine if it
   // points to a virtual function.
-  mlir::Value methodPtrField = rewriter.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredMethod, 0);
-  mlir::Value virtualBit = rewriter.create<cir::BinOp>(
-      op.getLoc(), cir::BinOpKind::And, methodPtrField, ptrdiffOne);
+  mlir::Value methodPtrField = cir::ExtractMemberOp::create(
+      rewriter, op.getLoc(), ptrdiffCIRTy, loweredMethod, 0);
+  mlir::Value virtualBit = cir::BinOp::create(
+      rewriter, op.getLoc(), cir::BinOpKind::And, methodPtrField, ptrdiffOne);
   mlir::Value isVirtual;
   if (UseARMMethodPtrABI)
     llvm_unreachable("ARM method ptr abi NYI");
   else
-    isVirtual = rewriter.create<cir::CmpOp>(op.getLoc(), cir::CmpOpKind::eq,
-                                            virtualBit, ptrdiffOne);
+    isVirtual = cir::CmpOp::create(rewriter, op.getLoc(), cir::CmpOpKind::eq,
+                                   virtualBit, ptrdiffOne);
 
   assert(!MissingFeatures::emitCFICheck());
   assert(!MissingFeatures::emitVFEInfo());
@@ -365,8 +366,8 @@ void ItaniumCXXABI::lowerGetMethod(
   mlir::Block *virtualBlock = rewriter.createBlock(continueBlock);
   mlir::Block *nonVirtualBlock = rewriter.createBlock(continueBlock);
   rewriter.setInsertionPointToEnd(currBlock);
-  rewriter.create<cir::BrCondOp>(op.getLoc(), isVirtual, virtualBlock,
-                                 nonVirtualBlock);
+  cir::BrCondOp::create(rewriter, op.getLoc(), isVirtual, virtualBlock,
+                        nonVirtualBlock);
 
   auto buildVirtualBranch = [&] {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -378,10 +379,12 @@ void ItaniumCXXABI::lowerGetMethod(
         cir::IntType::get(rewriter.getContext(), 8, true));
     auto vtablePtrPtrTy = cir::PointerType::get(
         vtablePtrTy, op.getObject().getType().getAddrSpace());
-    auto vtablePtrPtr = rewriter.create<cir::CastOp>(
-        op.getLoc(), vtablePtrPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
-    mlir::Value vtablePtr = rewriter.create<cir::LoadOp>(
-        op.getLoc(), vtablePtrPtr, /*isDeref=*/false, /*isVolatile=*/false,
+    auto vtablePtrPtr =
+        cir::CastOp::create(rewriter, op.getLoc(), vtablePtrPtrTy,
+                            cir::CastKind::bitcast, loweredObjectPtr);
+    mlir::Value vtablePtr = cir::LoadOp::create(
+        rewriter, op.getLoc(), vtablePtrPtr, /*isDeref=*/false,
+        /*isVolatile=*/false,
         /*isNontemporal=*/false,
         /*alignment=*/mlir::IntegerAttr(), /*mem_order=*/cir::MemOrderAttr(),
         /*tbaa=*/mlir::ArrayAttr());
@@ -389,8 +392,8 @@ void ItaniumCXXABI::lowerGetMethod(
     // Get the vtable offset.
     mlir::Value vtableOffset = methodPtrField;
     if (!UseARMMethodPtrABI)
-      vtableOffset = rewriter.create<cir::BinOp>(
-          op.getLoc(), cir::BinOpKind::Sub, vtableOffset, ptrdiffOne);
+      vtableOffset = cir::BinOp::create(
+          rewriter, op.getLoc(), cir::BinOpKind::Sub, vtableOffset, ptrdiffOne);
     if (Use32BitVTableOffsetABI)
       llvm_unreachable("NYI");
 
@@ -409,37 +412,38 @@ void ItaniumCXXABI::lowerGetMethod(
       if (VTComponentLayout == VTableComponentLayout::Relative)
         llvm_unreachable("NYI");
       else {
-        mlir::Value vfpAddr = rewriter.create<cir::PtrStrideOp>(
-            op.getLoc(), vtablePtrTy, vtablePtr, vtableOffset);
+        mlir::Value vfpAddr = cir::PtrStrideOp::create(
+            rewriter, op.getLoc(), vtablePtrTy, vtablePtr, vtableOffset);
         auto vfpPtrTy = cir::PointerType::get(calleePtrTy);
-        mlir::Value vfpPtr = rewriter.create<cir::CastOp>(
-            op.getLoc(), vfpPtrTy, cir::CastKind::bitcast, vfpAddr);
-        funcPtr = rewriter.create<cir::LoadOp>(
-            op.getLoc(), vfpPtr, /*isDeref=*/false, /*isVolatile=*/false,
-            /*isNontemporal=*/false,
-            /*alignment=*/mlir::IntegerAttr(),
-            /*mem_order=*/cir::MemOrderAttr(),
-            /*tbaa=*/mlir::ArrayAttr());
+        mlir::Value vfpPtr = cir::CastOp::create(
+            rewriter, op.getLoc(), vfpPtrTy, cir::CastKind::bitcast, vfpAddr);
+        funcPtr = cir::LoadOp::create(rewriter, op.getLoc(), vfpPtr,
+                                      /*isDeref=*/false, /*isVolatile=*/false,
+                                      /*isNontemporal=*/false,
+                                      /*alignment=*/mlir::IntegerAttr(),
+                                      /*mem_order=*/cir::MemOrderAttr(),
+                                      /*tbaa=*/mlir::ArrayAttr());
       }
     }
 
     if (shouldEmitCFICheck)
       llvm_unreachable("NYI");
 
-    rewriter.create<cir::BrOp>(op.getLoc(), continueBlock, funcPtr);
+    cir::BrOp::create(rewriter, op.getLoc(), continueBlock, funcPtr);
   };
 
   auto buildNonVirtualBranch = [&] {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(nonVirtualBlock);
 
-    mlir::Value funcPtr = rewriter.create<cir::CastOp>(
-        op.getLoc(), calleePtrTy, cir::CastKind::int_to_ptr, methodPtrField);
+    mlir::Value funcPtr =
+        cir::CastOp::create(rewriter, op.getLoc(), calleePtrTy,
+                            cir::CastKind::int_to_ptr, methodPtrField);
 
     if (shouldEmitCFICheck)
       llvm_unreachable("NYI");
 
-    rewriter.create<cir::BrOp>(op.getLoc(), continueBlock, funcPtr);
+    cir::BrOp::create(rewriter, op.getLoc(), continueBlock, funcPtr);
   };
 
   buildVirtualBranch();
@@ -457,19 +461,21 @@ static mlir::Value lowerDataMemberCast(mlir::Operation *op,
   if (offset == 0)
     return loweredSrc;
 
-  auto nullValue = builder.create<cir::ConstantOp>(
-      op->getLoc(), mlir::IntegerAttr::get(loweredSrc.getType(), -1));
-  auto isNull = builder.create<cir::CmpOp>(op->getLoc(), cir::CmpOpKind::eq,
-                                           loweredSrc, nullValue);
+  auto nullValue = cir::ConstantOp::create(
+      builder, op->getLoc(), mlir::IntegerAttr::get(loweredSrc.getType(), -1));
+  auto isNull = cir::CmpOp::create(builder, op->getLoc(), cir::CmpOpKind::eq,
+                                   loweredSrc, nullValue);
 
-  auto offsetValue = builder.create<cir::ConstantOp>(
-      op->getLoc(), mlir::IntegerAttr::get(loweredSrc.getType(), offset));
+  auto offsetValue = cir::ConstantOp::create(
+      builder, op->getLoc(),
+      mlir::IntegerAttr::get(loweredSrc.getType(), offset));
   auto binOpKind = isDerivedToBase ? cir::BinOpKind::Sub : cir::BinOpKind::Add;
-  auto adjustedPtr = builder.create<cir::BinOp>(
-      op->getLoc(), loweredSrc.getType(), binOpKind, loweredSrc, offsetValue);
+  auto adjustedPtr =
+      cir::BinOp::create(builder, op->getLoc(), loweredSrc.getType(), binOpKind,
+                         loweredSrc, offsetValue);
 
-  return builder.create<cir::SelectOp>(op->getLoc(), loweredSrc.getType(),
-                                       isNull, nullValue, adjustedPtr);
+  return cir::SelectOp::create(builder, op->getLoc(), loweredSrc.getType(),
+                               isNull, nullValue, adjustedPtr);
 }
 
 static mlir::Value lowerMethodCast(mlir::Operation *op, mlir::Value loweredSrc,
@@ -480,17 +486,17 @@ static mlir::Value lowerMethodCast(mlir::Operation *op, mlir::Value loweredSrc,
     return loweredSrc;
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(lowerMod);
-  auto adjField = builder.create<cir::ExtractMemberOp>(
-      op->getLoc(), ptrdiffCIRTy, loweredSrc, 1);
+  auto adjField = cir::ExtractMemberOp::create(builder, op->getLoc(),
+                                               ptrdiffCIRTy, loweredSrc, 1);
 
-  auto offsetValue = builder.create<cir::ConstantOp>(
-      op->getLoc(), cir::IntAttr::get(ptrdiffCIRTy, offset));
+  auto offsetValue = cir::ConstantOp::create(
+      builder, op->getLoc(), cir::IntAttr::get(ptrdiffCIRTy, offset));
   auto binOpKind = isDerivedToBase ? cir::BinOpKind::Sub : cir::BinOpKind::Add;
-  auto adjustedAdjField = builder.create<cir::BinOp>(
-      op->getLoc(), ptrdiffCIRTy, binOpKind, adjField, offsetValue);
+  auto adjustedAdjField = cir::BinOp::create(
+      builder, op->getLoc(), ptrdiffCIRTy, binOpKind, adjField, offsetValue);
 
-  return builder.create<cir::InsertMemberOp>(op->getLoc(), loweredSrc, 1,
-                                             adjustedAdjField);
+  return cir::InsertMemberOp::create(builder, op->getLoc(), loweredSrc, 1,
+                                     adjustedAdjField);
 }
 
 mlir::Value ItaniumCXXABI::lowerBaseDataMember(cir::BaseDataMemberOp op,
@@ -526,8 +532,8 @@ mlir::Value ItaniumCXXABI::lowerDataMemberCmp(cir::CmpOp op,
                                               mlir::Value loweredLhs,
                                               mlir::Value loweredRhs,
                                               mlir::OpBuilder &builder) const {
-  return builder.create<cir::CmpOp>(op.getLoc(), op.getKind(), loweredLhs,
-                                    loweredRhs);
+  return cir::CmpOp::create(builder, op.getLoc(), op.getKind(), loweredLhs,
+                            loweredRhs);
 }
 
 mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
@@ -537,24 +543,24 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
          op.getKind() == cir::CmpOpKind::ne);
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
-  mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
+  mlir::Value ptrdiffZero = cir::ConstantOp::create(
+      builder, op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
 
-  mlir::Value lhsPtrField = builder.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredLhs, 0);
-  mlir::Value rhsPtrField = builder.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredRhs, 0);
-  mlir::Value ptrCmp = builder.create<cir::CmpOp>(op.getLoc(), op.getKind(),
-                                                  lhsPtrField, rhsPtrField);
-  mlir::Value ptrCmpToNull = builder.create<cir::CmpOp>(
-      op.getLoc(), op.getKind(), lhsPtrField, ptrdiffZero);
+  mlir::Value lhsPtrField = cir::ExtractMemberOp::create(
+      builder, op.getLoc(), ptrdiffCIRTy, loweredLhs, 0);
+  mlir::Value rhsPtrField = cir::ExtractMemberOp::create(
+      builder, op.getLoc(), ptrdiffCIRTy, loweredRhs, 0);
+  mlir::Value ptrCmp = cir::CmpOp::create(builder, op.getLoc(), op.getKind(),
+                                          lhsPtrField, rhsPtrField);
+  mlir::Value ptrCmpToNull = cir::CmpOp::create(
+      builder, op.getLoc(), op.getKind(), lhsPtrField, ptrdiffZero);
 
-  mlir::Value lhsAdjField = builder.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredLhs, 1);
-  mlir::Value rhsAdjField = builder.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredRhs, 1);
-  mlir::Value adjCmp = builder.create<cir::CmpOp>(op.getLoc(), op.getKind(),
-                                                  lhsAdjField, rhsAdjField);
+  mlir::Value lhsAdjField = cir::ExtractMemberOp::create(
+      builder, op.getLoc(), ptrdiffCIRTy, loweredLhs, 1);
+  mlir::Value rhsAdjField = cir::ExtractMemberOp::create(
+      builder, op.getLoc(), ptrdiffCIRTy, loweredRhs, 1);
+  mlir::Value adjCmp = cir::CmpOp::create(builder, op.getLoc(), op.getKind(),
+                                          lhsAdjField, rhsAdjField);
 
   // We use cir.select to represent "||" and "&&" operations below:
   //   - cir.select if %a then %b else false => %a && %b
@@ -565,10 +571,10 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
   mlir::Value trueValue = cirBuilder.getTrue(op.getLoc());
   mlir::Value falseValue = cirBuilder.getFalse(op.getLoc());
   auto create_and = [&](mlir::Value lhs, mlir::Value rhs) {
-    return builder.create<cir::SelectOp>(op.getLoc(), lhs, rhs, falseValue);
+    return cir::SelectOp::create(builder, op.getLoc(), lhs, rhs, falseValue);
   };
   auto create_or = [&](mlir::Value lhs, mlir::Value rhs) {
-    return builder.create<cir::SelectOp>(op.getLoc(), lhs, trueValue, rhs);
+    return cir::SelectOp::create(builder, op.getLoc(), lhs, trueValue, rhs);
   };
 
   mlir::Value result;
@@ -587,8 +593,8 @@ mlir::Value
 ItaniumCXXABI::lowerDataMemberBitcast(cir::CastOp op, mlir::Type loweredDstTy,
                                       mlir::Value loweredSrc,
                                       mlir::OpBuilder &builder) const {
-  return builder.create<cir::CastOp>(op.getLoc(), loweredDstTy,
-                                     cir::CastKind::bitcast, loweredSrc);
+  return cir::CastOp::create(builder, op.getLoc(), loweredDstTy,
+                             cir::CastKind::bitcast, loweredSrc);
 }
 
 mlir::Value
@@ -597,9 +603,9 @@ ItaniumCXXABI::lowerDataMemberToBoolCast(cir::CastOp op, mlir::Value loweredSrc,
   // Itanium C++ ABI 2.3:
   //   A NULL pointer is represented as -1.
   auto nullAttr = cir::IntAttr::get(getPtrDiffCIRTy(LM), -1);
-  auto nullValue = builder.create<cir::ConstantOp>(op.getLoc(), nullAttr);
-  return builder.create<cir::CmpOp>(op.getLoc(), cir::CmpOpKind::ne, loweredSrc,
-                                    nullValue);
+  auto nullValue = cir::ConstantOp::create(builder, op.getLoc(), nullAttr);
+  return cir::CmpOp::create(builder, op.getLoc(), cir::CmpOpKind::ne,
+                            loweredSrc, nullValue);
 }
 
 mlir::Value ItaniumCXXABI::lowerMethodBitcast(cir::CastOp op,
@@ -618,12 +624,12 @@ ItaniumCXXABI::lowerMethodToBoolCast(cir::CastOp op, mlir::Value loweredSrc,
   //   represented with ptr set to a null pointer. The value of adj is
   //   unspecified for null member function pointers.
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
-  mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
-  mlir::Value ptrField = builder.create<cir::ExtractMemberOp>(
-      op.getLoc(), ptrdiffCIRTy, loweredSrc, 0);
-  return builder.create<cir::CmpOp>(op.getLoc(), cir::CmpOpKind::ne, ptrField,
-                                    ptrdiffZero);
+  mlir::Value ptrdiffZero = cir::ConstantOp::create(
+      builder, op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
+  mlir::Value ptrField = cir::ExtractMemberOp::create(
+      builder, op.getLoc(), ptrdiffCIRTy, loweredSrc, 0);
+  return cir::CmpOp::create(builder, op.getLoc(), cir::CmpOpKind::ne, ptrField,
+                            ptrdiffZero);
 }
 
 CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {

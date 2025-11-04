@@ -130,8 +130,8 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
                                       ty));
 
   mlir::OpBuilder::InsertPoint scopeIP;
-  auto scopeOp = builder.create<cir::ScopeOp>(
-      loc,
+  auto scopeOp = cir::ScopeOp::create(
+      builder, loc,
       [&](mlir::OpBuilder &opBuilder, mlir::Type &yieldTy, mlir::Location loc) {
         scopeIP = opBuilder.saveInsertionPoint();
         yieldTy = op.getType();
@@ -177,7 +177,7 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
   mlir::Block *inRegBlock = builder.createBlock(contBlock);
   mlir::Block *inMemBlock = builder.createBlock(contBlock);
   builder.setInsertionPointToEnd(currentBlock);
-  builder.create<BrCondOp>(loc, inRegs, inRegBlock, inMemBlock);
+  BrCondOp::create(builder, loc, inRegs, inRegBlock, inMemBlock);
 
   // Emit code to load the value if it was passed in registers.
   builder.setInsertionPointToStart(inRegBlock);
@@ -340,13 +340,13 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
     builder.createStore(loc, builder.createAdd(fp_offset, offset), fp_offset_p);
   }
 
-  builder.create<BrOp>(loc, mlir::ValueRange{regAddr}, contBlock);
+  BrOp::create(builder, loc, mlir::ValueRange{regAddr}, contBlock);
 
   // Emit code to load the value if it was passed in memory.
   builder.setInsertionPointToStart(inMemBlock);
   mlir::Value memAddr =
       buildX86_64VAArgFromMemory(builder, datalayout, valist, ty, loc);
-  builder.create<BrOp>(loc, mlir::ValueRange{memAddr}, contBlock);
+  BrOp::create(builder, loc, mlir::ValueRange{memAddr}, contBlock);
 
   // Yield the appropriate result.
   builder.setInsertionPointToStart(contBlock);
@@ -358,7 +358,7 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
                 loc, builder.createPtrBitcast(res_addr, ty), alignment)
           : builder.createLoad(loc, builder.createPtrBitcast(res_addr, ty));
 
-  builder.create<cir::YieldOp>(loc, result);
+  cir::YieldOp::create(builder, loc, result);
 
   return scopeOp.getResult(0);
 }

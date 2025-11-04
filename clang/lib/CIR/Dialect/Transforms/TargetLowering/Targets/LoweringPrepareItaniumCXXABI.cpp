@@ -37,7 +37,7 @@ static void buildBadCastCall(CIRBaseBuilderTy &builder, mlir::Location loc,
   cir_cconv_assert(!MissingFeatures::setCallingConv());
 
   builder.createCallOp(loc, badCastFuncRef, mlir::ValueRange{});
-  builder.create<cir::UnreachableOp>(loc);
+  cir::UnreachableOp::create(builder, loc);
   builder.clearInsertionPoint();
 }
 
@@ -74,10 +74,11 @@ static mlir::Value buildDynamicCastAfterNullCheck(CIRBaseBuilderTy &builder,
   if (op.isRefcast()) {
     // Emit a cir.if that checks the casted value.
     mlir::Value castedValueIsNull = builder.createPtrIsNull(castedPtr);
-    builder.create<cir::IfOp>(
-        loc, castedValueIsNull, false, [&](mlir::OpBuilder &, mlir::Location) {
-          buildBadCastCall(builder, loc, castInfo.getBadCastFunc());
-        });
+    cir::IfOp::create(builder, loc, castedValueIsNull, false,
+                      [&](mlir::OpBuilder &, mlir::Location) {
+                        buildBadCastCall(builder, loc,
+                                         castInfo.getBadCastFunc());
+                      });
   }
 
   // Note that castedPtr is a void*. Cast it to a pointer to the destination
@@ -118,13 +119,13 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   auto vptrTy = cir::VPtrType::get(builder.getContext());
   auto vptrPtrTy = builder.getPointerTo(vptrTy);
   auto vptrPtr =
-      builder.create<cir::VTableGetVPtrOp>(loc, vptrPtrTy, op.getSrc());
+      cir::VTableGetVPtrOp::create(builder, loc, vptrPtrTy, op.getSrc());
   auto vptr = builder.createLoad(loc, vptrPtr);
   auto elementPtr =
       builder.createBitcast(vptr, builder.getPointerTo(vtableElemTy));
   auto minusTwo = builder.getSignedInt(loc, -2, 64);
-  auto offsetToTopSlotPtr = builder.create<cir::PtrStrideOp>(
-      loc, builder.getPointerTo(vtableElemTy), elementPtr, minusTwo);
+  auto offsetToTopSlotPtr = cir::PtrStrideOp::create(
+      builder, loc, builder.getPointerTo(vtableElemTy), elementPtr, minusTwo);
   auto offsetToTop =
       builder.createAlignedLoad(loc, offsetToTopSlotPtr, vtableElemAlign);
 
@@ -133,7 +134,7 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   auto u8PtrTy = builder.getPointerTo(builder.getUIntNTy(8));
   auto srcBytePtr = builder.createBitcast(op.getSrc(), u8PtrTy);
   auto dstBytePtr =
-      builder.create<cir::PtrStrideOp>(loc, u8PtrTy, srcBytePtr, offsetToTop);
+      cir::PtrStrideOp::create(builder, loc, u8PtrTy, srcBytePtr, offsetToTop);
   // Cast the result to a void*.
   return builder.createBitcast(dstBytePtr, builder.getVoidPtrTy());
 }
@@ -151,20 +152,20 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
     return buildDynamicCastAfterNullCheck(builder, op);
 
   auto srcValueIsNotNull = builder.createPtrToBoolCast(srcValue);
-  return builder
-      .create<cir::TernaryOp>(
-          loc, srcValueIsNotNull,
-          [&](mlir::OpBuilder &, mlir::Location) {
-            mlir::Value castedValue =
-                op.isCastToVoid()
-                    ? buildDynamicCastToVoidAfterNullCheck(builder, astCtx, op)
-                    : buildDynamicCastAfterNullCheck(builder, op);
-            builder.createYield(loc, castedValue);
-          },
-          [&](mlir::OpBuilder &, mlir::Location) {
-            builder.createYield(
-                loc, builder.getNullPtr(op.getType(), loc).getResult());
-          })
+  return cir::TernaryOp::create(
+             builder, loc, srcValueIsNotNull,
+             [&](mlir::OpBuilder &, mlir::Location) {
+               mlir::Value castedValue =
+                   op.isCastToVoid()
+                       ? buildDynamicCastToVoidAfterNullCheck(builder, astCtx,
+                                                              op)
+                       : buildDynamicCastAfterNullCheck(builder, op);
+               builder.createYield(loc, castedValue);
+             },
+             [&](mlir::OpBuilder &, mlir::Location) {
+               builder.createYield(
+                   loc, builder.getNullPtr(op.getType(), loc).getResult());
+             })
       .getResult();
 }
 

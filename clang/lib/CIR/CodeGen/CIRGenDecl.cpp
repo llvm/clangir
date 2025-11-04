@@ -682,7 +682,8 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   // and that's already updated, but for unions the type might be different,
   // we need to cast to the expected type.
   auto castedAddr = builder.createBitcast(getAddrOp.getAddr(), expectedType);
-  auto actualElemTy = llvm::cast<cir::PointerType>(castedAddr.getType()).getPointee();
+  auto actualElemTy =
+      llvm::cast<cir::PointerType>(castedAddr.getType()).getPointee();
   LocalDeclMap.find(&D)->second = Address(castedAddr, actualElemTy, alignment);
   CGM.setStaticLocalDeclAddress(&D, var);
 
@@ -1109,8 +1110,8 @@ void CIRGenFunction::emitArrayDestroy(mlir::Value begin, mlir::Value end,
   auto ptrToElmType = builder.getPointerTo(cirElementType);
 
   // Emit the dtor call that will execute for every array element.
-  builder.create<cir::ArrayDtor>(
-      *currSrcLoc, begin, [&](mlir::OpBuilder &b, mlir::Location loc) {
+  cir::ArrayDtor::create(
+      builder, *currSrcLoc, begin, [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto arg = b.getInsertionBlock()->addArgument(ptrToElmType, loc);
         Address curAddr = Address(arg, cirElementType, elementAlign);
         if (useEHCleanup) {
@@ -1124,7 +1125,7 @@ void CIRGenFunction::emitArrayDestroy(mlir::Value begin, mlir::Value end,
         if (useEHCleanup)
           PopCleanupBlock();
 
-        builder.create<cir::YieldOp>(loc);
+        cir::YieldOp::create(builder, loc);
       });
 }
 
@@ -1271,7 +1272,7 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
     CleanupKind cleanupKind, Address addr, QualType type, Destroyer *destroyer,
     bool useEHCleanupForArray) {
   mlir::Operation *flag =
-      builder.create<cir::UnreachableOp>(builder.getUnknownLoc());
+      cir::UnreachableOp::create(builder, builder.getUnknownLoc());
   pushDestroy(cleanupKind, addr, type, destroyer, useEHCleanupForArray);
   DeferredDeactivationCleanupStack.push_back({EHStack.stable_begin(), flag});
 }

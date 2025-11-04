@@ -139,8 +139,8 @@ Operation *cir::CIRDialect::materializeConstant(mlir::OpBuilder &builder,
                                                 mlir::Attribute value,
                                                 mlir::Type type,
                                                 mlir::Location loc) {
-  return builder.create<cir::ConstantOp>(loc, type,
-                                         mlir::cast<mlir::TypedAttr>(value));
+  return cir::ConstantOp::create(builder, loc, type,
+                                 mlir::cast<mlir::TypedAttr>(value));
 }
 
 //===----------------------------------------------------------------------===//
@@ -229,7 +229,7 @@ LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
 
   // Terminator was omitted correctly: recreate it.
   builder.setInsertionPointToEnd(&block);
-  builder.create<cir::YieldOp>(eLoc);
+  cir::YieldOp::create(builder, eLoc);
   return success();
 }
 
@@ -442,7 +442,8 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   if (mlir::isa<cir::IntAttr>(attrType))
     return success();
 
-  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
+  assert(mlir::isa<TypedAttr>(attrType) &&
+         "What else could we be looking at here?");
   return op->emitOpError("global with type ")
          << mlir::cast<TypedAttr>(attrType).getType() << " not supported";
 }
@@ -1466,7 +1467,7 @@ void cir::IfOp::print(OpAsmPrinter &p) {
 /// Default callback for IfOp builders.
 void cir::buildTerminatedBody(OpBuilder &builder, Location loc) {
   // add cir.yield to the end of the block
-  builder.create<cir::YieldOp>(loc);
+  cir::YieldOp::create(builder, loc);
 }
 
 /// Given the region at `index`, or the parent operation if `index` is None,
@@ -3813,7 +3814,8 @@ LogicalResult cir::VTableAttr::verify(
     if (auto arrayElts = llvm::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
       arrayElts.walkImmediateSubElements(
           [&](Attribute attr) {
-            if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<ConstPtrAttr>(attr))
+            if (mlir::isa<GlobalViewAttr>(attr) ||
+                mlir::isa<ConstPtrAttr>(attr))
               return;
 
             eltTypeCheck = emitError() << "expected GlobalViewAttr attribute";
@@ -4033,17 +4035,20 @@ void cir::InlineAsmOp::build(OpBuilder &odsBuilder, OperationState &odsState,
     segments.push_back(operandRange.size());
     odsState.addOperands(operandRange);
   }
-  
-  odsState.addAttribute("operands_segments", 
-                        DenseI32ArrayAttr::get(odsBuilder.getContext(), segments));
+
+  odsState.addAttribute(
+      "operands_segments",
+      DenseI32ArrayAttr::get(odsBuilder.getContext(), segments));
   odsState.addAttribute("asm_string", odsBuilder.getStringAttr(asm_string));
   odsState.addAttribute("constraints", odsBuilder.getStringAttr(constraints));
-  odsState.addAttribute("asm_flavor", AsmFlavorAttr::get(odsBuilder.getContext(), asm_flavor));
-  
+  odsState.addAttribute(
+      "asm_flavor", AsmFlavorAttr::get(odsBuilder.getContext(), asm_flavor));
+
   if (side_effects)
     odsState.addAttribute("side_effects", odsBuilder.getUnitAttr());
-  
-  odsState.addAttribute("operand_attrs", odsBuilder.getArrayAttr(operand_attrs));
+
+  odsState.addAttribute("operand_attrs",
+                        odsBuilder.getArrayAttr(operand_attrs));
 }
 
 ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,

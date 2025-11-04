@@ -838,8 +838,8 @@ cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
     if (curCGF)
       builder.setInsertionPoint(curCGF->CurFn);
 
-    g = builder.create<cir::GlobalOp>(loc, name, t, isConstant, linkage,
-                                      addrSpace);
+    g = cir::GlobalOp::create(builder, loc, name, t, isConstant, linkage,
+                              addrSpace);
     if (!curCGF) {
       if (insertPoint)
         cgm.getModule().insert(insertPoint, g);
@@ -1040,7 +1040,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
           auto ar = cast<ConstArrayAttr>(init);
           mlir::OpBuilder::InsertionGuard guard(builder);
           builder.setInsertionPointAfter(c);
-          auto newUser = builder.create<cir::ConstantOp>(c.getLoc(), ar);
+          auto newUser = cir::ConstantOp::create(builder, c.getLoc(), ar);
           c.replaceAllUsesWith(newUser.getOperation());
         }
       }
@@ -1282,8 +1282,8 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *d, mlir::Type ty,
   bool tlsAccess = d->getTLSKind() != VarDecl::TLS_None;
   auto g = getOrCreateCIRGlobal(d, ty, isForDefinition);
   auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpace());
-  return builder.create<cir::GetGlobalOp>(getLoc(d->getSourceRange()), ptrTy,
-                                          g.getSymName(), tlsAccess);
+  return cir::GetGlobalOp::create(builder, getLoc(d->getSourceRange()), ptrTy,
+                                  g.getSymName(), tlsAccess);
 }
 
 cir::GlobalViewAttr
@@ -2715,7 +2715,7 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     if (curCGF)
       builder.setInsertionPoint(curCGF->CurFn);
 
-    f = builder.create<cir::FuncOp>(loc, name, ty);
+    f = cir::FuncOp::create(builder, loc, name, ty);
 
     if (fd)
       f.setAstAttr(makeFuncDeclAttr(fd, &getMLIRContext()));

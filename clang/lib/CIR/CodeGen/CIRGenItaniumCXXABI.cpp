@@ -728,7 +728,7 @@ struct CallEndCatch final : EHScopeStack::Cleanup {
       // here. For CIR, just let it pass since the cleanup is going
       // to be emitted on a later pass when lowering the catch region.
       // CGF.EmitNounwindRuntimeCall(getEndCatchFn(CGF.CGM));
-      CGF.getBuilder().create<cir::YieldOp>(*CGF.currSrcLoc);
+      cir::YieldOp::create(CGF.getBuilder(), *CGF.currSrcLoc);
       return;
     }
 
@@ -737,7 +737,7 @@ struct CallEndCatch final : EHScopeStack::Cleanup {
     // to be emitted on a later pass when lowering the catch region.
     // CGF.EmitRuntimeCallOrTryCall(getEndCatchFn(CGF.CGM));
     if (!CGF.getBuilder().getBlock()->mightHaveTerminator())
-      CGF.getBuilder().create<cir::YieldOp>(*CGF.currSrcLoc);
+      cir::YieldOp::create(CGF.getBuilder(), *CGF.currSrcLoc);
   }
 };
 } // namespace
@@ -751,8 +751,9 @@ struct CallEndCatch final : EHScopeStack::Cleanup {
 /// \param EndMightThrow - true if __cxa_end_catch might throw
 static mlir::Value CallBeginCatch(CIRGenFunction &CGF, mlir::Type ParamTy,
                                   bool EndMightThrow) {
-  auto catchParam = CGF.getBuilder().create<cir::CatchParamOp>(
-      CGF.getBuilder().getUnknownLoc(), ParamTy, nullptr, nullptr);
+  auto catchParam = cir::CatchParamOp::create(CGF.getBuilder(),
+                                              CGF.getBuilder().getUnknownLoc(),
+                                              ParamTy, nullptr, nullptr);
 
   CGF.EHStack.pushCleanup<CallEndCatch>(
       NormalAndEHCleanup,
@@ -963,8 +964,8 @@ CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     if (CGM.getItaniumVTableContext().isRelativeLayout()) {
       llvm_unreachable("NYI");
     } else {
-      auto VTableSlotPtr = builder.create<cir::VTableGetVirtualFnAddrOp>(
-          loc, builder.getPointerTo(TyPtr), VTable, VTableIndex);
+      auto VTableSlotPtr = cir::VTableGetVirtualFnAddrOp::create(
+          builder, loc, builder.getPointerTo(TyPtr), VTable, VTableIndex);
       VFuncLoad = builder.createAlignedLoad(loc, TyPtr, VTableSlotPtr,
                                             CGF.getPointerAlign());
     }
@@ -1023,8 +1024,8 @@ CIRGenItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
   auto &builder = CGM.getBuilder();
   auto vtablePtrTy = cir::VPtrType::get(builder.getContext());
 
-  return builder.create<cir::VTableAddrPointOp>(
-      CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
+  return cir::VTableAddrPointOp::create(
+      builder, CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
       mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()),
       cir::AddressPointAttr::get(CGM.getBuilder().getContext(),
                                  AddressPoint.VTableIndex,
@@ -2317,24 +2318,24 @@ void insertThrowAndSplit(mlir::OpBuilder &builder, mlir::Location loc,
   mlir::Region *region = currentBlock->getParent();
 
   if (currentBlock->empty()) {
-    builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo, dtor);
-    builder.create<cir::UnreachableOp>(loc);
+    cir::ThrowOp::create(builder, loc, exceptionPtr, typeInfo, dtor);
+    cir::UnreachableOp::create(builder, loc);
   } else {
     mlir::Block *throwBlock = builder.createBlock(region);
-    builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo, dtor);
-    builder.create<cir::UnreachableOp>(loc);
+    cir::ThrowOp::create(builder, loc, exceptionPtr, typeInfo, dtor);
+    cir::UnreachableOp::create(builder, loc);
 
     builder.setInsertionPointToEnd(currentBlock);
-    builder.create<cir::BrOp>(loc, throwBlock);
+    cir::BrOp::create(builder, loc, throwBlock);
   }
 
   (void)builder.createBlock(region);
   // This will be erased during codegen, it acts as a placeholder for the
   // operations to be inserted (if any)
-  builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                 b.create<cir::YieldOp>(loc);
-                               });
+  cir::ScopeOp::create(builder, loc, /*scopeBuilder=*/
+                       [&](mlir::OpBuilder &b, mlir::Location loc) {
+                         cir::YieldOp::create(b, loc);
+                       });
 }
 
 void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
@@ -2367,9 +2368,8 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
   auto subExprLoc = CGF.getLoc(E->getSubExpr()->getSourceRange());
   // Defer computing allocation size to some later lowering pass.
   auto exceptionPtr =
-      builder
-          .create<cir::AllocExceptionOp>(subExprLoc, throwTy,
-                                         builder.getI64IntegerAttr(typeSize))
+      cir::AllocExceptionOp::create(builder, subExprLoc, throwTy,
+                                    builder.getI64IntegerAttr(typeSize))
           .getAddr();
 
   // Build expression and store its result into exceptionPtr.
@@ -2428,9 +2428,9 @@ mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
                                                                BaseClassDecl);
   mlir::Value OffsetVal =
       CGF.getBuilder().getSInt64(VBaseOffsetOffset.getQuantity(), loc);
-  auto VBaseOffsetPtr = CGF.getBuilder().create<cir::PtrStrideOp>(
-      loc, CGM.UInt8PtrTy, VTableBytePtr,
-      OffsetVal); // vbase.offset.ptr
+  auto VBaseOffsetPtr = cir::PtrStrideOp::create(CGF.getBuilder(), loc,
+                                                 CGM.UInt8PtrTy, VTableBytePtr,
+                                                 OffsetVal); // vbase.offset.ptr
 
   mlir::Value VBaseOffset;
   if (CGM.getItaniumVTableContext().isRelativeLayout()) {
@@ -2463,7 +2463,7 @@ static void emitCallToBadCast(CIRGenFunction &CGF, mlir::Location loc) {
   assert(!cir::MissingFeatures::setCallingConv());
 
   CGF.emitRuntimeCall(loc, getBadCastFn(CGF));
-  CGF.getBuilder().create<cir::UnreachableOp>(loc);
+  cir::UnreachableOp::create(CGF.getBuilder(), loc);
   CGF.getBuilder().clearInsertionPoint();
 }
 
@@ -2559,6 +2559,7 @@ static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
                                         QualType DestRecordTy,
                                         cir::PointerType DestCIRTy,
                                         bool IsRefCast, Address Src) {
+  CIRGenBuilderTy &builder = CGF.getBuilder();
   // Find all the inheritance paths from SrcRecordTy to DestRecordTy.
   const CXXRecordDecl *SrcDecl = SrcRecordTy->getAsCXXRecordDecl();
   const CXXRecordDecl *DestDecl = DestRecordTy->getAsCXXRecordDecl();
@@ -2608,14 +2609,14 @@ static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
 
   if (!Offset) {
     // If there are no public inheritance paths, the cast always fails.
-    mlir::Value NullPtrValue = CGF.getBuilder().getNullPtr(DestCIRTy, Loc);
+    mlir::Value NullPtrValue = builder.getNullPtr(DestCIRTy, Loc);
     if (IsRefCast) {
-      auto *CurrentRegion = CGF.getBuilder().getBlock()->getParent();
+      auto *CurrentRegion = builder.getBlock()->getParent();
       emitCallToBadCast(CGF, Loc);
 
       // The call to bad_cast will terminate the block. Create a new block to
       // hold any follow up code.
-      CGF.getBuilder().createBlock(CurrentRegion, CurrentRegion->end());
+      builder.createBlock(CurrentRegion, CurrentRegion->end());
     }
 
     return NullPtrValue;
@@ -2632,57 +2633,52 @@ static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
   // TODO(cir): handle address space here.
   assert(!cir::MissingFeatures::addressSpace());
   mlir::Type VPtrTy = ExpectedVPtr.getType();
-  mlir::Type VPtrPtrTy = CGF.getBuilder().getPointerTo(VPtrTy);
-  Address SrcVPtrPtr(
-      CGF.getBuilder().createBitcast(Src.getPointer(), VPtrPtrTy),
-      Src.getAlignment());
-  mlir::Value SrcVPtr = CGF.getBuilder().createLoad(Loc, SrcVPtrPtr);
+  mlir::Type VPtrPtrTy = builder.getPointerTo(VPtrTy);
+  Address SrcVPtrPtr(builder.createBitcast(Src.getPointer(), VPtrPtrTy),
+                     Src.getAlignment());
+  mlir::Value SrcVPtr = builder.createLoad(Loc, SrcVPtrPtr);
 
   // TODO(cir): decorate SrcVPtr with TBAA info.
   assert(!cir::MissingFeatures::tbaa());
 
-  mlir::Value Success = CGF.getBuilder().createCompare(Loc, cir::CmpOpKind::eq,
-                                                       SrcVPtr, ExpectedVPtr);
+  mlir::Value Success =
+      builder.createCompare(Loc, cir::CmpOpKind::eq, SrcVPtr, ExpectedVPtr);
 
   auto emitCastResult = [&] {
     if (Offset->isZero())
-      return CGF.getBuilder().createBitcast(Src.getPointer(), DestCIRTy);
+      return builder.createBitcast(Src.getPointer(), DestCIRTy);
 
     // TODO(cir): handle address space here.
     assert(!cir::MissingFeatures::addressSpace());
-    mlir::Type U8PtrTy =
-        CGF.getBuilder().getPointerTo(CGF.getBuilder().getUInt8Ty());
+    mlir::Type U8PtrTy = builder.getPointerTo(builder.getUInt8Ty());
 
-    mlir::Value StrideToApply = CGF.getBuilder().getConstInt(
-        Loc, CGF.getBuilder().getUInt64Ty(), Offset->getQuantity());
-    mlir::Value SrcU8Ptr =
-        CGF.getBuilder().createBitcast(Src.getPointer(), U8PtrTy);
-    mlir::Value ResultU8Ptr = CGF.getBuilder().create<cir::PtrStrideOp>(
-        Loc, U8PtrTy, SrcU8Ptr, StrideToApply);
-    return CGF.getBuilder().createBitcast(ResultU8Ptr, DestCIRTy);
+    mlir::Value StrideToApply =
+        builder.getConstInt(Loc, builder.getUInt64Ty(), Offset->getQuantity());
+    mlir::Value SrcU8Ptr = builder.createBitcast(Src.getPointer(), U8PtrTy);
+    mlir::Value ResultU8Ptr = cir::PtrStrideOp::create(builder, Loc, U8PtrTy,
+                                                       SrcU8Ptr, StrideToApply);
+    return builder.createBitcast(ResultU8Ptr, DestCIRTy);
   };
 
   if (IsRefCast) {
-    mlir::Value Failed = CGF.getBuilder().createNot(Success);
-    CGF.getBuilder().create<cir::IfOp>(Loc, Failed, /*withElseRegion=*/false,
-                                       [&](mlir::OpBuilder &, mlir::Location) {
-                                         emitCallToBadCast(CGF, Loc);
-                                       });
+    mlir::Value Failed = builder.createNot(Success);
+    cir::IfOp::create(builder, Loc, Failed, /*withElseRegion=*/false,
+                      [&](mlir::OpBuilder &, mlir::Location) {
+                        emitCallToBadCast(CGF, Loc);
+                      });
     return emitCastResult();
   }
 
-  return CGF.getBuilder()
-      .create<cir::TernaryOp>(
-          Loc, Success,
-          [&](mlir::OpBuilder &, mlir::Location) {
-            auto Result = emitCastResult();
-            CGF.getBuilder().createYield(Loc, Result);
-          },
-          [&](mlir::OpBuilder &, mlir::Location) {
-            mlir::Value NullPtrValue =
-                CGF.getBuilder().getNullPtr(DestCIRTy, Loc);
-            CGF.getBuilder().createYield(Loc, NullPtrValue);
-          })
+  return cir::TernaryOp::create(
+             builder, Loc, Success,
+             [&](mlir::OpBuilder &, mlir::Location) {
+               auto Result = emitCastResult();
+               builder.createYield(Loc, Result);
+             },
+             [&](mlir::OpBuilder &, mlir::Location) {
+               mlir::Value NullPtrValue = builder.getNullPtr(DestCIRTy, Loc);
+               builder.createYield(Loc, NullPtrValue);
+             })
       .getResult();
 }
 

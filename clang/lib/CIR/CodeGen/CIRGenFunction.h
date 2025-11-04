@@ -1869,8 +1869,9 @@ public:
     for (uint32_t i = 0; i < N; ++i) {
       args.push_back(emitScalarExpr(E->getArg(i)));
     }
-    const auto call = builder.create<cir::LLVMIntrinsicCallOp>(
-        getLoc(E->getExprLoc()), builder.getStringAttr(Name), cirTy, args);
+    const auto call = cir::LLVMIntrinsicCallOp::create(
+        builder, getLoc(E->getExprLoc()), builder.getStringAttr(Name), cirTy,
+        args);
     return RValue::get(call->getResult(0));
   }
 
