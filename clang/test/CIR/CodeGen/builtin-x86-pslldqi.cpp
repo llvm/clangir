@@ -12,11 +12,6 @@ typedef long long __m128i __attribute__((__vector_size__(16)));
 typedef long long __m256i __attribute__((__vector_size__(32)));
 typedef long long __m512i __attribute__((__vector_size__(64)));
 
-// Declare the builtins directly
-extern __m128i __builtin_ia32_pslldqi128_byteshift(__m128i, int);
-extern __m256i __builtin_ia32_pslldqi256_byteshift(__m256i, int);
-extern __m512i __builtin_ia32_pslldqi512_byteshift(__m512i, int);
-
 // ============================================================================
 // Core Functionality Tests
 // ============================================================================
@@ -48,7 +43,8 @@ __m128i test_pslldqi128_shift0(__m128i a) {
 // OGCG-LABEL: @_Z23test_pslldqi128_shift16Dv2_x
 __m128i test_pslldqi128_shift16(__m128i a) {
     // Entire vector shifted out, should return zero
-    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s64i x 2>
+    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s8i x 16>
+    // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
     // LLVM: store <2 x i64> zeroinitializer, ptr %{{.*}}, align 16
     // OGCG: ret <2 x i64> zeroinitializer
     return __builtin_ia32_pslldqi128_byteshift(a, 16);
@@ -74,7 +70,8 @@ __m256i test_pslldqi256_shift4(__m256i a) {
 // OGCG-LABEL: @_Z23test_pslldqi256_shift16Dv4_x
 __m256i test_pslldqi256_shift16(__m256i a) {
     // Both lanes completely shifted out, returns zero
-    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s64i x 4>
+    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s8i x 32>
+    // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s8i x 32> -> !cir.vector<!s64i x 4>
     // LLVM: store <4 x i64> zeroinitializer, ptr %{{.*}}, align 32
     // OGCG: ret <4 x i64> zeroinitializer
     return __builtin_ia32_pslldqi256_byteshift(a, 16);
@@ -100,7 +97,8 @@ __m512i test_pslldqi512_shift4(__m512i a) {
 // OGCG-LABEL: @_Z23test_pslldqi512_shift16Dv8_x
 __m512i test_pslldqi512_shift16(__m512i a) {
     // All 4 lanes completely cleared
-    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s64i x 8>
+    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s8i x 64>
+    // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s8i x 64> -> !cir.vector<!s64i x 8>
     // LLVM: store <8 x i64> zeroinitializer, ptr %{{.*}}, align 64
     // OGCG: ret <8 x i64> zeroinitializer
     return __builtin_ia32_pslldqi512_byteshift(a, 16);
@@ -170,7 +168,8 @@ __m128i test_concrete_input_constant() {
 // OGCG-LABEL: @_Z22test_large_shift_valueDv2_x
 __m128i test_large_shift_value(__m128i a) {
     // 240 & 0xFF = 240, so this should return zero (240 > 16)
-    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s64i x 2>
+    // CIR: %{{.*}} = cir.const #cir.zero : !cir.vector<!s8i x 16>
+    // CIR: %{{.*}} = cir.cast bitcast %{{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
     // LLVM: store <2 x i64> zeroinitializer, ptr %{{.*}}, align 16
     // OGCG: ret <2 x i64> zeroinitializer
     return __builtin_ia32_pslldqi128_byteshift(a, 240);
