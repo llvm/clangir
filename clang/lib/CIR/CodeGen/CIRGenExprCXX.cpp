@@ -1280,6 +1280,70 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
   return false;
 }
 
+namespace {
+/// Calls the given 'operator delete' on an array of objects.
+struct CallArrayDelete final : EHScopeStack::Cleanup {
+  mlir::Value Ptr;
+  const FunctionDecl *OperatorDelete;
+  mlir::Value NumElements;
+  QualType ElementType;
+  CharUnits CookieSize;
+
+  CallArrayDelete(mlir::Value Ptr, const FunctionDecl *OperatorDelete,
+                  mlir::Value NumElements, QualType ElementType,
+                  CharUnits CookieSize)
+      : Ptr(Ptr), OperatorDelete(OperatorDelete), NumElements(NumElements),
+        ElementType(ElementType), CookieSize(CookieSize) {}
+
+  void Emit(CIRGenFunction &CGF, Flags flags) override {
+    CGF.emitDeleteCall(OperatorDelete, Ptr, ElementType, NumElements,
+                       CookieSize);
+  }
+};
+} // namespace
+
+/// Emit the code for deleting an array of objects.
+static void EmitArrayDelete(CIRGenFunction &CGF, const CXXDeleteExpr *E,
+                            Address deletedPtr, QualType elementType) {
+  llvm::Value *numElements = nullptr;
+  llvm::Value *allocatedPtr = nullptr;
+  CharUnits cookieSize;
+  CGF.CGM.getCXXABI().ReadArrayCookie(CGF, deletedPtr, E, elementType,
+                                      numElements, allocatedPtr, cookieSize);
+
+  assert(allocatedPtr && "ReadArrayCookie didn't set allocated pointer");
+
+  // Make sure that we call delete even if one of the dtors throws.
+  const FunctionDecl *operatorDelete = E->getOperatorDelete();
+  CGF.EHStack.pushCleanup<CallArrayDelete>(NormalAndEHCleanup, allocatedPtr,
+                                           operatorDelete, numElements,
+                                           elementType, cookieSize);
+
+  // Destroy the elements.
+  if (QualType::DestructionKind dtorKind = elementType.isDestructedType()) {
+    assert(numElements && "no element count for a type with a destructor!");
+
+    CharUnits elementSize = CGF.getContext().getTypeSizeInChars(elementType);
+    CharUnits elementAlign =
+        deletedPtr.getAlignment().alignmentOfArrayElement(elementSize);
+
+    mlir::Value arrayBegin = deletedPtr.emitRawPointer();
+    mlir::Value arrayEnd = CGF.Builder.createInBoundsGEP(
+        deletedPtr.getElementType(), arrayBegin, numElements, "delete.end");
+
+    // Note that it is legal to allocate a zero-length array, and we
+    // can never fold the check away because the length should always
+    // come from a cookie.
+    CGF.emitArrayDestroy(arrayBegin, arrayEnd, elementType, elementAlign,
+                         CGF.getDestroyer(dtorKind),
+                         /*checkZeroLength*/ true,
+                         CGF.needsEHCleanup(dtorKind));
+  }
+
+  // Pop the cleanup block.
+  CGF.PopCleanupBlock();
+}
+
 void CIRGenFunction::emitCXXDeleteExpr(const CXXDeleteExpr *E) {
   const Expr *Arg = E->getArgument();
   Address Ptr = emitPointerWithAlignment(Arg);
@@ -1319,6 +1383,7 @@ void CIRGenFunction::emitCXXDeleteExpr(const CXXDeleteExpr *E) {
   assert(convertTypeForMem(DeleteTy) == Ptr.getElementType());
 
   if (E->isArrayForm()) {
+    EmitArrayDelete(*this, E, Ptr, DeleteTy);
     cir::DeleteArrayOp::create(builder, Ptr.getPointer().getLoc(),
                                Ptr.getPointer());
   } else {

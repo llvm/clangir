@@ -729,6 +729,15 @@ public:
     return Address(derivedAddr, destType, addr.getAlignment());
   }
 
+  Address createInBoundsGEP(Address Addr, ArrayRef<llvm::Value *> IdxList,
+                            llvm::Type *ElementType, CharUnits Align,
+                            const Twine &Name = "") {
+    return RawAddress(CreateInBoundsGEP(Addr.getElementType(),
+                                        emitRawPointerFromAddress(Addr),
+                                        IdxList, Name),
+                      ElementType, Align, Addr.isKnownNonNull());
+  }
+
   mlir::Value createVTTAddrPoint(mlir::Location loc, mlir::Type retTy,
                                  mlir::Value addr, uint64_t offset) {
     return cir::VTTAddrPointOp::create(*this, loc, retTy,
