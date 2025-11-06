@@ -2132,8 +2132,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__sync_lock_release_2:
   case Builtin::BI__sync_lock_release_4:
   case Builtin::BI__sync_lock_release_8:
-  case Builtin::BI__sync_lock_release_16:
-    llvm_unreachable("BI__sync_lock_release_1 like NYI");
+  case Builtin::BI__sync_lock_release_16: {
+    Address ptr = checkAtomicAlignment(*this, E);
+    QualType elTy = E->getArg(0)->getType()->getPointeeType();
+
+    auto iTy =
+        cir::IntType::get(&getMLIRContext(), getContext().getTypeSize(elTy),
+                          elTy->isSignedIntegerType());
+    auto store = builder.createStore(
+        getLoc(E->getSourceRange()),
+        builder.getNullValue(iTy, getLoc(E->getBeginLoc())), ptr);
+    store.setAtomic(cir::MemOrder::Release);
+    return RValue::get(nullptr);
+  }
 
   case Builtin::BI__sync_synchronize:
     llvm_unreachable("BI__sync_synchronize NYI");

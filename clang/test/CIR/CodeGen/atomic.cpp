@@ -1367,3 +1367,99 @@ void swap(unsigned short* a, short b) {
 void swap(unsigned char* a, char b) {
   unsigned char c = __sync_swap(a, b);
 }
+
+// CHECK-LABEL: @_Z12lock_releasePi
+// CHECK: cir.store align(4) atomic(release) {{.*}}, {{.*}} : !s32i, !cir.ptr<!s32i>
+
+// LLVM-LABEL: @_Z12lock_releasePi
+// LLVM: store atomic i32 0, ptr {{.*}} release, align 4
+
+// OGCG-LABEL: @_Z12lock_releasePi
+// OGCG: store atomic i32 0, ptr {{.*}} release, align 4
+void lock_release(int* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePl
+// CHECK: cir.store align(8) atomic(release) {{.*}}, {{.*}} : !s64i, !cir.ptr<!s64i>
+
+// LLVM-LABEL: @_Z12lock_releasePl
+// LLVM: store atomic i64 0, ptr {{.*}} release, align 8
+
+// OGCG-LABEL: @_Z12lock_releasePl
+// OGCG: store atomic i64 0, ptr {{.*}} release, align 8
+void lock_release(long* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePs
+// CHECK: cir.store align(2) atomic(release) {{.*}}, {{.*}} : !s16i, !cir.ptr<!s16i>
+
+// LLVM-LABEL: @_Z12lock_releasePs
+// LLVM: store atomic i16 0, ptr {{.*}} release, align 2
+
+// OGCG-LABEL: @_Z12lock_releasePs
+// OGCG: store atomic i16 0, ptr {{.*}} release, align 2
+void lock_release(short* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePc
+// CHECK: cir.store align(1) atomic(release) {{.*}}, {{.*}} : !s8i, !cir.ptr<!s8i>
+
+// LLVM-LABEL: @_Z12lock_releasePc
+// LLVM: store atomic i8 0, ptr {{.*}} release, align 1
+
+// OGCG-LABEL: @_Z12lock_releasePc
+// OGCG: store atomic i8 0, ptr {{.*}} release, align 1
+void lock_release(char* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePj
+// CHECK: cir.store align(4) atomic(release) {{.*}}, {{.*}} : !u32i, !cir.ptr<!u32i>
+
+// LLVM-LABEL: @_Z12lock_releasePj
+// LLVM: store atomic i32 0, ptr {{.*}} release, align 4
+
+// OGCG-LABEL: @_Z12lock_releasePj
+// OGCG: store atomic i32 0, ptr {{.*}} release, align 4
+void lock_release(unsigned int* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePm
+// CHECK: cir.store align(8) atomic(release) {{.*}}, {{.*}} : !u64i, !cir.ptr<!u64i>
+
+// LLVM-LABEL: @_Z12lock_releasePm
+// LLVM: store atomic i64 0, ptr {{.*}} release, align 8
+
+// OGCG-LABEL: @_Z12lock_releasePm
+// OGCG: store atomic i64 0, ptr {{.*}} release, align 8
+void lock_release(unsigned long* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePt
+// CHECK: cir.store align(2) atomic(release) {{.*}}, {{.*}} : !u16i, !cir.ptr<!u16i>
+
+// LLVM-LABEL: @_Z12lock_releasePt
+// LLVM: store atomic i16 0, ptr {{.*}} release, align 2
+
+// OGCG-LABEL: @_Z12lock_releasePt
+// OGCG: store atomic i16 0, ptr {{.*}} release, align 2
+void lock_release(unsigned short* a) {
+  __sync_lock_release(a);
+}
+
+// CHECK-LABEL: @_Z12lock_releasePh
+// CHECK: cir.store align(1) atomic(release) {{.*}}, {{.*}} : !u8i, !cir.ptr<!u8i>
+
+// LLVM-LABEL: @_Z12lock_releasePh
+// LLVM: store atomic i8 0, ptr {{.*}} release, align 1
+
+// OGCG-LABEL: @_Z12lock_releasePh
+// OGCG: store atomic i8 0, ptr {{.*}} release, align 1
+void lock_release(unsigned char* a) {
+  __sync_lock_release(a);
+}
