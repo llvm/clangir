@@ -166,16 +166,16 @@ public:
     return cgf.emitComplexPrePostIncDec(e, lv, isInc, isPre);
   }
   mlir::Value VisitUnaryPostDec(const UnaryOperator *e) {
-    return VisitPrePostIncDec(e, false, false);
+    return VisitPrePostIncDec(e, /*isInc=*/false, /*isPre=*/false);
   }
   mlir::Value VisitUnaryPostInc(const UnaryOperator *e) {
-    return VisitPrePostIncDec(e, true, false);
+    return VisitPrePostIncDec(e, /*isInc=*/true, /*isPre=*/false);
   }
   mlir::Value VisitUnaryPreDec(const UnaryOperator *e) {
-    return VisitPrePostIncDec(e, false, true);
+    return VisitPrePostIncDec(e, /*isInc=*/false, /*isPre=*/true);
   }
   mlir::Value VisitUnaryPreInc(const UnaryOperator *e) {
-    return VisitPrePostIncDec(e, true, true);
+    return VisitPrePostIncDec(e, /*isInc=*/true, /*isPre=*/true);
   }
   mlir::Value VisitUnaryDeref(const Expr *e) { return emitLoadOfLValue(e); }
 
