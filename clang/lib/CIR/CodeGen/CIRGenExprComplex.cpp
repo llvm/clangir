@@ -1,28 +1,32 @@
 #include "CIRGenBuilder.h"
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
-#include "clang/Basic/LangOptions.h"
-#include "clang/CIR/Interfaces/CIRTypeInterfaces.h"
-#include "clang/CIR/MissingFeatures.h"
 
-#include "mlir/IR/Location.h"
-#include "mlir/IR/Value.h"
 #include "clang/AST/StmtVisitor.h"
-#include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
 using namespace clang::CIRGen;
 
+#ifndef NDEBUG
+/// Return the complex type that we are meant to emit.
+static const ComplexType *getComplexType(QualType type) {
+  type = type.getCanonicalType();
+  if (const ComplexType *comp = dyn_cast<ComplexType>(type))
+    return comp;
+  return cast<ComplexType>(cast<AtomicType>(type)->getValueType());
+}
+#endif // NDEBUG
+
 namespace {
 
 class ComplexExprEmitter : public StmtVisitor<ComplexExprEmitter, mlir::Value> {
-  CIRGenFunction &CGF;
-  CIRGenBuilderTy &Builder;
-  bool FPHasBeenPromoted;
+  CIRGenFunction &cgf;
+  CIRGenBuilderTy &builder;
+  bool fpHasBeenPromoted = false;
 
 public:
   explicit ComplexExprEmitter(CIRGenFunction &cgf)
-      : CGF(cgf), Builder(cgf.getBuilder()), FPHasBeenPromoted(false) {}
+      : cgf(cgf), builder(cgf.getBuilder()) {}
 
   //===--------------------------------------------------------------------===//
   //                               Utilities
@@ -31,211 +35,221 @@ public:
   /// Given an expression with complex type that represents a value l-value,
   /// this method emits the address of the l-value, then loads and returns the
   /// result.
-  mlir::Value emitLoadOfLValue(const Expr *E) {
-    return emitLoadOfLValue(CGF.emitLValue(E), E->getExprLoc());
+  mlir::Value emitLoadOfLValue(const Expr *e) {
+    return emitLoadOfLValue(cgf.emitLValue(e), e->getExprLoc());
   }
 
-  mlir::Value emitLoadOfLValue(LValue LV, SourceLocation Loc);
+  mlir::Value emitLoadOfLValue(LValue lv, SourceLocation loc);
 
   /// EmitStoreOfComplex - Store the specified real/imag parts into the
   /// specified value pointer.
-  void emitStoreOfComplex(mlir::Location Loc, mlir::Value Val, LValue LV,
+  void emitStoreOfComplex(mlir::Location loc, mlir::Value val, LValue lv,
                           bool isInit);
 
   /// Emit a cast from complex value Val to DestType.
-  mlir::Value emitComplexToComplexCast(mlir::Value Val, QualType SrcType,
-                                       QualType DestType, SourceLocation Loc);
+  mlir::Value emitComplexToComplexCast(mlir::Value val, QualType srcType,
+                                       QualType destType, SourceLocation loc);
+
   /// Emit a cast from scalar value Val to DestType.
-  mlir::Value emitScalarToComplexCast(mlir::Value Val, QualType SrcType,
-                                      QualType DestType, SourceLocation Loc);
+  mlir::Value emitScalarToComplexCast(mlir::Value val, QualType srcType,
+                                      QualType destType, SourceLocation loc);
 
   //===--------------------------------------------------------------------===//
   //                            Visitor Methods
   //===--------------------------------------------------------------------===//
 
-  mlir::Value Visit(Expr *E) {
+  mlir::Value Visit(Expr *e) {
     assert(!cir::MissingFeatures::generateDebugInfo());
-    return StmtVisitor<ComplexExprEmitter, mlir::Value>::Visit(E);
+    return StmtVisitor<ComplexExprEmitter, mlir::Value>::Visit(e);
   }
 
-  mlir::Value VisitStmt(Stmt *S) {
-    S->dump(llvm::errs(), CGF.getContext());
+  mlir::Value VisitStmt(Stmt *s) {
+    s->dump(llvm::errs(), cgf.getContext());
     llvm_unreachable("Stmt can't have complex result type!");
   }
 
-  mlir::Value VisitExpr(Expr *S) { llvm_unreachable("not supported"); }
-  mlir::Value VisitConstantExpr(ConstantExpr *E) {
-    if (auto Result = ConstantEmitter(CGF).tryEmitConstantExpr(E))
-      return Builder.getConstant(CGF.getLoc(E->getSourceRange()),
-                                 mlir::cast<mlir::TypedAttr>(Result));
-    return Visit(E->getSubExpr());
+  mlir::Value VisitExpr(Expr *s);
+  mlir::Value VisitConstantExpr(ConstantExpr *e) {
+    if (mlir::Attribute result = ConstantEmitter(cgf).tryEmitConstantExpr(e))
+      return builder.getConstant(cgf.getLoc(e->getSourceRange()),
+                                 mlir::cast<mlir::TypedAttr>(result));
+    return Visit(e->getSubExpr());
   }
-  mlir::Value VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr()); }
-  mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
-    return Visit(GE->getResultExpr());
+
+  mlir::Value VisitParenExpr(ParenExpr *pe) { return Visit(pe->getSubExpr()); }
+  mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *ge) {
+    return Visit(ge->getResultExpr());
   }
-  mlir::Value VisitImaginaryLiteral(const ImaginaryLiteral *IL);
+  mlir::Value VisitImaginaryLiteral(const ImaginaryLiteral *il);
   mlir::Value
-  VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *PE) {
-    return Visit(PE->getReplacement());
+  VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *pe) {
+    return Visit(pe->getReplacement());
   }
-  mlir::Value VisitCoawaitExpr(CoawaitExpr *S) { llvm_unreachable("NYI"); }
-  mlir::Value VisitCoyieldExpr(CoyieldExpr *S) { llvm_unreachable("NYI"); }
-  mlir::Value VisitUnaryCoawait(const UnaryOperator *E) {
-    return Visit(E->getSubExpr());
+  mlir::Value VisitCoawaitExpr(CoawaitExpr *s) {
+    llvm_unreachable("VisitCoawaitExpr NYI");
+  }
+  mlir::Value VisitCoyieldExpr(CoyieldExpr *s) {
+    llvm_unreachable("VisitCoyieldExpr NYI");
+  }
+  mlir::Value VisitUnaryCoawait(const UnaryOperator *e) {
+    return Visit(e->getSubExpr());
   }
 
-  mlir::Value emitConstant(const CIRGenFunction::ConstantEmission &Constant,
-                           Expr *E) {
-    assert(Constant && "not a constant");
-    if (Constant.isReference())
-      return emitLoadOfLValue(Constant.getReferenceLValue(CGF, E),
-                              E->getExprLoc());
+  mlir::Value emitConstant(const CIRGenFunction::ConstantEmission &constant,
+                           Expr *e) {
+    assert(constant && "not a constant");
+    if (constant.isReference())
+      return emitLoadOfLValue(constant.getReferenceLValue(cgf, e),
+                              e->getExprLoc());
 
-    auto valueAttr = Constant.getValue();
-    return Builder.getConstant(CGF.getLoc(E->getSourceRange()), valueAttr);
+    mlir::TypedAttr valueAttr = constant.getValue();
+    return builder.getConstant(cgf.getLoc(e->getSourceRange()), valueAttr);
   }
 
   // l-values.
-  mlir::Value VisitDeclRefExpr(DeclRefExpr *E) {
-    if (CIRGenFunction::ConstantEmission Constant = CGF.tryEmitAsConstant(E))
-      return emitConstant(Constant, E);
-    return emitLoadOfLValue(E);
+  mlir::Value VisitDeclRefExpr(DeclRefExpr *e) {
+    if (CIRGenFunction::ConstantEmission constant = cgf.tryEmitAsConstant(e))
+      return emitConstant(constant, e);
+    return emitLoadOfLValue(e);
   }
-  mlir::Value VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitObjCIvarRefExpr(ObjCIvarRefExpr *e) {
+    llvm_unreachable("VisitObjCIvarRefExpr NYI");
   }
-  mlir::Value VisitObjCMessageExpr(ObjCMessageExpr *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitObjCMessageExpr(ObjCMessageExpr *e) {
+    llvm_unreachable("VisitObjCMessageExpr NYI");
   }
-  mlir::Value VisitArraySubscriptExpr(Expr *E) { return emitLoadOfLValue(E); }
+  mlir::Value VisitArraySubscriptExpr(Expr *e) { return emitLoadOfLValue(e); }
 
-  mlir::Value VisitMemberExpr(MemberExpr *ME) {
-    if (CIRGenFunction::ConstantEmission constant = CGF.tryEmitAsConstant(ME)) {
-      CGF.emitIgnoredExpr(ME->getBase());
-      return emitConstant(constant, ME);
+  mlir::Value VisitMemberExpr(MemberExpr *me) {
+    if (CIRGenFunction::ConstantEmission constant = cgf.tryEmitAsConstant(me)) {
+      cgf.emitIgnoredExpr(me->getBase());
+      return emitConstant(constant, me);
     }
-    return emitLoadOfLValue(ME);
+    return emitLoadOfLValue(me);
   }
 
-  mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-    if (E->isGLValue())
-      return emitLoadOfLValue(CGF.getOrCreateOpaqueLValueMapping(E),
-                              E->getExprLoc());
+  mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *e) {
+    if (e->isGLValue())
+      return emitLoadOfLValue(cgf.getOrCreateOpaqueLValueMapping(e),
+                              e->getExprLoc());
 
     // Otherwise, assume the mapping is the scalar directly.
-    return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
+    return cgf.getOrCreateOpaqueRValueMapping(e).getScalarVal();
   }
 
-  mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *e) {
+    llvm_unreachable("VisitPseudoObjectExpr NYI");
   }
 
-  // FIXME: CompoundLiteralExpr
-
-  mlir::Value emitCast(CastKind CK, Expr *Op, QualType DestTy);
-  mlir::Value VisitImplicitCastExpr(ImplicitCastExpr *E) {
+  mlir::Value emitCast(CastKind ck, Expr *op, QualType destTy);
+  mlir::Value VisitImplicitCastExpr(ImplicitCastExpr *e) {
     // Unlike for scalars, we don't have to worry about function->ptr demotion
     // here.
-    if (E->changesVolatileQualification())
-      return emitLoadOfLValue(E);
-    return emitCast(E->getCastKind(), E->getSubExpr(), E->getType());
+    if (e->changesVolatileQualification())
+      return emitLoadOfLValue(e);
+    return emitCast(e->getCastKind(), e->getSubExpr(), e->getType());
   }
-  mlir::Value VisitCastExpr(CastExpr *E);
-  mlir::Value VisitCallExpr(const CallExpr *E);
-  mlir::Value VisitStmtExpr(const StmtExpr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitCastExpr(CastExpr *e) {
+    if (const auto *ece = dyn_cast<ExplicitCastExpr>(e))
+      cgf.CGM.emitExplicitCastExprType(ece, &cgf);
+    if (e->changesVolatileQualification())
+      return emitLoadOfLValue(e);
+    return emitCast(e->getCastKind(), e->getSubExpr(), e->getType());
+  }
+  mlir::Value VisitCallExpr(const CallExpr *e);
+  mlir::Value VisitStmtExpr(const StmtExpr *e);
 
   // Operators.
-  mlir::Value VisitPrePostIncDec(const UnaryOperator *E, bool isInc,
-                                 bool isPre);
-  mlir::Value VisitUnaryPostDec(const UnaryOperator *E) {
-    return VisitPrePostIncDec(E, false, false);
+  mlir::Value VisitPrePostIncDec(const UnaryOperator *e, bool isInc,
+                                 bool isPre) {
+    LValue lv = cgf.emitLValue(e->getSubExpr());
+    return cgf.emitComplexPrePostIncDec(e, lv, isInc, isPre);
   }
-  mlir::Value VisitUnaryPostInc(const UnaryOperator *E) {
-    return VisitPrePostIncDec(E, true, false);
+  mlir::Value VisitUnaryPostDec(const UnaryOperator *e) {
+    return VisitPrePostIncDec(e, /*isInc=*/false, /*isPre=*/false);
   }
-  mlir::Value VisitUnaryPreDec(const UnaryOperator *E) {
-    return VisitPrePostIncDec(E, false, true);
+  mlir::Value VisitUnaryPostInc(const UnaryOperator *e) {
+    return VisitPrePostIncDec(e, /*isInc=*/true, /*isPre=*/false);
   }
-  mlir::Value VisitUnaryPreInc(const UnaryOperator *E) {
-    return VisitPrePostIncDec(E, true, true);
+  mlir::Value VisitUnaryPreDec(const UnaryOperator *e) {
+    return VisitPrePostIncDec(e, /*isInc=*/false, /*isPre=*/true);
   }
-  mlir::Value VisitUnaryDeref(const Expr *E) { return emitLoadOfLValue(E); }
+  mlir::Value VisitUnaryPreInc(const UnaryOperator *e) {
+    return VisitPrePostIncDec(e, /*isInc=*/true, /*isPre=*/true);
+  }
+  mlir::Value VisitUnaryDeref(const Expr *e) { return emitLoadOfLValue(e); }
 
-  mlir::Value VisitUnaryPlus(const UnaryOperator *E,
-                             QualType PromotionType = QualType());
-  mlir::Value VisitPlus(const UnaryOperator *E, QualType PromotionType);
-  mlir::Value VisitUnaryMinus(const UnaryOperator *E,
-                              QualType PromotionType = QualType());
-  mlir::Value VisitMinus(const UnaryOperator *E, QualType PromotionType);
-  mlir::Value VisitUnaryNot(const UnaryOperator *E);
+  mlir::Value VisitUnaryPlus(const UnaryOperator *e,
+                             QualType promotionType = QualType());
+  mlir::Value VisitPlus(const UnaryOperator *e, QualType promotionType);
+  mlir::Value VisitUnaryMinus(const UnaryOperator *e,
+                              QualType promotionType = QualType());
+  mlir::Value VisitMinus(const UnaryOperator *e, QualType promotionType);
+  mlir::Value VisitUnaryNot(const UnaryOperator *e);
   // LNot,Real,Imag never return complex.
-  mlir::Value VisitUnaryExtension(const UnaryOperator *E) {
-    return Visit(E->getSubExpr());
+  mlir::Value VisitUnaryExtension(const UnaryOperator *e) {
+    return Visit(e->getSubExpr());
   }
-  mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
-    CIRGenFunction::CXXDefaultArgExprScope scope(CGF, DAE);
-    return Visit(DAE->getExpr());
-  }
-
-  mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
-    CIRGenFunction::CXXDefaultInitExprScope Scope(CGF, DIE);
-    return Visit(DIE->getExpr());
+  mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *dae) {
+    CIRGenFunction::CXXDefaultArgExprScope scope(cgf, dae);
+    return Visit(dae->getExpr());
   }
 
-  mlir::Value VisitExprWithCleanups(ExprWithCleanups *E) {
-    CIRGenFunction::RunCleanupsScope Scope(CGF);
-    mlir::Value V = Visit(E->getSubExpr());
+  mlir::Value VisitCXXDefaultInitExpr(CXXDefaultInitExpr *die) {
+    CIRGenFunction::CXXDefaultInitExprScope scope(cgf, die);
+    return Visit(die->getExpr());
+  }
+
+  mlir::Value VisitExprWithCleanups(ExprWithCleanups *e) {
+    CIRGenFunction::RunCleanupsScope scope(cgf);
+    mlir::Value V = Visit(e->getSubExpr());
     // Defend against dominance problems caused by jumps out of expression
     // evaluation through the shared cleanup block.
-    Scope.ForceCleanup({&V});
+    scope.ForceCleanup({&V});
     return V;
   }
-
-  mlir::Value VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
-    mlir::Location loc = CGF.getLoc(E->getExprLoc());
-    mlir::Type complexTy = CGF.convertType(E->getType());
-    return Builder.getNullValue(complexTy, loc);
+  mlir::Value VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *e) {
+    mlir::Location loc = cgf.getLoc(e->getExprLoc());
+    mlir::Type complexTy = cgf.convertType(e->getType());
+    return builder.getNullValue(complexTy, loc);
   }
-
-  mlir::Value VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitImplicitValueInitExpr(ImplicitValueInitExpr *e) {
+    llvm_unreachable("VisitImplicitValueInitExpr NYI");
   }
 
   struct BinOpInfo {
-    mlir::Location Loc;
-    mlir::Value LHS{};
-    mlir::Value RHS{};
-    QualType Ty{}; // Computation Type.
-    FPOptions FPFeatures{};
+    mlir::Location loc;
+    mlir::Value lhs{};
+    mlir::Value rhs{};
+    QualType ty{}; // Computation Type.
+    FPOptions fpFeatures{};
   };
 
-  BinOpInfo emitBinOps(const BinaryOperator *E,
-                       QualType PromotionTy = QualType());
-  mlir::Value emitPromoted(const Expr *E, QualType PromotionTy);
-  mlir::Value emitPromotedComplexOperand(const Expr *E, QualType PromotionTy);
-
+  BinOpInfo emitBinOps(const BinaryOperator *e,
+                       QualType promotionTy = QualType());
+  mlir::Value emitPromoted(const Expr *e, QualType promotionTy);
+  mlir::Value emitPromotedComplexOperand(const Expr *e, QualType promotionTy);
   LValue emitCompoundAssignLValue(
-      const CompoundAssignOperator *E,
-      mlir::Value (ComplexExprEmitter::*Func)(const BinOpInfo &), RValue &Val);
+      const CompoundAssignOperator *e,
+      mlir::Value (ComplexExprEmitter::*func)(const BinOpInfo &), RValue &val);
   mlir::Value emitCompoundAssign(
-      const CompoundAssignOperator *E,
-      mlir::Value (ComplexExprEmitter::*Func)(const BinOpInfo &));
+      const CompoundAssignOperator *e,
+      mlir::Value (ComplexExprEmitter::*func)(const BinOpInfo &));
 
-  mlir::Value emitBinAdd(const BinOpInfo &Op);
-  mlir::Value emitBinSub(const BinOpInfo &Op);
-  mlir::Value emitBinMul(const BinOpInfo &Op);
-  mlir::Value emitBinDiv(const BinOpInfo &Op);
+  mlir::Value emitBinAdd(const BinOpInfo &op);
+  mlir::Value emitBinSub(const BinOpInfo &op);
+  mlir::Value emitBinMul(const BinOpInfo &op);
+  mlir::Value emitBinDiv(const BinOpInfo &op);
 
-  QualType HigherPrecisionTypeForComplexArithmetic(QualType ElementType,
-                                                   bool IsDivOpCode) {
-    ASTContext &astContext = CGF.getContext();
-    const QualType HigherElementType =
-        astContext.GetHigherPrecisionFPType(ElementType);
-    const llvm::fltSemantics &ElementTypeSemantics =
-        astContext.getFloatTypeSemantics(ElementType);
-    const llvm::fltSemantics &HigherElementTypeSemantics =
-        astContext.getFloatTypeSemantics(HigherElementType);
+  QualType higherPrecisionTypeForComplexArithmetic(QualType elementType,
+                                                   bool isDivOpCode) {
+    ASTContext &astContext = cgf.getContext();
+    const QualType higherElementType =
+        astContext.GetHigherPrecisionFPType(elementType);
+    const llvm::fltSemantics &elementTypeSemantics =
+        astContext.getFloatTypeSemantics(elementType);
+    const llvm::fltSemantics &higherElementTypeSemantics =
+        astContext.getFloatTypeSemantics(higherElementType);
     // Check that the promoted type can handle the intermediate values without
     // overflowing. This can be interpreted as:
     // (SmallerType.LargestFiniteVal * SmallerType.LargestFiniteVal) * 2 <=
@@ -243,41 +257,40 @@ public:
     // In terms of exponent it gives this formula:
     // (SmallerType.LargestFiniteVal * SmallerType.LargestFiniteVal
     // doubles the exponent of SmallerType.LargestFiniteVal)
-    if (llvm::APFloat::semanticsMaxExponent(ElementTypeSemantics) * 2 + 1 <=
-        llvm::APFloat::semanticsMaxExponent(HigherElementTypeSemantics)) {
-      FPHasBeenPromoted = true;
-      return astContext.getComplexType(HigherElementType);
-    } else {
-      // The intermediate values can't be represented in the promoted type
-      // without overflowing.
-      return QualType();
+    if (llvm::APFloat::semanticsMaxExponent(elementTypeSemantics) * 2 + 1 <=
+        llvm::APFloat::semanticsMaxExponent(higherElementTypeSemantics)) {
+      fpHasBeenPromoted = true;
+      return astContext.getComplexType(higherElementType);
     }
-  }
 
-  QualType getPromotionType(QualType Ty, bool IsDivOpCode = false) {
-    if (auto *CT = Ty->getAs<ComplexType>()) {
-      QualType ElementType = CT->getElementType();
-      if (IsDivOpCode && ElementType->isFloatingType() &&
-          CGF.getLangOpts().getComplexRange() ==
-              LangOptions::ComplexRangeKind::CX_Promoted)
-        return HigherPrecisionTypeForComplexArithmetic(ElementType,
-                                                       IsDivOpCode);
-      if (ElementType.UseExcessPrecision(CGF.getContext()))
-        return CGF.getContext().getComplexType(CGF.getContext().FloatTy);
-    }
-    if (Ty.UseExcessPrecision(CGF.getContext()))
-      return CGF.getContext().FloatTy;
+    // The intermediate values can't be represented in the promoted type
+    // without overflowing.
     return QualType();
   }
 
+  QualType getPromotionType(QualType rt, bool isDivOpCode = false) {
+    if (auto *ct = rt->getAs<ComplexType>()) {
+      QualType elementType = ct->getElementType();
+      if (isDivOpCode && elementType->isFloatingType() &&
+          cgf.getLangOpts().getComplexRange() ==
+              LangOptions::ComplexRangeKind::CX_Promoted)
+        return higherPrecisionTypeForComplexArithmetic(elementType,
+                                                       isDivOpCode);
+      if (elementType.UseExcessPrecision(cgf.getContext()))
+        return cgf.getContext().getComplexType(cgf.getContext().FloatTy);
+    }
+
+    return rt.UseExcessPrecision(cgf.getContext()) ? cgf.getContext().FloatTy
+                                                   : QualType();
+  }
+
 #define HANDLEBINOP(OP)                                                        \
-  mlir::Value VisitBin##OP(const BinaryOperator *E) {                          \
+  mlir::Value VisitBin##OP(const BinaryOperator *e) {                          \
     QualType promotionTy = getPromotionType(                                   \
-        E->getType(),                                                          \
-        (E->getOpcode() == BinaryOperatorKind::BO_Div) ? true : false);        \
-    mlir::Value result = emitBin##OP(emitBinOps(E, promotionTy));              \
+        e->getType(), e->getOpcode() == BinaryOperatorKind::BO_Div);           \
+    mlir::Value result = emitBin##OP(emitBinOps(e, promotionTy));              \
     if (!promotionTy.isNull())                                                 \
-      result = CGF.emitUnPromotedValue(result, E->getType());                  \
+      result = cgf.emitUnPromotedValue(result, e->getType());                  \
     return result;                                                             \
   }
 
@@ -287,22 +300,22 @@ public:
   HANDLEBINOP(Sub)
 #undef HANDLEBINOP
 
-  mlir::Value VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *e) {
+    llvm_unreachable("VisitCXXRewrittenBinaryOperator NYI");
   }
 
   // Compound assignments.
-  mlir::Value VisitBinAddAssign(const CompoundAssignOperator *E) {
-    return emitCompoundAssign(E, &ComplexExprEmitter::emitBinAdd);
+  mlir::Value VisitBinAddAssign(const CompoundAssignOperator *e) {
+    return emitCompoundAssign(e, &ComplexExprEmitter::emitBinAdd);
   }
-  mlir::Value VisitBinSubAssign(const CompoundAssignOperator *E) {
-    return emitCompoundAssign(E, &ComplexExprEmitter::emitBinSub);
+  mlir::Value VisitBinSubAssign(const CompoundAssignOperator *e) {
+    return emitCompoundAssign(e, &ComplexExprEmitter::emitBinSub);
   }
-  mlir::Value VisitBinMulAssign(const CompoundAssignOperator *E) {
-    return emitCompoundAssign(E, &ComplexExprEmitter::emitBinMul);
+  mlir::Value VisitBinMulAssign(const CompoundAssignOperator *e) {
+    return emitCompoundAssign(e, &ComplexExprEmitter::emitBinMul);
   }
-  mlir::Value VisitBinDivAssign(const CompoundAssignOperator *E) {
-    return emitCompoundAssign(E, &ComplexExprEmitter::emitBinDiv);
+  mlir::Value VisitBinDivAssign(const CompoundAssignOperator *e) {
+    return emitCompoundAssign(e, &ComplexExprEmitter::emitBinDiv);
   }
 
   // GCC rejects rem/and/or/xor for integer complex.
@@ -310,86 +323,59 @@ public:
 
   // No comparisons produce a complex result.
 
-  LValue emitBinAssignLValue(const BinaryOperator *E, mlir::Value &Val);
-  mlir::Value VisitBinAssign(const BinaryOperator *E) {
-    mlir::Value Val;
-    LValue LV = emitBinAssignLValue(E, Val);
-
-    // The result of an assignment in C is the assigned r-value.
-    if (!CGF.getLangOpts().CPlusPlus)
-      return Val;
-
-    // If the lvalue is non-volatile, return the computed value of the
-    // assignment.
-    if (!LV.isVolatileQualified())
-      return Val;
-
-    return emitLoadOfLValue(LV, E->getExprLoc());
-  };
-  mlir::Value VisitBinComma(const BinaryOperator *E) {
-    CGF.emitIgnoredExpr(E->getLHS());
-    return Visit(E->getRHS());
-  }
+  LValue emitBinAssignLValue(const BinaryOperator *e, mlir::Value &val);
+  mlir::Value VisitBinAssign(const BinaryOperator *e);
+  mlir::Value VisitBinComma(const BinaryOperator *e);
 
   mlir::Value
-  VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
-    mlir::Location loc = CGF.getLoc(E->getSourceRange());
+  VisitAbstractConditionalOperator(const AbstractConditionalOperator *e);
+  mlir::Value VisitChooseExpr(ChooseExpr *ce);
 
-    // Bind the common expression if necessary.
-    CIRGenFunction::OpaqueValueMapping binding(CGF, E);
+  mlir::Value VisitInitListExpr(InitListExpr *e);
 
-    CIRGenFunction::ConditionalEvaluation eval(CGF);
-
-    Expr *cond = E->getCond()->IgnoreParens();
-    mlir::Value condValue = CGF.evaluateExprAsBool(cond);
-
-    return cir::TernaryOp::create(
-               Builder, loc, condValue,
-               /*thenBuilder=*/
-               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                 eval.begin(CGF);
-                 mlir::Value trueValue = Visit(E->getTrueExpr());
-                 cir::YieldOp::create(b, loc, trueValue);
-                 eval.end(CGF);
-               },
-               /*elseBuilder=*/
-               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                 eval.begin(CGF);
-                 mlir::Value falseValue = Visit(E->getFalseExpr());
-                 cir::YieldOp::create(b, loc, falseValue);
-                 eval.end(CGF);
-               })
-        .getResult();
+  mlir::Value VisitCompoundLiteralExpr(CompoundLiteralExpr *e) {
+    return emitLoadOfLValue(e);
   }
 
-  mlir::Value VisitChooseExpr(ChooseExpr *CE) {
-    return Visit(CE->getChosenSubExpr());
+  mlir::Value VisitVAArgExpr(VAArgExpr *e);
+
+  mlir::Value VisitAtomicExpr(AtomicExpr *e) {
+    return cgf.emitAtomicExpr(e).getComplexVal();
   }
 
-  mlir::Value VisitInitListExpr(InitListExpr *E);
-
-  mlir::Value VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-    return emitLoadOfLValue(E);
-  }
-
-  mlir::Value VisitVAArgExpr(VAArgExpr *E) { llvm_unreachable("NYI"); }
-
-  mlir::Value VisitAtomicExpr(AtomicExpr *E) {
-    return CGF.emitAtomicExpr(E).getComplexVal();
-  }
-
-  mlir::Value VisitPackIndexingExpr(PackIndexingExpr *E) {
-    llvm_unreachable("NYI");
+  mlir::Value VisitPackIndexingExpr(PackIndexingExpr *e) {
+    llvm_unreachable("VisitPackIndexingExpr NYI");
   }
 };
 
 } // namespace
 
-static const ComplexType *getComplexType(QualType type) {
-  type = type.getCanonicalType();
-  if (const ComplexType *comp = dyn_cast<ComplexType>(type))
-    return comp;
-  return cast<ComplexType>(cast<AtomicType>(type)->getValueType());
+//===----------------------------------------------------------------------===//
+//                                Utilities
+//===----------------------------------------------------------------------===//
+
+/// EmitLoadOfLValue - Given an RValue reference for a complex, emit code to
+/// load the real and imaginary pieces, returning them as Real/Imag.
+mlir::Value ComplexExprEmitter::emitLoadOfLValue(LValue lv,
+                                                 SourceLocation loc) {
+  assert(lv.isSimple() && "non-simple complex l-value?");
+  if (lv.getType()->isAtomicType())
+    llvm_unreachable("emitLoadOfLValue AtomicType NYI");
+
+  Address srcPtr = lv.getAddress();
+  return builder.createLoad(cgf.getLoc(loc), srcPtr, lv.isVolatileQualified());
+}
+
+/// EmitStoreOfComplex - Store the specified real/imag parts into the
+/// specified value pointer.
+void ComplexExprEmitter::emitStoreOfComplex(mlir::Location loc, mlir::Value val,
+                                            LValue lv, bool isInit) {
+  if (lv.getType()->isAtomicType() ||
+      (!isInit && cgf.LValueIsSuitableForInlineAtomic(lv)))
+    llvm_unreachable("emitStoreOfComplex AtomicType NYI");
+
+  Address destAddr = lv.getAddress();
+  builder.createStore(loc, val, destAddr, lv.isVolatileQualified());
 }
 
 static mlir::Value createComplexFromReal(CIRGenBuilderTy &builder,
@@ -398,101 +384,125 @@ static mlir::Value createComplexFromReal(CIRGenBuilderTy &builder,
   return builder.createComplexCreate(loc, real, imag);
 }
 
-mlir::Value ComplexExprEmitter::emitLoadOfLValue(LValue LV,
-                                                 SourceLocation Loc) {
-  assert(LV.isSimple() && "non-simple complex l-value?");
-  if (LV.getType()->isAtomicType())
-    llvm_unreachable("NYI");
+//===----------------------------------------------------------------------===//
+//                            Visitor Methods
+//===----------------------------------------------------------------------===//
 
-  Address SrcPtr = LV.getAddress();
-  return Builder.createLoad(CGF.getLoc(Loc), SrcPtr, LV.isVolatileQualified());
+mlir::Value ComplexExprEmitter::VisitExpr(Expr *s) {
+  llvm_unreachable("not supported");
 }
 
-void ComplexExprEmitter::emitStoreOfComplex(mlir::Location Loc, mlir::Value Val,
-                                            LValue LV, bool isInit) {
-  if (LV.getType()->isAtomicType() ||
-      (!isInit && CGF.LValueIsSuitableForInlineAtomic(LV)))
-    llvm_unreachable("NYI");
+mlir::Value
+ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *il) {
+  mlir::Location loc = cgf.getLoc(il->getExprLoc());
+  auto ty = mlir::cast<cir::ComplexType>(cgf.convertType(il->getType()));
+  mlir::Type elementTy = ty.getElementType();
 
-  Address DestAddr = LV.getAddress();
-  Builder.createStore(Loc, Val, DestAddr, LV.isVolatileQualified());
+  mlir::TypedAttr realValueAttr;
+  mlir::TypedAttr imagValueAttr;
+  if (mlir::isa<cir::IntType>(elementTy)) {
+    auto imagValue = cast<IntegerLiteral>(il->getSubExpr())->getValue();
+    realValueAttr = cir::IntAttr::get(elementTy, 0);
+    imagValueAttr = cir::IntAttr::get(elementTy, imagValue);
+  } else if (mlir::isa<cir::FPTypeInterface>(elementTy)) {
+    auto imagValue = cast<FloatingLiteral>(il->getSubExpr())->getValue();
+    realValueAttr = cir::FPAttr::get(
+        elementTy, llvm::APFloat::getZero(imagValue.getSemantics()));
+    imagValueAttr = cir::FPAttr::get(elementTy, imagValue);
+  } else {
+    llvm_unreachable("unexpected complex element type");
+  }
+
+  auto realValue = builder.getConstant(loc, realValueAttr);
+  auto imagValue = builder.getConstant(loc, imagValueAttr);
+  return builder.createComplexCreate(loc, realValue, imagValue);
 }
 
-mlir::Value ComplexExprEmitter::emitComplexToComplexCast(mlir::Value Val,
-                                                         QualType SrcType,
-                                                         QualType DestType,
-                                                         SourceLocation Loc) {
-  if (SrcType == DestType)
-    return Val;
+mlir::Value ComplexExprEmitter::VisitCallExpr(const CallExpr *e) {
+  if (e->getCallReturnType(cgf.getContext())->isReferenceType())
+    return emitLoadOfLValue(e);
+  return cgf.emitCallExpr(e).getComplexVal();
+}
+
+mlir::Value ComplexExprEmitter::VisitStmtExpr(const StmtExpr *e) {
+  llvm_unreachable("VisitStmtExpr NYI");
+}
+
+mlir::Value ComplexExprEmitter::emitComplexToComplexCast(mlir::Value val,
+                                                         QualType srcType,
+                                                         QualType destType,
+                                                         SourceLocation loc) {
+  if (srcType == destType)
+    return val;
 
   // Get the src/dest element type.
-  QualType SrcElemTy = SrcType->castAs<ComplexType>()->getElementType();
-  QualType DestElemTy = DestType->castAs<ComplexType>()->getElementType();
+  QualType srcElemTy = srcType->castAs<ComplexType>()->getElementType();
+  QualType destElemTy = destType->castAs<ComplexType>()->getElementType();
 
-  cir::CastKind CastOpKind;
-  if (SrcElemTy->isFloatingType() && DestElemTy->isFloatingType())
-    CastOpKind = cir::CastKind::float_complex;
-  else if (SrcElemTy->isFloatingType() && DestElemTy->isIntegerType())
-    CastOpKind = cir::CastKind::float_complex_to_int_complex;
-  else if (SrcElemTy->isIntegerType() && DestElemTy->isFloatingType())
-    CastOpKind = cir::CastKind::int_complex_to_float_complex;
-  else if (SrcElemTy->isIntegerType() && DestElemTy->isIntegerType())
-    CastOpKind = cir::CastKind::int_complex;
+  cir::CastKind castOpKind;
+  if (srcElemTy->isFloatingType() && destElemTy->isFloatingType())
+    castOpKind = cir::CastKind::float_complex;
+  else if (srcElemTy->isFloatingType() && destElemTy->isIntegerType())
+    castOpKind = cir::CastKind::float_complex_to_int_complex;
+  else if (srcElemTy->isIntegerType() && destElemTy->isFloatingType())
+    castOpKind = cir::CastKind::int_complex_to_float_complex;
+  else if (srcElemTy->isIntegerType() && destElemTy->isIntegerType())
+    castOpKind = cir::CastKind::int_complex;
   else
     llvm_unreachable("unexpected src type or dest type");
 
-  return Builder.createCast(CGF.getLoc(Loc), CastOpKind, Val,
-                            CGF.convertType(DestType));
+  return builder.createCast(cgf.getLoc(loc), castOpKind, val,
+                            cgf.convertType(destType));
 }
 
-mlir::Value ComplexExprEmitter::emitScalarToComplexCast(mlir::Value Val,
-                                                        QualType SrcType,
-                                                        QualType DestType,
-                                                        SourceLocation Loc) {
-  cir::CastKind CastOpKind;
-  if (SrcType->isFloatingType())
-    CastOpKind = cir::CastKind::float_to_complex;
-  else if (SrcType->isIntegerType())
-    CastOpKind = cir::CastKind::int_to_complex;
+mlir::Value ComplexExprEmitter::emitScalarToComplexCast(mlir::Value vVal,
+                                                        QualType srcType,
+                                                        QualType destType,
+                                                        SourceLocation loc) {
+  cir::CastKind castOpKind;
+  if (srcType->isFloatingType())
+    castOpKind = cir::CastKind::float_to_complex;
+  else if (srcType->isIntegerType())
+    castOpKind = cir::CastKind::int_to_complex;
   else
     llvm_unreachable("unexpected src type");
 
-  return Builder.createCast(CGF.getLoc(Loc), CastOpKind, Val,
-                            CGF.convertType(DestType));
+  return builder.createCast(cgf.getLoc(loc), castOpKind, vVal,
+                            cgf.convertType(destType));
 }
 
-mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
-                                         QualType DestTy) {
-  switch (CK) {
+mlir::Value ComplexExprEmitter::emitCast(CastKind ck, Expr *op,
+                                         QualType destTy) {
+  switch (ck) {
   case CK_Dependent:
     llvm_unreachable("dependent cast kind in IR gen!");
 
   case CK_NoOp:
   case CK_LValueToRValue:
   case CK_UserDefinedConversion:
-    return Visit(Op);
+    return Visit(op);
 
   // Atomic to non-atomic casts may be more than a no-op for some platforms
   // and for some types.
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
-    llvm_unreachable("NYI");
+    llvm_unreachable("emitCast Atomic NYI");
 
   case CK_LValueBitCast: {
-    LValue origLV = CGF.emitLValue(Op);
+    LValue origLV = cgf.emitLValue(op);
     Address addr =
-        origLV.getAddress().withElementType(Builder, CGF.convertType(DestTy));
-    LValue destLV = CGF.makeAddrLValue(addr, DestTy);
-    return emitLoadOfLValue(destLV, Op->getExprLoc());
+        origLV.getAddress().withElementType(builder, cgf.convertType(destTy));
+    LValue destLV = cgf.makeAddrLValue(addr, destTy);
+    return emitLoadOfLValue(destLV, op->getExprLoc());
   }
 
   case CK_LValueToRValueBitCast: {
-    LValue SourceLVal = CGF.emitLValue(Op);
-    Address Addr = SourceLVal.getAddress().withElementType(
-        Builder, CGF.convertTypeForMem(DestTy));
-    LValue DestLV = CGF.makeAddrLValue(Addr, DestTy);
-    DestLV.setTBAAInfo(TBAAAccessInfo::getMayAliasInfo());
-    return emitLoadOfLValue(DestLV, Op->getExprLoc());
+    LValue sourceLVal = cgf.emitLValue(op);
+    Address addr = sourceLVal.getAddress().withElementType(
+        builder, cgf.convertTypeForMem(destTy));
+    LValue destLV = cgf.makeAddrLValue(addr, destTy);
+    destLV.setTBAAInfo(TBAAAccessInfo::getMayAliasInfo());
+    return emitLoadOfLValue(destLV, op->getExprLoc());
   }
 
   case CK_BitCast:
@@ -555,8 +565,8 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_FloatingRealToComplex:
   case CK_IntegralRealToComplex: {
     assert(!cir::MissingFeatures::CGFPOptionsRAII());
-    return emitScalarToComplexCast(CGF.emitScalarExpr(Op), Op->getType(),
-                                   DestTy, Op->getExprLoc());
+    return emitScalarToComplexCast(cgf.emitScalarExpr(op), op->getType(),
+                                   destTy, op->getExprLoc());
   }
 
   case CK_FloatingComplexCast:
@@ -564,283 +574,71 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind CK, Expr *Op,
   case CK_IntegralComplexCast:
   case CK_IntegralComplexToFloatingComplex: {
     assert(!cir::MissingFeatures::CGFPOptionsRAII());
-    return emitComplexToComplexCast(Visit(Op), Op->getType(), DestTy,
-                                    Op->getExprLoc());
+    return emitComplexToComplexCast(Visit(op), op->getType(), destTy,
+                                    op->getExprLoc());
   }
   }
 
   llvm_unreachable("unknown cast resulting in complex value");
 }
 
-mlir::Value ComplexExprEmitter::VisitCastExpr(CastExpr *E) {
-  if (const auto *ECE = dyn_cast<ExplicitCastExpr>(E))
-    CGF.CGM.emitExplicitCastExprType(ECE, &CGF);
-  if (E->changesVolatileQualification())
-    return emitLoadOfLValue(E);
-  return emitCast(E->getCastKind(), E->getSubExpr(), E->getType());
+mlir::Value ComplexExprEmitter::VisitUnaryPlus(const UnaryOperator *e,
+                                               QualType promotionType) {
+  QualType promotionTy = promotionType.isNull()
+                             ? getPromotionType(e->getSubExpr()->getType())
+                             : promotionType;
+  mlir::Value result = VisitPlus(e, promotionTy);
+  return promotionTy.isNull()
+             ? result
+             : cgf.emitUnPromotedValue(result, e->getSubExpr()->getType());
 }
 
-mlir::Value ComplexExprEmitter::VisitCallExpr(const CallExpr *E) {
-  if (E->getCallReturnType(CGF.getContext())->isReferenceType())
-    return emitLoadOfLValue(E);
-
-  return CGF.emitCallExpr(E).getComplexVal();
+mlir::Value ComplexExprEmitter::VisitPlus(const UnaryOperator *e,
+                                          QualType promotionType) {
+  mlir::Value op =
+      promotionType.isNull()
+          ? Visit(e->getSubExpr())
+          : cgf.emitPromotedComplexExpr(e->getSubExpr(), promotionType);
+  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()),
+                               cir::UnaryOpKind::Plus, op);
 }
 
-mlir::Value ComplexExprEmitter::VisitPrePostIncDec(const UnaryOperator *E,
-                                                   bool isInc, bool isPre) {
-  LValue LV = CGF.emitLValue(E->getSubExpr());
-  return CGF.emitComplexPrePostIncDec(E, LV, isInc, isPre);
+mlir::Value ComplexExprEmitter::VisitUnaryMinus(const UnaryOperator *e,
+                                                QualType promotionType) {
+  QualType promotionTy = promotionType.isNull()
+                             ? getPromotionType(e->getSubExpr()->getType())
+                             : promotionType;
+  mlir::Value result = VisitMinus(e, promotionTy);
+  return promotionTy.isNull()
+             ? result
+             : cgf.emitUnPromotedValue(result, e->getSubExpr()->getType());
 }
 
-mlir::Value ComplexExprEmitter::VisitUnaryPlus(const UnaryOperator *E,
-                                               QualType PromotionType) {
-  QualType promotionTy = PromotionType.isNull()
-                             ? getPromotionType(E->getSubExpr()->getType())
-                             : PromotionType;
-  mlir::Value result = VisitPlus(E, promotionTy);
-  if (!promotionTy.isNull())
-    return CGF.emitUnPromotedValue(result, E->getSubExpr()->getType());
-  return result;
-}
-
-mlir::Value ComplexExprEmitter::VisitPlus(const UnaryOperator *E,
-                                          QualType PromotionType) {
-  mlir::Value Op;
-  if (!PromotionType.isNull())
-    Op = CGF.emitPromotedComplexExpr(E->getSubExpr(), PromotionType);
+mlir::Value ComplexExprEmitter::VisitMinus(const UnaryOperator *e,
+                                           QualType promotionType) {
+  mlir::Value op;
+  if (!promotionType.isNull())
+    op = cgf.emitPromotedComplexExpr(e->getSubExpr(), promotionType);
   else
-    Op = Visit(E->getSubExpr());
-
-  return Builder.createUnaryOp(CGF.getLoc(E->getExprLoc()),
-                               cir::UnaryOpKind::Plus, Op);
+    op = Visit(e->getSubExpr());
+  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()),
+                               cir::UnaryOpKind::Minus, op);
 }
 
-mlir::Value ComplexExprEmitter::VisitUnaryMinus(const UnaryOperator *E,
-                                                QualType PromotionType) {
-  QualType promotionTy = PromotionType.isNull()
-                             ? getPromotionType(E->getSubExpr()->getType())
-                             : PromotionType;
-  mlir::Value result = VisitMinus(E, promotionTy);
-  if (!promotionTy.isNull())
-    return CGF.emitUnPromotedValue(result, E->getSubExpr()->getType());
-  return result;
+mlir::Value ComplexExprEmitter::VisitUnaryNot(const UnaryOperator *e) {
+  mlir::Value op = Visit(e->getSubExpr());
+  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()),
+                               cir::UnaryOpKind::Not, op);
 }
 
-mlir::Value ComplexExprEmitter::VisitMinus(const UnaryOperator *E,
-                                           QualType PromotionType) {
-  mlir::Value Op;
-  if (!PromotionType.isNull())
-    Op = CGF.emitPromotedComplexExpr(E->getSubExpr(), PromotionType);
-  else
-    Op = Visit(E->getSubExpr());
-
-  return Builder.createUnaryOp(CGF.getLoc(E->getExprLoc()),
-                               cir::UnaryOpKind::Minus, Op);
-}
-
-mlir::Value ComplexExprEmitter::VisitUnaryNot(const UnaryOperator *E) {
-  mlir::Value Op = Visit(E->getSubExpr());
-  return Builder.createUnaryOp(CGF.getLoc(E->getExprLoc()),
-                               cir::UnaryOpKind::Not, Op);
-}
-
-ComplexExprEmitter::BinOpInfo
-ComplexExprEmitter::emitBinOps(const BinaryOperator *E, QualType PromotionTy) {
-  BinOpInfo Ops{CGF.getLoc(E->getExprLoc())};
-
-  Ops.LHS = emitPromotedComplexOperand(E->getLHS(), PromotionTy);
-  Ops.RHS = emitPromotedComplexOperand(E->getRHS(), PromotionTy);
-  if (!PromotionTy.isNull())
-    Ops.Ty = PromotionTy;
-  else
-    Ops.Ty = E->getType();
-  Ops.FPFeatures = E->getFPFeaturesInEffect(CGF.getLangOpts());
-  return Ops;
-}
-
-mlir::Value ComplexExprEmitter::emitPromoted(const Expr *E,
-                                             QualType PromotionTy) {
-  E = E->IgnoreParens();
-  if (const auto *BO = dyn_cast<BinaryOperator>(E)) {
-    switch (BO->getOpcode()) {
-#define HANDLE_BINOP(OP)                                                       \
-  case BO_##OP:                                                                \
-    return emitBin##OP(emitBinOps(BO, PromotionTy));
-      HANDLE_BINOP(Add)
-      HANDLE_BINOP(Sub)
-      HANDLE_BINOP(Mul)
-      HANDLE_BINOP(Div)
-#undef HANDLE_BINOP
-    default:
-      break;
-    }
-  } else if (const auto *UO = dyn_cast<UnaryOperator>(E)) {
-    switch (UO->getOpcode()) {
-    case UO_Minus:
-      return VisitMinus(UO, PromotionTy);
-    case UO_Plus:
-      return VisitPlus(UO, PromotionTy);
-    default:
-      break;
-    }
-  }
-  auto result = Visit(const_cast<Expr *>(E));
-  if (!PromotionTy.isNull())
-    return CGF.emitPromotedValue(result, PromotionTy);
-  return result;
-}
-
-mlir::Value
-ComplexExprEmitter::emitPromotedComplexOperand(const Expr *E,
-                                               QualType PromotionTy) {
-  if (E->getType()->isAnyComplexType()) {
-    if (!PromotionTy.isNull())
-      return CGF.emitPromotedComplexExpr(E, PromotionTy);
-    return Visit(const_cast<Expr *>(E));
-  }
-
-  mlir::Value Real;
-  if (!PromotionTy.isNull()) {
-    QualType ComplexElementTy =
-        PromotionTy->castAs<ComplexType>()->getElementType();
-    Real = CGF.emitPromotedScalarExpr(E, ComplexElementTy);
-  } else
-    Real = CGF.emitScalarExpr(E);
-
-  return createComplexFromReal(CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
-                               Real);
-}
-
-LValue ComplexExprEmitter::emitCompoundAssignLValue(
-    const CompoundAssignOperator *E,
-    mlir::Value (ComplexExprEmitter::*Func)(const BinOpInfo &), RValue &Val) {
-  QualType LHSTy = E->getLHS()->getType();
-  if (const AtomicType *AT = LHSTy->getAs<AtomicType>())
-    LHSTy = AT->getValueType();
-
-  BinOpInfo OpInfo{CGF.getLoc(E->getExprLoc())};
-  OpInfo.FPFeatures = E->getFPFeaturesInEffect(CGF.getLangOpts());
-
+mlir::Value ComplexExprEmitter::emitBinAdd(const BinOpInfo &op) {
   assert(!cir::MissingFeatures::CGFPOptionsRAII());
-
-  // Load the RHS and LHS operands.
-  // __block variables need to have the rhs evaluated first, plus this should
-  // improve codegen a little.
-  QualType PromotionTypeCR;
-  PromotionTypeCR = getPromotionType(E->getComputationResultType());
-  if (PromotionTypeCR.isNull())
-    PromotionTypeCR = E->getComputationResultType();
-  OpInfo.Ty = PromotionTypeCR;
-  QualType ComplexElementTy =
-      OpInfo.Ty->castAs<ComplexType>()->getElementType();
-  QualType PromotionTypeRHS = getPromotionType(E->getRHS()->getType());
-
-  // The RHS should have been converted to the computation type.
-  if (E->getRHS()->getType()->isRealFloatingType()) {
-    if (!PromotionTypeRHS.isNull())
-      OpInfo.RHS = createComplexFromReal(
-          CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
-          CGF.emitPromotedScalarExpr(E->getRHS(), PromotionTypeRHS));
-    else {
-      assert(CGF.getContext().hasSameUnqualifiedType(ComplexElementTy,
-                                                     E->getRHS()->getType()));
-      OpInfo.RHS =
-          createComplexFromReal(CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
-                                CGF.emitScalarExpr(E->getRHS()));
-    }
-  } else {
-    if (!PromotionTypeRHS.isNull()) {
-      OpInfo.RHS = CGF.emitPromotedComplexExpr(E->getRHS(), PromotionTypeRHS);
-    } else {
-      assert(CGF.getContext().hasSameUnqualifiedType(OpInfo.Ty,
-                                                     E->getRHS()->getType()));
-      OpInfo.RHS = Visit(E->getRHS());
-    }
-  }
-
-  LValue LHS = CGF.emitLValue(E->getLHS());
-
-  // Load from the l-value and convert it.
-  SourceLocation Loc = E->getExprLoc();
-  QualType PromotionTypeLHS = getPromotionType(E->getComputationLHSType());
-  if (LHSTy->isAnyComplexType()) {
-    mlir::Value LHSVal = emitLoadOfLValue(LHS, Loc);
-    if (!PromotionTypeLHS.isNull())
-      OpInfo.LHS =
-          emitComplexToComplexCast(LHSVal, LHSTy, PromotionTypeLHS, Loc);
-    else
-      OpInfo.LHS = emitComplexToComplexCast(LHSVal, LHSTy, OpInfo.Ty, Loc);
-  } else {
-    mlir::Value LHSVal = CGF.emitLoadOfScalar(LHS, Loc);
-    // For floating point real operands we can directly pass the scalar form
-    // to the binary operator emission and potentially get more efficient code.
-    if (LHSTy->isRealFloatingType()) {
-      QualType PromotedComplexElementTy;
-      if (!PromotionTypeLHS.isNull()) {
-        PromotedComplexElementTy =
-            cast<ComplexType>(PromotionTypeLHS)->getElementType();
-        if (!CGF.getContext().hasSameUnqualifiedType(PromotedComplexElementTy,
-                                                     PromotionTypeLHS))
-          LHSVal = CGF.emitScalarConversion(LHSVal, LHSTy,
-                                            PromotedComplexElementTy, Loc);
-      } else {
-        if (!CGF.getContext().hasSameUnqualifiedType(ComplexElementTy, LHSTy))
-          LHSVal =
-              CGF.emitScalarConversion(LHSVal, LHSTy, ComplexElementTy, Loc);
-      }
-      OpInfo.LHS = createComplexFromReal(CGF.getBuilder(),
-                                         CGF.getLoc(E->getExprLoc()), LHSVal);
-    } else {
-      OpInfo.LHS = emitScalarToComplexCast(LHSVal, LHSTy, OpInfo.Ty, Loc);
-    }
-  }
-
-  // Expand the binary operator.
-  mlir::Value Result = (this->*Func)(OpInfo);
-
-  // Truncate the result and store it into the LHS lvalue.
-  if (LHSTy->isAnyComplexType()) {
-    mlir::Value ResVal =
-        emitComplexToComplexCast(Result, OpInfo.Ty, LHSTy, Loc);
-    emitStoreOfComplex(CGF.getLoc(E->getExprLoc()), ResVal, LHS,
-                       /*isInit*/ false);
-    Val = RValue::getComplex(ResVal);
-  } else {
-    mlir::Value ResVal =
-        CGF.emitComplexToScalarConversion(Result, OpInfo.Ty, LHSTy, Loc);
-    CGF.emitStoreOfScalar(ResVal, LHS, /*isInit*/ false);
-    Val = RValue::get(ResVal);
-  }
-
-  return LHS;
+  return builder.createComplexAdd(op.loc, op.lhs, op.rhs);
 }
 
-mlir::Value ComplexExprEmitter::emitCompoundAssign(
-    const CompoundAssignOperator *E,
-    mlir::Value (ComplexExprEmitter::*Func)(const BinOpInfo &)) {
-  RValue Val;
-  LValue LV = emitCompoundAssignLValue(E, Func, Val);
-
-  // The result of an assignment in C is the assigned r-value.
-  if (!CGF.getLangOpts().CPlusPlus)
-    return Val.getComplexVal();
-
-  // If the lvalue is non-volatile, return the computed value of the assignment.
-  if (!LV.isVolatileQualified())
-    return Val.getComplexVal();
-
-  return emitLoadOfLValue(LV, E->getExprLoc());
-}
-
-mlir::Value ComplexExprEmitter::emitBinAdd(const BinOpInfo &Op) {
+mlir::Value ComplexExprEmitter::emitBinSub(const BinOpInfo &op) {
   assert(!cir::MissingFeatures::CGFPOptionsRAII());
-  return CGF.getBuilder().createComplexAdd(Op.Loc, Op.LHS, Op.RHS);
-}
-
-mlir::Value ComplexExprEmitter::emitBinSub(const BinOpInfo &Op) {
-  assert(!cir::MissingFeatures::CGFPOptionsRAII());
-  return CGF.getBuilder().createComplexSub(Op.Loc, Op.LHS, Op.RHS);
+  return builder.createComplexSub(op.loc, op.lhs, op.rhs);
 }
 
 static cir::ComplexRangeKind
@@ -860,147 +658,363 @@ getComplexRangeAttr(LangOptions::ComplexRangeKind range) {
   }
 }
 
-mlir::Value ComplexExprEmitter::emitBinMul(const BinOpInfo &Op) {
+mlir::Value ComplexExprEmitter::emitBinMul(const BinOpInfo &op) {
   assert(!cir::MissingFeatures::CGFPOptionsRAII());
-  return CGF.getBuilder().createComplexMul(
-      Op.Loc, Op.LHS, Op.RHS,
-      getComplexRangeAttr(Op.FPFeatures.getComplexRange()), FPHasBeenPromoted);
+  return builder.createComplexMul(
+      op.loc, op.lhs, op.rhs,
+      getComplexRangeAttr(op.fpFeatures.getComplexRange()), fpHasBeenPromoted);
 }
 
-mlir::Value ComplexExprEmitter::emitBinDiv(const BinOpInfo &Op) {
+mlir::Value ComplexExprEmitter::emitBinDiv(const BinOpInfo &op) {
   assert(!cir::MissingFeatures::CGFPOptionsRAII());
-  return CGF.getBuilder().createComplexDiv(
-      Op.Loc, Op.LHS, Op.RHS,
-      getComplexRangeAttr(Op.FPFeatures.getComplexRange()), FPHasBeenPromoted);
-}
-
-LValue ComplexExprEmitter::emitBinAssignLValue(const BinaryOperator *E,
-                                               mlir::Value &Val) {
-  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
-                                                 E->getRHS()->getType()) &&
-         "Invalid assignment");
-
-  // Emit the RHS.  __block variables need the RHS evaluated first.
-  Val = Visit(E->getRHS());
-
-  // Compute the address to store into.
-  LValue LHS = CGF.emitLValue(E->getLHS());
-
-  // Store the result value into the LHS lvalue.
-  emitStoreOfComplex(CGF.getLoc(E->getExprLoc()), Val, LHS, /*isInit*/ false);
-
-  return LHS;
-}
-
-mlir::Value
-ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *IL) {
-  auto Loc = CGF.getLoc(IL->getExprLoc());
-  auto Ty = mlir::cast<cir::ComplexType>(CGF.convertType(IL->getType()));
-  auto ElementTy = Ty.getElementType();
-
-  mlir::TypedAttr RealValueAttr;
-  mlir::TypedAttr ImagValueAttr;
-  if (mlir::isa<cir::IntType>(ElementTy)) {
-    auto ImagValue = cast<IntegerLiteral>(IL->getSubExpr())->getValue();
-    RealValueAttr = cir::IntAttr::get(ElementTy, 0);
-    ImagValueAttr = cir::IntAttr::get(ElementTy, ImagValue);
-  } else if (mlir::isa<cir::FPTypeInterface>(ElementTy)) {
-    auto ImagValue = cast<FloatingLiteral>(IL->getSubExpr())->getValue();
-    RealValueAttr = cir::FPAttr::get(
-        ElementTy, llvm::APFloat::getZero(ImagValue.getSemantics()));
-    ImagValueAttr = cir::FPAttr::get(ElementTy, ImagValue);
-  } else
-    llvm_unreachable("unexpected complex element type");
-
-  auto RealValue = Builder.getConstant(Loc, RealValueAttr);
-  auto ImagValue = Builder.getConstant(Loc, ImagValueAttr);
-  return Builder.createComplexCreate(Loc, RealValue, ImagValue);
-}
-
-mlir::Value ComplexExprEmitter::VisitInitListExpr(InitListExpr *E) {
-  mlir::Location loc = CGF.getLoc(E->getExprLoc());
-  if (E->getNumInits() == 2) {
-    mlir::Value Real = CGF.emitScalarExpr(E->getInit(0));
-    mlir::Value Imag = CGF.emitScalarExpr(E->getInit(1));
-    return Builder.createComplexCreate(loc, Real, Imag);
-  }
-
-  if (E->getNumInits() == 1)
-    return Visit(E->getInit(0));
-
-  assert(E->getNumInits() == 0 && "Unexpected number of inits");
-  mlir::Type complexTy = CGF.convertType(E->getType());
-  return Builder.getNullValue(complexTy, loc);
-}
-
-mlir::Value CIRGenFunction::emitPromotedComplexExpr(const Expr *E,
-                                                    QualType PromotionType) {
-  return ComplexExprEmitter(*this).emitPromoted(E, PromotionType);
-}
-
-mlir::Value CIRGenFunction::emitPromotedValue(mlir::Value result,
-                                              QualType PromotionType) {
-  assert(!mlir::cast<cir::ComplexType>(result.getType()).isIntegerComplex() &&
-         "integral complex will never be promoted");
-  return builder.createCast(cir::CastKind::float_complex, result,
-                            convertType(PromotionType));
+  return builder.createComplexDiv(
+      op.loc, op.lhs, op.rhs,
+      getComplexRangeAttr(op.fpFeatures.getComplexRange()), fpHasBeenPromoted);
 }
 
 mlir::Value CIRGenFunction::emitUnPromotedValue(mlir::Value result,
-                                                QualType UnPromotionType) {
+                                                QualType unPromotionType) {
   assert(!mlir::cast<cir::ComplexType>(result.getType()).isIntegerComplex() &&
          "integral complex will never be promoted");
   return builder.createCast(cir::CastKind::float_complex, result,
-                            convertType(UnPromotionType));
+                            convertType(unPromotionType));
 }
 
-mlir::Value CIRGenFunction::emitComplexExpr(const Expr *E) {
-  assert(E && getComplexType(E->getType()) &&
+mlir::Value CIRGenFunction::emitPromotedValue(mlir::Value result,
+                                              QualType promotionType) {
+  assert(!mlir::cast<cir::ComplexType>(result.getType()).isIntegerComplex() &&
+         "integral complex will never be promoted");
+  return builder.createCast(cir::CastKind::float_complex, result,
+                            convertType(promotionType));
+}
+
+mlir::Value ComplexExprEmitter::emitPromoted(const Expr *e,
+                                             QualType PromotionTy) {
+  e = e->IgnoreParens();
+  if (const auto *bo = dyn_cast<BinaryOperator>(e)) {
+    switch (bo->getOpcode()) {
+#define HANDLE_BINOP(OP)                                                       \
+  case BO_##OP:                                                                \
+    return emitBin##OP(emitBinOps(bo, PromotionTy));
+      HANDLE_BINOP(Add)
+      HANDLE_BINOP(Sub)
+      HANDLE_BINOP(Mul)
+      HANDLE_BINOP(Div)
+#undef HANDLE_BINOP
+    default:
+      break;
+    }
+  } else if (const auto *uo = dyn_cast<UnaryOperator>(e)) {
+    switch (uo->getOpcode()) {
+    case UO_Minus:
+      return VisitMinus(uo, PromotionTy);
+    case UO_Plus:
+      return VisitPlus(uo, PromotionTy);
+    default:
+      break;
+    }
+  }
+
+  mlir::Value result = Visit(const_cast<Expr *>(e));
+  if (!PromotionTy.isNull())
+    return cgf.emitPromotedValue(result, PromotionTy);
+  return result;
+}
+
+mlir::Value CIRGenFunction::emitPromotedComplexExpr(const Expr *e,
+                                                    QualType promotionType) {
+  return ComplexExprEmitter(*this).emitPromoted(e, promotionType);
+}
+
+mlir::Value
+ComplexExprEmitter::emitPromotedComplexOperand(const Expr *e,
+                                               QualType promotionTy) {
+  if (e->getType()->isAnyComplexType()) {
+    if (!promotionTy.isNull())
+      return cgf.emitPromotedComplexExpr(e, promotionTy);
+    return Visit(const_cast<Expr *>(e));
+  }
+
+  mlir::Value real;
+  if (!promotionTy.isNull()) {
+    QualType complexElementTy =
+        promotionTy->castAs<ComplexType>()->getElementType();
+    real = cgf.emitPromotedScalarExpr(e, complexElementTy);
+  } else
+    real = cgf.emitScalarExpr(e);
+  return createComplexFromReal(builder, cgf.getLoc(e->getExprLoc()), real);
+}
+
+ComplexExprEmitter::BinOpInfo
+ComplexExprEmitter::emitBinOps(const BinaryOperator *e, QualType promotionTy) {
+  BinOpInfo ops{cgf.getLoc(e->getExprLoc())};
+  ops.lhs = emitPromotedComplexOperand(e->getLHS(), promotionTy);
+  ops.rhs = emitPromotedComplexOperand(e->getRHS(), promotionTy);
+  if (!promotionTy.isNull())
+    ops.ty = promotionTy;
+  else
+    ops.ty = e->getType();
+  ops.fpFeatures = e->getFPFeaturesInEffect(cgf.getLangOpts());
+  return ops;
+}
+
+LValue ComplexExprEmitter::emitCompoundAssignLValue(
+    const CompoundAssignOperator *e,
+    mlir::Value (ComplexExprEmitter::*func)(const BinOpInfo &), RValue &val) {
+  QualType lhsTy = e->getLHS()->getType();
+  if (const AtomicType *at = lhsTy->getAs<AtomicType>())
+    lhsTy = at->getValueType();
+
+  BinOpInfo opInfo{cgf.getLoc(e->getExprLoc())};
+  opInfo.fpFeatures = e->getFPFeaturesInEffect(cgf.getLangOpts());
+
+  assert(!cir::MissingFeatures::CGFPOptionsRAII());
+
+  // Load the RHS and LHS operands.
+  // __block variables need to have the rhs evaluated first, plus this should
+  // improve codegen a little.
+  QualType promotionTypeCR;
+  promotionTypeCR = getPromotionType(e->getComputationResultType());
+  if (promotionTypeCR.isNull())
+    promotionTypeCR = e->getComputationResultType();
+  opInfo.ty = promotionTypeCR;
+  QualType complexElementTy =
+      opInfo.ty->castAs<ComplexType>()->getElementType();
+  QualType promotionTypeRHS = getPromotionType(e->getRHS()->getType());
+
+  // The RHS should have been converted to the computation type.
+  if (e->getRHS()->getType()->isRealFloatingType()) {
+    if (!promotionTypeRHS.isNull())
+      opInfo.rhs = createComplexFromReal(
+          builder, cgf.getLoc(e->getExprLoc()),
+          cgf.emitPromotedScalarExpr(e->getRHS(), promotionTypeRHS));
+    else {
+      assert(cgf.getContext().hasSameUnqualifiedType(complexElementTy,
+                                                     e->getRHS()->getType()));
+      opInfo.rhs = createComplexFromReal(builder, cgf.getLoc(e->getExprLoc()),
+                                         cgf.emitScalarExpr(e->getRHS()));
+    }
+  } else {
+    if (!promotionTypeRHS.isNull()) {
+      opInfo.rhs = cgf.emitPromotedComplexExpr(e->getRHS(), promotionTypeRHS);
+    } else {
+      assert(cgf.getContext().hasSameUnqualifiedType(opInfo.ty,
+                                                     e->getRHS()->getType()));
+      opInfo.rhs = Visit(e->getRHS());
+    }
+  }
+
+  LValue lhs = cgf.emitLValue(e->getLHS());
+
+  // Load from the l-value and convert it.
+  SourceLocation loc = e->getExprLoc();
+  QualType promotionTypeLHS = getPromotionType(e->getComputationLHSType());
+  if (lhsTy->isAnyComplexType()) {
+    mlir::Value lhsVal = emitLoadOfLValue(lhs, loc);
+    if (!promotionTypeLHS.isNull())
+      opInfo.lhs =
+          emitComplexToComplexCast(lhsVal, lhsTy, promotionTypeLHS, loc);
+    else
+      opInfo.lhs = emitComplexToComplexCast(lhsVal, lhsTy, opInfo.ty, loc);
+  } else {
+    mlir::Value lhsVal = cgf.emitLoadOfScalar(lhs, loc);
+    // For floating point real operands we can directly pass the scalar form
+    // to the binary operator emission and potentially get more efficient code.
+    if (lhsTy->isRealFloatingType()) {
+      QualType promotedComplexElementTy;
+      if (!promotionTypeLHS.isNull()) {
+        promotedComplexElementTy =
+            cast<ComplexType>(promotionTypeLHS)->getElementType();
+        if (!cgf.getContext().hasSameUnqualifiedType(promotedComplexElementTy,
+                                                     promotionTypeLHS))
+          lhsVal = cgf.emitScalarConversion(lhsVal, lhsTy,
+                                            promotedComplexElementTy, loc);
+      } else {
+        if (!cgf.getContext().hasSameUnqualifiedType(complexElementTy, lhsTy))
+          lhsVal =
+              cgf.emitScalarConversion(lhsVal, lhsTy, complexElementTy, loc);
+      }
+      opInfo.lhs =
+          createComplexFromReal(builder, cgf.getLoc(e->getExprLoc()), lhsVal);
+    } else {
+      opInfo.lhs = emitScalarToComplexCast(lhsVal, lhsTy, opInfo.ty, loc);
+    }
+  }
+
+  // Expand the binary operator.
+  mlir::Value result = (this->*func)(opInfo);
+
+  // Truncate the result and store it into the LHS lvalue.
+  if (lhsTy->isAnyComplexType()) {
+    mlir::Value resVal =
+        emitComplexToComplexCast(result, opInfo.ty, lhsTy, loc);
+    emitStoreOfComplex(cgf.getLoc(e->getExprLoc()), resVal, lhs,
+                       /*isInit=*/false);
+    val = RValue::getComplex(resVal);
+  } else {
+    mlir::Value resVal =
+        cgf.emitComplexToScalarConversion(result, opInfo.ty, lhsTy, loc);
+    cgf.emitStoreOfScalar(resVal, lhs, /*isInit=*/false);
+    val = RValue::get(resVal);
+  }
+
+  return lhs;
+}
+
+mlir::Value ComplexExprEmitter::emitCompoundAssign(
+    const CompoundAssignOperator *e,
+    mlir::Value (ComplexExprEmitter::*func)(const BinOpInfo &)) {
+  RValue val;
+  LValue lv = emitCompoundAssignLValue(e, func, val);
+
+  // The result of an assignment in C is the assigned r-value.
+  if (!cgf.getLangOpts().CPlusPlus)
+    return val.getComplexVal();
+
+  // If the lvalue is non-volatile, return the computed value of the assignment.
+  if (!lv.isVolatileQualified())
+    return val.getComplexVal();
+
+  return emitLoadOfLValue(lv, e->getExprLoc());
+}
+
+LValue ComplexExprEmitter::emitBinAssignLValue(const BinaryOperator *e,
+                                               mlir::Value &val) {
+  assert(cgf.getContext().hasSameUnqualifiedType(e->getLHS()->getType(),
+                                                 e->getRHS()->getType()) &&
+         "Invalid assignment");
+
+  // Emit the RHS.  __block variables need the RHS evaluated first.
+  val = Visit(e->getRHS());
+
+  // Compute the address to store into.
+  LValue lhs = cgf.emitLValue(e->getLHS());
+
+  // Store the result value into the LHS lvalue.
+  emitStoreOfComplex(cgf.getLoc(e->getExprLoc()), val, lhs, /*isInit=*/false);
+  return lhs;
+}
+
+mlir::Value ComplexExprEmitter::VisitBinAssign(const BinaryOperator *e) {
+  mlir::Value val;
+  LValue lv = emitBinAssignLValue(e, val);
+
+  // The result of an assignment in C is the assigned r-value.
+  if (!cgf.getLangOpts().CPlusPlus)
+    return val;
+
+  // If the lvalue is non-volatile, return the computed value of the
+  // assignment.
+  if (!lv.isVolatileQualified())
+    return val;
+
+  return emitLoadOfLValue(lv, e->getExprLoc());
+}
+
+mlir::Value ComplexExprEmitter::VisitBinComma(const BinaryOperator *e) {
+  cgf.emitIgnoredExpr(e->getLHS());
+  return Visit(e->getRHS());
+}
+
+mlir::Value ComplexExprEmitter::VisitAbstractConditionalOperator(
+    const AbstractConditionalOperator *e) {
+  mlir::Location loc = cgf.getLoc(e->getSourceRange());
+
+  // Bind the common expression if necessary.
+  CIRGenFunction::OpaqueValueMapping binding(cgf, e);
+
+  CIRGenFunction::ConditionalEvaluation eval(cgf);
+
+  Expr *cond = e->getCond()->IgnoreParens();
+  mlir::Value condValue = cgf.evaluateExprAsBool(cond);
+
+  return builder
+      .create<cir::TernaryOp>(
+          loc, condValue,
+          /*thenBuilder=*/
+          [&](mlir::OpBuilder &b, mlir::Location loc) {
+            eval.begin(cgf);
+            mlir::Value trueValue = Visit(e->getTrueExpr());
+            b.create<cir::YieldOp>(loc, trueValue);
+            eval.end(cgf);
+          },
+          /*elseBuilder=*/
+          [&](mlir::OpBuilder &b, mlir::Location loc) {
+            eval.begin(cgf);
+            mlir::Value falseValue = Visit(e->getFalseExpr());
+            b.create<cir::YieldOp>(loc, falseValue);
+            eval.end(cgf);
+          })
+      .getResult();
+}
+
+mlir::Value ComplexExprEmitter::VisitChooseExpr(ChooseExpr *ce) {
+  return Visit(ce->getChosenSubExpr());
+}
+
+mlir::Value ComplexExprEmitter::VisitInitListExpr(InitListExpr *e) {
+  mlir::Location loc = cgf.getLoc(e->getExprLoc());
+  if (e->getNumInits() == 2) {
+    mlir::Value real = cgf.emitScalarExpr(e->getInit(0));
+    mlir::Value imag = cgf.emitScalarExpr(e->getInit(1));
+    return builder.createComplexCreate(loc, real, imag);
+  }
+
+  if (e->getNumInits() == 1)
+    return Visit(e->getInit(0));
+
+  assert(e->getNumInits() == 0 && "Unexpected number of inits");
+  mlir::Type complexTy = cgf.convertType(e->getType());
+  return builder.getNullValue(complexTy, loc);
+}
+
+mlir::Value ComplexExprEmitter::VisitVAArgExpr(VAArgExpr *e) {
+  llvm_unreachable("VisitVAArgExpr NYI");
+}
+
+//===----------------------------------------------------------------------===//
+//                         Entry Point into this File
+//===----------------------------------------------------------------------===//
+
+mlir::Value CIRGenFunction::emitComplexExpr(const Expr *e) {
+  assert(e && getComplexType(e->getType()) &&
          "Invalid complex expression to emit");
-
-  return ComplexExprEmitter(*this).Visit(const_cast<Expr *>(E));
+  return ComplexExprEmitter(*this).Visit(const_cast<Expr *>(e));
 }
 
-void CIRGenFunction::emitComplexExprIntoLValue(const Expr *E, LValue dest,
+void CIRGenFunction::emitComplexExprIntoLValue(const Expr *e, LValue dest,
                                                bool isInit) {
-  assert(E && getComplexType(E->getType()) &&
+  assert(e && getComplexType(e->getType()) &&
          "Invalid complex expression to emit");
-  ComplexExprEmitter Emitter(*this);
-  mlir::Value Val = Emitter.Visit(const_cast<Expr *>(E));
-  Emitter.emitStoreOfComplex(getLoc(E->getExprLoc()), Val, dest, isInit);
+  ComplexExprEmitter emitter(*this);
+  mlir::Value val = emitter.Visit(const_cast<Expr *>(e));
+  emitter.emitStoreOfComplex(getLoc(e->getExprLoc()), val, dest, isInit);
 }
 
-void CIRGenFunction::emitStoreOfComplex(mlir::Location Loc, mlir::Value V,
+/// EmitStoreOfComplex - Store a complex number into the specified l-value.
+void CIRGenFunction::emitStoreOfComplex(mlir::Location loc, mlir::Value v,
                                         LValue dest, bool isInit) {
-  ComplexExprEmitter(*this).emitStoreOfComplex(Loc, V, dest, isInit);
+  ComplexExprEmitter(*this).emitStoreOfComplex(loc, v, dest, isInit);
 }
 
-Address CIRGenFunction::emitAddrOfRealComponent(mlir::Location loc,
-                                                Address addr,
-                                                QualType complexType) {
-  return builder.createRealPtr(loc, addr);
+mlir::Value CIRGenFunction::emitLoadOfComplex(LValue src, SourceLocation loc) {
+  return ComplexExprEmitter(*this).emitLoadOfLValue(src, loc);
 }
 
-Address CIRGenFunction::emitAddrOfImagComponent(mlir::Location loc,
-                                                Address addr,
-                                                QualType complexType) {
-  return builder.createImagPtr(loc, addr);
-}
-
-LValue CIRGenFunction::emitComplexAssignmentLValue(const BinaryOperator *E) {
-  assert(E->getOpcode() == BO_Assign);
-  mlir::Value Val; // ignored
-  LValue LVal = ComplexExprEmitter(*this).emitBinAssignLValue(E, Val);
+LValue CIRGenFunction::emitComplexAssignmentLValue(const BinaryOperator *e) {
+  assert(e->getOpcode() == BO_Assign);
+  mlir::Value val; // ignored
+  LValue lVal = ComplexExprEmitter(*this).emitBinAssignLValue(e, val);
   if (getLangOpts().OpenMP)
-    llvm_unreachable("NYI");
-  return LVal;
+    llvm_unreachable("emitComplexAssignmentLValue: OpenMP NYI");
+  return lVal;
 }
 
 using CompoundFunc =
     mlir::Value (ComplexExprEmitter::*)(const ComplexExprEmitter::BinOpInfo &);
 
-static CompoundFunc getComplexOp(BinaryOperatorKind Op) {
-  switch (Op) {
+static CompoundFunc getComplexOp(BinaryOperatorKind op) {
+  switch (op) {
   case BO_MulAssign:
     return &ComplexExprEmitter::emitBinMul;
   case BO_DivAssign:
@@ -1015,40 +1029,35 @@ static CompoundFunc getComplexOp(BinaryOperatorKind Op) {
 }
 
 LValue CIRGenFunction::emitComplexCompoundAssignmentLValue(
-    const CompoundAssignOperator *E) {
-  CompoundFunc Op = getComplexOp(E->getOpcode());
-  RValue Val;
-  return ComplexExprEmitter(*this).emitCompoundAssignLValue(E, Op, Val);
+    const CompoundAssignOperator *e) {
+  CompoundFunc op = getComplexOp(e->getOpcode());
+  RValue val;
+  return ComplexExprEmitter(*this).emitCompoundAssignLValue(e, op, val);
 }
 
-mlir::Value CIRGenFunction::emitComplexPrePostIncDec(const UnaryOperator *E,
-                                                     LValue LV, bool isInc,
+mlir::Value CIRGenFunction::emitComplexPrePostIncDec(const UnaryOperator *e,
+                                                     LValue lv, bool isInc,
                                                      bool isPre) {
-  mlir::Value InVal = emitLoadOfComplex(LV, E->getExprLoc());
-
-  auto Loc = getLoc(E->getExprLoc());
-  auto OpKind = isInc ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
-  mlir::Value IncVal = builder.createUnaryOp(Loc, OpKind, InVal);
+  mlir::Value inVal = emitLoadOfComplex(lv, e->getExprLoc());
+  mlir::Location loc = getLoc(e->getExprLoc());
+  auto opKind = isInc ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
+  mlir::Value incVal = builder.createUnaryOp(loc, opKind, inVal);
 
   // Store the updated result through the lvalue.
-  emitStoreOfComplex(Loc, IncVal, LV, /*init*/ false);
+  emitStoreOfComplex(loc, incVal, lv, /*isInit=*/false);
   if (getLangOpts().OpenMP)
-    llvm_unreachable("NYI");
+    llvm_unreachable("emitComplexPrePostIncDec: OpenMP NYI");
 
-  // If this is a postinc, return the value read from memory, otherwise use the
+  // If this is a post inc, return the value read from memory, otherwise use the
   // updated value.
-  return isPre ? IncVal : InVal;
-}
-
-mlir::Value CIRGenFunction::emitLoadOfComplex(LValue src, SourceLocation loc) {
-  return ComplexExprEmitter(*this).emitLoadOfLValue(src, loc);
+  return isPre ? incVal : inVal;
 }
 
 LValue CIRGenFunction::emitScalarCompoundAssignWithComplex(
-    const CompoundAssignOperator *E, mlir::Value &Result) {
-  CompoundFunc Op = getComplexOp(E->getOpcode());
-  RValue Val;
-  LValue Ret = ComplexExprEmitter(*this).emitCompoundAssignLValue(E, Op, Val);
-  Result = Val.getScalarVal();
-  return Ret;
+    const CompoundAssignOperator *e, mlir::Value &result) {
+  CompoundFunc op = getComplexOp(e->getOpcode());
+  RValue val;
+  LValue ret = ComplexExprEmitter(*this).emitCompoundAssignLValue(e, op, val);
+  result = val.getScalarVal();
+  return ret;
 }
