@@ -1362,10 +1362,9 @@ LValue CIRGenFunction::emitUnaryOpLValue(const UnaryOperator *E) {
     QualType T = ExprTy->castAs<clang::ComplexType>()->getElementType();
 
     auto Loc = getLoc(E->getExprLoc());
-    Address Component =
-        (E->getOpcode() == UO_Real
-             ? emitAddrOfRealComponent(Loc, LV.getAddress(), LV.getType())
-             : emitAddrOfImagComponent(Loc, LV.getAddress(), LV.getType()));
+    Address Component = E->getOpcode() == UO_Real
+                            ? builder.createRealPtr(Loc, LV.getAddress())
+                            : builder.createImagPtr(Loc, LV.getAddress());
     LValue ElemLV = makeAddrLValue(Component, T, LV.getBaseInfo(),
                                    CGM.getTBAAInfoForSubobject(LV, T));
     ElemLV.getQuals().addQualifiers(LV.getQuals());

@@ -1709,10 +1709,7 @@ public:
                                      llvm::Triple::ArchType Arch);
   mlir::Value emitAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-  Address emitAddrOfImagComponent(mlir::Location loc, Address complex,
-                                  QualType complexType);
-  Address emitAddrOfRealComponent(mlir::Location loc, Address complex,
-                                  QualType complexType);
+
   /// Emit an aggregate assignment.
   void emitAggregateAssign(LValue Dest, LValue Src, QualType EltTy) {
     bool IsVolatile = hasVolatileMember(EltTy);
