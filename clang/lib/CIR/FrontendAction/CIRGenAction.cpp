@@ -227,7 +227,7 @@ public:
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
-              << feOptions.ClangIRLifetimeCheckOpts;
+              << passOptParsingFailure;
         else
           llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
                                    "when running CIR passes!");
