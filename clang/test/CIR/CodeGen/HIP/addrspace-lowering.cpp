@@ -2,12 +2,12 @@
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fclangir \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-llvm %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-DEVICE --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip  \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-llvm %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
 

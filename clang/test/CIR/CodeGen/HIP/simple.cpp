@@ -2,32 +2,32 @@
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
 // RUN:            -x hip -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-cir %s -o %t.cir
+// RUN:            -I%S/../Inputs/ -emit-cir %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-HOST --input-file=%t.cir %s
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fclangir \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-cir %s -o %t.cir
+// RUN:            -I%S/../Inputs/ -emit-cir %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
 //
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
 // RUN:            -x hip -emit-llvm -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ %s -o %t.ll
+// RUN:            -I%S/../Inputs/ %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fclangir \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-llvm %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-DEVICE --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu  \
 // RUN:            -x  hip -emit-llvm -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ %s -o %t.ll
+// RUN:            -I%S/../Inputs/ %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-HOST --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:            -I$(dirname %s)/../Inputs/ -emit-llvm %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
 
