@@ -1,8 +1,8 @@
-#include "../Inputs/cuda.h"
+#include "cuda.h"
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fclangir \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
-// RUN:              -emit-cir %s -o %t.ll
+// RUN:            -I$(dirname %s)/../Inputs/ -emit-cir %s -o %t.ll
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.ll %s
 
 __global__ void fn() {
