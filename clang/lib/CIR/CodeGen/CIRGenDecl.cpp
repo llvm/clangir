@@ -248,6 +248,15 @@ static void emitStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
   if (addr.getElementType() != Ty)
     addr = addr.withElementType(builder, Ty);
 
+  // If the address is an alloca, set the init attribute.
+  // The address is usually and alloca, but there is at least one case where
+  // emitAutoVarInit is called from the OpenACC codegen with an address that
+  // is a cast, not an alloca.
+  // TODO(cir): Handle the cast case.
+  auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
+  if (allocaOp)
+    allocaOp.setInitAttr(mlir::UnitAttr::get(&CGM.getMLIRContext()));
+
   auto loc = CGM.getLoc(D.getSourceRange());
   builder.createStore(loc, builder.getConstant(loc, constant), addr);
 }
