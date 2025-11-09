@@ -404,18 +404,20 @@ ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *il) {
     auto imagValue = cast<IntegerLiteral>(il->getSubExpr())->getValue();
     realValueAttr = cir::IntAttr::get(elementTy, 0);
     imagValueAttr = cir::IntAttr::get(elementTy, imagValue);
-  } else if (mlir::isa<cir::FPTypeInterface>(elementTy)) {
+  } else {
+    assert(mlir::isa<cir::FPTypeInterface>(elementTy) &&
+           "Expected complex element type to be floating-point");
+
     auto imagValue = cast<FloatingLiteral>(il->getSubExpr())->getValue();
     realValueAttr = cir::FPAttr::get(
         elementTy, llvm::APFloat::getZero(imagValue.getSemantics()));
     imagValueAttr = cir::FPAttr::get(elementTy, imagValue);
-  } else {
-    llvm_unreachable("unexpected complex element type");
   }
 
-  auto realValue = builder.getConstant(loc, realValueAttr);
-  auto imagValue = builder.getConstant(loc, imagValueAttr);
-  return builder.createComplexCreate(loc, realValue, imagValue);
+  auto complexTy = cir::ComplexType::get(realValueAttr.getType());
+  auto complexAttr =
+      cir::ComplexAttr::get(complexTy, realValueAttr, imagValueAttr);
+  return cir::ConstantOp::create(builder, loc, complexAttr);
 }
 
 mlir::Value ComplexExprEmitter::VisitCallExpr(const CallExpr *e) {

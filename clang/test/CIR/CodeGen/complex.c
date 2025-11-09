@@ -81,14 +81,10 @@ void imag_literal() {
   ci = 3i;
 }
 
-//      CHECK-BEFORE: cir.func
-//      CHECK-BEFORE: %[[#REAL:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
-// CHECK-BEFORE-NEXT: %[[#IMAG:]] = cir.const #cir.fp<3.000000e+00> : !cir.double
-// CHECK-BEFORE-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
-//      CHECK-BEFORE: %[[#REAL:]] = cir.const #cir.int<0> : !s32i
-// CHECK-BEFORE-NEXT: %[[#IMAG:]] = cir.const #cir.int<3> : !s32i
-// CHECK-BEFORE-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
-//      CHECK-BEFORE: }
+// CHECK-BEFORE: cir.func
+// CHECK-BEFORE: %{{.+}} = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.double, #cir.fp<3.000000e+00> : !cir.double> : !cir.complex<!cir.double>
+// CHECK-BEFORE: %{{.+}} = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<3> : !s32i> : !cir.complex<!s32i>
+// CHECK-BEFORE: }
 
 // CHECK-AFTER: cir.func
 // CHECK-AFTER:   %{{.+}} = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.double, #cir.fp<3.000000e+00> : !cir.double> : !cir.complex<!cir.double>
