@@ -26,8 +26,8 @@ void list_init() {
 //      CHECK-BEFORE: }
 
 // CHECK-AFTER: cir.func
-// CHECK-AFTER:   %{{.+}} = cir.const #cir.complex<#cir.fp<1.000000e+00> : !cir.double, #cir.fp<2.000000e+00> : !cir.double> : !cir.complex<!cir.double>
-// CHECK-AFTER:   %{{.+}} = cir.const #cir.complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
+// CHECK-AFTER:   %{{.+}} = cir.const #cir.const_complex<#cir.fp<1.000000e+00> : !cir.double, #cir.fp<2.000000e+00> : !cir.double> : !cir.complex<!cir.double>
+// CHECK-AFTER:   %{{.+}} = cir.const #cir.const_complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
 // CHECK-AFTER: }
 
 // LLVM: define dso_local void @list_init()
@@ -91,8 +91,8 @@ void imag_literal() {
 //      CHECK-BEFORE: }
 
 // CHECK-AFTER: cir.func
-// CHECK-AFTER:   %{{.+}} = cir.const #cir.complex<#cir.fp<0.000000e+00> : !cir.double, #cir.fp<3.000000e+00> : !cir.double> : !cir.complex<!cir.double>
-// CHECK-AFTER:   %{{.+}} = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<3> : !s32i> : !cir.complex<!s32i>
+// CHECK-AFTER:   %{{.+}} = cir.const #cir.const_complex<#cir.fp<0.000000e+00> : !cir.double, #cir.fp<3.000000e+00> : !cir.double> : !cir.complex<!cir.double>
+// CHECK-AFTER:   %{{.+}} = cir.const #cir.const_complex<#cir.int<0> : !s32i, #cir.int<3> : !s32i> : !cir.complex<!s32i>
 // CHECK-AFTER: }
 
 // LLVM: define dso_local void @imag_literal()
@@ -397,7 +397,7 @@ int extract_imag_and_add(int _Complex a, int _Complex b) {
 
 void complex_with_empty_init() { int _Complex c = {}; }
 
-// CHECK: {{.*}} = cir.const #cir.complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
+// CHECK: {{.*}} = cir.const #cir.const_complex<#cir.int<0> : !s32i, #cir.int<0> : !s32i> : !cir.complex<!s32i>
 
 void complex_array_subscript() {
   int _Complex arr[2];

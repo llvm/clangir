@@ -469,7 +469,8 @@ public:
               cir::ConstRecordAttr, cir::ConstArrayAttr, cir::ConstVectorAttr,
               cir::BoolAttr, cir::ZeroAttr, cir::UndefAttr, cir::PoisonAttr,
               cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr,
-              cir::ComplexAttr>([&](auto attrT) { return visitCirAttr(attrT); })
+              cir::ConstComplexAttr>(
+            [&](auto attrT) { return visitCirAttr(attrT); })
         .Default([&](auto attrT) { return mlir::Value(); });
   }
 
@@ -479,7 +480,7 @@ public:
   mlir::Value visitCirAttr(cir::ConstRecordAttr attr);
   mlir::Value visitCirAttr(cir::ConstArrayAttr attr);
   mlir::Value visitCirAttr(cir::ConstVectorAttr attr);
-  mlir::Value visitCirAttr(cir::ComplexAttr attr);
+  mlir::Value visitCirAttr(cir::ConstComplexAttr attr);
   mlir::Value visitCirAttr(cir::BoolAttr attr);
   mlir::Value visitCirAttr(cir::ZeroAttr attr);
   mlir::Value visitCirAttr(cir::UndefAttr attr);
@@ -671,7 +672,7 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::ConstVectorAttr constVec) {
                                    mlirValues));
 }
 
-mlir::Value CirAttrToValue::visitCirAttr(cir::ComplexAttr complexAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstComplexAttr complexAttr) {
   auto complexType = mlir::cast<cir::ComplexType>(complexAttr.getType());
   mlir::Type complexElemTy = complexType.getElementType();
   mlir::Type complexElemLLVMTy = converter->convertType(complexElemTy);
@@ -1944,7 +1945,7 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
       return mlir::success();
     }
 
-    auto complexAttr = mlir::cast<cir::ComplexAttr>(op.getValue());
+    auto complexAttr = mlir::cast<cir::ConstComplexAttr>(op.getValue());
 
     mlir::Attribute components[2];
     if (mlir::isa<cir::IntType>(complexElemTy)) {
@@ -2620,7 +2621,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
   } else if (mlir::isa<cir::ConstVectorAttr>(init)) {
     return lowerInitializerForConstVector(rewriter, op, init,
                                           useInitializerRegion);
-  } else if (mlir::isa<cir::ComplexAttr>(init)) {
+  } else if (mlir::isa<cir::ConstComplexAttr>(init)) {
     return lowerInitializerForConstComplex(rewriter, op, init,
                                            useInitializerRegion);
   } else if (auto dataMemberAttr = mlir::dyn_cast<cir::DataMemberAttr>(init)) {
@@ -2662,7 +2663,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstVector(
 mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstComplex(
     mlir::ConversionPatternRewriter &rewriter, cir::GlobalOp op,
     mlir::Attribute &init, bool &useInitializerRegion) const {
-  auto constVec = mlir::cast<cir::ComplexAttr>(init);
+  auto constVec = mlir::cast<cir::ConstComplexAttr>(init);
   if (auto val = lowerConstComplexAttr(constVec, getTypeConverter());
       val.has_value()) {
     init = val.value();

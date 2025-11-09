@@ -324,12 +324,13 @@ LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
-// ComplexAttr definitions
+// ConstComplexAttr definitions
 //===----------------------------------------------------------------------===//
 
-LogicalResult ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  cir::ComplexType type, mlir::TypedAttr real,
-                                  mlir::TypedAttr imag) {
+LogicalResult
+ConstComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                         cir::ComplexType type, mlir::TypedAttr real,
+                         mlir::TypedAttr imag) {
   auto elemType = type.getElementType();
   if (real.getType() != elemType)
     return emitError()

@@ -9,7 +9,7 @@ void foo() {
 
 // CIR: %[[INIT:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["c", init]
 // CIR: %[[COMPOUND:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, [".compoundliteral", init]
-// CIR: %[[COMPLEX:.*]] = cir.const #cir.complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
+// CIR: %[[COMPLEX:.*]] = cir.const #cir.const_complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[COMPLEX]], %[[COMPOUND]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 // CIR: %[[TMP:.*]] = cir.load{{.*}} %[[COMPOUND]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[TMP]], %[[INIT]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>

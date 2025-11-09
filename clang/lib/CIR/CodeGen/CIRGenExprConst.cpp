@@ -2052,25 +2052,24 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::ComplexFloat:
   case APValue::ComplexInt: {
     mlir::Type desiredType = CGM.convertType(DestType);
-    cir::ComplexType complexType =
-        mlir::dyn_cast<cir::ComplexType>(desiredType);
+    auto complexType = mlir::dyn_cast<cir::ComplexType>(desiredType);
 
     mlir::Type complexElemTy = complexType.getElementType();
     if (isa<cir::IntType>(complexElemTy)) {
-      llvm::APSInt real = Value.getComplexIntReal();
-      llvm::APSInt imag = Value.getComplexIntImag();
-      return builder.getAttr<cir::ComplexAttr>(
-          complexType, cir::IntAttr::get(complexElemTy, real),
-          cir::IntAttr::get(complexElemTy, imag));
+      const llvm::APSInt &real = Value.getComplexIntReal();
+      const llvm::APSInt &imag = Value.getComplexIntImag();
+      return cir::ConstComplexAttr::get(builder.getContext(), complexType,
+                                        cir::IntAttr::get(complexElemTy, real),
+                                        cir::IntAttr::get(complexElemTy, imag));
     }
 
     assert(isa<cir::FPTypeInterface>(complexElemTy) &&
            "expected floating-point type");
-    llvm::APFloat real = Value.getComplexFloatReal();
-    llvm::APFloat imag = Value.getComplexFloatImag();
-    return builder.getAttr<cir::ComplexAttr>(
-        complexType, cir::FPAttr::get(complexElemTy, real),
-        cir::FPAttr::get(complexElemTy, imag));
+    const llvm::APFloat &real = Value.getComplexFloatReal();
+    const llvm::APFloat &imag = Value.getComplexFloatImag();
+    return cir::ConstComplexAttr::get(builder.getContext(), complexType,
+                                      cir::FPAttr::get(complexElemTy, real),
+                                      cir::FPAttr::get(complexElemTy, imag));
   }
   case APValue::FixedPoint:
   case APValue::AddrLabelDiff:

@@ -416,7 +416,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (mlir::isa<cir::IntAttr, cir::FPAttr, cir::ComplexAttr>(attrType)) {
+  if (mlir::isa<cir::IntAttr, cir::FPAttr, cir::ConstComplexAttr>(attrType)) {
     auto at = cast<TypedAttr>(attrType);
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
@@ -923,20 +923,16 @@ LogicalResult cir::ComplexCreateOp::verify() {
 OpFoldResult cir::ComplexCreateOp::fold(FoldAdaptor adaptor) {
   auto real = adaptor.getReal();
   auto imag = adaptor.getImag();
-
   if (!real || !imag)
     return nullptr;
 
   // When both of real and imag are constants, we can fold the operation into an
-  // `cir.const #cir.complex` operation.
-
+  // `cir.const #cir.const_complex` operation.
   auto realAttr = mlir::cast<mlir::TypedAttr>(real);
   auto imagAttr = mlir::cast<mlir::TypedAttr>(imag);
   assert(realAttr.getType() == imagAttr.getType() &&
          "real part and imag part should be of the same type");
-
-  auto complexTy = cir::ComplexType::get(realAttr.getType());
-  return cir::ComplexAttr::get(complexTy, realAttr, imagAttr);
+  return cir::ConstComplexAttr::get(realAttr, imagAttr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -955,7 +951,8 @@ OpFoldResult cir::ComplexRealOp::fold(FoldAdaptor adaptor) {
   if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
     return complexCreateOp.getOperand(0);
 
-  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  auto complex =
+      mlir::cast_if_present<cir::ConstComplexAttr>(adaptor.getOperand());
   return complex ? complex.getReal() : nullptr;
 }
 
@@ -971,7 +968,8 @@ OpFoldResult cir::ComplexImagOp::fold(FoldAdaptor adaptor) {
   if (auto complexCreateOp = getOperand().getDefiningOp<cir::ComplexCreateOp>())
     return complexCreateOp.getOperand(1);
 
-  auto complex = mlir::cast_if_present<cir::ComplexAttr>(adaptor.getOperand());
+  auto complex =
+      mlir::cast_if_present<cir::ConstComplexAttr>(adaptor.getOperand());
   return complex ? complex.getImag() : nullptr;
 }
 

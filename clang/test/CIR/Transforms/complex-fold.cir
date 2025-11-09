@@ -12,7 +12,7 @@ module {
   }
 
   // CHECK-LABEL: cir.func @complex_create_fold() -> !cir.complex<!s32i> {
-  //  CHECK-NEXT:   %[[#A:]] = cir.const #cir.complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
+  //  CHECK-NEXT:   %[[#A:]] = cir.const #cir.const_complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
   //  CHECK-NEXT:   cir.return %[[#A]] : !cir.complex<!s32i>
   //  CHECK-NEXT: }
 
