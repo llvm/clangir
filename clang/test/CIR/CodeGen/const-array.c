@@ -13,6 +13,6 @@ void foo() {
 }
 
 // CHECK-LABEL: @foo()
-// CHECK: %[[ADDR:.*]] = cir.alloca !cir.array<!s32i x 10>, !cir.ptr<!cir.array<!s32i x 10>>, ["a"]
+// CHECK: %[[ADDR:.*]] = cir.alloca !cir.array<!s32i x 10>, !cir.ptr<!cir.array<!s32i x 10>>, ["a", init]
 // CHECK: %[[SRC:.*]] = cir.get_global @__const.foo.a : !cir.ptr<!cir.array<!s32i x 10>>
 // CHECK: cir.copy %[[SRC]] to %[[ADDR]] : !cir.ptr<!cir.array<!s32i x 10>>

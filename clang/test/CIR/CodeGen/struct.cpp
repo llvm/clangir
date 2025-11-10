@@ -134,7 +134,7 @@ struct NonTrivialConstexprConstructor {
 // Should locally copy struct members.
 void shouldLocallyCopyStructAssignments(void) {
   struct A a = { 3 };
-  // CHECK: %[[#SA:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 4 : i64}
+  // CHECK: %[[#SA:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
   struct A b = a;
   // CHECK: %[[#SB:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["b", init] {alignment = 4 : i64}
   // cir.copy %[[#SA]] to %[[SB]] : !cir.ptr<!rec_A>
@@ -200,7 +200,7 @@ void unary_extension() {
   CompleteS a = __extension__ CompleteS();
 }
 
-// CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a"]
+// CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a", init]
 // CHECK: %[[ZERO_INIT:.*]] = cir.const #cir.zero : !rec_CompleteS
 // CHECK: cir.store{{.*}} %[[ZERO_INIT]], %[[A_ADDR]] : !rec_CompleteS, !cir.ptr<!rec_CompleteS>
 
