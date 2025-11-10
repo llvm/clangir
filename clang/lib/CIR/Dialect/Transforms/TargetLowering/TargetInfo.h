@@ -33,6 +33,9 @@ createSPIRVTargetLoweringInfo(LowerModule &CGM);
 std::unique_ptr<TargetLoweringInfo>
 createNVPTXTargetLoweringInfo(LowerModule &CGM);
 
+std::unique_ptr<TargetLoweringInfo>
+createAMDGPUTargetLoweringInfo(LowerModule &CGM);
+
 } // namespace cir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_TARGETINFO_H

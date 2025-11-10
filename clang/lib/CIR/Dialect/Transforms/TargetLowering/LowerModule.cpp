@@ -71,6 +71,8 @@ createTargetLoweringInfo(LowerModule &LM) {
 
     return createAArch64TargetLoweringInfo(LM, Kind);
   }
+  case llvm::Triple::amdgcn:
+    return createAMDGPUTargetLoweringInfo(LM);
   case llvm::Triple::x86_64: {
     switch (Triple.getOS()) {
     case llvm::Triple::Win32:
