@@ -2119,7 +2119,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__sync_swap_4:
   case Builtin::BI__sync_swap_8:
   case Builtin::BI__sync_swap_16:
-    llvm_unreachable("BI__sync_swap1 like NYI");
+    return emitBinaryAtomic(*this, cir::AtomicFetchKind::Xchg, E);
 
   case Builtin::BI__sync_lock_test_and_set_1:
   case Builtin::BI__sync_lock_test_and_set_2:
