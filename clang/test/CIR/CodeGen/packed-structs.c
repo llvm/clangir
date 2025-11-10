@@ -71,7 +71,9 @@ typedef struct {
 } E;
 
 // CIR: cir.func {{.*@f1()}}
-// CIR:  {{.*}} = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["a"] {alignment = 2 : i64}
+// CIR:  %[[E:.*]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["a", init] {alignment = 2 : i64}
+// CIR:  %[[ZERO:.*]] = cir.const #cir.zero : !rec_E
+// CIR:  cir.store{{.*}} %[[ZERO]], %[[E]] : !rec_E, !cir.ptr<!rec_E>
 
 // LLVM: {{.*}} = alloca %struct.E, i64 1, align 2
 void f1() {
@@ -91,7 +93,7 @@ typedef struct {
 } G;
 
 // CIR: cir.func {{.*@f2()}}
-// CIR:  {{.*}} = cir.alloca !rec_G, !cir.ptr<!rec_G>, ["a"] {alignment = 1 : i64}
+// CIR:  {{.*}} = cir.alloca !rec_G, !cir.ptr<!rec_G>, ["a", init] {alignment = 1 : i64}
 
 // LLVM: {{.*}} = alloca %struct.G, i64 1, align 1
 void f2() {
@@ -123,7 +125,7 @@ typedef struct {
 } J;
 
 // CIR: cir.func {{.*@f3()}}
-// CIR:  {{.*}} = cir.alloca !rec_J, !cir.ptr<!rec_J>, ["a"] {alignment = 1 : i64}
+// CIR:  {{.*}} = cir.alloca !rec_J, !cir.ptr<!rec_J>, ["a", init] {alignment = 1 : i64}
 
 // LLVM: {{.*}} = alloca %struct.J, i64 1, align 1
 void f3() {

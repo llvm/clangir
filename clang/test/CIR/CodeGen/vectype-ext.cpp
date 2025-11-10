@@ -524,7 +524,7 @@ void test_build_lvalue() {
 // LLVM: define dso_local void {{@.*test_vec3.*}}
 void test_vec3() {
   vi3 v = {};
-  // CIR-NEXT: %[[#PV:]] = cir.alloca !cir.vector<!s32i x 3>, !cir.ptr<!cir.vector<!s32i x 3>>, ["v"] {alignment = 16 : i64}
+  // CIR-NEXT: %[[#PV:]] = cir.alloca !cir.vector<!s32i x 3>, !cir.ptr<!cir.vector<!s32i x 3>>, ["v", init] {alignment = 16 : i64}
   // CIR-NEXT: %[[#VVAL:]] = cir.const #cir.const_vector<[#cir.int<0> : !s32i, #cir.int<0> : !s32i, #cir.int<0> : !s32i]> : !cir.vector<!s32i x 3>
   // CIR-NEXT: cir.store{{.*}} %[[#VVAL]], %[[#PV]] : !cir.vector<!s32i x 3>, !cir.ptr<!cir.vector<!s32i x 3>>
 
@@ -572,7 +572,7 @@ void vector_shuffle_dynamic_mask_test() {
 // LLVM: define dso_local void {{@.*test_vec3_array.*}}
 void test_vec3_array() {
   vi3 arr[4] = {};
-  // CIR: cir.alloca !cir.array<!cir.vector<!s32i x 3> x 4>, !cir.ptr<!cir.array<!cir.vector<!s32i x 3> x 4>>, ["arr"]
+  // CIR: cir.alloca !cir.array<!cir.vector<!s32i x 3> x 4>, !cir.ptr<!cir.array<!cir.vector<!s32i x 3> x 4>>, ["arr", init]
   // LLVM: alloca [4 x <3 x i32>], i64 1, align 16
 
   vi3 *ptr = &arr[0];

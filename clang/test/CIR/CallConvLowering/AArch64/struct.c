@@ -68,7 +68,7 @@ void foo1() {
 // CIR: %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["__retval"] {alignment = 4 : i64}
-// CIR: %[[#V3:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s2"]
+// CIR: %[[#V3:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s2", init]
 // CIR: %[[#V4:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"] {alignment = 4 : i64}
 // CIR: %[[#V5:]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_S
 // CIR: cir.store{{.*}} %[[#V5]], %[[#V3]] : !rec_S, !cir.ptr<!rec_S>

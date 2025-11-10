@@ -82,7 +82,7 @@ void foo() {
   double bar[] = {9,8,7};
 }
 // CIR-LABEL: @foo
-// CIR:  %[[DST:.*]] = cir.alloca !cir.array<!cir.double x 3>, !cir.ptr<!cir.array<!cir.double x 3>>, ["bar"]
+// CIR:  %[[DST:.*]] = cir.alloca !cir.array<!cir.double x 3>, !cir.ptr<!cir.array<!cir.double x 3>>, ["bar", init]
 // CIR:  %[[SRC:.*]] = cir.get_global @__const.foo.bar : !cir.ptr<!cir.array<!cir.double x 3>>
 // CIR:  cir.copy %[[SRC]] to %[[DST]] : !cir.ptr<!cir.array<!cir.double x 3>>
 

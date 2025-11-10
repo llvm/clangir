@@ -31,7 +31,7 @@ void complex_user_defined_cast() {
   int _Complex c = p;
 }
 
-// CIR-AFTER: %[[P_ADDR:.*]] = cir.alloca !rec_Point, !cir.ptr<!rec_Point>, ["p"]
+// CIR-AFTER: %[[P_ADDR:.*]] = cir.alloca !rec_Point, !cir.ptr<!rec_Point>, ["p", init]
 // CIR-AFTER: %[[C_ADDR:.*]] = cir.alloca !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>, ["c", init]
 // CIR-AFTER: %[[P_CONST:.*]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_Point
 // CIR-AFTER: cir.store{{.*}} %[[P_CONST]], %[[P_ADDR]] : !rec_Point, !cir.ptr<!rec_Point>
