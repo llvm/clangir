@@ -5,6 +5,7 @@ typedef unsigned int uvi4 __attribute__((vector_size(16)));
 typedef double vd2 __attribute__((vector_size(16)));
 typedef long long vll2 __attribute__((vector_size(16)));
 typedef unsigned short vus2 __attribute__((vector_size(4)));
+typedef float vf4 __attribute__((vector_size(16)));
 
 vi4 vec_a;
 // CHECK: cir.global external @[[VEC_A:.*]] = #cir.zero : !cir.vector<!s32i x 4>
@@ -221,3 +222,27 @@ void vector_integers_shifts_test() {
   uvi4 shr = b >> a;
   // CHECK: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
 }
+
+void logical_not() {
+   vi4 a;
+   vi4 b = !a;
+}
+
+// CHECK: %[[A_ADDR:.*]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["a"]
+// CHECK: %[[B_ADDR:.*]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["b", init]
+// CHECK: %[[TMP_A:.*]] = cir.load{{.*}}) %[[A_ADDR]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+// CHECK: %[[CONST_V0:.*]] = cir.const #cir.zero : !cir.vector<!s32i x 4>
+// CHECK: %[[RESULT:.*]] = cir.vec.cmp(eq, %[[TMP_A]], %[[CONST_V0]]) : !cir.vector<!s32i x 4>, !cir.vector<!s32i x 4>
+// CHECK: cir.store{{.*}} %[[RESULT]], %[[B_ADDR]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+void logical_not_float() {
+  vf4 a;
+  vi4 b = !a;
+}
+
+// CHECK: %[[A_ADDR:.*]] = cir.alloca !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>, ["a"]
+// CHECK: %[[B_ADDR:.*]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["b", init]
+// CHECK: %[[TMP_A:.*]] = cir.load{{.*}} %[[A_ADDR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.float x 4>
+// CHECK: %[[CONST_V0:.*]] = cir.const #cir.zero : !cir.vector<!cir.float x 4>
+// CHECK: %[[RESULT:.*]] = cir.vec.cmp(eq, %[[TMP_A]], %[[CONST_V0]]) : !cir.vector<!cir.float x 4>, !cir.vector<!s32i x 4>
+// CHECK: cir.store{{.*}} %[[RESULT]], %[[B_ADDR]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>

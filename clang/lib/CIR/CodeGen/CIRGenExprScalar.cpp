@@ -2062,7 +2062,13 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   if (E->getType()->isVectorType() &&
       E->getType()->castAs<VectorType>()->getVectorKind() ==
           VectorKind::Generic) {
-    llvm_unreachable("NYI");
+    mlir::Value oper = Visit(E->getSubExpr());
+    mlir::Location loc = CGF.getLoc(E->getExprLoc());
+    auto operVecTy = mlir::cast<cir::VectorType>(oper.getType());
+    auto exprVecTy = mlir::cast<cir::VectorType>(CGF.convertType(E->getType()));
+    mlir::Value zeroVec = Builder.getNullValue(operVecTy, loc);
+    return cir::VecCmpOp::create(Builder, loc, exprVecTy, cir::CmpOpKind::eq,
+                                 oper, zeroVec);
   }
 
   // Compare operand to zero.
