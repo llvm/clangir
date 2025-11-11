@@ -222,7 +222,7 @@ public:
               FeOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!PassOptParsingFailure.empty())
-          DiagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
+          DiagnosticsEngine.Report((diag::err_drv_cir_pass_opt_parsing))
               << FeOptions.ClangIRLifetimeCheckOpts;
         else
           llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
