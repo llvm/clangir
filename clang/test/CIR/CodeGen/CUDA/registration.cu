@@ -50,6 +50,8 @@
 
 __global__ void fn() {}
 
+__device__ int a;
+
 // CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
 // CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
@@ -64,6 +66,16 @@ __global__ void fn() {}
 // CIR-HOST-SAME: %[[#DeviceFn]],
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
+// CIR-HOST:   %[[#T3:]] = cir.get_global @".stra0"
+// CIR-HOST:   %[[#Device:]] = cir.cast bitcast %7
+// CIR-HOST:   %[[#T4:]] = cir.get_global @".stra1"
+// CIR-HOST:   %[[#Host:]] = cir.cast bitcast %9
+// CIR-HOST:   %[[#Ext:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#Sz:]] = cir.const #cir.int<4>
+// CIR-HOST:   %[[#Const:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#Zero:]] = cir.const #cir.int<0>
+// CIR-HOST:   cir.call @__cudaRegisterVar(%arg0, %[[#Host]], %[[#Device]], %[[#Device]],
+// CIR-HOST-SAME: %[[#Ext]], %[[#Sz]], %[[#Const]], %[[#Zero]])
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__cuda_register_globals(ptr %[[#LLVMFatbin:]]) {
@@ -74,6 +86,9 @@ __global__ void fn() {}
 // LLVM-HOST-SAME: ptr @.str_Z2fnv,
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
+// LLVM-HOST:   call void @__cudaRegisterVar(
+// LLVM-HOST-SAME: ptr %0, ptr @.stra1, ptr @.stra0, ptr @.stra0,
+// LLVM-HOST-SAME: i32 0, i64 4, i32 0, i32 0)
 // LLVM-HOST: }
 
 // The content in const array should be the same as echoed above,
