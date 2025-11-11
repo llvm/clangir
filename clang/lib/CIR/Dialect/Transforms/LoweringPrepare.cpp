@@ -127,6 +127,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   // Maps CUDA kernel name to device stub function.
   llvm::StringMap<FuncOp> cudaKernelMap;
+  // Maps CUDA device-side variable name to host-side (shadow) GlobalOp.
+  llvm::StringMap<GlobalOp> cudaVarMap;
 
   void buildCUDAModuleCtor();
   std::optional<FuncOp> buildCUDAModuleDtor();
@@ -135,6 +137,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   void buildCUDARegisterGlobalFunctions(cir::CIRBaseBuilderTy &builder,
                                         FuncOp regGlobalFunc);
+  void buildCUDARegisterVars(cir::CIRBaseBuilderTy &builder,
+                             FuncOp regGlobalFunc);
 
   ///
   /// AST related
@@ -1261,8 +1265,7 @@ std::optional<FuncOp> LoweringPreparePass::buildCUDARegisterGlobals() {
   builder.setInsertionPointToStart(regGlobalFunc.addEntryBlock());
 
   buildCUDARegisterGlobalFunctions(builder, regGlobalFunc);
-
-  // TODO(cir): registration for global variables.
+  buildCUDARegisterVars(builder, regGlobalFunc);
 
   ReturnOp::create(builder, loc);
   return regGlobalFunc;
@@ -1407,395 +1410,482 @@ std::optional<FuncOp> LoweringPreparePass::buildHIPModuleDtor() {
     cir::ReturnOp::create(builder, loc);
   }
   return dtor;
-}
 
-std::optional<FuncOp> LoweringPreparePass::buildCUDAModuleDtor() {
-  if (!theModule->getAttr(CIRDialect::getCUDABinaryHandleAttrName()))
-    return {};
+  void LoweringPreparePass::buildCUDARegisterVars(
+      cir::CIRBaseBuilderTy & builder, FuncOp regGlobalFunc) {
+    auto loc = theModule.getLoc();
+    auto cudaPrefix = getCUDAPrefix(astCtx);
 
-  std::string prefix = getCUDAPrefix(astCtx);
+    auto voidTy = VoidType::get(&getContext());
+    auto voidPtrTy = PointerType::get(voidTy);
+    auto voidPtrPtrTy = PointerType::get(voidPtrTy);
+    auto intTy = datalayout->getIntType(&getContext());
+    auto charTy = datalayout->getCharType(&getContext());
+    auto sizeTy = datalayout->getSizeType(&getContext());
 
-  auto voidTy = VoidType::get(&getContext());
-  auto voidPtrPtrTy = PointerType::get(PointerType::get(voidTy));
+    // Extract the GPU binary handle argument.
+    mlir::Value fatbinHandle = *regGlobalFunc.args_begin();
 
-  auto loc = theModule.getLoc();
+    cir::CIRBaseBuilderTy globalBuilder(getContext());
+    globalBuilder.setInsertionPointToStart(theModule.getBody());
 
-  cir::CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointToStart(theModule.getBody());
+    // Declare CUDA internal function:
+    // void __cudaRegisterVar(
+    //    void **fatbinHandle,
+    //    char *hostVarName,
+    //    char *deviceVarName,
+    //    const char *deviceVarName,
+    //    int isExtern, size_t varSize,
+    //    int isConstant, int zero
+    // );
+    // Similar to the registration of global functions, OG does not care about
+    // pointer types. They will generate the same IR anyway.
 
-  // void __cudaUnregisterFatBinary(void ** handle);
-  std::string unregisterFuncName =
-      addUnderscoredPrefix(prefix, "UnregisterFatBinary");
-  FuncOp unregisterFunc = buildRuntimeFunction(
-      builder, unregisterFuncName, loc, FuncType::get({voidPtrPtrTy}, voidTy));
+    FuncOp cudaRegisterVar = buildRuntimeFunction(
+        globalBuilder, addUnderscoredPrefix(cudaPrefix, "RegisterVar"), loc,
+        FuncType::get({voidPtrPtrTy, voidPtrTy, voidPtrTy, voidPtrTy, intTy,
+                       sizeTy, intTy, intTy},
+                      voidTy));
 
-  // void __cuda_module_dtor();
-  // Despite the name, OG doesn't treat it as a destructor, so it shouldn't be
-  // put into globalDtorList. If it were a real dtor, then it would cause double
-  // free above CUDA 9.2. The way to use it is to manually call atexit() at end
-  // of module ctor.
-  std::string dtorName = addUnderscoredPrefix(prefix, "_module_dtor");
-  FuncOp dtor =
-      buildRuntimeFunction(builder, dtorName, loc, FuncType::get({}, voidTy),
-                           GlobalLinkageKind::InternalLinkage);
+    unsigned int count = 0;
+    auto makeConstantString = [&](llvm::StringRef str) -> GlobalOp {
+      auto strType = ArrayType::get(&getContext(), charTy, 1 + str.size());
 
-  builder.setInsertionPointToStart(dtor.addEntryBlock());
+      auto tmpString = GlobalOp::create(
+          globalBuilder, loc, (".str" + str + std::to_string(count++)).str(),
+          strType, /*isConstant=*/true,
+          /*linkage=*/cir::GlobalLinkageKind::PrivateLinkage);
 
-  // For dtor, we only need to call:
-  //    __cudaUnregisterFatBinary(__cuda_gpubin_handle);
+      // We must make the string zero-terminated.
+      tmpString.setInitialValueAttr(ConstArrayAttr::get(
+          strType, StringAttr::get(&getContext(), str + "\0")));
+      tmpString.setPrivate();
+      return tmpString;
+    };
 
-  std::string gpubinName = addUnderscoredPrefix(prefix, "_gpubin_handle");
-  auto gpubinGlobal = cast<GlobalOp>(theModule.lookupSymbol(gpubinName));
-  mlir::Value gpubinAddress = builder.createGetGlobal(gpubinGlobal);
-  mlir::Value gpubin = builder.createLoad(loc, gpubinAddress);
-  builder.createCallOp(loc, unregisterFunc, gpubin);
-  ReturnOp::create(builder, loc);
+    for (auto &[deviceSideName, global] : cudaVarMap) {
+      GlobalOp deviceNameStr = makeConstantString(deviceSideName);
+      mlir::Value deviceNameValue = builder.createBitcast(
+          builder.createGetGlobal(deviceNameStr), voidPtrTy);
 
-  return dtor;
-}
+      GlobalOp hostNameStr = makeConstantString(global.getName());
+      mlir::Value hostNameValue = builder.createBitcast(
+          builder.createGetGlobal(hostNameStr), voidPtrTy);
 
-void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op);
-
-  assert(astCtx && "AST context is not available during lowering prepare");
-  auto loweredValue = cxxABI->lowerDynamicCast(builder, *astCtx, op);
-
-  op.replaceAllUsesWith(loweredValue);
-  op.erase();
-}
-
-static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
-                                       mlir::Operation *op, mlir::Type eltTy,
-                                       mlir::Value arrayAddr, uint64_t arrayLen,
-                                       bool isCtor) {
-  // Generate loop to call into ctor/dtor for every element.
-  auto loc = op->getLoc();
-
-  // TODO: instead of fixed integer size, create alias for PtrDiffTy and unify
-  // with CIRGen stuff.
-  auto ptrDiffTy =
-      cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
-  uint64_t endOffset = isCtor ? arrayLen : arrayLen - 1;
-  mlir::Value endOffsetVal = cir::ConstantOp::create(
-      builder, loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, endOffset));
-
-  auto begin = cir::CastOp::create(builder, loc, eltTy,
-                                   cir::CastKind::array_to_ptrdecay, arrayAddr);
-  mlir::Value end =
-      cir::PtrStrideOp::create(builder, loc, eltTy, begin, endOffsetVal);
-  mlir::Value start = isCtor ? begin : end;
-  mlir::Value stop = isCtor ? end : begin;
-
-  auto tmpAddr = builder.createAlloca(
-      loc, /*addr type*/ builder.getPointerTo(eltTy),
-      /*var type*/ eltTy, "__array_idx", clang::CharUnits::One());
-  builder.createStore(loc, start, tmpAddr);
-
-  auto loop = builder.createDoWhile(
-      loc,
-      /*condBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
-        mlir::Type boolTy = cir::BoolType::get(b.getContext());
-        auto cmp = cir::CmpOp::create(builder, loc, boolTy, cir::CmpOpKind::ne,
-                                      currentElement, stop);
-        builder.createCondition(cmp);
-      },
-      /*bodyBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
-
-        CallOp ctorCall;
-        op->walk([&](CallOp c) { ctorCall = c; });
-        assert(ctorCall && "expected ctor call");
-
-        cir::ConstantOp stride;
-        if (isCtor)
-          stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
-                                           cir::IntAttr::get(ptrDiffTy, 1));
-        else
-          stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
-                                           cir::IntAttr::get(ptrDiffTy, -1));
-
-        ctorCall->moveBefore(stride);
-        ctorCall->setOperand(0, currentElement);
-
-        // Advance pointer and store them to temporary variable
-        auto nextElement = cir::PtrStrideOp::create(builder, loc, eltTy,
-                                                    currentElement, stride);
-        builder.createStore(loc, nextElement, tmpAddr);
-        builder.createYield(loc);
-      });
-
-  op->replaceAllUsesWith(loop);
-  op->erase();
-}
-
-void LoweringPreparePass::lowerArrayDtor(ArrayDtor op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
-
-  auto eltTy = op->getRegion(0).getArgument(0).getType();
-  auto arrayLen =
-      mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee()).getSize();
-  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen, false);
-}
-
-static std::string getGlobalVarNameForConstString(cir::StoreOp op,
-                                                  uint64_t &cnt) {
-  llvm::SmallString<64> finalName;
-  llvm::raw_svector_ostream Out(finalName);
-
-  Out << "__const.";
-  if (auto fnOp = op->getParentOfType<cir::FuncOp>()) {
-    Out << fnOp.getSymNameAttr().getValue() << ".";
-  } else {
-    Out << "module.";
+      // Every device variable that has a shadow on host will not be extern.
+      // See CIRGenModule::emitGlobalVarDefinition.
+      auto isExtern = ConstantOp::create(builder, loc, IntAttr::get(intTy, 0));
+      llvm::TypeSize size = datalayout->getTypeSizeInBits(global.getSymType());
+      auto varSize = ConstantOp::create(
+          builder, loc, IntAttr::get(sizeTy, size.getFixedValue() / 8));
+      auto isConstant = ConstantOp::create(
+          builder, loc, IntAttr::get(intTy, global.getConstant()));
+      auto zero = ConstantOp::create(builder, loc, IntAttr::get(intTy, 0));
+      builder.createCallOp(loc, cudaRegisterVar,
+                           {fatbinHandle, hostNameValue, deviceNameValue,
+                            deviceNameValue, isExtern, varSize, isConstant,
+                            zero});
+    }
   }
 
-  auto allocaOp = op.getAddr().getDefiningOp<cir::AllocaOp>();
-  if (allocaOp && !allocaOp.getName().empty())
-    Out << allocaOp.getName();
-  else
-    Out << cnt++;
-  return finalName.c_str();
-}
+  std::optional<FuncOp> LoweringPreparePass::buildCUDAModuleDtor() {
+    if (!theModule->getAttr(CIRDialect::getCUDABinaryHandleAttrName()))
+      return {};
 
-void LoweringPreparePass::lowerToMemCpy(StoreOp op) {
-  // Now that basic filter is done, do more checks before proceding with the
-  // transformation.
-  auto cstOp = op.getValue().getDefiningOp<cir::ConstantOp>();
-  if (!cstOp)
-    return;
+    std::string prefix = getCUDAPrefix(astCtx);
 
-  if (!isa<cir::ConstArrayAttr>(cstOp.getValue()))
-    return;
-  CIRBaseBuilderTy builder(getContext());
+    auto voidTy = VoidType::get(&getContext());
+    auto voidPtrPtrTy = PointerType::get(PointerType::get(voidTy));
 
-  // Create a global which is initialized with the attribute that is either a
-  // constant array or record.
-  assert(!cir::MissingFeatures::unnamedAddr() && "NYI");
-  builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
-  std::string globalName =
-      getGlobalVarNameForConstString(op, annonGlobalConstArrayCount);
-  cir::GlobalOp globalCst = buildRuntimeVariable(
-      builder, globalName, op.getLoc(), op.getValue().getType(),
-      cir::GlobalLinkageKind::PrivateLinkage);
-  globalCst.setInitialValueAttr(cstOp.getValue());
-  globalCst.setConstant(true);
+    auto loc = theModule.getLoc();
 
-  // Transform the store into a cir.copy.
-  builder.setInsertionPointAfter(op.getOperation());
-  cir::CopyOp memCpy =
-      builder.createCopy(op.getAddr(), builder.createGetGlobal(globalCst));
-  op->replaceAllUsesWith(memCpy);
-  op->erase();
-  if (cstOp->getResult(0).getUsers().empty())
-    cstOp->erase();
-}
+    cir::CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointToStart(theModule.getBody());
 
-void LoweringPreparePass::lowerArrayCtor(ArrayCtor op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
+    // void __cudaUnregisterFatBinary(void ** handle);
+    std::string unregisterFuncName =
+        addUnderscoredPrefix(prefix, "UnregisterFatBinary");
+    FuncOp unregisterFunc =
+        buildRuntimeFunction(builder, unregisterFuncName, loc,
+                             FuncType::get({voidPtrPtrTy}, voidTy));
 
-  auto eltTy = op->getRegion(0).getArgument(0).getType();
-  auto arrayLen =
-      mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee()).getSize();
-  lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen, true);
-}
+    // void __cuda_module_dtor();
+    // Despite the name, OG doesn't treat it as a destructor, so it shouldn't be
+    // put into globalDtorList. If it were a real dtor, then it would cause
+    // double free above CUDA 9.2. The way to use it is to manually call
+    // atexit() at end of module ctor.
+    std::string dtorName = addUnderscoredPrefix(prefix, "_module_dtor");
+    FuncOp dtor =
+        buildRuntimeFunction(builder, dtorName, loc, FuncType::get({}, voidTy),
+                             GlobalLinkageKind::InternalLinkage);
 
-void LoweringPreparePass::lowerStdFindOp(StdFindOp op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
-  auto call = builder.createCallOp(
-      op.getLoc(), op.getOriginalFnAttr(), op.getType(),
-      mlir::ValueRange{op.getOperand(0), op.getOperand(1), op.getOperand(2)});
+    builder.setInsertionPointToStart(dtor.addEntryBlock());
 
-  op.replaceAllUsesWith(call);
-  op.erase();
-}
+    // For dtor, we only need to call:
+    //    __cudaUnregisterFatBinary(__cuda_gpubin_handle);
 
-void LoweringPreparePass::lowerIterBeginOp(IterBeginOp op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
-  auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
-                                   op.getType(), op.getOperand());
+    std::string gpubinName = addUnderscoredPrefix(prefix, "_gpubin_handle");
+    auto gpubinGlobal = cast<GlobalOp>(theModule.lookupSymbol(gpubinName));
+    mlir::Value gpubinAddress = builder.createGetGlobal(gpubinGlobal);
+    mlir::Value gpubin = builder.createLoad(loc, gpubinAddress);
+    builder.createCallOp(loc, unregisterFunc, gpubin);
+    ReturnOp::create(builder, loc);
 
-  op.replaceAllUsesWith(call);
-  op.erase();
-}
-
-void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
-  auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
-                                   op.getType(), op.getOperand());
-
-  op.replaceAllUsesWith(call);
-  op.erase();
-}
-
-void LoweringPreparePass::lowerThrowOp(ThrowOp op) {
-  CIRBaseBuilderTy builder(getContext());
-
-  if (op.rethrows()) {
-    auto voidTy = cir::VoidType::get(builder.getContext());
-    auto fnType = cir::FuncType::get({}, voidTy);
-    auto fnName = "__cxa_rethrow";
-
-    builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
-    FuncOp f = buildRuntimeFunction(builder, fnName, op.getLoc(), fnType);
-
-    builder.setInsertionPointAfter(op.getOperation());
-    auto call = builder.createTryCallOp(op.getLoc(), f, {});
-
-    op->replaceAllUsesWith(call);
-    op->erase();
+    return dtor;
   }
-}
 
-void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
-  FuncOp funcOp = getCalledFunction(op);
-  if (!funcOp)
-    return;
-  Attribute astAttr = funcOp.getAstAttr();
-  if (!astAttr)
-    return;
-  auto ctorDecl = dyn_cast<cir::ASTCXXConstructorDeclInterface>(astAttr);
-  if (!ctorDecl)
-    return;
-  if (ctorDecl.isDefaultConstructor())
-    return;
-
-  if (ctorDecl.isCopyConstructor()) {
-    // Additional safety checks: constructor calls should have no return value
-    if (op.getNumResults() > 0)
-      return;
-    auto operands = op.getOperands();
-    if (operands.size() != 2)
-      return;
-    // Replace the trivial copy constructor call with a copy op
+  void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
     CIRBaseBuilderTy builder(getContext());
-    mlir::Value dest = operands[0];
-    mlir::Value src = operands[1];
-    builder.setInsertionPoint(op);
-    builder.createCopy(dest, src);
+    builder.setInsertionPointAfter(op);
+
+    assert(astCtx && "AST context is not available during lowering prepare");
+    auto loweredValue = cxxABI->lowerDynamicCast(builder, *astCtx, op);
+
+    op.replaceAllUsesWith(loweredValue);
     op.erase();
   }
-}
 
-void LoweringPreparePass::addGlobalAnnotations(mlir::Operation *op,
-                                               mlir::ArrayAttr annotations) {
-  auto globalValue = cast<mlir::SymbolOpInterface>(op);
-  mlir::StringAttr globalValueName = globalValue.getNameAttr();
-  for (auto &annot : annotations) {
-    llvm::SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
-    globalAnnotations.push_back(
-        mlir::ArrayAttr::get(theModule.getContext(), entryArray));
+  static void lowerArrayDtorCtorIntoLoop(
+      CIRBaseBuilderTy & builder, mlir::Operation * op, mlir::Type eltTy,
+      mlir::Value arrayAddr, uint64_t arrayLen, bool isCtor) {
+    // Generate loop to call into ctor/dtor for every element.
+    auto loc = op->getLoc();
+
+    // TODO: instead of fixed integer size, create alias for PtrDiffTy and unify
+    // with CIRGen stuff.
+    auto ptrDiffTy =
+        cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
+    uint64_t endOffset = isCtor ? arrayLen : arrayLen - 1;
+    mlir::Value endOffsetVal = cir::ConstantOp::create(
+        builder, loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, endOffset));
+
+    auto begin = cir::CastOp::create(
+        builder, loc, eltTy, cir::CastKind::array_to_ptrdecay, arrayAddr);
+    mlir::Value end =
+        cir::PtrStrideOp::create(builder, loc, eltTy, begin, endOffsetVal);
+    mlir::Value start = isCtor ? begin : end;
+    mlir::Value stop = isCtor ? end : begin;
+
+    auto tmpAddr = builder.createAlloca(
+        loc, /*addr type*/ builder.getPointerTo(eltTy),
+        /*var type*/ eltTy, "__array_idx", clang::CharUnits::One());
+    builder.createStore(loc, start, tmpAddr);
+
+    auto loop = builder.createDoWhile(
+        loc,
+        /*condBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
+          auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
+          mlir::Type boolTy = cir::BoolType::get(b.getContext());
+          auto cmp = cir::CmpOp::create(
+              builder, loc, boolTy, cir::CmpOpKind::ne, currentElement, stop);
+          builder.createCondition(cmp);
+        },
+        /*bodyBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
+          auto currentElement = cir::LoadOp::create(b, loc, eltTy, tmpAddr);
+
+          CallOp ctorCall;
+          op->walk([&](CallOp c) { ctorCall = c; });
+          assert(ctorCall && "expected ctor call");
+
+          cir::ConstantOp stride;
+          if (isCtor)
+            stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
+                                             cir::IntAttr::get(ptrDiffTy, 1));
+          else
+            stride = cir::ConstantOp::create(builder, loc, ptrDiffTy,
+                                             cir::IntAttr::get(ptrDiffTy, -1));
+
+          ctorCall->moveBefore(stride);
+          ctorCall->setOperand(0, currentElement);
+
+          // Advance pointer and store them to temporary variable
+          auto nextElement = cir::PtrStrideOp::create(builder, loc, eltTy,
+                                                      currentElement, stride);
+          builder.createStore(loc, nextElement, tmpAddr);
+          builder.createYield(loc);
+        });
+
+    op->replaceAllUsesWith(loop);
+    op->erase();
   }
-}
 
-void LoweringPreparePass::buildGlobalAnnotationValues() {
-  if (globalAnnotations.empty())
-    return;
-  mlir::ArrayAttr annotationValueArray =
-      mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
-  theModule->setAttr(
-      cir::CIRDialect::getGlobalAnnotationsAttrName(),
-      cir::GlobalAnnotationValuesAttr::get(annotationValueArray));
-}
+  void LoweringPreparePass::lowerArrayDtor(ArrayDtor op) {
+    CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointAfter(op.getOperation());
 
-void LoweringPreparePass::runOnOp(Operation *op) {
-  if (auto unary = dyn_cast<UnaryOp>(op)) {
-    lowerUnaryOp(unary);
-  } else if (auto bin = dyn_cast<BinOp>(op)) {
-    lowerBinOp(bin);
-  } else if (auto cast = dyn_cast<CastOp>(op)) {
-    lowerCastOp(cast);
-  } else if (auto complexBin = dyn_cast<ComplexBinOp>(op)) {
-    lowerComplexBinOp(complexBin);
-  } else if (auto threeWayCmp = dyn_cast<CmpThreeWayOp>(op)) {
-    lowerThreeWayCmpOp(threeWayCmp);
-  } else if (auto vaArgOp = dyn_cast<VAArgOp>(op)) {
-    lowerVAArgOp(vaArgOp);
-  } else if (auto deleteArrayOp = dyn_cast<DeleteArrayOp>(op)) {
-    lowerDeleteArrayOp(deleteArrayOp);
-  } else if (auto getGlobal = dyn_cast<GlobalOp>(op)) {
-    lowerGlobalOp(getGlobal);
-  } else if (auto dynamicCast = dyn_cast<DynamicCastOp>(op)) {
-    lowerDynamicCastOp(dynamicCast);
-  } else if (auto stdFind = dyn_cast<StdFindOp>(op)) {
-    lowerStdFindOp(stdFind);
-  } else if (auto iterBegin = dyn_cast<IterBeginOp>(op)) {
-    lowerIterBeginOp(iterBegin);
-  } else if (auto iterEnd = dyn_cast<IterEndOp>(op)) {
-    lowerIterEndOp(iterEnd);
-  } else if (auto arrayCtor = dyn_cast<ArrayCtor>(op)) {
-    lowerArrayCtor(arrayCtor);
-  } else if (auto arrayDtor = dyn_cast<ArrayDtor>(op)) {
-    lowerArrayDtor(arrayDtor);
-  } else if (auto storeOp = dyn_cast<StoreOp>(op)) {
-    mlir::Type valTy = storeOp.getValue().getType();
-    if (isa<cir::ArrayType>(valTy) || isa<cir::RecordType>(valTy))
-      lowerToMemCpy(storeOp);
-  } else if (auto fnOp = dyn_cast<cir::FuncOp>(op)) {
-    if (auto globalCtor = fnOp.getGlobalCtorPriority()) {
-      globalCtorList.emplace_back(fnOp.getName(), globalCtor.value());
-    } else if (auto globalDtor = fnOp.getGlobalDtorPriority()) {
-      globalDtorList.emplace_back(fnOp.getName(), globalDtor.value());
+    auto eltTy = op->getRegion(0).getArgument(0).getType();
+    auto arrayLen =
+        mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee())
+            .getSize();
+    lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen,
+                               false);
+  }
+
+  static std::string getGlobalVarNameForConstString(cir::StoreOp op,
+                                                    uint64_t &cnt) {
+    llvm::SmallString<64> finalName;
+    llvm::raw_svector_ostream Out(finalName);
+
+    Out << "__const.";
+    if (auto fnOp = op->getParentOfType<cir::FuncOp>()) {
+      Out << fnOp.getSymNameAttr().getValue() << ".";
+    } else {
+      Out << "module.";
     }
-    if (auto attr = fnOp.getExtraAttrs().getElements().get(
-            CUDAKernelNameAttr::getMnemonic())) {
-      auto cudaBinaryAttr = dyn_cast<CUDAKernelNameAttr>(attr);
-      std::string kernelName = cudaBinaryAttr.getKernelName();
-      cudaKernelMap[kernelName] = fnOp;
+
+    auto allocaOp = op.getAddr().getDefiningOp<cir::AllocaOp>();
+    if (allocaOp && !allocaOp.getName().empty())
+      Out << allocaOp.getName();
+    else
+      Out << cnt++;
+    return finalName.c_str();
+  }
+
+  void LoweringPreparePass::lowerToMemCpy(StoreOp op) {
+    // Now that basic filter is done, do more checks before proceding with the
+    // transformation.
+    auto cstOp = op.getValue().getDefiningOp<cir::ConstantOp>();
+    if (!cstOp)
+      return;
+
+    if (!isa<cir::ConstArrayAttr>(cstOp.getValue()))
+      return;
+    CIRBaseBuilderTy builder(getContext());
+
+    // Create a global which is initialized with the attribute that is either a
+    // constant array or record.
+    assert(!cir::MissingFeatures::unnamedAddr() && "NYI");
+    builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
+    std::string globalName =
+        getGlobalVarNameForConstString(op, annonGlobalConstArrayCount);
+    cir::GlobalOp globalCst = buildRuntimeVariable(
+        builder, globalName, op.getLoc(), op.getValue().getType(),
+        cir::GlobalLinkageKind::PrivateLinkage);
+    globalCst.setInitialValueAttr(cstOp.getValue());
+    globalCst.setConstant(true);
+
+    // Transform the store into a cir.copy.
+    builder.setInsertionPointAfter(op.getOperation());
+    cir::CopyOp memCpy =
+        builder.createCopy(op.getAddr(), builder.createGetGlobal(globalCst));
+    op->replaceAllUsesWith(memCpy);
+    op->erase();
+    if (cstOp->getResult(0).getUsers().empty())
+      cstOp->erase();
+  }
+
+  void LoweringPreparePass::lowerArrayCtor(ArrayCtor op) {
+    CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointAfter(op.getOperation());
+
+    auto eltTy = op->getRegion(0).getArgument(0).getType();
+    auto arrayLen =
+        mlir::cast<cir::ArrayType>(op.getAddr().getType().getPointee())
+            .getSize();
+    lowerArrayDtorCtorIntoLoop(builder, op, eltTy, op.getAddr(), arrayLen,
+                               true);
+  }
+
+  void LoweringPreparePass::lowerStdFindOp(StdFindOp op) {
+    CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointAfter(op.getOperation());
+    auto call = builder.createCallOp(
+        op.getLoc(), op.getOriginalFnAttr(), op.getType(),
+        mlir::ValueRange{op.getOperand(0), op.getOperand(1), op.getOperand(2)});
+
+    op.replaceAllUsesWith(call);
+    op.erase();
+  }
+
+  void LoweringPreparePass::lowerIterBeginOp(IterBeginOp op) {
+    CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointAfter(op.getOperation());
+    auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
+                                     op.getType(), op.getOperand());
+
+    op.replaceAllUsesWith(call);
+    op.erase();
+  }
+
+  void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
+    CIRBaseBuilderTy builder(getContext());
+    builder.setInsertionPointAfter(op.getOperation());
+    auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
+                                     op.getType(), op.getOperand());
+
+    op.replaceAllUsesWith(call);
+    op.erase();
+  }
+
+  void LoweringPreparePass::lowerThrowOp(ThrowOp op) {
+    CIRBaseBuilderTy builder(getContext());
+
+    if (op.rethrows()) {
+      auto voidTy = cir::VoidType::get(builder.getContext());
+      auto fnType = cir::FuncType::get({}, voidTy);
+      auto fnName = "__cxa_rethrow";
+
+      builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
+      FuncOp f = buildRuntimeFunction(builder, fnName, op.getLoc(), fnType);
+
+      builder.setInsertionPointAfter(op.getOperation());
+      auto call = builder.createTryCallOp(op.getLoc(), f, {});
+
+      op->replaceAllUsesWith(call);
+      op->erase();
     }
-    if (std::optional<mlir::ArrayAttr> annotations = fnOp.getAnnotations())
-      addGlobalAnnotations(fnOp, annotations.value());
-  } else if (auto throwOp = dyn_cast<cir::ThrowOp>(op)) {
-    lowerThrowOp(throwOp);
-  } else if (auto callOp = dyn_cast<CallOp>(op)) {
-    lowerTrivialConstructorCall(callOp);
-  }
-}
-
-void LoweringPreparePass::runOnOperation() {
-  assert(astCtx && "Missing ASTContext, please construct with the right ctor");
-  auto *op = getOperation();
-  if (isa<::mlir::ModuleOp>(op)) {
-    theModule = cast<::mlir::ModuleOp>(op);
-    datalayout.emplace(theModule);
   }
 
-  llvm::SmallVector<Operation *> opsToTransform;
+  void LoweringPreparePass::lowerTrivialConstructorCall(cir::CallOp op) {
+    FuncOp funcOp = getCalledFunction(op);
+    if (!funcOp)
+      return;
+    Attribute astAttr = funcOp.getAstAttr();
+    if (!astAttr)
+      return;
+    auto ctorDecl = dyn_cast<cir::ASTCXXConstructorDeclInterface>(astAttr);
+    if (!ctorDecl)
+      return;
+    if (ctorDecl.isDefaultConstructor())
+      return;
 
-  op->walk([&](Operation *op) {
-    if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,
-            GlobalOp, DynamicCastOp, StdFindOp, IterEndOp, IterBeginOp,
-            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
-      opsToTransform.push_back(op);
-  });
-
-  for (auto *o : opsToTransform)
-    runOnOp(o);
-
-  if (astCtx->getLangOpts().CUDA && !astCtx->getLangOpts().CUDAIsDevice) {
-    buildCUDAModuleCtor();
+    if (ctorDecl.isCopyConstructor()) {
+      // Additional safety checks: constructor calls should have no return value
+      if (op.getNumResults() > 0)
+        return;
+      auto operands = op.getOperands();
+      if (operands.size() != 2)
+        return;
+      // Replace the trivial copy constructor call with a copy op
+      CIRBaseBuilderTy builder(getContext());
+      mlir::Value dest = operands[0];
+      mlir::Value src = operands[1];
+      builder.setInsertionPoint(op);
+      builder.createCopy(dest, src);
+      op.erase();
+    }
   }
 
-  buildCXXGlobalInitFunc();
-  buildGlobalCtorDtorList();
-  buildGlobalAnnotationValues();
-}
+  void LoweringPreparePass::addGlobalAnnotations(mlir::Operation * op,
+                                                 mlir::ArrayAttr annotations) {
+    auto globalValue = cast<mlir::SymbolOpInterface>(op);
+    mlir::StringAttr globalValueName = globalValue.getNameAttr();
+    for (auto &annot : annotations) {
+      llvm::SmallVector<mlir::Attribute, 2> entryArray = {globalValueName,
+                                                          annot};
+      globalAnnotations.push_back(
+          mlir::ArrayAttr::get(theModule.getContext(), entryArray));
+    }
+  }
 
-std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
-  return std::make_unique<LoweringPreparePass>();
-}
+  void LoweringPreparePass::buildGlobalAnnotationValues() {
+    if (globalAnnotations.empty())
+      return;
+    mlir::ArrayAttr annotationValueArray =
+        mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
+    theModule->setAttr(
+        cir::CIRDialect::getGlobalAnnotationsAttrName(),
+        cir::GlobalAnnotationValuesAttr::get(annotationValueArray));
+  }
 
-std::unique_ptr<Pass>
-mlir::createLoweringPreparePass(clang::ASTContext *astCtx) {
-  auto pass = std::make_unique<LoweringPreparePass>();
-  pass->setASTContext(astCtx);
-  return std::move(pass);
-}
+  void LoweringPreparePass::runOnOp(Operation * op) {
+    if (auto unary = dyn_cast<UnaryOp>(op)) {
+      lowerUnaryOp(unary);
+    } else if (auto bin = dyn_cast<BinOp>(op)) {
+      lowerBinOp(bin);
+    } else if (auto cast = dyn_cast<CastOp>(op)) {
+      lowerCastOp(cast);
+    } else if (auto complexBin = dyn_cast<ComplexBinOp>(op)) {
+      lowerComplexBinOp(complexBin);
+    } else if (auto threeWayCmp = dyn_cast<CmpThreeWayOp>(op)) {
+      lowerThreeWayCmpOp(threeWayCmp);
+    } else if (auto vaArgOp = dyn_cast<VAArgOp>(op)) {
+      lowerVAArgOp(vaArgOp);
+    } else if (auto deleteArrayOp = dyn_cast<DeleteArrayOp>(op)) {
+      lowerDeleteArrayOp(deleteArrayOp);
+    } else if (auto global = dyn_cast<GlobalOp>(op)) {
+      lowerGlobalOp(global);
+      if (auto attr = op->getAttr(cir::CUDAShadowNameAttr::getMnemonic())) {
+        auto shadowNameAttr = dyn_cast<CUDAShadowNameAttr>(attr);
+        std::string deviceSideName = shadowNameAttr.getDeviceSideName();
+        cudaVarMap[deviceSideName] = global;
+      }
+    } else if (auto dynamicCast = dyn_cast<DynamicCastOp>(op)) {
+      lowerDynamicCastOp(dynamicCast);
+    } else if (auto stdFind = dyn_cast<StdFindOp>(op)) {
+      lowerStdFindOp(stdFind);
+    } else if (auto iterBegin = dyn_cast<IterBeginOp>(op)) {
+      lowerIterBeginOp(iterBegin);
+    } else if (auto iterEnd = dyn_cast<IterEndOp>(op)) {
+      lowerIterEndOp(iterEnd);
+    } else if (auto arrayCtor = dyn_cast<ArrayCtor>(op)) {
+      lowerArrayCtor(arrayCtor);
+    } else if (auto arrayDtor = dyn_cast<ArrayDtor>(op)) {
+      lowerArrayDtor(arrayDtor);
+    } else if (auto storeOp = dyn_cast<StoreOp>(op)) {
+      mlir::Type valTy = storeOp.getValue().getType();
+      if (isa<cir::ArrayType>(valTy) || isa<cir::RecordType>(valTy))
+        lowerToMemCpy(storeOp);
+    } else if (auto fnOp = dyn_cast<cir::FuncOp>(op)) {
+      if (auto globalCtor = fnOp.getGlobalCtorPriority()) {
+        globalCtorList.emplace_back(fnOp.getName(), globalCtor.value());
+      } else if (auto globalDtor = fnOp.getGlobalDtorPriority()) {
+        globalDtorList.emplace_back(fnOp.getName(), globalDtor.value());
+      }
+      if (auto attr = fnOp.getExtraAttrs().getElements().get(
+              CUDAKernelNameAttr::getMnemonic())) {
+        auto cudaBinaryAttr = dyn_cast<CUDAKernelNameAttr>(attr);
+        std::string kernelName = cudaBinaryAttr.getKernelName();
+        cudaKernelMap[kernelName] = fnOp;
+      }
+      if (std::optional<mlir::ArrayAttr> annotations = fnOp.getAnnotations())
+        addGlobalAnnotations(fnOp, annotations.value());
+    } else if (auto throwOp = dyn_cast<cir::ThrowOp>(op)) {
+      lowerThrowOp(throwOp);
+    } else if (auto callOp = dyn_cast<CallOp>(op)) {
+      lowerTrivialConstructorCall(callOp);
+    }
+  }
+
+  void LoweringPreparePass::runOnOperation() {
+    assert(astCtx &&
+           "Missing ASTContext, please construct with the right ctor");
+    auto *op = getOperation();
+    if (isa<::mlir::ModuleOp>(op)) {
+      theModule = cast<::mlir::ModuleOp>(op);
+      datalayout.emplace(theModule);
+    }
+
+    llvm::SmallVector<Operation *> opsToTransform;
+
+    op->walk([&](Operation *op) {
+      if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,
+              GlobalOp, DynamicCastOp, StdFindOp, IterEndOp, IterBeginOp,
+              ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
+        opsToTransform.push_back(op);
+    });
+
+    for (auto *o : opsToTransform)
+      runOnOp(o);
+
+    if (astCtx->getLangOpts().CUDA && !astCtx->getLangOpts().CUDAIsDevice) {
+      buildCUDAModuleCtor();
+    }
+
+    buildCXXGlobalInitFunc();
+    buildGlobalCtorDtorList();
+    buildGlobalAnnotationValues();
+  }
+
+  std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
+    return std::make_unique<LoweringPreparePass>();
+  }
+
+  std::unique_ptr<Pass> mlir::createLoweringPreparePass(clang::ASTContext *
+                                                        astCtx) {
+    auto pass = std::make_unique<LoweringPreparePass>();
+    pass->setASTContext(astCtx);
+    return std::move(pass);
+  }
