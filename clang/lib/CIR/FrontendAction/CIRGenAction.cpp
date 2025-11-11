@@ -221,9 +221,10 @@ public:
               !FeOptions.ClangIRDirectLowering, EnableCcLowering,
               FeOptions.ClangIREnableMem2Reg)
               .failed()) {
-        if (!PassOptParsingFailure.empty())
-          DiagnosticsEngine.Report((diag::err_drv_cir_pass_opt_parsing))
-              << FeOptions.ClangIRLifetimeCheckOpts;
+        if (!PassOptParsingFailure.empty()) {
+          auto D = DiagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing);
+          D << FeOptions.ClangIRLifetimeCheckOpts;
+        }
         else
           llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
                                    "when running CIR passes!");
