@@ -189,7 +189,6 @@ struct MissingFeatures {
   // Type qualifiers.
   static bool atomicTypes() { return false; }
   static bool volatileTypes() { return false; }
-  static bool syncScopeID() { return false; }
 
   // ABIInfo queries.
   static bool useTargetLoweringABIInfo() { return false; }

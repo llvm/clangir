@@ -637,7 +637,7 @@ uint64x2_t test_vldap1q_lane_u64(uint64_t  *a, uint64x2_t b) {
 // CIR-LABEL:test_vldap1q_lane_u64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 2>
 
@@ -654,7 +654,7 @@ int64x2_t test_vldap1q_lane_s64(int64_t  *a, int64x2_t b) {
 // CIR-LABEL:test_vldap1q_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
 
@@ -671,7 +671,7 @@ float64x2_t test_vldap1q_lane_f64(float64_t  *a, float64x2_t b) {
 // CIR-LABEL:test_vldap1q_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.double x 2>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 2>
 
@@ -688,7 +688,7 @@ poly64x2_t test_vldap1q_lane_p64(poly64_t  *a, poly64x2_t b) {
 // CIR-LABEL:test_vldap1q_lane_p64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
 
@@ -705,7 +705,7 @@ uint64x1_t test_vldap1_lane_u64(uint64_t  *a, uint64x1_t b) {
 // CIR-LABEL:test_vldap1_lane_u64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 1>
 
@@ -722,7 +722,7 @@ int64x1_t test_vldap1_lane_s64(int64_t  *a, int64x1_t b) {
 // CIR-LABEL:test_vldap1_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
 
@@ -740,7 +740,7 @@ float64x1_t test_vldap1_lane_f64(float64_t  *a, float64x1_t b) {
 // CIR-LABEL: test_vldap1_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.double x 1>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 1>
 
@@ -757,7 +757,7 @@ poly64x1_t test_vldap1_lane_p64(poly64_t  *a, poly64x1_t b) {
 // CIR-LABEL: test_vldap1_lane_p64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
-// CIR: [[VAL:%.*]] = cir.load align(8) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
+// CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
 // CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
 // CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
 
