@@ -1177,16 +1177,19 @@ LogicalResult CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
       return emitOpError()
              << "'" << calleeName.getValue()
              << "' does not reference a symbol in the current scope";
+
     if (auto fn = dyn_cast<LLVMFuncOp>(callee)) {
       if (failed(verifyCallOpDebugInfo(*this, fn)))
         return failure();
       fnType = fn.getFunctionType();
     } else if (auto ifunc = dyn_cast<IFuncOp>(callee)) {
       fnType = ifunc.getIFuncType();
+    } else if (auto aliasFn = dyn_cast<AliasOp>(callee)){
+      fnType = aliasFn.getType();
     } else {
       return emitOpError()
              << "'" << calleeName.getValue()
-             << "' does not reference a valid LLVM function or IFunc";
+             << "' does not reference a valid LLVM function or IFunc or Alias";
     }
   }
 
