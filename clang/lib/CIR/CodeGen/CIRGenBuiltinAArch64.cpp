@@ -18,6 +18,7 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "TargetInfo.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/MissingFeatures.h"
 
 // TODO(cir): once all builtins are covered, decide whether we still
@@ -4489,7 +4490,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {
     cir::LoadOp Load = builder.createAlignedLoad(
         Ops[0].getLoc(), vTy.getElementType(), Ops[0], PtrOp0.getAlignment());
-    Load.setAtomic(cir::MemOrder::Acquire);
+    Load.setAtomic(cir::MemOrder::Acquire, cir::SyncScopeKind::System);
     return cir::VecInsertOp::create(builder, getLoc(E->getExprLoc()),
                                     builder.createBitcast(Ops[1], vTy), Load,
                                     Ops[2]);

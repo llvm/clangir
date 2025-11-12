@@ -423,10 +423,11 @@ static mlir::Value emitToMemory(mlir::ConversionPatternRewriter &rewriter,
 }
 
 std::optional<llvm::StringRef>
-getLLVMSyncScope(std::optional<cir::MemScopeKind> syncScope) {
+getLLVMSyncScope(std::optional<cir::SyncScopeKind> syncScope) {
   if (syncScope.has_value())
-    return syncScope.value() == cir::MemScopeKind::SingleThread ? "singlethread"
-                                                                : "";
+    return syncScope.value() == cir::SyncScopeKind::SingleThread
+               ? "singlethread"
+               : "";
   return std::nullopt;
 }
 } // namespace
@@ -1840,11 +1841,13 @@ mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
     invariant = isLoadOrStoreInvariant(op.getAddr());
 
   // TODO: nontemporal, syncscope.
+  auto syncScope = getLLVMSyncScope(op.getSyncScope());
   auto newLoad = mlir::LLVM::LoadOp::create(
       rewriter, op->getLoc(), llvmTy, adaptor.getAddr(),
-      /* alignment */ alignment, op.getIsVolatile(),
-      /* nontemporal */ op.getIsNontemporal(),
-      /* invariant */ false, /* invariantGroup */ invariant, ordering);
+      /*alignment*/ alignment, op.getIsVolatile(),
+      /*nontemporal*/ op.getIsNontemporal(),
+      /*invariant*/ false, /*invariantGroup*/ invariant, ordering,
+      /*syncscope=*/syncScope.value_or(StringRef()));
 
   // Convert adapted result to its original type if needed.
   mlir::Value result =
@@ -3510,7 +3513,7 @@ mlir::LogicalResult CIRToLLVMAtomicCmpXchgLowering::matchAndRewrite(
       rewriter, op.getLoc(), adaptor.getPtr(), expected, desired,
       getLLVMAtomicOrder(adaptor.getSuccOrder()),
       getLLVMAtomicOrder(adaptor.getFailOrder()));
-  cmpxchg.setSyncscope(getLLVMSyncScope(adaptor.getSyncscope()));
+  cmpxchg.setSyncscope(getLLVMSyncScope(adaptor.getSyncScope()));
   cmpxchg.setAlignment(adaptor.getAlignment());
   cmpxchg.setWeak(adaptor.getWeak());
   cmpxchg.setVolatile_(adaptor.getIsVolatile());
@@ -3677,7 +3680,7 @@ mlir::LogicalResult CIRToLLVMAtomicTestAndSetOpLowering::matchAndRewrite(
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::LLVM::AtomicOrdering llvmOrder = getLLVMAtomicOrder(op.getMemOrder());
   llvm::StringRef llvmSyncScope =
-      getLLVMSyncScope(adaptor.getSyncscope()).value_or(StringRef());
+      getLLVMSyncScope(adaptor.getSyncScope()).value_or(StringRef());
 
   auto one = mlir::LLVM::ConstantOp::create(rewriter, op.getLoc(),
                                             rewriter.getI8Type(), 1);
@@ -3713,7 +3716,7 @@ mlir::LogicalResult CIRToLLVMAtomicFenceLowering::matchAndRewrite(
   auto llvmOrder = getLLVMAtomicOrder(adaptor.getOrdering());
 
   auto fence = mlir::LLVM::FenceOp::create(rewriter, op.getLoc(), llvmOrder);
-  fence.setSyncscope(getLLVMSyncScope(adaptor.getSyncscope()));
+  fence.setSyncscope(getLLVMSyncScope(adaptor.getSyncScope()));
 
   rewriter.replaceOp(op, fence);
 

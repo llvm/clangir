@@ -175,8 +175,8 @@ public:
     return cir::LoadOp::create(*this, loc, ptr, /*isDeref=*/false, isVolatile,
                                isNontemporal,
                                /*alignment=*/alignmentAttr,
-                               /*mem_order=*/
-                               cir::MemOrderAttr{},
+                               /*sync_scope=*/cir::SyncScopeKindAttr{},
+                               /*mem_order=*/cir::MemOrderAttr{},
                                /*tbaa=*/cir::TBAAAttr{});
   }
 

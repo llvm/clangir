@@ -1013,12 +1013,9 @@ LogicalResult cir::ComplexImagPtrOp::verify() {
 // LoadOp
 //===----------------------------------------------------------------------===//
 
-// TODO(CIR): The final interface here should include an argument for the
-// SyncScope::ID.
-void cir::LoadOp::setAtomic(cir::MemOrder order) {
+void cir::LoadOp::setAtomic(cir::MemOrder order, cir::SyncScopeKind scope) {
   setMemOrder(order);
-  if (cir::MissingFeatures::syncScopeID())
-    llvm_unreachable("NYI");
+  setSyncScope(scope);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1027,11 +1024,7 @@ void cir::LoadOp::setAtomic(cir::MemOrder order) {
 
 // TODO(CIR): The final interface here should include an argument for the
 // SyncScope::ID.
-void cir::StoreOp::setAtomic(cir::MemOrder order) {
-  setMemOrder(order);
-  if (cir::MissingFeatures::syncScopeID())
-    llvm_unreachable("NYI");
-}
+void cir::StoreOp::setAtomic(cir::MemOrder order) { setMemOrder(order); }
 
 //===----------------------------------------------------------------------===//
 // VecCreateOp
