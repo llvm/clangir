@@ -15,7 +15,6 @@
 #define LLVM_CLANG_LIB_CIR_ADDRESS_H
 
 #include "clang/AST/CharUnits.h"
-#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/IR/Constants.h"
