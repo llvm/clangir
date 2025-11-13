@@ -1305,8 +1305,8 @@ struct CallArrayDelete final : EHScopeStack::Cleanup {
 /// Emit the code for deleting an array of objects.
 static void EmitArrayDelete(CIRGenFunction &CGF, const CXXDeleteExpr *E,
                             Address deletedPtr, QualType elementType) {
-  llvm::Value *numElements = nullptr;
-  llvm::Value *allocatedPtr = nullptr;
+  mlir::Value *numElements = nullptr;
+  mlir::Value *allocatedPtr = nullptr;
   CharUnits cookieSize;
   CGF.CGM.getCXXABI().ReadArrayCookie(CGF, deletedPtr, E, elementType,
                                       numElements, allocatedPtr, cookieSize);
@@ -1328,13 +1328,11 @@ static void EmitArrayDelete(CIRGenFunction &CGF, const CXXDeleteExpr *E,
         deletedPtr.getAlignment().alignmentOfArrayElement(elementSize);
 
     mlir::Value arrayBegin = deletedPtr.emitRawPointer();
-    mlir::Value arrayEnd = CGF.Builder.createInBoundsGEP(
-        deletedPtr.getElementType(), arrayBegin, numElements, "delete.end");
 
     // Note that it is legal to allocate a zero-length array, and we
     // can never fold the check away because the length should always
     // come from a cookie.
-    CGF.emitArrayDestroy(arrayBegin, arrayEnd, elementType, elementAlign,
+    CGF.emitArrayDestroy(arrayBegin, *numElements, elementType, elementAlign,
                          CGF.getDestroyer(dtorKind),
                          /*checkZeroLength*/ true,
                          CGF.needsEHCleanup(dtorKind));

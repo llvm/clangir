@@ -15,6 +15,7 @@
 #define LLVM_CLANG_LIB_CIR_ADDRESS_H
 
 #include "clang/AST/CharUnits.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/IR/Constants.h"
@@ -182,77 +183,6 @@ public:
 
   template <typename T> T getDefiningOp() const {
     return mlir::dyn_cast_or_null<T>(getDefiningOp());
-  }
-};
-
-/// An abstract representation of an aligned address. This is designed to be an
-/// IR-level abstraction, carrying just the information necessary to perform IR
-/// operations on an address like loads and stores.  In particular, it doesn't
-/// carry C type information or allow the representation of things like
-/// bit-fields; clients working at that level should generally be using
-/// `LValue`.
-/// The pointer contained in this class is known to be unsigned.
-class RawAddress {
-  llvm::PointerIntPair<mlir::Value *, 1, bool> PointerAndKnownNonNull;
-  mlir::Type *ElementType;
-  CharUnits Alignment;
-
-protected:
-  RawAddress(std::nullptr_t) : ElementType(nullptr) {}
-
-public:
-  RawAddress(mlir::Value *Pointer, mlir::Type *ElementType, CharUnits Alignment,
-             KnownNonNull_t IsKnownNonNull = NotKnownNonNull)
-      : PointerAndKnownNonNull(Pointer, IsKnownNonNull),
-        ElementType(ElementType), Alignment(Alignment) {
-    assert(Pointer != nullptr && "Pointer cannot be null");
-    assert(ElementType != nullptr && "Element type cannot be null");
-  }
-
-  inline RawAddress(Address Addr);
-
-  static RawAddress invalid() { return RawAddress(nullptr); }
-  bool isValid() const {
-    return PointerAndKnownNonNull.getPointer() != nullptr;
-  }
-
-  mlir::Value *getPointer() const {
-    assert(isValid());
-    return PointerAndKnownNonNull.getPointer();
-  }
-
-  /// Return the type of the pointer value.
-  llvm::PointerType *getType() const {
-    return llvm::cast<llvm::PointerType>(getPointer()->getType());
-  }
-
-  /// Return the type of the values stored in this address.
-  mlir::Type *getElementType() const {
-    assert(isValid());
-    return ElementType;
-  }
-
-  /// Return the address space that this address resides in.
-  unsigned getAddressSpace() const { return getType()->getAddressSpace(); }
-
-  /// Return the IR name of the pointer value.
-  llvm::StringRef getName() const { return getPointer()->getName(); }
-
-  /// Return the alignment of this pointer.
-  CharUnits getAlignment() const {
-    assert(isValid());
-    return Alignment;
-  }
-
-  /// Return address with different element type, but same pointer and
-  /// alignment.
-  RawAddress withElementType(mlir::Type *ElemTy) const {
-    return RawAddress(getPointer(), ElemTy, getAlignment(), isKnownNonNull());
-  }
-
-  KnownNonNull_t isKnownNonNull() const {
-    assert(isValid());
-    return (KnownNonNull_t)PointerAndKnownNonNull.getInt();
   }
 };
 
