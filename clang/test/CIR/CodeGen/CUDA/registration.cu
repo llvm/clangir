@@ -67,9 +67,9 @@ __device__ int a;
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
 // CIR-HOST:   %[[#T3:]] = cir.get_global @".stra0"
-// CIR-HOST:   %[[#Device:]] = cir.cast bitcast %7
-// CIR-HOST:   %[[#T4:]] = cir.get_global @".stra1"
-// CIR-HOST:   %[[#Host:]] = cir.cast bitcast %9
+// CIR-HOST:   %[[#Device:]] = cir.cast bitcast %[[#T3]]
+// CIR-HOST:   %[[#T4:]] = cir.get_global @a
+// CIR-HOST:   %[[#Host:]] = cir.cast bitcast %[[#T4]]
 // CIR-HOST:   %[[#Ext:]] = cir.const #cir.int<0>
 // CIR-HOST:   %[[#Sz:]] = cir.const #cir.int<4>
 // CIR-HOST:   %[[#Const:]] = cir.const #cir.int<0>
@@ -87,7 +87,7 @@ __device__ int a;
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
 // LLVM-HOST:   call void @__cudaRegisterVar(
-// LLVM-HOST-SAME: ptr %0, ptr @.stra1, ptr @.stra0, ptr @.stra0,
+// LLVM-HOST-SAME: ptr %0, ptr @a, ptr @.stra0, ptr @.stra0,
 // LLVM-HOST-SAME: i32 0, i64 4, i32 0, i32 0)
 // LLVM-HOST: }
 
