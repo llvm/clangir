@@ -233,14 +233,10 @@ public:
   }
 
   /// Return the address space that this address resides in.
-  unsigned getAddressSpace() const {
-    return getType()->getAddressSpace();
-  }
+  unsigned getAddressSpace() const { return getType()->getAddressSpace(); }
 
   /// Return the IR name of the pointer value.
-  llvm::StringRef getName() const {
-    return getPointer()->getName();
-  }
+  llvm::StringRef getName() const { return getPointer()->getName(); }
 
   /// Return the alignment of this pointer.
   CharUnits getAlignment() const {
