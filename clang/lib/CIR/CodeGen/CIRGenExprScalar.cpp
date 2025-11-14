@@ -212,7 +212,7 @@ public:
     return emitNullValue(E->getType(), CGF.getLoc(E->getSourceRange()));
   }
   mlir::Value VisitGNUNullExpr(const GNUNullExpr *E) {
-    llvm_unreachable("NYI");
+    return emitNullValue(E->getType(), CGF.getLoc(E->getSourceRange()));
   }
   mlir::Value VisitOffsetOfExpr(OffsetOfExpr *E) {
     // Try folding the offsetof to a constant.
