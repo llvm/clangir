@@ -128,7 +128,7 @@ void convertToDenseElementsAttrImpl(
 
 template <typename AttrTy, typename StorageTy>
 void convertToDenseElementsAttrImpl(
-    cir::ComplexAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
+    cir::ConstComplexAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
     const llvm::SmallVectorImpl<int64_t> &currentDims, int64_t dimIndex,
     int64_t currentIndex) {
   dimIndex++;
@@ -187,7 +187,7 @@ mlir::DenseElementsAttr convertToDenseElementsAttr(
 
 template <typename AttrTy, typename StorageTy>
 mlir::DenseElementsAttr convertToDenseElementsAttr(
-    cir::ComplexAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
+    cir::ConstComplexAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
     mlir::Type elementType, mlir::Type convertedElementType) {
   unsigned array_size = 2;
   auto values = llvm::SmallVector<StorageTy, 8>(
@@ -233,12 +233,12 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
 }
 
 std::optional<mlir::Attribute>
-lowerConstComplexAttr(cir::ComplexAttr constComplex,
+lowerConstComplexAttr(cir::ConstComplexAttr constComplex,
                       const mlir::TypeConverter *converter) {
 
   // Ensure ComplexAttr has a type.
   auto typedConstArr = mlir::dyn_cast<mlir::TypedAttr>(constComplex);
-  assert(typedConstArr && "cir::ComplexAttr is not a mlir::TypedAttr");
+  assert(typedConstArr && "cir::ConstComplexAttr is not a mlir::TypedAttr");
 
   mlir::Type type = constComplex.getType();
   auto dims = llvm::SmallVector<int64_t, 2>{2};

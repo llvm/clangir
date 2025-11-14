@@ -5,7 +5,7 @@
 
 module {
   cir.func @complex_const() -> !cir.complex<!s32i> {
-    %0 = cir.const #cir.complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
+    %0 = cir.const #cir.const_complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
     cir.return %0 : !cir.complex<!s32i>
   }
 

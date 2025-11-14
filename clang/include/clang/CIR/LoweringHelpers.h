@@ -52,7 +52,7 @@ lowerConstVectorAttr(cir::ConstVectorAttr constArr,
                      const mlir::TypeConverter *converter);
 
 std::optional<mlir::Attribute>
-lowerConstComplexAttr(cir::ComplexAttr constArr,
+lowerConstComplexAttr(cir::ConstComplexAttr constArr,
                       const mlir::TypeConverter *converter);
 
 #endif
