@@ -1305,10 +1305,10 @@ struct CallArrayDelete final : EHScopeStack::Cleanup {
 /// Emit the code for deleting an array of objects.
 static void EmitArrayDelete(CIRGenFunction &CGF, const CXXDeleteExpr *E,
                             Address deletedPtr, QualType elementType) {
-  mlir::Value *numElements = nullptr;
-  mlir::Value *allocatedPtr = nullptr;
+  mlir::Value numElements = nullptr;
+  mlir::Value allocatedPtr = nullptr;
   CharUnits cookieSize;
-  CGF.CGM.getCXXABI().ReadArrayCookie(CGF, deletedPtr, E, elementType,
+  CGF.CGM.getCXXABI().readArrayCookie(CGF, deletedPtr, E, elementType,
                                       numElements, allocatedPtr, cookieSize);
 
   assert(allocatedPtr && "ReadArrayCookie didn't set allocated pointer");
@@ -1328,11 +1328,14 @@ static void EmitArrayDelete(CIRGenFunction &CGF, const CXXDeleteExpr *E,
         deletedPtr.getAlignment().alignmentOfArrayElement(elementSize);
 
     mlir::Value arrayBegin = deletedPtr.emitRawPointer();
+    auto loc = CGF.getLoc(E->getBeginLoc());
+    mlir::Value arrayEnd =
+        CGF.getBuilder().createPtrStride(loc, arrayBegin, *numElements);
 
     // Note that it is legal to allocate a zero-length array, and we
     // can never fold the check away because the length should always
     // come from a cookie.
-    CGF.emitArrayDestroy(arrayBegin, *numElements, elementType, elementAlign,
+    CGF.emitArrayDestroy(arrayBegin, arrayEnd, elementType, elementAlign,
                          CGF.getDestroyer(dtorKind),
                          /*checkZeroLength*/ true,
                          CGF.needsEHCleanup(dtorKind));

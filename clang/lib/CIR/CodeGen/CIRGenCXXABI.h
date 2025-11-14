@@ -39,6 +39,7 @@ protected:
   clang::ASTContext &getContext() const { return CGM.getASTContext(); }
 
   virtual bool requiresArrayCookie(const CXXNewExpr *E);
+  virtual bool requiresArrayCookie(const CXXDeleteExpr *e, QualType eltType);
 
 public:
   /// Similar to AddedStructorArgs, but only notes the number of additional
@@ -402,6 +403,24 @@ public:
                                         mlir::Value NumElements,
                                         const CXXNewExpr *E,
                                         QualType ElementType) = 0;
+
+  /// Reads the array cookie associated with the given pointer,
+  /// if it has one.
+  ///
+  /// \param ptr - a pointer to the first element in the array
+  /// \param elementType - the base element type of elements of the array
+  /// \param numElements - an out parameter which will be initialized
+  ///   with the number of elements allocated, or zero if there is no
+  ///   cookie
+  /// \param allocPtr - an out parameter which will be initialized
+  ///   with a char* pointing to the address returned by the allocation
+  ///   function
+  /// \param cookieSize - an out parameter which will be initialized
+  ///   with the size of the cookie, or zero if there is no cookie
+  virtual void readArrayCookie(CIRGenFunction &cgf, Address ptr,
+                               const CXXDeleteExpr *expr, QualType elementType,
+                               mlir::Value &numElements, mlir::Value &allocPtr,
+                               CharUnits &cookieSize);
 
 protected:
   /// Returns the extra size required in order to store the array

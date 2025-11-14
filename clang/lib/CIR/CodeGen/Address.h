@@ -183,6 +183,18 @@ public:
   template <typename T> T getDefiningOp() const {
     return mlir::dyn_cast_or_null<T>(getDefiningOp());
   }
+
+  /// Return address with different element type, but same pointer and
+  /// alignment.
+  Address withElementType(mlir::Type elemTy) const {
+    if (!hasOffset())
+      return Address(getBasePointer(), elemTy, getAlignment(),
+                     getPointerAuthInfo(), /*Offset=*/nullptr,
+                     isKnownNonNull());
+    Address a(*this);
+    a.ElementType = elemTy;
+    return a;
+  }
 };
 
 } // namespace clang::CIRGen

@@ -104,3 +104,36 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
 
   return E->getAllocatedType().isDestructedType();
 }
+
+bool CIRGenCXXABI::requiresArrayCookie(const CXXDeleteExpr *expr,
+                                       QualType elementType) {
+  // If the class's usual deallocation function takes two arguments,
+  // it needs a cookie.
+  if (expr->doesUsualArrayDeleteWantSize())
+    return true;
+
+  return elementType.isDestructedType();
+}
+
+void CIRGenCXXABI::readArrayCookie(CIRGenFunction &cgf, Address ptr,
+                                   const CXXDeleteExpr *expr, QualType eltTy,
+                                   mlir::Value &numElements,
+                                   mlir::Value &allocPtr,
+                                   CharUnits &cookieSize) {
+  // Derive a char* in the same address space as the pointer.
+  ptr = ptr.withElementType(cgf.UInt8Ty);
+
+  // If we don't need an array cookie, bail out early.
+  if (!requiresArrayCookie(expr, eltTy)) {
+    allocPtr = ptr.emitRawPointer();
+    numElements = nullptr;
+    cookieSize = CharUnits::Zero();
+    return;
+  }
+
+  cookieSize = getArrayCookieSizeImpl(eltTy);
+  Address allocAddr =
+      cgf.getBuilder().CreateConstInBoundsByteGEP(ptr, -cookieSize);
+  allocPtr = allocAddr.emitRawPointer();
+  numElements = readArrayCookieImpl(CGF, allocAddr, cookieSize);
+}
