@@ -129,6 +129,10 @@ public:
   mlir::Type getCharType(mlir::MLIRContext *ctx) const {
     return typeSizeInfo.getCharType(ctx);
   }
+
+  mlir::Type getSizeType(mlir::MLIRContext *ctx) const {
+    return typeSizeInfo.getSizeType(ctx);
+  }
 };
 
 /// Used to lazily calculate structure layout information for a target machine,
