@@ -1137,8 +1137,7 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
       mlir::Value nullPtr = builder.getNullPtr(handlePtrTy, loc);
       auto isNull =
           builder.createCompare(loc, cir::CmpOpKind::eq, handle, nullPtr);
-
-      builder.create<cir::BrCondOp>(loc, isNull, ifBlock, exitBlock);
+      cir::BrCondOp::create(builder, loc, isNull, ifBlock, exitBlock);
     }
     {
       // When handle is null we need to load the fatbin and register it
@@ -1152,7 +1151,7 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
       // Store the value back to the global `__cuda_gpubin_handle`.
       auto gpuBinaryHandleGlobal = builder.createGetGlobal(gpubinHandle);
       builder.createStore(loc, gpuBinaryHandle, gpuBinaryHandleGlobal);
-      builder.create<cir::BrOp>(loc, exitBlock);
+      cir::BrOp::create(builder, loc, exitBlock);
     }
     {
       // Exit block

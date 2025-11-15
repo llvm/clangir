@@ -31,7 +31,7 @@ bool clang::CIRGen::isEmptyRecordForLayout(const ASTContext &Context,
   if (!RT)
     return false;
 
-  const RecordDecl *RD = RT->getOriginalDecl();
+  const RecordDecl *RD = RT->getDecl();
 
   // If this is a C++ record, check the bases first.
   if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
@@ -625,7 +625,7 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(QualType RetTy) const {
     if (Hi == Class::NoClass && mlir::isa<cir::IntType>(ResType)) {
       // Treat an enum type as its underlying type.
       if (const auto *EnumTy = RetTy->getAs<EnumType>())
-        RetTy = EnumTy->getOriginalDecl()->getIntegerType();
+        RetTy = EnumTy->getDecl()->getIntegerType();
 
       if (RetTy->isIntegralOrEnumerationType() &&
           isPromotableIntegerTypeForABI(RetTy)) {

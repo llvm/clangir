@@ -617,8 +617,7 @@ static bool EmitDesignatedInitUpdater(ConstantEmitter &Emitter,
 }
 
 bool ConstRecordBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
-  RecordDecl *RD =
-      ILE->getType()->castAs<clang::RecordType>()->getOriginalDecl();
+  RecordDecl *RD = ILE->getType()->castAs<clang::RecordType>()->getDecl();
   const ASTRecordLayout &Layout = CGM.getASTContext().getASTRecordLayout(RD);
 
   unsigned FieldNo = -1;
@@ -875,7 +874,7 @@ bool ConstRecordBuilder::ApplyZeroInitPadding(const ASTRecordLayout &Layout,
 
 mlir::Attribute ConstRecordBuilder::Finalize(QualType Type) {
   Type = Type.getNonReferenceType();
-  RecordDecl *RD = Type->castAs<clang::RecordType>()->getOriginalDecl();
+  RecordDecl *RD = Type->castAs<clang::RecordType>()->getDecl();
   mlir::Type ValTy = CGM.convertType(Type);
   return Builder.build(ValTy, RD->hasFlexibleArrayMember());
 }
@@ -898,7 +897,7 @@ mlir::Attribute ConstRecordBuilder::BuildRecord(ConstantEmitter &Emitter,
   ConstantAggregateBuilder Const(Emitter.CGM);
   ConstRecordBuilder Builder(Emitter, Const, CharUnits::Zero());
 
-  const RecordDecl *RD = ValTy->castAs<clang::RecordType>()->getOriginalDecl();
+  const RecordDecl *RD = ValTy->castAs<clang::RecordType>()->getDecl();
   const CXXRecordDecl *CD = dyn_cast<CXXRecordDecl>(RD);
   if (!Builder.Build(Val, RD, false, CD, CharUnits::Zero()))
     return nullptr;
@@ -1690,7 +1689,7 @@ bool isEmptyRecordForLayout(const ASTContext &ctx, QualType t) {
   if (!rt)
     return false;
 
-  const RecordDecl *rd = rt->getOriginalDecl();
+  const RecordDecl *rd = rt->getDecl();
 
   // If this is a C++ record, check the bases first.
   if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(rd)) {
@@ -2097,7 +2096,7 @@ mlir::TypedAttr CIRGenModule::emitNullConstant(QualType T) {
   }
 
   if (const RecordType *rt = T->getAs<RecordType>())
-    return ::emitNullConstant(*this, rt->getOriginalDecl(), /*complete object*/
+    return ::emitNullConstant(*this, rt->getDecl(), /*complete object*/
                               true);
 
   assert(T->isMemberDataPointerType() &&

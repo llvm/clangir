@@ -162,8 +162,8 @@ public:
 
     CharUnits memcpySize = getMemcpySize(firstByteOffset);
     QualType recordTy = CGF.getContext().getTagType(
-        ElaboratedTypeKeyword::None, /*Qualifier=*/std::nullopt,
-        ClassDecl, /*OwnsTag=*/false);
+        ElaboratedTypeKeyword::None, /*Qualifier=*/std::nullopt, ClassDecl,
+        /*OwnsTag=*/false);
     Address thisPtr = CGF.LoadCXXThisAddress();
     LValue destLv = CGF.makeAddrLValue(thisPtr, recordTy);
     LValue dest = CGF.emitLValueForFieldInitialization(destLv, FirstField,
@@ -521,8 +521,7 @@ public:
 
 static bool isInitializerOfDynamicClass(const CXXCtorInitializer *BaseInit) {
   const Type *BaseType = BaseInit->getBaseClass();
-  const auto *BaseClassDecl =
-      cast<CXXRecordDecl>(BaseType->castAs<RecordType>()->getOriginalDecl());
+  const auto *BaseClassDecl = BaseType->castAsCXXRecordDecl();
   return BaseClassDecl->isDynamicClass();
 }
 
@@ -608,8 +607,7 @@ static void emitBaseInitializer(mlir::Location loc, CIRGenFunction &CGF,
   Address ThisPtr = CGF.LoadCXXThisAddress();
 
   const Type *BaseType = BaseInit->getBaseClass();
-  const auto *BaseClassDecl =
-      cast<CXXRecordDecl>(BaseType->castAs<RecordType>()->getOriginalDecl());
+  const auto *BaseClassDecl = BaseType->getAsCXXRecordDecl();
 
   bool isBaseVirtual = BaseInit->isBaseVirtual();
 
@@ -871,8 +869,7 @@ void CIRGenFunction::getVTablePointers(BaseSubobject Base,
 
   // Traverse bases.
   for (const auto &I : RD->bases()) {
-    auto *BaseDecl =
-        cast<CXXRecordDecl>(I.getType()->castAs<RecordType>()->getOriginalDecl());
+    auto *BaseDecl = I.getType()->getAsCXXRecordDecl();
 
     // Ignore classes without a vtable.
     if (!BaseDecl->isDynamicClass())
@@ -1088,7 +1085,7 @@ void CIRGenFunction::emitLambdaStaticInvokeBody(const CXXMethodDecl *MD) {
 void CIRGenFunction::destroyCXXObject(CIRGenFunction &CGF, Address addr,
                                       QualType type) {
   const RecordType *rtype = type->castAs<RecordType>();
-  const CXXRecordDecl *record = cast<CXXRecordDecl>(rtype->getOriginalDecl());
+  const CXXRecordDecl *record = rtype->getAsCXXRecordDecl();
   const CXXDestructorDecl *dtor = record->getDestructor();
   // TODO(cir): Unlike traditional codegen, CIRGen should actually emit trivial
   // dtors which shall be removed on later CIR passes. However, only remove this
@@ -1123,8 +1120,7 @@ HasTrivialDestructorBody(ASTContext &astContext,
     if (I.isVirtual())
       continue;
 
-    const CXXRecordDecl *NonVirtualBase =
-        cast<CXXRecordDecl>(I.getType()->castAs<RecordType>()->getOriginalDecl());
+    const CXXRecordDecl *NonVirtualBase = I.getType()->getAsCXXRecordDecl();
     if (!HasTrivialDestructorBody(astContext, NonVirtualBase,
                                   MostDerivedClassDecl))
       return false;
@@ -1133,8 +1129,7 @@ HasTrivialDestructorBody(ASTContext &astContext,
   if (BaseClassDecl == MostDerivedClassDecl) {
     // Check virtual bases.
     for (const auto &I : BaseClassDecl->vbases()) {
-      const CXXRecordDecl *VirtualBase =
-          cast<CXXRecordDecl>(I.getType()->castAs<RecordType>()->getOriginalDecl());
+      const CXXRecordDecl *VirtualBase = I.getType()->getAsCXXRecordDecl();
       if (!HasTrivialDestructorBody(astContext, VirtualBase,
                                     MostDerivedClassDecl))
         return false;
@@ -1154,7 +1149,7 @@ static bool FieldHasTrivialDestructorBody(ASTContext &astContext,
   if (!RT)
     return true;
 
-  CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getOriginalDecl());
+  CXXRecordDecl *FieldClassDecl = RT->getAsCXXRecordDecl();
 
   // The destructor for an implicit anonymous union member is never invoked.
   if (FieldClassDecl->isUnion() && FieldClassDecl->isAnonymousStructOrUnion())
@@ -1247,6 +1242,8 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
   // we'd introduce *two* handler blocks.  In the Microsoft ABI, we
   // always delegate because we might not have a definition in this TU.
   switch (DtorType) {
+  case Dtor_Unified:
+    llvm_unreachable("not expecting a unified dtor");
   case Dtor_Comdat:
     llvm_unreachable("not expecting a COMDAT");
   case Dtor_Deleting:
@@ -1405,8 +1402,7 @@ void CIRGenFunction::EnterDtorCleanups(const CXXDestructorDecl *DD,
     // We push them in the forward order so that they'll be popped in
     // the reverse order.
     for (const auto &Base : ClassDecl->vbases()) {
-      auto *BaseClassDecl =
-          cast<CXXRecordDecl>(Base.getType()->castAs<RecordType>()->getOriginalDecl());
+      auto *BaseClassDecl = Base.getType()->getAsCXXRecordDecl();
 
       if (BaseClassDecl->hasTrivialDestructor()) {
         // Under SanitizeMemoryUseAfterDtor, poison the trivial base class
@@ -1466,7 +1462,7 @@ void CIRGenFunction::EnterDtorCleanups(const CXXDestructorDecl *DD,
 
     // Anonymous union members do not have their destructors called.
     const RecordType *RT = type->getAsUnionType();
-    if (RT && RT->getOriginalDecl()->isAnonymousStructOrUnion())
+    if (RT && RT->getDecl()->isAnonymousStructOrUnion())
       continue;
 
     CleanupKind cleanupKind = getCleanupKind(dtorKind);
@@ -1593,8 +1589,7 @@ Address CIRGenFunction::getAddressOfDerivedClass(
     CastExpr::path_const_iterator pathEnd, bool nullCheckValue) {
   assert(pathBegin != pathEnd && "Base path should not be empty!");
 
-  QualType derivedTy =
-      getContext().getCanonicalTagType(derived);
+  QualType derivedTy = getContext().getCanonicalTagType(derived);
   mlir::Type derivedValueTy = convertType(derivedTy);
   CharUnits nonVirtualOffset =
       CGM.getNonVirtualBaseClassOffset(derived, pathBegin, pathEnd);
@@ -1624,8 +1619,7 @@ CIRGenFunction::getAddressOfBaseClass(Address Value,
   // *start* with a step down to the correct virtual base subobject,
   // and hence will not require any further steps.
   if ((*Start)->isVirtual()) {
-    VBase = cast<CXXRecordDecl>(
-        (*Start)->getType()->castAs<RecordType>()->getOriginalDecl());
+    VBase = (*Start)->getType()->getAsCXXRecordDecl();
     ++Start;
   }
 
@@ -1873,8 +1867,8 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
   // Note that these are complete objects and so we don't need to
   // use the non-virtual size or alignment.
   QualType type = getContext().getTypeDeclType(ElaboratedTypeKeyword::None,
-                                                /*Qualifier=*/std::nullopt,
-                                                ctor->getParent());
+                                               /*Qualifier=*/std::nullopt,
+                                               ctor->getParent());
   CharUnits eltAlignment = arrayBase.getAlignment().alignmentOfArrayElement(
       getContext().getTypeSizeInChars(type));
 
@@ -1992,7 +1986,8 @@ void CIRGenFunction::emitCXXConstructorCall(
 
   if (!NewPointerIsChecked)
     emitTypeCheck(CIRGenFunction::TCK_ConstructorCall, Loc, This.getPointer(),
-                  getContext().getCanonicalTagType(ClassDecl), CharUnits::Zero());
+                  getContext().getCanonicalTagType(ClassDecl),
+                  CharUnits::Zero());
 
   // If this is a call to a trivial default constructor:
   // In LLVM: do nothing.

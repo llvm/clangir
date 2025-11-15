@@ -33,8 +33,8 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
-#include "mlir/IR/Region.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/Region.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
@@ -370,11 +370,12 @@ static void eraseIfSafe(mlir::Value oldAddr, mlir::Value newAddr,
   }
 }
 
-static mlir::LogicalResult prepareReinterpretMetadata(
-    mlir::MemRefType type, mlir::ConversionPatternRewriter &rewriter,
-    llvm::SmallVectorImpl<mlir::OpFoldResult> &sizes,
-    llvm::SmallVectorImpl<mlir::OpFoldResult> &strides,
-    mlir::Operation *anchorOp) {
+static mlir::LogicalResult
+prepareReinterpretMetadata(mlir::MemRefType type,
+                           mlir::ConversionPatternRewriter &rewriter,
+                           llvm::SmallVectorImpl<mlir::OpFoldResult> &sizes,
+                           llvm::SmallVectorImpl<mlir::OpFoldResult> &strides,
+                           mlir::Operation *anchorOp) {
   sizes.clear();
   strides.clear();
 
@@ -744,7 +745,7 @@ public:
       // TODO: once the func dialect supports variadic functions rewrite this
       // For now only insert special handling of printf via the llvmir dialect
       if (op.getSymName().equals_insensitive("printf")) {
-        auto context = rewriter.getContext();
+        auto *context = rewriter.getContext();
         // Create a llvmir dialect function declaration for printf, the
         // signature is: i32 (!llvm.ptr, ...)
         auto llvmI32Ty = mlir::IntegerType::get(context, 32);
@@ -859,8 +860,8 @@ public:
            "operand type not supported yet");
 
     auto type = op.getLhs().getType();
-    if (auto VecType = mlir::dyn_cast<cir::VectorType>(type)) {
-      type = VecType.getElementType();
+    if (auto vecType = mlir::dyn_cast<cir::VectorType>(type)) {
+      type = vecType.getElementType();
     }
 
     switch (op.getKind()) {
@@ -1146,9 +1147,8 @@ public:
           llvm_unreachable("GlobalOp lowering array with initial value fail");
       } else if (auto constComplex =
                      mlir::dyn_cast<cir::ComplexAttr>(init.value())) {
-        if (auto lowered =
-                cir::direct::lowerConstComplexAttr(constComplex,
-                                                   getTypeConverter());
+        if (auto lowered = cir::direct::lowerConstComplexAttr(
+                constComplex, getTypeConverter());
             lowered.has_value())
           initialValue = lowered.value();
         else
@@ -1163,8 +1163,7 @@ public:
           if (mlir::isa<mlir::IntegerType>(elementType))
             initialValue = mlir::DenseIntElementsAttr::get(rtt, 0);
           else if (mlir::isa<mlir::FloatType>(elementType)) {
-            auto floatZero =
-                mlir::FloatAttr::get(elementType, 0.0).getValue();
+            auto floatZero = mlir::FloatAttr::get(elementType, 0.0).getValue();
             initialValue = mlir::DenseFPElementsAttr::get(rtt, floatZero);
           } else
             initialValue = mlir::Attribute();
@@ -1239,22 +1238,19 @@ public:
   matchAndRewrite(cir::ComplexCreateOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    auto vecType =
-        mlir::cast<mlir::VectorType>(getTypeConverter()->convertType(
-            op.getType()));
+    auto vecType = mlir::cast<mlir::VectorType>(
+        getTypeConverter()->convertType(op.getType()));
     auto zeroAttr = rewriter.getZeroAttr(vecType);
     mlir::Value result =
-        rewriter.create<mlir::arith::ConstantOp>(loc, vecType, zeroAttr)
+        mlir::arith::ConstantOp::create(rewriter, loc, vecType, zeroAttr)
             .getResult();
     SmallVector<int64_t, 1> realIdx{0};
     SmallVector<int64_t, 1> imagIdx{1};
-    result = rewriter
-                 .create<mlir::vector::InsertOp>(loc, adaptor.getReal(), result,
-                                                 realIdx)
+    result = mlir::vector::InsertOp::create(rewriter, loc, adaptor.getReal(),
+                                            result, realIdx)
                  .getResult();
-    result = rewriter
-                 .create<mlir::vector::InsertOp>(loc, adaptor.getImag(), result,
-                                                 imagIdx)
+    result = mlir::vector::InsertOp::create(rewriter, loc, adaptor.getImag(),
+                                            result, imagIdx)
                  .getResult();
     rewriter.replaceOp(op, result);
     return mlir::success();
@@ -1312,9 +1308,9 @@ public:
            "cir.vec.create op count doesn't match vector type elements count");
     for (uint64_t i = 0; i < vecTy.getSize(); ++i) {
       SmallVector<int64_t, 1> position{static_cast<int64_t>(i)};
-      vectorVal = mlir::vector::InsertOp::create(
-                      rewriter, loc, adaptor.getElements()[i],
-                      vectorVal, position)
+      vectorVal = mlir::vector::InsertOp::create(rewriter, loc,
+                                                 adaptor.getElements()[i],
+                                                 vectorVal, position)
                       .getResult();
     }
     rewriter.replaceOp(op, vectorVal);
@@ -1332,11 +1328,11 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Value index = adaptor.getIndex();
     if (!mlir::isa<mlir::IndexType>(index.getType()))
-      index = rewriter.create<mlir::arith::IndexCastOp>(
-          op.getLoc(), rewriter.getIndexType(), index);
+      index = mlir::arith::IndexCastOp::create(rewriter, op.getLoc(),
+                                               rewriter.getIndexType(), index);
     SmallVector<mlir::OpFoldResult, 1> position{index};
-    auto newVec = rewriter.create<mlir::vector::InsertOp>(
-        op.getLoc(), adaptor.getValue(), adaptor.getVec(), position);
+    auto newVec = mlir::vector::InsertOp::create(
+        rewriter, op.getLoc(), adaptor.getValue(), adaptor.getVec(), position);
     rewriter.replaceOp(op, newVec.getResult());
     return mlir::success();
   }
@@ -1352,11 +1348,11 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Value index = adaptor.getIndex();
     if (!mlir::isa<mlir::IndexType>(index.getType()))
-      index = rewriter.create<mlir::arith::IndexCastOp>(
-          op.getLoc(), rewriter.getIndexType(), index);
+      index = mlir::arith::IndexCastOp::create(rewriter, op.getLoc(),
+                                               rewriter.getIndexType(), index);
     SmallVector<mlir::OpFoldResult, 1> position{index};
-    auto extracted = rewriter.create<mlir::vector::ExtractOp>(
-        op.getLoc(), adaptor.getVec(), position);
+    auto extracted = mlir::vector::ExtractOp::create(
+        rewriter, op.getLoc(), adaptor.getVec(), position);
     rewriter.replaceOp(op, extracted.getResult());
     return mlir::success();
   }
@@ -1690,17 +1686,16 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRGetGlobalOpLowering, CIRComplexCreateOpLowering,
       CIRComplexRealOpLowering, CIRComplexImagOpLowering, CIRCastOpLowering,
       CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
-      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
-      CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
-      CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-      CIRRoundOpLowering, CIRSinOpLowering, CIRTanOpLowering, CIRShiftOpLowering,
-      CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-      CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-      CIRIfOpLowering, CIRScopeOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering,
-      CIRVectorCmpOpLowering, CIRACosOpLowering, CIRASinOpLowering,
-      CIRUnreachableOpLowering, CIRTrapOpLowering>(converter,
-                                                   patterns.getContext());
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
+      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRTanOpLowering, CIRShiftOpLowering, CIRBitClzOpLowering,
+      CIRBitCtzOpLowering, CIRBitPopcountOpLowering, CIRBitClrsbOpLowering,
+      CIRBitFfsOpLowering, CIRBitParityOpLowering, CIRIfOpLowering,
+      CIRScopeOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
+      CIRASinOpLowering, CIRUnreachableOpLowering, CIRTrapOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

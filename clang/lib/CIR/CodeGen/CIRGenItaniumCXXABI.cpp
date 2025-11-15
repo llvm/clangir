@@ -143,6 +143,9 @@ public:
 
       case Dtor_Comdat:
         llvm_unreachable("emitting dtor comdat as function?");
+
+      case Dtor_Unified:
+        llvm_unreachable("emitting unified dtor as function?");
       }
       llvm_unreachable("bad dtor kind");
     }
@@ -160,6 +163,9 @@ public:
 
       case Ctor_Comdat:
         llvm_unreachable("emitting ctor comdat as function?");
+
+      case Ctor_Unified:
+        llvm_unreachable("emitting unified ctor as function?");
       }
       llvm_unreachable("bad dtor kind");
     }
@@ -1369,7 +1375,7 @@ static bool ShouldUseExternalRTTIDescriptor(CIRGenModule &CGM, QualType Ty) {
     return false;
 
   if (const RecordType *RecordTy = dyn_cast<RecordType>(Ty)) {
-    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RecordTy->getOriginalDecl());
+    const CXXRecordDecl *RD = RecordTy->getAsCXXRecordDecl();
     if (!RD->hasDefinition())
       return false;
 
@@ -1404,7 +1410,7 @@ static bool ShouldUseExternalRTTIDescriptor(CIRGenModule &CGM, QualType Ty) {
 /// Returns whether the given record type is incomplete.
 /// TODO(cir): this can unified with LLVM codegen
 static bool IsIncompleteClassType(const RecordType *RecordTy) {
-  return !RecordTy->getOriginalDecl()->isCompleteDefinition();
+  return !RecordTy->getDecl()->isCompleteDefinition();
 }
 
 /// Returns whether the given type contains an
@@ -1432,7 +1438,9 @@ static bool ContainsIncompleteClassType(CIRGenModule &CGM, QualType Ty) {
           dyn_cast<MemberPointerType>(Ty)) {
     // Check if the class type is incomplete.
     const auto *ClassType = cast<RecordType>(
-        CGM.getASTContext().getCanonicalTagType(MemberPointerTy->getMostRecentCXXRecordDecl()).getTypePtr());
+        CGM.getASTContext()
+            .getCanonicalTagType(MemberPointerTy->getMostRecentCXXRecordDecl())
+            .getTypePtr());
     if (IsIncompleteClassType(ClassType))
       return true;
 
@@ -1464,7 +1472,7 @@ static bool CanUseSingleInheritance(const CXXRecordDecl *RD) {
 
   // Check that the class is dynamic iff the base is.
   auto *BaseDecl =
-      cast<CXXRecordDecl>(Base->getType()->castAs<RecordType>()->getOriginalDecl());
+      cast<CXXRecordDecl>(Base->getType()->castAs<RecordType>()->getDecl());
   if (!BaseDecl->isEmpty() &&
       BaseDecl->isDynamicClass() != RD->isDynamicClass())
     return false;
@@ -1503,7 +1511,7 @@ static cir::GlobalLinkageKind getTypeInfoLinkage(CIRGenModule &CGM,
       return cir::GlobalLinkageKind::LinkOnceODRLinkage;
 
     if (const RecordType *Record = dyn_cast<RecordType>(Ty)) {
-      const CXXRecordDecl *RD = cast<CXXRecordDecl>(Record->getOriginalDecl());
+      const CXXRecordDecl *RD = Record->getAsCXXRecordDecl();
       if (RD->hasAttr<WeakAttr>())
         return cir::GlobalLinkageKind::WeakODRLinkage;
       if (CGM.getTriple().isWindowsItaniumEnvironment())
@@ -1646,7 +1654,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
 
   case Type::Record: {
     const CXXRecordDecl *RD =
-        cast<CXXRecordDecl>(cast<RecordType>(Ty)->getOriginalDecl());
+        cast<CXXRecordDecl>(cast<RecordType>(Ty)->getDecl());
 
     if (!RD->hasDefinition() || !RD->getNumBases()) {
       VTableName = ClassTypeInfo;
@@ -2020,8 +2028,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
     break;
 
   case Type::Record: {
-    const CXXRecordDecl *RD =
-        cast<CXXRecordDecl>(cast<RecordType>(Ty)->getOriginalDecl());
+    const CXXRecordDecl *RD = Ty->getAsCXXRecordDecl();
     if (!RD->hasDefinition() || !RD->getNumBases()) {
       // We don't need to emit any fields.
       break;
@@ -2143,8 +2150,9 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
   ItaniumVTableContext &VTContext = CGM.getItaniumVTableContext();
   const VTableLayout &VTLayout = VTContext.getVTableLayout(RD);
   auto Linkage = CGM.getVTableLinkage(RD);
-  auto RTTI = CGM.getAddrOfRTTIDescriptor(
-      CGM.getLoc(RD->getBeginLoc()), CGM.getASTContext().getCanonicalTagType(RD));
+  auto RTTI =
+      CGM.getAddrOfRTTIDescriptor(CGM.getLoc(RD->getBeginLoc()),
+                                  CGM.getASTContext().getCanonicalTagType(RD));
 
   // Create and set the initializer.
   ConstantInitBuilder builder(CGM);
