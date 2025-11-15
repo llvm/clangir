@@ -379,6 +379,44 @@ void lowerAnnotationValue(
   }
 }
 
+/// Extract address space value from either AddressSpaceAttr or TargetAddressSpaceAttr.
+/// Returns the CIR AddressSpace enum value for use with PointerType.
+static cir::AddressSpace getAddressSpaceFromAttr(mlir::Attribute attr) {
+  if (auto addrSpaceAttr = mlir::dyn_cast<cir::AddressSpaceAttr>(attr))
+    return addrSpaceAttr.getValue();
+  if (auto targetAddrSpaceAttr = mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
+    return cir::computeTargetAddressSpace(targetAddrSpaceAttr.getValue());
+  llvm_unreachable("Expected AddressSpaceAttr or TargetAddressSpaceAttr");
+}
+
+/// Convert a CIR address space (enum) to a target-specific LLVM address space value.
+/// This function handles both:
+/// 1. Target address spaces: Encoded as offsets in the enum, extracted directly
+/// 2. Language address spaces: Mapped via TargetLoweringInfo (e.g., OpenCL/CUDA)
+static unsigned
+getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
+                                   cir::LowerModule *lowerModule) {
+  if (addrSpace == cir::AddressSpace::Default)
+    return 0; // Default address space is always 0 in LLVM.
+
+  // Target address spaces are encoded as enum offsets and can be extracted directly
+  if (cir::isTargetAddressSpace(addrSpace))
+    return cir::getTargetAddressSpaceValue(addrSpace);
+
+  // Language address spaces (e.g., OpenCL, CUDA) need target-specific mapping
+  assert(lowerModule && "CIR AS map is not available");
+  return lowerModule->getTargetLoweringInfo()
+      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+}
+
+/// Convert a CIR address space attribute (AddressSpaceAttr or TargetAddressSpaceAttr)
+/// directly to a target-specific LLVM address space value.
+static unsigned
+getTargetAddrSpaceFromAttr(mlir::Attribute attr, cir::LowerModule *lowerModule) {
+  cir::AddressSpace addrSpace = getAddressSpaceFromAttr(attr);
+  return getTargetAddrSpaceFromCIRAddrSpace(addrSpace, lowerModule);
+}
+
 // Get addrspace by converting a pointer type.
 // TODO: The approach here is a little hacky. We should access the target info
 // directly to convert the address space of global op, similar to what we do
@@ -387,7 +425,7 @@ unsigned getGlobalOpTargetAddrSpace(mlir::ConversionPatternRewriter &rewriter,
                                     const mlir::TypeConverter *converter,
                                     cir::GlobalOp op) {
   auto tempPtrTy = cir::PointerType::get(rewriter.getContext(), op.getSymType(),
-                                         op.getAddrSpace());
+                                         op.getAddrSpaceAttr());
   return cast<mlir::LLVM::LLVMPointerType>(converter->convertType(tempPtrTy))
       .getAddressSpace();
 }
@@ -5014,20 +5052,6 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   return cir::createLowerModule(module, rewriter);
 }
 
-static unsigned
-getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
-                                   cir::LowerModule *lowerModule) {
-  if (addrSpace == cir::AddressSpace::Default)
-    return 0; // Default address space is always 0 in LLVM.
-
-  if (cir::isTargetAddressSpace(addrSpace))
-    return cir::getTargetAddressSpaceValue(addrSpace);
-
-  assert(lowerModule && "CIR AS map is not available");
-  return lowerModule->getTargetLoweringInfo()
-      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
-}
-
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
 // lambda capturing experience. Also blocked by makeTripleAlwaysPresent.
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
@@ -5035,8 +5059,10 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           cir::LowerModule *lowerModule) {
   converter.addConversion([&,
                            lowerModule](cir::PointerType type) -> mlir::Type {
-    unsigned addrSpace =
-        getTargetAddrSpaceFromCIRAddrSpace(type.getAddrSpace(), lowerModule);
+    mlir::Attribute addrSpaceAttr = type.getAddrSpace();
+    unsigned addrSpace = addrSpaceAttr
+        ? getTargetAddrSpaceFromAttr(addrSpaceAttr, lowerModule)
+        : 0; // Default address space
     return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
   });
   converter.addConversion([&](cir::VPtrType type) -> mlir::Type {

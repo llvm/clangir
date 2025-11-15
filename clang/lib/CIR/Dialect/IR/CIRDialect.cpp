@@ -2495,10 +2495,19 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
            << "' does not reference a valid cir.global or cir.func";
 
   mlir::Type symTy;
-  cir::AddressSpace symAddrSpace{};
+  mlir::Attribute symAddrSpaceAttr{};
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
-    symAddrSpace = g.getAddrSpace();
+    // Convert enum to attribute for comparison
+    cir::AddressSpace symAddrSpace = g.getAddrSpace();
+    if (symAddrSpace == cir::AddressSpace::Default) {
+      symAddrSpaceAttr = nullptr;
+    } else if (cir::isTargetAddressSpace(symAddrSpace)) {
+      unsigned targetAS = cir::getTargetAddressSpaceValue(symAddrSpace);
+      symAddrSpaceAttr = cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
+    } else {
+      symAddrSpaceAttr = cir::AddressSpaceAttr::get(getContext(), symAddrSpace);
+    }
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.
     if (getTls() && !g.getTlsModel())
@@ -2514,7 +2523,7 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
            << resultType.getPointee() << "' does not match type " << symTy
            << " of the global @" << getName();
 
-  if (symAddrSpace != resultType.getAddrSpace()) {
+  if (symAddrSpaceAttr != resultType.getAddrSpace()) {
     return emitOpError()
            << "result type address space does not match the address "
               "space of the global @"

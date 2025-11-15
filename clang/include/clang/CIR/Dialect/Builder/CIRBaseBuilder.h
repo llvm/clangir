@@ -11,6 +11,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/AddressSpaces.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
@@ -105,20 +106,49 @@ public:
     return cir::PointerType::get(ty);
   }
 
-  cir::PointerType getPointerTo(mlir::Type ty, cir::AddressSpace as) {
-    return cir::PointerType::get(ty, as);
+  /// Create a pointer type with an address space attribute.
+  cir::PointerType getPointerTo(mlir::Type ty, mlir::Attribute addrSpaceAttr) {
+    return cir::PointerType::get(ty, addrSpaceAttr);
   }
 
+  /// Create a pointer type from a cir::AddressSpace enum.
+  /// This converts the enum to the appropriate attribute.
+  cir::PointerType getPointerTo(mlir::Type ty, cir::AddressSpace addrSpace) {
+    if (addrSpace == cir::AddressSpace::Default)
+      return getPointerTo(ty);
+    if (cir::isTargetAddressSpace(addrSpace)) {
+      unsigned targetAS = cir::getTargetAddressSpaceValue(addrSpace);
+      auto attr = cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
+      return getPointerTo(ty, attr);
+    }
+    auto attr = cir::AddressSpaceAttr::get(getContext(), addrSpace);
+    return getPointerTo(ty, attr);
+  }
+
+  /// Create a pointer type from a LangAS.
+  /// This converts the LangAS to the appropriate attribute (AddressSpaceAttr or TargetAddressSpaceAttr).
   cir::PointerType getPointerTo(mlir::Type ty, clang::LangAS langAS) {
-    return getPointerTo(ty, cir::toCIRAddressSpace(langAS));
+    if(langAS == clang::LangAS::Default)
+      return getPointerTo(ty);
+
+    mlir::Attribute addrSpaceAttr = cir::toCIRAddressSpaceAttr(getContext(), langAS);
+    return getPointerTo(ty, addrSpaceAttr);
+  }
+
+  /// Create a pointer type with a target-specific address space value.
+  /// This is used for address spaces specified via __attribute__((address_space(N))).
+  cir::PointerType getPointerToWithTargetAddrSpace(mlir::Type ty, unsigned targetAS) {
+    assert(clang::isTargetAddressSpace(static_cast<clang::LangAS>(targetAS)));
+    auto attr = cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
+    return getPointerTo(ty, attr);
   }
 
   cir::PointerType getVoidPtrTy(clang::LangAS langAS = clang::LangAS::Default) {
     return getPointerTo(cir::VoidType::get(getContext()), langAS);
   }
 
-  cir::PointerType getVoidPtrTy(cir::AddressSpace as) {
-    return getPointerTo(cir::VoidType::get(getContext()), as);
+  cir::PointerType getVoidPtrTy(mlir::Attribute addrSpaceAttr) {
+    return getPointerTo(cir::VoidType::get(getContext()), addrSpaceAttr);
   }
 
   cir::MethodAttr getMethodAttr(cir::MethodType ty, cir::FuncOp methodFuncOp) {

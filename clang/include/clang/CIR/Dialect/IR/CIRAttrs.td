@@ -1003,6 +1003,37 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
 }
 
 //===----------------------------------------------------------------------===//
+// TargetAddressSpaceAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TargetAddressSpaceAttr : CIR_Attr<"TargetAddressSpace", "target_address_space"> {
+  let summary = "Target-specific numeric address space attribute";
+  let description = [{
+    The TargetAddressSpaceAttr represents a target-specific numeric address space,
+    corresponding to the LLVM IR `addressspace` qualifier and the clang
+     `address_space` attribute.
+    
+    A value of zero represents the default address space. The semantics of non-zero
+    address spaces are target-specific.
+
+    Unlike `AddressSpaceAttr` which represents language-specific address spaces
+    (like OpenCL/CUDA address spaces), this attribute directly represents a
+    target-specific numeric address space value.
+
+    Example:
+    ```mlir
+    !cir.ptr<!s32i, target_address_space(1)>
+    ```
+  }];
+
+  let parameters = (ins "unsigned":$value);
+
+  let assemblyFormat = [{
+    `<` $value `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // AST Wrappers
 //===----------------------------------------------------------------------===//
 
