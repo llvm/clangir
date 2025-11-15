@@ -116,7 +116,7 @@ CIRGenFunction::emitAutoVarAlloca(const VarDecl &D,
       allocaAddr = ReturnValue;
 
       if (const RecordType *RecordTy = Ty->getAs<RecordType>()) {
-        const auto *RD = RecordTy->getOriginalDecl();
+        const auto *RD = RecordTy->getDecl();
         const auto *CXXRD = dyn_cast<CXXRecordDecl>(RD);
         if ((CXXRD && !CXXRD->hasTrivialDestructor()) ||
             RD->isNonTrivialToPrimitiveDestroy()) {
@@ -858,6 +858,7 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   case Decl::MSGuid: // __declspec(uuid("..."))
   case Decl::TemplateParamObject:
   case Decl::OMPThreadPrivate:
+  case Decl::OMPGroupPrivate:
   case Decl::OMPAllocate:
   case Decl::OMPCapturedExpr:
   case Decl::OMPRequires:
