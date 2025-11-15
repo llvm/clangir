@@ -1,14 +1,14 @@
 Ops:
   - name: "cir.acos (::cir::ACosOp)"
-    completed: false
+    completed: true
   - name: "cir.asin (::cir::ASinOp)"
-    completed: false
+    completed: true
   - name: "cir.atan (::cir::ATanOp)"
-    completed: false
+    completed: true
   - name: "cir.abs (::cir::AbsOp)"
-    completed: false
+    completed: true
   - name: "cir.alloc.exception (::cir::AllocExceptionOp)"
-    completed: false
+    completed: true
   - name: "cir.alloca (::cir::AllocaOp)"
     completed: true
   - name: "cir.array.ctor (::cir::ArrayCtor)"
@@ -22,13 +22,15 @@ Ops:
   - name: "cir.assume.separate_storage (::cir::AssumeSepStorageOp)"
     completed: true
   - name: "cir.atomic.cmp_xchg (::cir::AtomicCmpXchg)"
-    completed: false
+    completed: true
   - name: "cir.atomic.fence (::cir::AtomicFence)"
     completed: false
   - name: "cir.atomic.fetch (::cir::AtomicFetch)"
-    completed: false
+    completed: true
   - name: "cir.atomic.xchg (::cir::AtomicXchg)"
-    completed: false
+    completed: true
+  - name: "cir.atomic.clear (::cir::AtomicClear)"
+    completed: true
   - name: "cir.await (::cir::AwaitOp)"
     completed: false
   - name: "cir.base_class_addr (::cir::BaseClassAddrOp)"
@@ -74,7 +76,7 @@ Ops:
   - name: "cir.catch_param (::cir::CatchParamOp)"
     completed: false
   - name: "cir.ceil (::cir::CeilOp)"
-    completed: false
+    completed: true
   - name: "cir.clear_cache (::cir::ClearCacheOp)"
     completed: false
   - name: "cir.cmp (::cir::CmpOp)"
@@ -100,11 +102,11 @@ Ops:
   - name: "cir.continue (::cir::ContinueOp)"
     completed: true
   - name: "cir.copy (::cir::CopyOp)"
-    completed: false
+    completed: true
   - name: "cir.copysign (::cir::CopysignOp)"
     completed: false
   - name: "cir.cos (::cir::CosOp)"
-    completed: false
+    completed: true
   - name: "cir.delete.array (::cir::DeleteArrayOp)"
     completed: false
   - name: "cir.derived_class_addr (::cir::DerivedClassAddrOp)"
@@ -116,7 +118,7 @@ Ops:
   - name: "cir.do (::cir::DoWhileOp)"
     completed: true
   - name: "cir.dyn_cast (::cir::DynamicCastOp)"
-    completed: false
+    completed: true
   - name: "cir.eh.inflight_exception (::cir::EhInflightOp)"
     completed: false
   - name: "cir.eh.typeid (::cir::EhTypeIdOp)"
@@ -124,7 +126,7 @@ Ops:
   - name: "cir.exp2 (::cir::Exp2Op)"
     completed: false
   - name: "cir.exp (::cir::ExpOp)"
-    completed: false
+    completed: true
   - name: "cir.expect (::cir::ExpectOp)"
     completed: true
   - name: "cir.extract_member (::cir::ExtractMemberOp)"
@@ -216,7 +218,7 @@ Ops:
   - name: "cir.nearbyint (::cir::NearbyintOp)"
     completed: false
   - name: "cir.objsize (::cir::ObjSizeOp)"
-    completed: false
+    completed: true
   - name: "cir.pow (::cir::PowOp)"
     completed: false
   - name: "cir.prefetch (::cir::PrefetchOp)"
@@ -270,7 +272,7 @@ Ops:
   - name: "cir.ternary (::cir::TernaryOp)"
     completed: true
   - name: "cir.throw (::cir::ThrowOp)"
-    completed: false
+    completed: true
   - name: "cir.trap (::cir::TrapOp)"
     completed: true
   - name: "cir.trunc (::cir::TruncOp)"
@@ -278,7 +280,7 @@ Ops:
   - name: "cir.try_call (::cir::TryCallOp)"
     completed: false
   - name: "cir.try (::cir::TryOp)"
-    completed: false
+    completed: true
   - name: "cir.unary (::cir::UnaryOp)"
     completed: true
   - name: "cir.unreachable (::cir::UnreachableOp)"
@@ -382,7 +384,7 @@ Attr:
   - name: "AddressPointAttr"
     completed: true
   - name: "AddressSpaceAttr"
-    completed: false
+    completed: true
   - name: "AnnotationAttr"
     completed: false
   - name: "BitfieldInfoAttr"
@@ -432,7 +434,7 @@ Attr:
   - name: "DataMemberAttr"
     completed: false
   - name: "DynamicCastInfoAttr"
-    completed: false
+    completed: true
   - name: "ExtraFuncAttributesAttr"
     completed: false
   - name: "FPAttr"
@@ -450,7 +452,7 @@ Attr:
   - name: "IntAttr"
     completed: true
   - name: "LangAttr"
-    completed: false
+    completed: true
   - name: "MethodAttr"
     completed: false
   - name: "NoThrowAttr"
@@ -472,13 +474,13 @@ Attr:
   - name: "SignedOverflowBehaviorAttr"
     completed: false
   - name: "TypeInfoAttr"
-    completed: false
+    completed: true
   - name: "UWTableAttr"
     completed: false
   - name: "UndefAttr"
     completed: true
   - name: "VTableAttr"
-    completed: false
+    completed: true
   - name: "VisibilityAttr"
     completed: true
   - name: "ZeroAttr"
