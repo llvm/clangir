@@ -184,7 +184,8 @@ public:
   }
 
   mlir::Value VisitFixedPointLiteral(const FixedPointLiteral *E) {
-    llvm_unreachable("NYI");
+    return Builder.getConstAPInt(CGF.getLoc(E->getExprLoc()),
+                                 convertType(E->getType()), E->getValue());
   }
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
@@ -248,7 +249,8 @@ public:
   }
 
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *E) {
-    llvm_unreachable("NYI");
+    return Builder.getConstInt(CGF.getLoc(E->getExprLoc()),
+                               convertType(E->getType()), E->getPackLength());
   }
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {
     return CGF.emitPseudoObjectRValue(E).getScalarVal();
@@ -701,7 +703,7 @@ public:
 
   // C++
   mlir::Value VisitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *E) {
-    llvm_unreachable("NYI");
+    return emitLoadOfLValue(E);
   }
   mlir::Value VisitSourceLocExpr(SourceLocExpr *E) { llvm_unreachable("NYI"); }
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
@@ -734,10 +736,10 @@ public:
   }
   mlir::Value
   VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E) {
-    llvm_unreachable("NYI");
+    return Builder.getBool(E->isSatisfied(), CGF.getLoc(E->getExprLoc()));
   }
   mlir::Value VisitRequiresExpr(const RequiresExpr *E) {
-    llvm_unreachable("NYI");
+    return Builder.getBool(E->isSatisfied(), CGF.getLoc(E->getExprLoc()));
   }
   mlir::Value VisitArrayTypeTraitExpr(const ArrayTypeTraitExpr *E) {
     llvm_unreachable("NYI");
