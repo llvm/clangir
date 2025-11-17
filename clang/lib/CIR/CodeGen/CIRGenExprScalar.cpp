@@ -820,7 +820,34 @@ public:
   mlir::Value VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) {
+    mlir::Value src = CGF.emitScalarExpr(E->getSrcExpr());
+    QualType qualSrcTy = E->getSrcExpr()->getType();
+    QualType qualDstTy = E->getType();
+
+    // Bitwidth check
+    unsigned srcBits = CGF.getContext().getTypeSize(qualSrcTy);
+    unsigned dstBits = CGF.getContext().getTypeSize(qualDstTy);
+    if (srcBits != dstBits) {
+      emitError(CGF.getLoc(E->getExprLoc()),
+                "source and destination must have equal bitwidths: '" +
+                    llvm::Twine(srcBits) + "' vs '" + llvm::Twine(dstBits) +
+                    "'");
+      return nullptr;
+    }
+
+    // No-op if already same type
+    mlir::Type srcTy = CGF.convertType(qualSrcTy);
+    mlir::Type dstTy = CGF.convertType(qualDstTy);
+    if (srcTy == dstTy)
+      return src;
+
+    // Perform the bitcast
+    auto loc = CGF.getLoc(E->getExprLoc());
+    return Builder.create<cir::CastOp>(loc, dstTy, cir::CastKind::bitcast, src);
+  }
+
   mlir::Value VisitAtomicExpr(AtomicExpr *E) {
     return CGF.emitAtomicExpr(E).getScalarVal();
   }
