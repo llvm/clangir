@@ -790,7 +790,7 @@ void CIRGenFunction::emitCallArg(CallArgList &args, const Expr *E,
   // However, we still have to push an EH-only cleanup in case we unwind before
   // we make it to the call.
   if (type->isRecordType() &&
-      type->castAs<RecordType>()->getDecl()->isParamDestroyedInCallee()) {
+      type->getAsRecordDecl()->isParamDestroyedInCallee()) {
     llvm_unreachable("Microsoft C++ ABI is NYI");
   }
 
