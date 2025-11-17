@@ -106,6 +106,7 @@ def CIR_AnyAddressSpaceAttr : AnyAttrOf<[
   CIR_TargetAddressSpaceAttrConstraint
 ]> {
   string cppType = "::mlir::Attribute";
+  let constBuilderCall = "nullptr";
 }
 
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRCONSTRAINTS_TD

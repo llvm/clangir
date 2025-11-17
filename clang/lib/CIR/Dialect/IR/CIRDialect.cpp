@@ -28,6 +28,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -55,6 +56,8 @@ using namespace mlir;
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
 #include <clang/CIR/MissingFeatures.h>
+#include <clang/CIR/Dialect/IR/CIRTypes.h>
+#include <clang/CIR/Dialect/IR/CIRDialect.h>
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
@@ -303,6 +306,12 @@ static void printOmittedTerminatorRegion(mlir::OpAsmPrinter &printer,
         /*printBlockTerminators=*/!omitRegionTerm(cleanupRegion));
   }
 }
+
+mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
+                                         mlir::Attribute &attr);
+
+void printAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp op,
+                            mlir::Attribute attr);
 
 //===----------------------------------------------------------------------===//
 // AllocaOp
@@ -2499,17 +2508,7 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
     // Convert enum to attribute for comparison
-    cir::AddressSpace symAddrSpace = g.getAddrSpace();
-    if (symAddrSpace == cir::AddressSpace::Default) {
-      symAddrSpaceAttr = {};
-    } else if (cir::isTargetAddressSpace(symAddrSpace)) {
-      unsigned targetAS =
-          cir::getTargetAddressSpaceValueFromCIRAS(symAddrSpace);
-      symAddrSpaceAttr =
-          cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
-    } else {
-      symAddrSpaceAttr = cir::AddressSpaceAttr::get(getContext(), symAddrSpace);
-    }
+    symAddrSpaceAttr = g.getAddrSpace();
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.
     if (getTls() && !g.getTlsModel())

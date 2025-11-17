@@ -1027,6 +1027,11 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
   llvm_unreachable("unexpected address-space attribute kind");
 }
 
+void printAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
+                            mlir::Attribute attr) {
+  printAddressSpaceValue(printer, attr);
+}
+
 mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
                                            clang::LangAS langAS) {
   using clang::LangAS;

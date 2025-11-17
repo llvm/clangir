@@ -1098,9 +1098,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     entry = dyn_cast_or_null<cir::GlobalOp>(v);
   }
 
-  cir::AddressSpace cirAS = cir::toCIRAddressSpace(langAS);
+  mlir::Attribute cirAS = cir::toCIRAddressSpaceAttr(&getMLIRContext(), langAS);
   if (entry) {
-    cir::AddressSpace entryCIRAS = entry.getAddrSpace();
+    mlir::Attribute entryCIRAS = entry.getAddrSpace();
     if (WeakRefReferences.erase(entry)) {
       if (d && !d->hasAttr<WeakAttr>()) {
         auto lt = cir::GlobalLinkageKind::ExternalLinkage;
