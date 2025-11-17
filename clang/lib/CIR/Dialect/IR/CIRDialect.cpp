@@ -2501,10 +2501,12 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
     // Convert enum to attribute for comparison
     cir::AddressSpace symAddrSpace = g.getAddrSpace();
     if (symAddrSpace == cir::AddressSpace::Default) {
-      symAddrSpaceAttr = nullptr;
+      symAddrSpaceAttr = {};
     } else if (cir::isTargetAddressSpace(symAddrSpace)) {
-      unsigned targetAS = cir::getTargetAddressSpaceValue(symAddrSpace);
-      symAddrSpaceAttr = cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
+      unsigned targetAS =
+          cir::getTargetAddressSpaceValueFromCIRAS(symAddrSpace);
+      symAddrSpaceAttr =
+          cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
     } else {
       symAddrSpaceAttr = cir::AddressSpaceAttr::get(getContext(), symAddrSpace);
     }

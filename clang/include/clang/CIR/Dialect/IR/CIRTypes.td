@@ -244,12 +244,12 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "nullptr">:$addrSpace), [{
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
         return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "nullptr">:$addrSpace), [{
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
         return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
@@ -291,16 +291,8 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
     /// Returns true if this pointer type uses a target address space.
     bool hasTargetAddressSpace() const;
 
-    /// Returns the target address space value if this is a target address space,
-    /// otherwise returns std::nullopt.
-    std::optional<unsigned> getTargetAddressSpaceValue() const;
-
     /// Returns true if this pointer type uses a language (logical) address space.
-    bool hasLogicalAddressSpace() const;
-
-    /// Returns the logical CIR address space if present, otherwise returns
-    /// cir::AddressSpace::Default.
-    cir::AddressSpace getLogicalAddressSpace() const;
+    bool hasLanguageAddressSpace() const;
   }];
 }
 

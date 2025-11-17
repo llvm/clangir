@@ -39,7 +39,8 @@ cir::AddressSpace toCIRAddressSpace(clang::LangAS langAS);
 /// Convert a LangAS to the appropriate address space attribute.
 /// Returns AddressSpaceAttr for language-specific address spaces,
 /// or TargetAddressSpaceAttr for target-specific address spaces.
-mlir::Attribute toCIRAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS);
+mlir::Attribute toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
+                                      clang::LangAS langAS);
 
 /// Extract the AddressSpace enum from an address space attribute.
 /// Returns Default if the attribute is null.
@@ -67,7 +68,7 @@ constexpr bool isLangAddressSpace(cir::AddressSpace as) {
   return !isTargetAddressSpace(as);
 }
 
-constexpr unsigned getTargetAddressSpaceValue(cir::AddressSpace as) {
+constexpr unsigned getTargetAddressSpaceValueFromCIRAS(cir::AddressSpace as) {
   assert(isTargetAddressSpace(as) && "expected target address space");
   return getAsUnsignedValue(as) - TargetAddressSpaceOffset;
 }

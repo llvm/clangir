@@ -997,7 +997,7 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
     }
 
     unsigned $cppClass::getTargetValue() const {
-      return cir::getTargetAddressSpaceValue(getValue());
+      return cir::getTargetAddressSpaceValueFromCIRAS(getValue());
     }
   }];
 }
@@ -1011,7 +1011,7 @@ def CIR_TargetAddressSpaceAttr : CIR_Attr<"TargetAddressSpace", "target_address_
   let description = [{
     The TargetAddressSpaceAttr represents a target-specific numeric address space,
     corresponding to the LLVM IR `addressspace` qualifier and the clang
-     `address_space` attribute.
+     `target_address_space` attribute.
     
     A value of zero represents the default address space. The semantics of non-zero
     address spaces are target-specific.

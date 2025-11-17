@@ -957,9 +957,9 @@ cir::AddressSpace cir::toCIRAddressSpace(clang::LangAS langAS) {
   case LangAS::wasm_funcref:
     llvm_unreachable("NYI");
   default:
-    // Target address space offset arithmetics
-    return static_cast<cir::AddressSpace>(clang::toTargetAddressSpace(langAS) +
-                                          cir::getMaxEnumValForAddressSpace());
+    // NOTE: In theory with TargetAddressSpaceAttr, we don't care at all about
+    // representing target AS here.
+    llvm_unreachable("unknown/unsupported clang language address space");
   }
 }
 
@@ -975,9 +975,9 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
     if (p.parseLParen())
       p.emitError(loc, "expected '(' after target_address_space");
 
-     if(p.parseInteger(val) || p.parseRParen())
-        return p.emitError(loc, "expected target_address_space value");
-     
+    if (p.parseInteger(val) || p.parseRParen())
+      return p.emitError(loc, "expected target_address_space value");
+
     attr = cir::TargetAddressSpaceAttr::get(p.getContext(), val);
     return mlir::success();
   }
@@ -1008,19 +1008,19 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
   return mlir::success();
 }
 
-void printAddressSpaceValue(mlir::AsmPrinter &printer, mlir::Attribute attr) {
+void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
   if (!attr)
     return;
 
   if (auto logical = dyn_cast<cir::AddressSpaceAttr>(attr)) {
-    printer << "clang_address_space("
-            << cir::stringifyAddressSpace(logical.getValue()) << ')';
-    ;
+    p << "clang_address_space("
+      << cir::stringifyAddressSpace(logical.getValue()) << ')';
+
     return;
   }
 
   if (auto target = dyn_cast<cir::TargetAddressSpaceAttr>(attr)) {
-    printer << "target_address_space(" << target.getValue() << ')';
+    p << "target_address_space(" << target.getValue() << ')';
     return;
   }
 
@@ -1069,29 +1069,11 @@ mlir::LogicalResult cir::PointerType::verify(
 }
 
 bool PointerType::hasTargetAddressSpace() const {
-  mlir::Attribute addrSpace = getAddrSpace();
-  if (!addrSpace)
-    return false;
-  return mlir::isa<cir::TargetAddressSpaceAttr>(addrSpace);
+  return mlir::isa_and_nonnull<cir::TargetAddressSpaceAttr>(getAddrSpace());
 }
 
-std::optional<unsigned> PointerType::getTargetAddressSpaceValue() const {
-  if (auto targetAddrSpace =
-          mlir::dyn_cast<cir::TargetAddressSpaceAttr>(getAddrSpace()))
-    return targetAddrSpace.getValue();
-  return std::nullopt;
-}
-
-bool PointerType::hasLogicalAddressSpace() const {
-  auto as = getAddrSpace();
-  return as && llvm::isa_and_nonnull<cir::AddressSpaceAttr>(as);
-}
-
-cir::AddressSpace PointerType::getLogicalAddressSpace() const {
-  auto as = getAddrSpace();
-  if (auto logAS = llvm::dyn_cast_or_null<cir::AddressSpaceAttr>(as))
-    return logAS.getValue();
-  return cir::AddressSpace::Default;
+bool PointerType::hasLanguageAddressSpace() const {
+  return mlir::isa_and_nonnull<cir::AddressSpaceAttr>(getAddrSpace());
 }
 
 //===----------------------------------------------------------------------===//
