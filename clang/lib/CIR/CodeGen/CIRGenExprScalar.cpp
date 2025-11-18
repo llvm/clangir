@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Address.h"
+#include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
@@ -705,7 +706,17 @@ public:
   mlir::Value VisitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *E) {
     return emitLoadOfLValue(E);
   }
-  mlir::Value VisitSourceLocExpr(SourceLocExpr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitSourceLocExpr(SourceLocExpr *E) {
+    auto &Ctx = CGF.getContext();
+    APValue Evaluated =
+        E->EvaluateInContext(Ctx, CGF.CurSourceLocExprScope.getDefaultExpr());
+    auto C = ConstantEmitter(CGF).emitAbstract(E->getLocation(), Evaluated,
+                                               E->getType());
+    mlir::TypedAttr typedAttr = mlir::dyn_cast_or_null<mlir::TypedAttr>(C);
+    assert(typedAttr && "SourceLocExpr must produce a typed constant");
+    return cir::ConstantOp::create(Builder, CGF.getLoc(E->getExprLoc()),
+                                   typedAttr);
+  }
   mlir::Value VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     CIRGenFunction::CXXDefaultArgExprScope Scope(CGF, DAE);
     return Visit(DAE->getExpr());
