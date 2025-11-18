@@ -32,7 +32,6 @@ jobs:
       fail-fast: false
       matrix:
         runs-on:
-          - depot-ubuntu-24.04-arm-16
           - llvm-premerge-linux-runners
     runs-on: ${{ matrix.runs-on }}
     container:
@@ -209,6 +208,7 @@ jobs:
           cmake -G Ninja \
                 -B build \
                 -S llvm \
+                -DLLVM_TARGETS_TO_BUILD=AArch64;X86 \
                 -DLLVM_ENABLE_PROJECTS="${projects_to_build}" \
                 -DLLVM_DISABLE_ASSEMBLY_FILES=ON \
                 -DCMAKE_BUILD_TYPE=Release \
