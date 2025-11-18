@@ -1161,10 +1161,8 @@ public:
   /// returns true if aggregate type has a volatile member.
   /// TODO(cir): this could be a common AST helper between LLVM / CIR.
   bool hasVolatileMember(QualType T) {
-    if (const RecordType *RT = T->getAs<RecordType>()) {
-      const RecordDecl *RD = mlir::cast<RecordDecl>(RT->getOriginalDecl());
+    if (const auto *RD = T->getAsRecordDecl())
       return RD->hasVolatileMember();
-    }
     return false;
   }
 

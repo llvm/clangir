@@ -813,9 +813,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
         ctorKind = cir::CtorKind::Move;
 
       auto cxxCtor = cir::CXXCtorAttr::get(
-          convertType(getContext().getTypeDeclType(ElaboratedTypeKeyword::None,
-                                                   std::nullopt,
-                                                   ctor->getParent())),
+          convertType(getContext().getTypeDeclType(
+              ElaboratedTypeKeyword::None, std::nullopt, ctor->getParent())),
           ctorKind);
       fn.setCxxSpecialMemberAttr(cxxCtor);
 
@@ -1570,7 +1569,7 @@ void CIRGenFunction::emitNullInitialization(mlir::Location loc, Address destPtr,
   // Ignore empty classes in C++.
   if (getLangOpts().CPlusPlus) {
     if (const RecordType *rt = ty->getAs<RecordType>()) {
-      if (cast<CXXRecordDecl>(rt->getOriginalDecl())->isEmpty())
+      if (rt->getAsCXXRecordDecl()->isEmpty())
         return;
     }
   }

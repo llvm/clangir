@@ -229,12 +229,12 @@ cir::CmpOp SCFLoop::findCmpOp() {
   return cmpOp;
 }
 
-mlir::Value SCFLoop::plusConstant(mlir::Value V, mlir::Location loc,
+mlir::Value SCFLoop::plusConstant(mlir::Value v, mlir::Location loc,
                                   int addend) {
-  auto type = V.getType();
-  auto c1 = rewriter->create<mlir::arith::ConstantOp>(
-      loc, mlir::IntegerAttr::get(type, addend));
-  return rewriter->create<mlir::arith::AddIOp>(loc, V, c1);
+  auto type = v.getType();
+  auto c1 = mlir::arith::ConstantOp::create(
+      *rewriter, loc, mlir::IntegerAttr::get(type, addend));
+  return mlir::arith::AddIOp::create(*rewriter, loc, v, c1);
 }
 
 // Return IV initial value by searching the store before the loop.
@@ -313,9 +313,9 @@ void SCFLoop::transferToSCFForOp() {
   auto lb = getLowerBound();
   auto loc = forOp.getLoc();
   auto type = lb.getType();
-  auto step = rewriter->create<mlir::arith::ConstantOp>(
-      loc, mlir::IntegerAttr::get(type, getStep()));
-  auto scfForOp = rewriter->create<mlir::scf::ForOp>(loc, lb, ub, step);
+  auto step = mlir::arith::ConstantOp::create(
+      *rewriter, loc, mlir::IntegerAttr::get(type, getStep()));
+  auto scfForOp = mlir::scf::ForOp::create(*rewriter, loc, lb, ub, step);
   SmallVector<mlir::Value> bbArg;
   rewriter->eraseOp(&scfForOp.getBody()->back());
   rewriter->inlineBlockBefore(&forOp.getBody().front(), scfForOp.getBody(),
@@ -347,8 +347,8 @@ void SCFLoop::transferToSCFForOp() {
 }
 
 void SCFLoop::transformToSCFWhileOp() {
-  auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
-      forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
+  auto scfWhileOp = mlir::scf::WhileOp::create(
+      *rewriter, forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
   rewriter->createBlock(&scfWhileOp.getBefore());
   rewriter->createBlock(&scfWhileOp.getAfter());
 
@@ -369,8 +369,8 @@ void SCFLoop::transformToSCFWhileOp() {
 }
 
 void SCFLoop::transformToCIRWhileOp() {
-  auto cirWhileOp = rewriter->create<cir::WhileOp>(
-      forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
+  auto cirWhileOp = cir::WhileOp::create(
+      *rewriter, forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
   rewriter->createBlock(&cirWhileOp.getCond());
   rewriter->createBlock(&cirWhileOp.getBody());
 
@@ -393,8 +393,9 @@ void SCFLoop::transformToCIRWhileOp() {
 }
 
 mlir::scf::WhileOp SCFWhileLoop::transferToSCFWhileOp() {
-  auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
-      whileOp->getLoc(), whileOp->getResultTypes(), adaptor.getOperands());
+  auto scfWhileOp = mlir::scf::WhileOp::create(*rewriter, whileOp->getLoc(),
+                                               whileOp->getResultTypes(),
+                                               adaptor.getOperands());
   rewriter->createBlock(&scfWhileOp.getBefore());
   rewriter->createBlock(&scfWhileOp.getAfter());
   rewriter->inlineBlockBefore(&whileOp.getCond().front(),
@@ -417,14 +418,15 @@ void SCFDoLoop::transferToSCFWhileOp() {
                           yieldOp->getResults());
     rewriter->eraseOp(yieldOp);
   };
+
   auto afterBuilder = [&](mlir::OpBuilder &builder, mlir::Location loc,
                           mlir::ValueRange args) {
-    rewriter->create<mlir::scf::YieldOp>(loc, args);
+    mlir::scf::YieldOp::create(*rewriter, loc, args);
   };
 
-  rewriter->create<mlir::scf::WhileOp>(DoOp.getLoc(), DoOp->getResultTypes(),
-                                       adaptor.getOperands(), beforeBuilder,
-                                       afterBuilder);
+  mlir::scf::WhileOp::create(*rewriter, DoOp.getLoc(), DoOp->getResultTypes(),
+                             adaptor.getOperands(), beforeBuilder,
+                             afterBuilder);
 }
 
 class CIRForOpLowering : public mlir::OpConversionPattern<cir::ForOp> {

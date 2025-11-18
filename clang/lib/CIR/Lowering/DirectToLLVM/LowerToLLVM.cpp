@@ -182,8 +182,7 @@ void getOrCreateLLVMFuncOp(mlir::ConversionPatternRewriter &rewriter,
                            mlir::Operation *srcOp, llvm::StringRef fnName,
                            mlir::Type fnTy) {
   if (!fnTy) {
-    srcOp->emitError("failed to materialize LLVM function type for ")
-        << fnName;
+    srcOp->emitError("failed to materialize LLVM function type for ") << fnName;
     return;
   }
   auto llvmFnTy = mlir::dyn_cast<mlir::LLVM::LLVMFunctionType>(fnTy);
@@ -194,14 +193,12 @@ void getOrCreateLLVMFuncOp(mlir::ConversionPatternRewriter &rewriter,
   }
   auto modOp = srcOp->getParentOfType<mlir::ModuleOp>();
   if (!modOp) {
-    srcOp->emitError("expected parent module when declaring ")
-        << fnName;
+    srcOp->emitError("expected parent module when declaring ") << fnName;
     return;
   }
   auto enclosingFnOp = srcOp->getParentOfType<mlir::LLVM::LLVMFuncOp>();
   if (!enclosingFnOp) {
-    srcOp->emitError("expected parent LLVM function when declaring ")
-        << fnName;
+    srcOp->emitError("expected parent LLVM function when declaring ") << fnName;
     return;
   }
   auto *sourceSymbol = mlir::SymbolTable::lookupSymbolIn(modOp, fnName);
@@ -1323,20 +1320,20 @@ mlir::LogicalResult CIRToLLVMBrCondOpLowering::matchAndRewrite(
     i1Condition = adaptor.getCond();
 
   auto *converter = getTypeConverter();
-  auto trueBlock = convertSuccessorBlock(
-      rewriter, converter, brOp, brOp.getDestTrue(),
-      adaptor.getDestOperandsTrue().getTypes());
+  auto trueBlock =
+      convertSuccessorBlock(rewriter, converter, brOp, brOp.getDestTrue(),
+                            adaptor.getDestOperandsTrue().getTypes());
   if (mlir::failed(trueBlock))
     return mlir::failure();
-  auto falseBlock = convertSuccessorBlock(
-      rewriter, converter, brOp, brOp.getDestFalse(),
-      adaptor.getDestOperandsFalse().getTypes());
+  auto falseBlock =
+      convertSuccessorBlock(rewriter, converter, brOp, brOp.getDestFalse(),
+                            adaptor.getDestOperandsFalse().getTypes());
   if (mlir::failed(falseBlock))
     return mlir::failure();
 
   rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
-      brOp, i1Condition, *trueBlock, adaptor.getDestOperandsTrue(),
-      *falseBlock, adaptor.getDestOperandsFalse());
+      brOp, i1Condition, *trueBlock, adaptor.getDestOperandsTrue(), *falseBlock,
+      adaptor.getDestOperandsFalse());
 
   return mlir::success();
 }
@@ -1828,7 +1825,6 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
   auto resultTy = getTypeConverter()->convertType(op.getType());
   // Verification between the CIR alloca AS and the one from data layout.
   auto allocaAS = [&]() {
-    auto resPtrTy = mlir::cast<mlir::LLVM::LLVMPointerType>(resultTy);
     auto dlAllocaASAttr = mlir::cast_if_present<mlir::IntegerAttr>(
         dataLayout.getAllocaMemorySpace());
     // TODO: The query for the alloca AS should be done through CIRDataLayout
@@ -1841,8 +1837,9 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
   auto resPtrTy =
       mlir::LLVM::LLVMPointerType::get(elementTy.getContext(), allocaAS);
 
-  auto llvmAlloca = rewriter.create<mlir::LLVM::AllocaOp>(
-      op.getLoc(), resPtrTy, elementTy, size, op.getAlignmentAttr().getInt());
+  auto llvmAlloca =
+      mlir::LLVM::AllocaOp::create(rewriter, op->getLoc(), resPtrTy, elementTy,
+                                   size, op.getAlignmentAttr().getInt());
 
   auto expectedPtrTy = mlir::cast<mlir::LLVM::LLVMPointerType>(
       getTypeConverter()->convertType(op.getResult().getType()));
@@ -1850,8 +1847,8 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
   mlir::Value finalPtr = llvmAlloca.getResult();
 
   if (expectedPtrTy.getAddressSpace() != allocaAS) {
-    finalPtr = rewriter.create<mlir::LLVM::AddrSpaceCastOp>(
-        op.getLoc(), expectedPtrTy, finalPtr);
+    finalPtr = mlir::LLVM::AddrSpaceCastOp::create(rewriter, op.getLoc(),
+                                                   expectedPtrTy, finalPtr);
   }
 
   // If there are annotations available, copy them out before we destroy the
@@ -2703,8 +2700,8 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
                                   useInitializerRegion);
 
   if (mlir::isa<cir::ConstPtrAttr, cir::UndefAttr, cir::ConstRecordAttr,
-                cir::GlobalViewAttr, cir::VTableAttr,
-                cir::TypeInfoAttr>(init)) {
+                cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr>(
+          init)) {
     // TODO(cir): once LLVM's dialect has proper equivalent attributes this
     // should be updated. For now, we use a custom op to initialize globals
     // to the appropriate value.
@@ -3451,8 +3448,8 @@ mlir::LogicalResult CIRToLLVMLLVMIntrinsicCallOpLowering::matchAndRewrite(
   if (name == "masked.load") {
     auto operands = adaptor.getOperands();
     if (operands.size() == 4) {
-      if (auto ptrTy =
-              mlir::dyn_cast<mlir::LLVM::LLVMPointerType>(operands[0].getType())) {
+      if (auto ptrTy = mlir::dyn_cast<mlir::LLVM::LLVMPointerType>(
+              operands[0].getType())) {
         (void)ptrTy;
         auto elementTyAttr = mlir::TypeAttr::get(llvmResTy);
         mlir::IntegerAttr alignAttr;
@@ -3522,7 +3519,8 @@ mlir::LogicalResult CIRToLLVMAssumeAlignedOpLowering::matchAndRewrite(
   auto loc = op.getLoc();
   rewriter.setInsertionPoint(op);
   auto ptrReplacement = adaptor.getPointer();
-  auto cond = mlir::LLVM::ConstantOp::create(rewriter, loc, rewriter.getI1Type(), 1);
+  auto cond =
+      mlir::LLVM::ConstantOp::create(rewriter, loc, rewriter.getI1Type(), 1);
   mlir::LLVM::AssumeOp::create(rewriter, loc, cond, "align", opBundleArgs);
   rewriter.replaceOp(op, ptrReplacement);
 

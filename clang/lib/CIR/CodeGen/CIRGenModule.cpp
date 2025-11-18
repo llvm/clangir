@@ -2219,7 +2219,7 @@ static bool isVarDeclStrongDefinition(const ASTContext &astContext,
       return true;
 
     if (const auto *rt = varType->getAs<clang::RecordType>()) {
-      const RecordDecl *rd = rt->getOriginalDecl();
+      const RecordDecl *rd = rt->getDecl();
       for (const FieldDecl *fd : rd->fields()) {
         if (fd->isBitField())
           continue;
@@ -2766,8 +2766,7 @@ void CIRGenModule::setCXXSpecialMemberAttr(
   if (!funcDecl)
     return;
 
-  auto getConvertedRecordType =
-      [&](const CXXRecordDecl *record) -> mlir::Type {
+  auto getConvertedRecordType = [&](const CXXRecordDecl *record) -> mlir::Type {
     QualType recordTy = getASTContext().getTypeDeclType(
         ElaboratedTypeKeyword::None, std::nullopt, record);
     return convertType(recordTy);
@@ -4163,9 +4162,7 @@ CharUnits CIRGenModule::computeNonVirtualBaseClassOffset(
 
     // Get the layout.
     const ASTRecordLayout &layout = astContext.getASTRecordLayout(rd);
-
-    const auto *baseDecl = cast<CXXRecordDecl>(
-        base->getType()->castAs<clang::RecordType>()->getOriginalDecl());
+    const auto *baseDecl = base->getType()->getAsCXXRecordDecl();
 
     // Add the offset.
     offset += layout.getBaseClassOffset(baseDecl);
