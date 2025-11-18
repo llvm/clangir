@@ -39,7 +39,7 @@ cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
       -D LLVM_ENABLE_PROJECTS="clang;mlir" \
       -G Ninja \
       -D CMAKE_BUILD_TYPE=Release \
-      -D LLVM_TARGETS_TO_BUILD=X86;Arch64 \
+      -D LLVM_TARGETS_TO_BUILD=X86;AArch64 \
       -D CLANG_ENABLE_CIR=ON \
       -D LLVM_ENABLE_ASSERTIONS=ON \
       -D LLVM_BUILD_EXAMPLES=ON \
