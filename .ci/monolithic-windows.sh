@@ -36,10 +36,11 @@ export LD=link
 # https://discourse.llvm.org/t/rfc-future-of-windows-pre-commit-ci/76840/40
 # for further information.
 cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
-      -D LLVM_ENABLE_PROJECTS="${projects}" \
+      -D LLVM_ENABLE_PROJECTS="clang;mlir" \
       -G Ninja \
       -D CMAKE_BUILD_TYPE=Release \
-      -D CLANG_ENABLE_CIR="${enable_cir}" \
+      -D LLVM_TARGETS_TO_BUILD=X86;Arch64 \
+      -D CLANG_ENABLE_CIR=ON \
       -D LLVM_ENABLE_ASSERTIONS=ON \
       -D LLVM_BUILD_EXAMPLES=ON \
       -D COMPILER_RT_BUILD_LIBFUZZER=OFF \
