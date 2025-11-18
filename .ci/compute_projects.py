@@ -111,7 +111,7 @@ PROJECT_CHECK_TARGETS = {
     "libunwind": "check-unwind",
     "lldb": "check-lldb",
     "llvm": "check-llvm",
-    "clang": "check-clang",
+    "clang": "check-clang-cir",
     "CIR": "check-clang-cir",
     "bolt": "check-bolt",
     "lld": "check-lld",
