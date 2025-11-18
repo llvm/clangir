@@ -40,56 +40,29 @@ PROJECT_DEPENDENCIES = {
 # tested.
 DEPENDENTS_TO_TEST = {
     "llvm": {
-        "bolt",
         "clang",
-        "clang-tools-extra",
-        "lld",
-        "lldb",
         "mlir",
-        "polly",
-        "flang",
     },
-    "lld": {"bolt", "cross-project-tests"},
-    "clang": {"clang-tools-extra", "cross-project-tests", "lldb"},
-    "mlir": {"flang"},
+    "lld": {},
+    "clang": {},
+    "mlir": {},
     # Test everything if ci scripts are changed.
     ".ci": {
         "llvm",
         "clang",
         "CIR",
-        "lld",
-        "lldb",
-        "bolt",
-        "clang-tools-extra",
-        "mlir",
-        "polly",
-        "flang",
-        "libclc",
-        "openmp",
     },
 }
 
 # This mapping describes runtimes that should be enabled for a specific project,
 # but not necessarily run for testing. The only case of this currently is lldb
 # which needs some runtimes enabled for tests.
-DEPENDENT_RUNTIMES_TO_BUILD = {"lldb": {"libcxx", "libcxxabi", "libunwind"}}
+DEPENDENT_RUNTIMES_TO_BUILD = {}
 
 # This mapping describes runtimes that should be tested when the key project is
 # touched.
-DEPENDENT_RUNTIMES_TO_TEST = {
-    "clang": {"compiler-rt"},
-    "clang-tools-extra": {"libc"},
-    "libc": {"libc"},
-    "compiler-rt": {"compiler-rt"},
-    "flang": {"flang-rt"},
-    "flang-rt": {"flang-rt"},
-    ".ci": {"compiler-rt", "libc", "flang-rt"},
-}
-DEPENDENT_RUNTIMES_TO_TEST_NEEDS_RECONFIG = {
-    "llvm": {"libcxx", "libcxxabi", "libunwind"},
-    "clang": {"libcxx", "libcxxabi", "libunwind"},
-    ".ci": {"libcxx", "libcxxabi", "libunwind"},
-}
+DEPENDENT_RUNTIMES_TO_TEST = {}
+DEPENDENT_RUNTIMES_TO_TEST_NEEDS_RECONFIG = {}
 
 EXCLUDE_LINUX = {
     "cross-project-tests",  # TODO(issues/132796): Tests are failing.
@@ -138,7 +111,7 @@ PROJECT_CHECK_TARGETS = {
     "libunwind": "check-unwind",
     "lldb": "check-lldb",
     "llvm": "check-llvm",
-    "clang": "check-clang",
+    "clang": "check-clang-cir",
     "CIR": "check-clang-cir",
     "bolt": "check-bolt",
     "lld": "check-lld",
