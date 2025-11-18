@@ -1005,7 +1005,7 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
     return mlir::success();
   }
 
-  return mlir::success();
+  return mlir::failure();
 }
 
 void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
@@ -1027,7 +1027,14 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
   llvm_unreachable("unexpected address-space attribute kind");
 }
 
-void printAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
+mlir::OptionalParseResult parseGlobalAddressSpaceValue(mlir::AsmParser &p,
+                                                       mlir::Attribute &attr) {
+  if (!parseAddressSpaceValue(p, attr))
+    return mlir::failure();
+  return mlir::success();
+}
+
+void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
                             mlir::Attribute attr) {
   printAddressSpaceValue(printer, attr);
 }
@@ -1062,9 +1069,9 @@ cir::AddressSpace cir::getCIRAddressSpaceFromAttr(mlir::Attribute attr) {
 mlir::LogicalResult cir::PointerType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type pointee, mlir::Attribute addrSpace) {
-  if (auto as = addrSpace) {
-    if (!mlir::isa<cir::AddressSpaceAttr>(as) &&
-        !mlir::isa<cir::TargetAddressSpaceAttr>(as)) {
+  if (addrSpace) {
+    if (!mlir::isa<cir::AddressSpaceAttr>(addrSpace) &&
+        !mlir::isa<cir::TargetAddressSpaceAttr>(addrSpace)) {
       return emitError() << "pointer address space must be either "
                             "!cir.address_space or !cir.target_address_space";
     }

@@ -2644,7 +2644,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
        (`comdat` $comdat^)?
        ($tls_model^)?
        (`dso_local` $dso_local^)?
-       ( `,` ` ` custom<AddressSpaceValue>($addr_space)^ )?
+       (` ` custom<GlobalAddressSpaceValue>($addr_space)^ )?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        ($annotations^)?

@@ -307,11 +307,11 @@ static void printOmittedTerminatorRegion(mlir::OpAsmPrinter &printer,
   }
 }
 
-mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
-                                         mlir::Attribute &attr);
+mlir::OptionalParseResult parseGlobalAddressSpaceValue(mlir::AsmParser &p,
+                                                       mlir::Attribute &attr);
 
-void printAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp op,
-                            mlir::Attribute attr);
+void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp op,
+                                  mlir::Attribute attr);
 
 //===----------------------------------------------------------------------===//
 // AllocaOp
