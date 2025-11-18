@@ -5,6 +5,9 @@
 // RUN: %clang -fclangir -Werror -fcir-output %t.c -c -o %t.obj
 // RUN: FileCheck %s --input-file=%t.cir --check-prefix=CIR
 
+// NYI on invalid C++ ABI kind
+// XFAIL: host={{.*}}-windows-msvc
+
 struct S {
   int x;
 };
