@@ -70,6 +70,7 @@ jobs:
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                 -DLLVM_INCLUDE_TESTS=OFF \
                 -DCLANG_INCLUDE_TESTS=OFF \
+                -DCLANG_ENABLE_CIR=ON \
                 -DCMAKE_BUILD_TYPE=Release
           
           ninja -C build \
