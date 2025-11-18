@@ -13,6 +13,13 @@
 // RUN:            %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu  \
+// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN:            -fcuda-include-gpubinary %t.fatbin \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefix=OGCG-HOST --input-file=%t.ll %s
+
+
 // CIR-HOST: module @"{{.*}}" attributes {
 // CIR-HOST:   cir.cu.binary_handle = #cir.cu.binary_handle<{{.*}}.fatbin>,
 // CIR-HOST:   cir.global_ctors = [#cir.global_ctor<"__cuda_module_ctor", {{[0-9]+}}>]
@@ -50,6 +57,8 @@
 
 __global__ void fn() {}
 
+__device__ int a;
+
 // CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
 // CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
@@ -64,6 +73,16 @@ __global__ void fn() {}
 // CIR-HOST-SAME: %[[#DeviceFn]],
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
+// CIR-HOST:   %[[#T3:]] = cir.get_global @".stra0"
+// CIR-HOST:   %[[#Device:]] = cir.cast bitcast %[[#T3]]
+// CIR-HOST:   %[[#T4:]] = cir.get_global @a
+// CIR-HOST:   %[[#Host:]] = cir.cast bitcast %[[#T4]]
+// CIR-HOST:   %[[#Ext:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#Sz:]] = cir.const #cir.int<4>
+// CIR-HOST:   %[[#Const:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#Zero:]] = cir.const #cir.int<0>
+// CIR-HOST:   cir.call @__cudaRegisterVar(%arg0, %[[#Host]], %[[#Device]], %[[#Device]],
+// CIR-HOST-SAME: %[[#Ext]], %[[#Sz]], %[[#Const]], %[[#Zero]])
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__cuda_register_globals(ptr %[[#LLVMFatbin:]]) {
@@ -74,6 +93,9 @@ __global__ void fn() {}
 // LLVM-HOST-SAME: ptr @.str_Z2fnv,
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
+// LLVM-HOST:   call void @__cudaRegisterVar(
+// LLVM-HOST-SAME: ptr %0, ptr @a, ptr @.stra0, ptr @.stra0,
+// LLVM-HOST-SAME: i32 0, i64 4, i32 0, i32 0)
 // LLVM-HOST: }
 
 // The content in const array should be the same as echoed above,
@@ -110,3 +132,51 @@ __global__ void fn() {}
 // LLVM-HOST:   call void @__cudaRegisterFatBinaryEnd
 // LLVM-HOST:   call i32 @atexit(ptr @__cuda_module_dtor)
 // LLVM-HOST: }
+
+// OGCG-HOST: @a = internal global i32 undef, align 4
+// OGCG-HOST: @0 = private unnamed_addr constant [7 x i8] c"_Z2fnv\00", align 1
+// OGCG-HOST: @1 = private unnamed_addr constant [2 x i8] c"a\00", align 1
+// OGCG-HOST: @2 = private constant [14 x i8] c"sample fatbin\0A", section ".nv_fatbin", align 8
+// OGCG-HOST: @__cuda_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1180844977, i32 1, ptr @2, ptr null }, section ".nvFatBinSegment", align 8
+// OGCG-HOST: @__cuda_gpubin_handle = internal global ptr null, align 8
+// OGCG-HOST: @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cuda_module_ctor, ptr null }]
+
+// OGCG-HOST: define internal void @__cuda_register_globals(ptr %[[#HANDLE:]]) {
+// OGCG-HOST: entry:
+// OGCG-HOST:   %1 = call i32 @__cudaRegisterFunction(ptr %[[#HANDLE]],
+// OGCG-HOST-SAME: ptr @_Z17__device_stub__fnv,
+// OGCG-HOST-SAME: ptr @0,
+// OGCG-HOST-SAME: ptr @0,
+// OGCG-HOST-SAME: i32 -1,
+// OGCG-HOST-SAME: ptr null,
+// OGCG-HOST-SAME: ptr null,
+// OGCG-HOST-SAME: ptr null,
+// OGCG-HOST-SAME: ptr null,
+// OGCG-HOST-SAME: ptr null)
+// OGCG-HOST:   call void @__cudaRegisterVar(ptr %[[#HANDLE]],
+// OGCG-HOST-SAME: ptr @a,
+// OGCG-HOST-SAME: ptr @1,
+// OGCG-HOST-SAME: ptr @1,
+// OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i64 4,
+// OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i32 0)
+// OGCG-HOST:   ret void
+// OGCG-HOST: }
+
+// OGCG-HOST: define internal void @__cuda_module_ctor() {
+// OGCG-HOST: entry:
+// OGCG-HOST:   %[[#WRAPADDR:]] = call ptr @__cudaRegisterFatBinary(ptr @__cuda_fatbin_wrapper)
+// OGCG-HOST:   store ptr %[[#WRAPADDR]], ptr @__cuda_gpubin_handle, align 8
+// OGCG-HOST:   call void @__cuda_register_globals(ptr %[[#WRAPADDR]])
+// OGCG-HOST:   call void @__cudaRegisterFatBinaryEnd(ptr %[[#WRAPADDR]])
+// OGCG-HOST:   %1 = call i32 @atexit(ptr @__cuda_module_dtor)
+// OGCG-HOST:   ret void
+// OGCG-HOST: }
+
+// OGCG-HOST: define internal void @__cuda_module_dtor() {
+// OGCG-HOST: entry:
+// OGCG-HOST:   %[[#HANDLE:]] = load ptr, ptr @__cuda_gpubin_handle, align 8
+// OGCG-HOST:   call void @__cudaUnregisterFatBinary(ptr %[[#HANDLE]])
+// OGCG-HOST:   ret void
+// OGCG-HOST: }
