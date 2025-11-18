@@ -41,7 +41,7 @@ export LLVM_SYMBOLIZER_PATH=`which llvm-symbolizer`
 # It will not be built unless it is used.
 cmake -S "${MONOREPO_ROOT}"/llvm -B "${BUILD_DIR}" \
       -D LLVM_ENABLE_PROJECTS="clang;mlir" \
-      -D LLVM_TARGETS_TO_BUILD=X86;Arch64 \
+      -D LLVM_TARGETS_TO_BUILD='X86;Arch64' \
       -G Ninja \
       -D CMAKE_PREFIX_PATH="${HOME}/.local" \
       -D CMAKE_BUILD_TYPE=Release \
