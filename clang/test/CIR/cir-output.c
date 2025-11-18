@@ -15,4 +15,4 @@ int foo(void) {
 }
 
 // CIR: module
-// CIR: cir.func {{.*}} @foo
+// CIR: cir.func{{.*}}@foo
