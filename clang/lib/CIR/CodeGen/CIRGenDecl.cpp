@@ -88,11 +88,13 @@ CIRGenFunction::emitAutoVarAlloca(const VarDecl &D,
       // TODO: deal with CGM.getCodeGenOpts().MergeAllConstants
       // TODO: perhaps we don't need this at all at CIR since this can
       // be done as part of lowering down to LLVM.
+      bool NeedsDtor =
+          D.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
       if ((!getContext().getLangOpts().OpenCL ||
            Ty.getAddressSpace() == LangAS::opencl_constant) &&
           (!NRVO && !D.isEscapingByref() &&
-           CGM.isTypeConstant(Ty, /*ExcludeCtor=*/true,
-                              /*ExcludeDtor=*/false))) {
+           Ty.isConstantStorage(getContext(), /*ExcludeCtor=*/true,
+                                !NeedsDtor))) {
         emitStaticVarDecl(D, cir::GlobalLinkageKind::InternalLinkage);
 
         // Signal this condition to later callbacks.
@@ -600,8 +602,9 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   bool NeedsDtor =
       D.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
 
-  GV.setConstant(
-      CGM.isTypeConstant(D.getType(), /*ExcludeCtor=*/true, !NeedsDtor));
+  GV.setConstant(D.getType().isConstantStorage(
+      getContext(), /*ExcludeCtor=*/true, !NeedsDtor));
+
   GV.setInitialValueAttr(Init);
 
   emitter.finalize(GV);

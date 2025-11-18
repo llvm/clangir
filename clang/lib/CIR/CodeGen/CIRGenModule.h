@@ -535,17 +535,6 @@ public:
   /// optimization.
   bool HasHiddenLTOVisibility(const CXXRecordDecl *RD);
 
-  /// Determine whether an object of this type can be emitted
-  /// as a constant.
-  ///
-  /// If ExcludeCtor is true, the duration when the object's constructor runs
-  /// will not be considered. The caller will need to verify that the object is
-  /// not written to during its construction.
-  /// FIXME: in LLVM codegen path this is part of CGM, which doesn't seem
-  /// like necessary, since (1) it doesn't use CGM at all and (2) is AST type
-  /// query specific.
-  bool isTypeConstant(clang::QualType Ty, bool ExcludeCtor, bool ExcludeDtor);
-
   /// FIXME: this could likely be a common helper and not necessarily related
   /// with codegen.
   /// Return the best known alignment for an unknown pointer to a

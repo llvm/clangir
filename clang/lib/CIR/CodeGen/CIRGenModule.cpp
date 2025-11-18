@@ -237,21 +237,6 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
 
 CIRGenModule::~CIRGenModule() = default;
 
-bool CIRGenModule::isTypeConstant(QualType ty, bool excludeCtor,
-                                  bool excludeDtor) {
-  if (!ty.isConstant(astContext) && !ty->isReferenceType())
-    return false;
-
-  if (astContext.getLangOpts().CPlusPlus) {
-    if (const CXXRecordDecl *record =
-            astContext.getBaseElementType(ty)->getAsCXXRecordDecl())
-      return excludeCtor && !record->hasMutableFields() &&
-             (record->hasTrivialDestructor() || excludeDtor);
-  }
-
-  return true;
-}
-
 /// FIXME: this could likely be a common helper and not necessarily related
 /// with codegen.
 /// Return the best known alignment for an unknown pointer to a
@@ -393,7 +378,8 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *global) {
   if (langOpts.OpenMP && langOpts.OpenMPUseTLS &&
       getASTContext().getTargetInfo().isTLSSupported() &&
       isa<VarDecl>(global) &&
-      !global->getType().isConstantStorage(getASTContext(), false, false) &&
+      !global->getType().isConstantStorage(
+          getASTContext(), /*ExcludeCtor=*/false, /*ExcludeDtor=*/false) &&
       !OMPDeclareTargetDeclAttr::isDeclareTargetDeclaration(global))
     return false;
 
@@ -1205,7 +1191,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
     gv.setAlignmentAttr(getSize(astContext.getDeclAlign(d)));
-    gv.setConstant(isTypeConstant(d->getType(), false, false));
+    gv.setConstant(d->getType().isConstantStorage(
+        astContext, /*ExcludeCtor=*/false, /*ExcludeDtor=*/false));
     // TODO(cir): setLinkageForGV(GV, D);
 
     if (d->getTLSKind()) {
@@ -1399,7 +1386,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
        // TODO: Update this when we have interface to check constexpr
        // destructor.
        d->needsDestruction(getASTContext()) ||
-       !d->getType().isConstantStorage(getASTContext(), true, true)))
+       !d->getType().isConstantStorage(getASTContext(), /*ExcludeCtor=*/true,
+                                       /*ExcludeDtor=*/true)))
     return;
 
   const VarDecl *initDecl;
@@ -1569,9 +1557,11 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     emitter->finalize(gv);
 
   // TODO(cir): If it is safe to mark the global 'constant', do so now.
-  gv.setConstant((d->hasAttr<CUDAConstantAttr>() && langOpts.CUDAIsDevice) ||
-                 (!needsGlobalCtor && !needsGlobalDtor &&
-                  isTypeConstant(d->getType(), true, true)));
+  gv.setConstant(
+      (d->hasAttr<CUDAConstantAttr>() && langOpts.CUDAIsDevice) ||
+      (!needsGlobalCtor && !needsGlobalDtor &&
+       d->getType().isConstantStorage(getASTContext(), /*ExcludeCtor=*/true,
+                                      /*ExcludeDtor=*/true)));
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *sa = d->getAttr<SectionAttr>())
@@ -1963,7 +1953,7 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
         emitter->emitForInitializer(*value, addrSpace, materializedType);
 
     isConstant = materializedType.isConstantStorage(
-        getASTContext(), /*ExcludeCtor*/ value, /*ExcludeDtor*/ false);
+        getASTContext(), /*ExcludeCtor=*/value, /*ExcludeDtor=*/false);
 
     type = mlir::cast<mlir::TypedAttr>(initialValue).getType();
   } else {
