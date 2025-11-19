@@ -1514,7 +1514,28 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
     return emitPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
   // Otherwise, this is a pointer subtraction
+  mlir::Value lhs = Ops.LHS; // pointer
+  mlir::Value rhs = Ops.RHS; // pointer
+  auto loc = CGF.getLoc(Ops.Loc);
 
+  mlir::Type lhsTy = lhs.getType();
+  mlir::Type rhsTy = rhs.getType();
+
+  auto lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhsTy);
+  auto rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhsTy);
+
+  if (lhsPtrTy && rhsPtrTy) {
+    auto lhsAS = lhsPtrTy.getAddrSpace();
+    auto rhsAS = rhsPtrTy.getAddrSpace();
+
+    if (lhsAS != rhsAS) {
+      // Different address spaces → use addrspacecast
+      rhs = Builder.createAddrSpaceCast(rhs, lhsPtrTy);
+    } else if (lhsPtrTy != rhsPtrTy) {
+      // Same addrspace but different pointee/type → bitcast is fine
+      rhs = Builder.createBitcast(rhs, lhsPtrTy);
+    }
+  }
   // Do the raw subtraction part.
   //
   // TODO(cir): note for LLVM lowering out of this; when expanding this into
