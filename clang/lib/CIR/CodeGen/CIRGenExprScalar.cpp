@@ -28,6 +28,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
 
@@ -1881,10 +1882,12 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     }
     // Since target may map different address spaces in AST to the same address
     // space, an address space conversion may end up as a bitcast.
-    cir::AddressSpace SrcAS = cir::toCIRAddressSpace(
+    mlir::Attribute SrcAS = cir::toCIRAddressSpaceAttr(
+        &CGF.getMLIRContext(),
         E->getType()->getPointeeType().getAddressSpace());
-    cir::AddressSpace DestAS =
-        cir::toCIRAddressSpace(DestTy->getPointeeType().getAddressSpace());
+    mlir::Attribute DestAS = cir::toCIRAddressSpaceAttr(
+        &CGF.getMLIRContext(), DestTy->getPointeeType().getAddressSpace());
+
     return CGF.CGM.getTargetCIRGenInfo().performAddrSpaceCast(
         CGF, Visit(E), SrcAS, DestAS, convertType(DestTy));
   }

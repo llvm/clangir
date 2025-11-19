@@ -815,7 +815,7 @@ mlir::Value CIRGenModule::getGlobalValue(const Decl *d) {
 cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
                                            mlir::Location loc, StringRef name,
                                            mlir::Type t, bool isConstant,
-                                           cir::AddressSpace addrSpace,
+                                           mlir::Attribute addrSpace,
                                            mlir::Operation *insertPoint,
                                            cir::GlobalLinkageKind linkage) {
   cir::GlobalOp g;
@@ -1154,7 +1154,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       return entry;
   }
 
-  auto declCIRAS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(d));
+  mlir::Attribute declCIRAS = cir::toCIRAddressSpaceAttr(&getMLIRContext(), getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(d->getSourceRange());
@@ -1763,8 +1763,8 @@ static cir::GlobalOp
 generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
                       cir::GlobalLinkageKind lt, CIRGenModule &cgm,
                       StringRef globalName, CharUnits alignment) {
-  cir::AddressSpace addrSpace =
-      cir::toCIRAddressSpace(cgm.getGlobalConstantAddressSpace());
+  mlir::Attribute addrSpace = cir::toCIRAddressSpaceAttr(
+      &cgm.getMLIRContext(), cgm.getGlobalConstantAddressSpace());
 
   // Create a global variable for this string
   // FIXME(cir): check for insertion point in module level.
@@ -1980,7 +1980,7 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
       linkage = cir::GlobalLinkageKind::InternalLinkage;
     }
   }
-  cir::AddressSpace targetAS = cir::toCIRAddressSpace(addrSpace);
+  mlir::Attribute targetAS = cir::toCIRAddressSpaceAttr(&getMLIRContext(), addrSpace);
 
   auto loc = getLoc(expr->getSourceRange());
   auto gv = createGlobalOp(*this, loc, name, type, isConstant, targetAS,

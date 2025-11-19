@@ -16,6 +16,7 @@
 
 #include "ABIInfo.h"
 #include "CIRGenValue.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/Types.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Target/AArch64.h"
@@ -112,8 +113,8 @@ public:
   /// \param DestTy is the destination pointer type.
   /// \param IsNonNull is the flag indicating \p V is known to be non null.
   virtual mlir::Value performAddrSpaceCast(CIRGenFunction &CGF, mlir::Value V,
-                                           cir::AddressSpace SrcAddr,
-                                           cir::AddressSpace DestAddr,
+                                           mlir::Attribute SrcAddr,
+                                           mlir::Attribute DestAddr,
                                            mlir::Type DestTy,
                                            bool IsNonNull = false) const;
 

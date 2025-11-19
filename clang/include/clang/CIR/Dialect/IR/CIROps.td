@@ -2668,7 +2668,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
-      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace,
+      CArg<"mlir::Attribute", "{}">:$addrSpace,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$ctorBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",

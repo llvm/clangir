@@ -3,8 +3,8 @@
 !s32i = !cir.int<s, 32>
 
 module {
-  // CHECK: @test_format1(%arg0: !cir.ptr<!s32i, addrspace(target<0>)>)
-  cir.func @test_format1(%arg0: !cir.ptr<!s32i, addrspace(target<0>)>) {
+  // CHECK: @test_format1(%arg0: !cir.ptr<!s32i, target_address_space(0)>)
+  cir.func @test_format1(%arg0: !cir.ptr<!s32i, target_address_space(0)>) {
     cir.return
   }
 
@@ -13,28 +13,28 @@ module {
     cir.return
   }
 
-  // CHECK: @test_format3(%arg0: !cir.ptr<!s32i, addrspace(offload_private)>)
-  cir.func @test_format3(%arg0: !cir.ptr<!s32i, addrspace(offload_private)>) {
+  // CHECK: @test_format3(%arg0: !cir.ptr<!s32i, clang_address_space(offload_private)>)
+  cir.func @test_format3(%arg0: !cir.ptr<!s32i, clang_address_space(offload_private)>) {
     cir.return
   }
 
-  // CHECK: @test_format4(%arg0: !cir.ptr<!s32i, addrspace(offload_local)>)
-  cir.func @test_format4(%arg0: !cir.ptr<!s32i, addrspace(offload_local)>) {
+  // CHECK: @test_format4(%arg0: !cir.ptr<!s32i, clang_address_space(offload_local)>)
+  cir.func @test_format4(%arg0: !cir.ptr<!s32i, clang_address_space(offload_local)>) {
     cir.return
   }
 
-  // CHECK: @test_format5(%arg0: !cir.ptr<!s32i, addrspace(offload_global)>)
-  cir.func @test_format5(%arg0: !cir.ptr<!s32i, addrspace(offload_global)>) {
+  // CHECK: @test_format5(%arg0: !cir.ptr<!s32i, clang_address_space(offload_global)>)
+  cir.func @test_format5(%arg0: !cir.ptr<!s32i, clang_address_space(offload_global)>) {
     cir.return
   }
 
-  // CHECK: @test_format6(%arg0: !cir.ptr<!s32i, addrspace(offload_constant)>)
-  cir.func @test_format6(%arg0: !cir.ptr<!s32i, addrspace(offload_constant)>) {
+  // CHECK: @test_format6(%arg0: !cir.ptr<!s32i, clang_address_space(offload_constant)>)
+  cir.func @test_format6(%arg0: !cir.ptr<!s32i, clang_address_space(offload_constant)>) {
     cir.return
   }
 
-  // CHECK: @test_format7(%arg0: !cir.ptr<!s32i, addrspace(offload_generic)>)
-  cir.func @test_format7(%arg0: !cir.ptr<!s32i, addrspace(offload_generic)>) {
+  // CHECK: @test_format7(%arg0: !cir.ptr<!s32i, clang_address_space(offload_generic)>)
+  cir.func @test_format7(%arg0: !cir.ptr<!s32i, clang_address_space(offload_generic)>) {
     cir.return
   }
 }

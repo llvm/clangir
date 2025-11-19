@@ -662,8 +662,8 @@ TargetCIRGenInfo::getGlobalVarAddressSpace(CIRGenModule &CGM,
 }
 
 mlir::Value TargetCIRGenInfo::performAddrSpaceCast(
-    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpace SrcAddr,
-    cir::AddressSpace DestAddr, mlir::Type DestTy, bool IsNonNull) const {
+    CIRGenFunction &CGF, mlir::Value Src, mlir::Attribute SrcAddr,
+    mlir::Attribute DestAddr, mlir::Type DestTy, bool IsNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
   if (auto globalOp = Src.getDefiningOp<cir::GlobalOp>())

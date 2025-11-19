@@ -28,8 +28,8 @@ kernel void test_printf_float2(float2 arg) {
   printf("%v2hlf", arg);
 }
 // CIR-ALL-LABEL: @test_printf_float2(
-// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, addrspace(offload_constant)>, !cir.vector<!cir.float x 2>) -> !s32i cc(spir_function)
-// CIR-NOFP64:%{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, addrspace(offload_constant)>, !cir.vector<!cir.float x 2>) -> !s32i cc(spir_function)
+// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, clang_address_space(offload_constant)>, !cir.vector<!cir.float x 2>) -> !s32i cc(spir_function)
+// CIR-NOFP64:%{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, clang_address_space(offload_constant)>, !cir.vector<!cir.float x 2>) -> !s32i cc(spir_function)
 // LLVM-ALL-LABEL: @test_printf_float2(
 // LLVM-FP64: %{{.+}} = call spir_func i32 (ptr addrspace(2), ...) @{{.*}}printf{{.*}}(ptr addrspace(2) @.str, <2 x float> %{{.*}})
 // LLVM-NOFP64:  call spir_func i32 (ptr addrspace(2), ...) @{{.*}}printf{{.*}}(ptr addrspace(2) @.str, <2 x float> %{{.*}})
@@ -38,8 +38,8 @@ kernel void test_printf_half2(half2 arg) {
   printf("%v2hf", arg);
 }
 // CIR-ALL-LABEL: @test_printf_half2(
-// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, addrspace(offload_constant)>, !cir.vector<!cir.f16 x 2>) -> !s32i cc(spir_function)
-// CIR-NOFP64:%{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, addrspace(offload_constant)>, !cir.vector<!cir.f16 x 2>) -> !s32i cc(spir_function)
+// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, clang_address_space(offload_constant)>, !cir.vector<!cir.f16 x 2>) -> !s32i cc(spir_function)
+// CIR-NOFP64:%{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, clang_address_space(offload_constant)>, !cir.vector<!cir.f16 x 2>) -> !s32i cc(spir_function)
 // LLVM-ALL-LABEL: @test_printf_half2(
 // LLVM-FP64:  %{{.+}} = call spir_func i32 (ptr addrspace(2), ...) @{{.*}}printf{{.*}}(ptr addrspace(2) @.str.1, <2 x half> %{{.*}})
 // LLVM-NOFP64:  %{{.+}} = call spir_func i32 (ptr addrspace(2), ...) @{{.*}}printf{{.*}}(ptr addrspace(2) @.str.1, <2 x half> %{{.*}})
@@ -49,7 +49,7 @@ kernel void test_printf_double2(double2 arg) {
   printf("%v2lf", arg);
 }
 // CIR-FP64-LABEL: @test_printf_double2(
-// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, addrspace(offload_constant)>, !cir.vector<!cir.double x 2>) -> !s32i cc(spir_function)
+// CIR-FP64: %{{.+}} = cir.call @printf(%{{.+}}, %{{.+}}) : (!cir.ptr<!s8i, clang_address_space(offload_constant)>, !cir.vector<!cir.double x 2>) -> !s32i cc(spir_function)
 // LLVM-FP64-LABEL: @test_printf_double2(
 // LLVM-FP64: call spir_func i32 (ptr addrspace(2), ...) @{{.*}}printf{{.*}}(ptr addrspace(2) @.str.2, <2 x double> %{{.*}})
 #endif

@@ -2081,10 +2081,10 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = emitLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    cir::AddressSpace SrcAS =
-        cir::toCIRAddressSpace(E->getSubExpr()->getType().getAddressSpace());
-    cir::AddressSpace DestAS =
-        cir::toCIRAddressSpace(E->getType().getAddressSpace());
+    mlir::Attribute SrcAS = cir::toCIRAddressSpaceAttr(
+        &getMLIRContext(), E->getSubExpr()->getType().getAddressSpace());
+    mlir::Attribute DestAS = cir::toCIRAddressSpaceAttr(
+        &getMLIRContext(), E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, convertType(DestTy));
     return makeAddrLValue(Address(V, convertTypeForMem(E->getType()),

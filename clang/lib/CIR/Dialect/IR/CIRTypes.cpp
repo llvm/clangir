@@ -973,39 +973,30 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
   if (p.parseOptionalKeyword("target_address_space").succeeded()) {
     unsigned val;
     if (p.parseLParen())
-      p.emitError(loc, "expected '(' after target_address_space");
+      p.emitError(loc, "expected '(' after target address space");
 
     if (p.parseInteger(val) || p.parseRParen())
-      return p.emitError(loc, "expected target_address_space value");
+      return p.emitError(loc, "expected target address space value");
 
     attr = cir::TargetAddressSpaceAttr::get(p.getContext(), val);
     return mlir::success();
   }
 
-  // Address space is either a target address space or a regular one.
-  // - If it is a target address space, we expect a value to follow in the form
-  // of `<value>`, where value is an integer that represents the target address
-  // space value. This value is kept in the address space enum as an offset
-  // from the maximum address space value, which is defined in
-  // `cir::getMaxEnumValForAddressSpace()`. This allows us to use
-  // the same enum for both regular and target address spaces.
-  // - Otherwise, we just use the parsed value.
-
   // Try to parse language specific address space.
   if (p.parseOptionalKeyword("clang_address_space").succeeded()) {
     if (p.parseLParen())
-      return p.emitError(loc, "expected '(' after clang_address_space");
+      return p.emitError(loc, "expected '(' after clang address space");
     mlir::FailureOr<cir::AddressSpace> result =
         mlir::FieldParser<cir::AddressSpace>::parse(p);
 
     if (mlir::failed(result) || p.parseRParen())
-      return p.emitError(loc, "expected clang_address_space value");
+      return p.emitError(loc, "expected clang address space keyword");
 
     attr = cir::AddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
   }
 
-  return mlir::failure();
+  return mlir::success();
 }
 
 void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
@@ -1029,19 +1020,24 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
 
 mlir::OptionalParseResult parseGlobalAddressSpaceValue(mlir::AsmParser &p,
                                                        mlir::Attribute &attr) {
-  if (!parseAddressSpaceValue(p, attr))
-    return mlir::failure();
+
+  mlir::SMLoc loc = p.getCurrentLocation();
+  if (parseAddressSpaceValue(p, attr).failed())
+    return p.emitError(loc, "failed to parse Address Space Value for GlobalOp");
   return mlir::success();
 }
 
 void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
-                            mlir::Attribute attr) {
+                                  mlir::Attribute attr) {
   printAddressSpaceValue(printer, attr);
 }
 
 mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
                                            clang::LangAS langAS) {
   using clang::LangAS;
+
+  if (langAS == LangAS::Default)
+    return {};
 
   if (clang::isTargetAddressSpace(langAS)) {
     unsigned targetAS = clang::toTargetAddressSpace(langAS);

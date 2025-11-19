@@ -2423,7 +2423,7 @@ LogicalResult cir::GlobalOp::verify() {
 void cir::GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, llvm::StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    cir::AddressSpace addrSpace,
+    mlir::Attribute addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -2438,9 +2438,8 @@ void cir::GlobalOp::build(
       cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
-  odsState.addAttribute(
-      getAddrSpaceAttrName(odsState.name),
-      cir::AddressSpaceAttr::get(odsBuilder.getContext(), addrSpace));
+  if (addrSpace)
+    odsState.addAttribute(getAddrSpaceAttrName(odsState.name), addrSpace);
 
   Region *ctorRegion = odsState.addRegion();
   if (ctorBuilder) {
