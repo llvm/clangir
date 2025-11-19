@@ -50,33 +50,6 @@ constexpr unsigned getAsUnsignedValue(cir::AddressSpace as) {
   return static_cast<unsigned>(as);
 }
 
-inline constexpr unsigned TargetAddressSpaceOffset =
-    cir::getMaxEnumValForAddressSpace();
-
-// Target address space is used for target-specific address spaces that are not
-// part of the enum. Its value is represented as an offset from the maximum
-// value of the enum. Make sure that it is always the last enum value.
-static_assert(getAsUnsignedValue(cir::AddressSpace::Target) ==
-                  cir::getMaxEnumValForAddressSpace(),
-              "Target address space must be the last enum value");
-
-constexpr bool isTargetAddressSpace(cir::AddressSpace as) {
-  return getAsUnsignedValue(as) >= cir::getMaxEnumValForAddressSpace();
-}
-
-constexpr bool isLangAddressSpace(cir::AddressSpace as) {
-  return !isTargetAddressSpace(as);
-}
-
-constexpr unsigned getTargetAddressSpaceValueFromCIRAS(cir::AddressSpace as) {
-  assert(isTargetAddressSpace(as) && "expected target address space");
-  return getAsUnsignedValue(as) - TargetAddressSpaceOffset;
-}
-
-constexpr cir::AddressSpace computeTargetAddressSpace(unsigned v) {
-  return static_cast<cir::AddressSpace>(v + TargetAddressSpaceOffset);
-}
-
 } // namespace cir
 
 //===----------------------------------------------------------------------===//

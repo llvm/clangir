@@ -1251,7 +1251,7 @@ cir.func @address_space2(%p : !cir.ptr<!u64i, target_address_space()>) {
 
 
 !u64i = !cir.int<u, 64>
-// expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic, target] for clang address space kind, got: foobar}}
+// expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic] for clang address space kind, got: foobar}}
 // expected-error@below {{expected clang address space keyword}}
 cir.func @address_space4(%p : !cir.ptr<!u64i, clang_address_space(foobar)>) {
   cir.return

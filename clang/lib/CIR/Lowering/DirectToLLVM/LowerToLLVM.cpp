@@ -5017,17 +5017,11 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
 }
 
 static unsigned
-getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
-                                   cir::LowerModule *lowerModule) {
-  if (addrSpace == cir::AddressSpace::Default)
-    return 0; // Default address space is always 0 in LLVM.
-
-  if (cir::isTargetAddressSpace(addrSpace))
-    return cir::getTargetAddressSpaceValueFromCIRAS(addrSpace);
-
+getTargetAddrSpaceFromCIRAddrSpaceAttr(cir::AddressSpaceAttr addrSpace,
+                                       cir::LowerModule *lowerModule) {
   assert(lowerModule && "CIR AS map is not available");
   return lowerModule->getTargetLoweringInfo()
-      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace.getValue());
 }
 
 static unsigned getTargetAddrSpaceFromASAttr(mlir::Attribute attr,
@@ -5039,9 +5033,9 @@ static unsigned getTargetAddrSpaceFromASAttr(mlir::Attribute attr,
           mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
     return targetAddrSpaceAttr.getValue();
 
-  auto addrSpaceAttr = mlir::dyn_cast<cir::AddressSpaceAttr>(attr);
-  return getTargetAddrSpaceFromCIRAddrSpace(addrSpaceAttr.getValue(),
-                                            lowerModule);
+  cir::AddressSpaceAttr addrSpaceAttr =
+      mlir::dyn_cast<cir::AddressSpaceAttr>(attr);
+  return getTargetAddrSpaceFromCIRAddrSpaceAttr(addrSpaceAttr, lowerModule);
 }
 
 // FIXME: change the type of lowerModule to `LowerModule &` to have better

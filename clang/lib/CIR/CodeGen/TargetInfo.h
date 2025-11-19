@@ -102,8 +102,8 @@ public:
                                                  const clang::VarDecl *D) const;
 
   /// Get the CIR address space for alloca.
-  virtual cir::AddressSpace getCIRAllocaAddressSpace() const {
-    return cir::AddressSpace::Default;
+  virtual mlir::Attribute getCIRAllocaAddressSpace() const {
+    return {}; // Empty attribute represents the Default address space
   }
 
   /// Perform address space cast of an expression of pointer type.

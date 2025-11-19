@@ -2506,7 +2506,6 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   mlir::Attribute symAddrSpaceAttr{};
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
-    // Convert enum to attribute for comparison
     symAddrSpaceAttr = g.getAddrSpace();
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.

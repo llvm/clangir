@@ -48,8 +48,7 @@ def CIR_AddressSpace : CIR_I32EnumAttr<
   I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,
   I32EnumAttrCase<"OffloadGlobal", 3, "offload_global">,
   I32EnumAttrCase<"OffloadConstant", 4, "offload_constant">,
-  I32EnumAttrCase<"OffloadGeneric", 5, "offload_generic">,
-  I32EnumAttrCase<"Target", 6, "target">
+  I32EnumAttrCase<"OffloadGeneric", 5, "offload_generic">
 ]> {
   let description = [{
     The `address_space` attribute is used to represent address spaces for

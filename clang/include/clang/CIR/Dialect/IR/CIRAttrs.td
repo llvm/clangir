@@ -987,18 +987,6 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
     unsigned $cppClass::getAsUnsignedValue() const {
       return static_cast<unsigned>(getValue());
     }
-
-    bool $cppClass::isLang() const {
-      return cir::isLangAddressSpace(getValue());
-    }
-
-    bool $cppClass::isTarget() const {
-      return cir::isTargetAddressSpace(getValue());
-    }
-
-    unsigned $cppClass::getTargetValue() const {
-      return cir::getTargetAddressSpaceValueFromCIRAS(getValue());
-    }
   }];
 }
 

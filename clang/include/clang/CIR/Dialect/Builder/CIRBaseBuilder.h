@@ -108,19 +108,10 @@ public:
 
   /// Create a pointer type with an address space attribute.
   cir::PointerType getPointerTo(mlir::Type ty, mlir::Attribute addrSpaceAttr) {
+    assert(mlir::isa<cir::AddressSpaceAttr>(addrSpaceAttr) ||
+           mlir::isa<cir::TargetAddressSpaceAttr>(addrSpaceAttr) &&
+               "expected address space attribute");
     return cir::PointerType::get(ty, addrSpaceAttr);
-  }
-
-  cir::PointerType getPointerTo(mlir::Type ty, cir::AddressSpace addrSpace) {
-    if (addrSpace == cir::AddressSpace::Default)
-      return getPointerTo(ty);
-    if (cir::isTargetAddressSpace(addrSpace)) {
-      unsigned targetAS = cir::getTargetAddressSpaceValueFromCIRAS(addrSpace);
-      auto attr = cir::TargetAddressSpaceAttr::get(getContext(), targetAS);
-      return getPointerTo(ty, attr);
-    }
-    auto attr = cir::AddressSpaceAttr::get(getContext(), addrSpace);
-    return getPointerTo(ty, attr);
   }
 
   cir::PointerType getPointerTo(mlir::Type ty, clang::LangAS langAS) {

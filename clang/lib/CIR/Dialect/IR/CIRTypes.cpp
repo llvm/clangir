@@ -957,8 +957,6 @@ cir::AddressSpace cir::toCIRAddressSpace(clang::LangAS langAS) {
   case LangAS::wasm_funcref:
     llvm_unreachable("NYI");
   default:
-    // NOTE: In theory with TargetAddressSpaceAttr, we don't care at all about
-    // representing target AS here.
     llvm_unreachable("unknown/unsupported clang language address space");
   }
 }
@@ -1037,7 +1035,7 @@ mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
   using clang::LangAS;
 
   if (langAS == LangAS::Default)
-    return {};
+    return {}; // Default address space is represented as an empty attribute.
 
   if (clang::isTargetAddressSpace(langAS)) {
     unsigned targetAS = clang::toTargetAddressSpace(langAS);
@@ -1047,16 +1045,16 @@ mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
   return cir::AddressSpaceAttr::get(ctx, toCIRAddressSpace(langAS));
 }
 
-cir::AddressSpace cir::getCIRAddressSpaceFromAttr(mlir::Attribute attr) {
-  if (!attr)
-    return AddressSpace::Default;
-  if (auto addrSpaceAttr = mlir::dyn_cast<cir::AddressSpaceAttr>(attr))
-    return addrSpaceAttr.getValue();
-  if (auto targetAddrSpaceAttr =
-          mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
-    return cir::computeTargetAddressSpace(targetAddrSpaceAttr.getValue());
-  return AddressSpace::Default;
-}
+// cir::AddressSpace cir::getCIRAddressSpaceFromAttr(mlir::Attribute attr) {
+//   if (!attr)
+//     return AddressSpace::Default;
+//   if (auto addrSpaceAttr = mlir::dyn_cast<cir::AddressSpaceAttr>(attr))
+//     return addrSpaceAttr.getValue();
+//   if (auto targetAddrSpaceAttr =
+//           mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
+//     return cir::computeTargetAddressSpace(targetAddrSpaceAttr.getValue());
+//   return AddressSpace::Default;
+// }
 
 //===----------------------------------------------------------------------===//
 // PointerType Definitions
