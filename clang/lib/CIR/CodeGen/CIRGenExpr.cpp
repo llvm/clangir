@@ -2260,7 +2260,8 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
     QualType Ty = Inner->getType();
     if (CGF.CGM.getCodeGenOpts().MergeAllConstants &&
         (Ty->isArrayType() || Ty->isRecordType()) &&
-        CGF.CGM.isTypeConstant(Ty, /*ExcludeCtor=*/true, /*ExcludeDtor=*/false))
+        Ty.isConstantStorage(CGF.CGM.getASTContext(), /*ExcludeCtor=*/true,
+                             /*ExcludeDtor=*/false))
       assert(0 && "NYI");
 
     // The temporary memory should be created in the same scope as the extending
