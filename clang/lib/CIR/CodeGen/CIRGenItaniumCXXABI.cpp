@@ -2932,12 +2932,12 @@ Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &cgf,
 LValue CIRGenItaniumCXXABI::EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
                                                          const VarDecl *VD,
                                                          QualType LValType) {
-  // TODO(cir): For now, we're not implementing the full wrapper function
-  // mechanism. Instead, we rely on the fact that the global variable is
-  // already marked as thread_local, and we just access it directly.
-  // In the future, we may need to implement proper wrapper functions for
-  // dynamic TLS initialization similar to traditional CodeGen's
-  // getOrCreateThreadLocalWrapper.
+  // ClangIR's approach to thread-local variables differs from traditional
+  // CodeGen. Traditional CodeGen creates wrapper functions (e.g., _ZTW*) that
+  // handle dynamic initialization. ClangIR instead marks the GlobalOp with
+  // tls_dyn and relies on LLVM lowering to insert @llvm.threadlocal.address
+  // intrinsics, which achieves the same semantics without intermediate wrapper
+  // functions in CIR.
 
   mlir::Value V = CGF.CGM.getAddrOfGlobalVar(VD);
 

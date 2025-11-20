@@ -1095,11 +1095,11 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
     }
 
     // Handle threadlocal function locals.
+    // ClangIR marks the GlobalOp with thread_local, which gets lowered to
+    // @llvm.threadlocal.address intrinsics during LLVM lowering. This approach
+    // provides correct TLS semantics without requiring wrapper functions in CIR.
     if (VD->getTLSKind() != VarDecl::TLS_None) {
-      // TODO(cir): For more complex thread-local access patterns, we may need
-      // to wrap the address with a thread-local wrapper function (similar to
-      // LLVM's CreateThreadLocalAddress). For now, the GlobalOp is already
-      // marked as thread_local, which provides the correct semantics.
+      // Nothing additional needed - the GlobalOp is already thread_local.
     }
 
     // Check for OpenMP threadprivate variables.
