@@ -790,7 +790,7 @@ void CIRGenFunction::emitCallArg(CallArgList &args, const Expr *E,
   // However, we still have to push an EH-only cleanup in case we unwind before
   // we make it to the call.
   if (type->isRecordType() &&
-      type->castAs<RecordType>()->getOriginalDecl()->isParamDestroyedInCallee()) {
+      type->getAsRecordDecl()->isParamDestroyedInCallee()) {
     llvm_unreachable("Microsoft C++ ABI is NYI");
   }
 
@@ -1105,10 +1105,9 @@ const CIRGenFunctionInfo &
 CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
   // When translating an unprototyped function type, always use a
   // variadic type.
-  return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
-                                cir::FnInfoOpts::None,
-                                llvm::ArrayRef<CanQualType>{},
-                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+  return arrangeCIRFunctionInfo(
+      FTNP->getReturnType().getUnqualifiedType(), cir::FnInfoOpts::None,
+      llvm::ArrayRef<CanQualType>{}, FTNP->getExtInfo(), {}, RequiredArgs(0));
 }
 
 const CIRGenFunctionInfo &
@@ -1218,7 +1217,7 @@ void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
 
   // Deactivate the cleanup for the callee-destructed param that was pushed.
   if (type->isRecordType() && !CurFuncIsThunk &&
-      type->castAs<RecordType>()->getOriginalDecl()->isParamDestroyedInCallee() &&
+      type->castAs<RecordType>()->getDecl()->isParamDestroyedInCallee() &&
       param->needsDestruction(getContext())) {
     llvm_unreachable("NYI");
   }

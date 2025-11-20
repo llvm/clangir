@@ -35,6 +35,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -47,11 +48,10 @@
 #include "llvm/LTO/LTOBackend.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -112,12 +112,12 @@ class CIRGenConsumer : public clang::ASTConsumer {
 
   CIRGenAction::OutputType Action;
 
-  CompilerInstance &CompilerInstance;
-  DiagnosticsEngine &DiagnosticsEngine;
-  [[maybe_unused]] const HeaderSearchOptions &HeaderSearchOptions;
-  CodeGenOptions &CodeGenOptions;
-  [[maybe_unused]] const TargetOptions &TargetOptions;
-  [[maybe_unused]] const LangOptions &LangOptions;
+  CompilerInstance &CI;
+  DiagnosticsEngine &Diags;
+  [[maybe_unused]] const HeaderSearchOptions &HeaderSearchOpts;
+  CodeGenOptions &CodeGenOpts;
+  [[maybe_unused]] const TargetOptions &TargetOpts;
+  [[maybe_unused]] const LangOptions &LangOpts;
   const FrontendOptions &FeOptions;
 
   std::string InputFileName;
@@ -128,25 +128,21 @@ class CIRGenConsumer : public clang::ASTConsumer {
   std::unique_ptr<CIRGenerator> Gen;
 
 public:
-  CIRGenConsumer(CIRGenAction::OutputType Action,
-                 class CompilerInstance &CompilerInstance,
-                 class DiagnosticsEngine &DiagnosticsEngine,
+  CIRGenConsumer(CIRGenAction::OutputType Action, class CompilerInstance &CI,
+                 class DiagnosticsEngine &Diags,
                  IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS,
-                 const class HeaderSearchOptions &HeaderSearchOptions,
-                 class CodeGenOptions &CodeGenOptions,
-                 const class TargetOptions &TargetOptions,
-                 const class LangOptions &LangOptions,
+                 const class HeaderSearchOptions &HeaderSearchOpts,
+                 class CodeGenOptions &CodeGenOpts,
+                 const class TargetOptions &TargetOpts,
+                 const class LangOptions &LangOpts,
                  const FrontendOptions &FeOptions, StringRef InputFile,
                  std::unique_ptr<raw_pwrite_stream> Os)
-      : Action(Action), CompilerInstance(CompilerInstance),
-        DiagnosticsEngine(DiagnosticsEngine),
-        HeaderSearchOptions(HeaderSearchOptions),
-        CodeGenOptions(CodeGenOptions), TargetOptions(TargetOptions),
-        LangOptions(LangOptions), FeOptions(FeOptions),
-        InputFileName(InputFile.str()),
-        OutputStream(std::move(Os)), FS(VFS),
-        Gen(std::make_unique<CIRGenerator>(DiagnosticsEngine, std::move(VFS),
-                                           CodeGenOptions)) {}
+      : Action(Action), CI(CI), Diags(Diags),
+        HeaderSearchOpts(HeaderSearchOpts), CodeGenOpts(CodeGenOpts),
+        TargetOpts(TargetOpts), LangOpts(LangOpts), FeOptions(FeOptions),
+        InputFileName(InputFile.str()), OutputStream(std::move(Os)), FS(VFS),
+        Gen(std::make_unique<CIRGenerator>(Diags, std::move(VFS),
+                                           CodeGenOpts)) {}
 
   void Initialize(ASTContext &Ctx) override {
     assert(!AstContext && "initialized multiple times");
@@ -221,12 +217,12 @@ public:
               FeOptions.ClangIRLifetimeCheck, LifetimeOpts,
               FeOptions.ClangIRIdiomRecognizer, IdiomRecognizerOpts,
               FeOptions.ClangIRLibOpt, LibOptOpts, PassOptParsingFailure,
-              CodeGenOptions.OptimizationLevel > 0, FlattenCir,
+              CodeGenOpts.OptimizationLevel > 0, FlattenCir,
               !FeOptions.ClangIRDirectLowering, EnableCcLowering,
               FeOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!PassOptParsingFailure.empty()) {
-          auto D = DiagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing);
+          auto D = Diags.Report(diag::err_drv_cir_pass_opt_parsing);
           D << PassOptParsingFailure;
         } else
           llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
@@ -269,24 +265,21 @@ public:
       }
     }
 
-    bool EmitCIR = LangOptions.EmitCIRToFile || FeOptions.EmitClangIRFile ||
-                   !LangOptions.CIRFile.empty() ||
-                   !FeOptions.ClangIRFile.empty();
+    bool EmitCIR = LangOpts.EmitCIRToFile || FeOptions.EmitClangIRFile ||
+                   !LangOpts.CIRFile.empty() || !FeOptions.ClangIRFile.empty();
     if (EmitCIR) {
       std::unique_ptr<raw_pwrite_stream> CIRStream;
       llvm::SmallString<128> DefaultPath;
       if (!FeOptions.ClangIRFile.empty()) {
-        CIRStream = CompilerInstance.createOutputFile(
-            FeOptions.ClangIRFile,
-            /*Binary=*/false,
-            /*RemoveFileOnSignal=*/true,
-            /*UseTemporary=*/true);
-      } else if (!LangOptions.CIRFile.empty()) {
-        CIRStream = CompilerInstance.createOutputFile(
-            LangOptions.CIRFile,
-            /*Binary=*/false,
-            /*RemoveFileOnSignal=*/true,
-            /*UseTemporary=*/true);
+        CIRStream = CI.createOutputFile(FeOptions.ClangIRFile,
+                                        /*Binary=*/false,
+                                        /*RemoveFileOnSignal=*/true,
+                                        /*UseTemporary=*/true);
+      } else if (!LangOpts.CIRFile.empty()) {
+        CIRStream = CI.createOutputFile(LangOpts.CIRFile,
+                                        /*Binary=*/false,
+                                        /*RemoveFileOnSignal=*/true,
+                                        /*UseTemporary=*/true);
       } else {
         if (!FeOptions.OutputFile.empty() && FeOptions.OutputFile != "-") {
           DefaultPath = FeOptions.OutputFile;
@@ -299,11 +292,10 @@ public:
           DefaultPath = "clangir-output";
         }
         llvm::sys::path::replace_extension(DefaultPath, "cir");
-        CIRStream = CompilerInstance.createOutputFile(
-            DefaultPath,
-            /*Binary=*/false,
-            /*RemoveFileOnSignal=*/true,
-            /*UseTemporary=*/true);
+        CIRStream = CI.createOutputFile(DefaultPath,
+                                        /*Binary=*/false,
+                                        /*RemoveFileOnSignal=*/true,
+                                        /*UseTemporary=*/true);
       }
 
       if (CIRStream) {
@@ -354,7 +346,7 @@ public:
     case CIRGenAction::OutputType::EmitAssembly: {
       llvm::LLVMContext LlvmCtx;
       bool DisableDebugInfo =
-          CodeGenOptions.getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
+          CodeGenOpts.getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
       auto LlvmModule = lowerFromCIRToLLVMIR(
           FeOptions, MlirMod, std::move(MlirCtx), LlvmCtx,
           FeOptions.ClangIRDisableCIRVerifier,
@@ -362,10 +354,9 @@ public:
 
       BackendAction BackendAction = getBackendActionFromOutputType(Action);
 
-      emitBackendOutput(CompilerInstance, CodeGenOptions,
-                        C.getTargetInfo().getDataLayoutString(),
-                        LlvmModule.get(), BackendAction, FS,
-                        std::move(OutputStream));
+      emitBackendOutput(
+          CI, CodeGenOpts, C.getTargetInfo().getDataLayoutString(),
+          LlvmModule.get(), BackendAction, FS, std::move(OutputStream));
       break;
     }
     case CIRGenAction::OutputType::None:
