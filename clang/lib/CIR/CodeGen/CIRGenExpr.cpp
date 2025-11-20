@@ -576,7 +576,7 @@ bool CIRGenFunction::hasBooleanRepresentation(QualType Ty) {
     return true;
 
   if (const EnumType *ET = Ty->getAs<EnumType>())
-    return ET->getOriginalDecl()->getIntegerType()->isBooleanType();
+    return ET->getDecl()->getIntegerType()->isBooleanType();
 
   if (const AtomicType *AT = Ty->getAs<AtomicType>())
     return hasBooleanRepresentation(AT->getValueType());
@@ -992,7 +992,8 @@ LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field,
   if (hasExplicitObjectParameter) {
     llvm_unreachable("ExplicitObjectMemberFunction NYI");
   } else {
-    QualType lambdaTagType = getContext().getCanonicalTagType(field->getParent());
+    QualType lambdaTagType =
+        getContext().getCanonicalTagType(field->getParent());
     lambdaLV = MakeNaturalAlignAddrLValue(thisValue, lambdaTagType);
   }
   return emitLValueForField(lambdaLV, field);
@@ -1695,7 +1696,7 @@ static bool isPreserveAIArrayBase(CIRGenFunction &CGF, const Expr *ArrayBase) {
     const auto *PointeeT =
         PtrT->getPointeeType()->getUnqualifiedDesugaredType();
     if (const auto *RecT = dyn_cast<clang::RecordType>(PointeeT))
-      return RecT->getOriginalDecl()->hasAttr<BPFPreserveAccessIndexAttr>();
+      return RecT->getDecl()->hasAttr<BPFPreserveAccessIndexAttr>();
     return false;
   }
 
@@ -2023,10 +2024,7 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
 
   case CK_UncheckedDerivedToBase:
   case CK_DerivedToBase: {
-    const auto *DerivedClassTy =
-        E->getSubExpr()->getType()->castAs<clang::RecordType>();
-    auto *DerivedClassDecl =
-        cast<CXXRecordDecl>(DerivedClassTy->getOriginalDecl());
+    auto *DerivedClassDecl = E->getSubExpr()->getType()->getAsCXXRecordDecl();
 
     LValue LV = emitLValue(E->getSubExpr());
     Address This = LV.getAddress();
@@ -2045,9 +2043,7 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_ToUnion:
     assert(0 && "NYI");
   case CK_BaseToDerived: {
-    const auto *derivedClassTy = E->getType()->castAs<RecordType>();
-    auto *derivedClassDecl =
-        cast<CXXRecordDecl>(derivedClassTy->getOriginalDecl());
+    auto *derivedClassDecl = E->getType()->getAsCXXRecordDecl();
 
     LValue lv = emitLValue(E->getSubExpr());
 
@@ -2264,7 +2260,8 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
     QualType Ty = Inner->getType();
     if (CGF.CGM.getCodeGenOpts().MergeAllConstants &&
         (Ty->isArrayType() || Ty->isRecordType()) &&
-        CGF.CGM.isTypeConstant(Ty, /*ExcludeCtor=*/true, /*ExcludeDtor=*/false))
+        Ty.isConstantStorage(CGF.CGM.getASTContext(), /*ExcludeCtor=*/true,
+                             /*ExcludeDtor=*/false))
       assert(0 && "NYI");
 
     // The temporary memory should be created in the same scope as the extending
@@ -2315,7 +2312,7 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
                                         ->getBaseElementTypeUnsafe()
                                         ->getAs<clang::RecordType>()) {
     // Get the destructor for the reference temporary.
-    if (auto *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getOriginalDecl())) {
+    if (auto *ClassDecl = RT->getAsCXXRecordDecl()) {
       if (!ClassDecl->hasTrivialDestructor())
         ReferenceTemporaryDtor = ClassDecl->getDestructor();
     }
@@ -3191,7 +3188,7 @@ static bool isConstantEmittableObjectType(QualType type) {
   // Otherwise, all object types satisfy this except C++ classes with
   // mutable subobjects or non-trivial copy/destroy behavior.
   if (const auto *RT = dyn_cast<clang::RecordType>(type))
-    if (const auto *RD = dyn_cast<CXXRecordDecl>(RT->getOriginalDecl()))
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(RT->getDecl()))
       if (RD->hasMutableFields() || !RD->isTrivial())
         return false;
 

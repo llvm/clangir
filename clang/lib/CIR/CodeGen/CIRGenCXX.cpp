@@ -77,8 +77,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
       continue;
 
     // Skip base classes with trivial destructors.
-    const auto *Base =
-        cast<CXXRecordDecl>(I.getType()->castAs<RecordType>()->getOriginalDecl());
+    const auto *Base = I.getType()->getAsCXXRecordDecl();
     if (Base->hasTrivialDestructor())
       continue;
 

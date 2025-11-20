@@ -26,12 +26,14 @@
 // CIR-HOST:   cir.global_ctors = [#cir.global_ctor<"__hip_module_ctor", {{[0-9]+}}>]
 // CIR-HOST: }
 
+// LLVM-HOST: @.stra0 = private constant [2 x i8] c"a\00"
 // LLVM-HOST: @.str_Z2fnv = private constant [7 x i8] c"_Z2fnv\00"
 // LLVM-HOST: @__hip_fatbin_str = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin"
 // LLVM-HOST: @__hip_fatbin_wrapper = internal constant {
 // LLVM-HOST:   i32 1212764230, i32 1, ptr @__hip_fatbin_str, ptr null
 // LLVM-HOST: }, section ".hipFatBinSegment"
 // LLVM-HOST: @_Z2fnv = constant ptr @_Z17__device_stub__fnv, align 8
+// LLVM-HOST: @a = global i32 undef, align 4
 // LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__hip_module_ctor
 
 // CIR-HOST:  cir.func internal private @__hip_module_dtor() {
@@ -66,6 +68,9 @@
  
 __global__ void fn() {}
 
+
+__device__ int a;
+
 // CIR-HOST: cir.func internal private @__hip_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
 // CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
@@ -80,6 +85,23 @@ __global__ void fn() {}
 // CIR-HOST-SAME: %[[#DeviceFn]],
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
+// CIR-HOST: %[[#GVARNAME:]] = cir.get_global @".stra0"
+// CIR-HOST: %[[#GVARNAMEPTR:]] = cir.cast bitcast %[[#GVARNAME]]
+// CIR-HOST: %[[#GVAR:]] = cir.get_global @a
+// CIR-HOST: %[[#GVARPTR:]] = cir.cast bitcast %[[#GVAR]]
+// CIR-HOST: %[[#ZERO:]] = cir.const #cir.int<0>
+// CIR-HOST: %[[#FOUR:]] = cir.const #cir.int<4>
+// CIR-HOST: %[[#ZERON:]] = cir.const #cir.int<0>
+// CIR-HOST: %[[#ZERONN:]] = cir.const #cir.int<0>
+// CIR-HOST: cir.call @__hipRegisterVar(%[[FatbinHandle]], 
+// CIR-HOST-SAME: %[[#GVARPTR]], 
+// CIR-HOST-SAME: %[[#GVARNAMEPTR]], 
+// CIR-HOST-SAME: %[[#GVARNAMEPTR]], 
+// CIR-HOST-SAME: %[[#ZERO]], 
+// CIR-HOST-SAME: %[[#FOUR:]], 
+// CIR-HOST-SAME: %[[#ZERON]], 
+// CIR-HOST-SAME: %[[#ZERONN]])
+// CIR-HOST: cir.return loc(#loc)
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__hip_register_globals(ptr %[[#LLVMFatbin:]]) {
@@ -90,6 +112,15 @@ __global__ void fn() {}
 // LLVM-HOST-SAME: ptr @.str_Z2fnv,
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
+// LLVM-HOST: call void @__hipRegisterVar(
+// LLVM-HOST-SAME: ptr %[[#LLVMFatbin]], 
+// LLVM-HOST-SAME: ptr @a, 
+// LLVM-HOST-SAME: ptr @.stra0, 
+// LLVM-HOST-SAME: ptr @.stra0, 
+// LLVM-HOST-SAME: i32 0, 
+// LLVM-HOST-SAME: i64 4, 
+// LLVM-HOST-SAME: i32 0, 
+// LLVM-HOST-SAME: i32 0)
 // LLVM-HOST: }
 
 // The content in const array should be the same as echoed above,
@@ -145,9 +176,11 @@ __global__ void fn() {}
 // LLVM-HOST:  ret void
 
 // OGCG-HOST: @_Z2fnv = constant ptr @_Z17__device_stub__fnv, align 8
+// OGCG-HOST: @a = internal global i32 undef, align 4
 // OGCG-HOST: @0 = private unnamed_addr constant [7 x i8] c"_Z2fnv\00", align 1
-// OGCG-HOST: @1 = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin", align 4096
-// OGCG-HOST: @__hip_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1212764230, i32 1, ptr @1, ptr null }, section ".hipFatBinSegment", align 8
+// OGCG-HOST: @1 = private unnamed_addr constant [2 x i8] c"a\00", align 1
+// OGCG-HOST: @2 = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin", align 4096
+// OGCG-HOST: @__hip_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1212764230, i32 1, ptr @2, ptr null }, section ".hipFatBinSegment", align 8
 // OGCG-HOST: @__hip_gpubin_handle = internal global ptr null, align 8
 // OGCG-HOST: @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__hip_module_ctor, ptr null }]
 
@@ -160,6 +193,15 @@ __global__ void fn() {}
 // OGCG-HOST-SAME: ptr @0,
 // OGCG-HOST-SAME: i32 -1,
 // OGCG-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
+// OGCG-HOST:   call void @__hipRegisterVar(
+// OGCG-HOST-SAME: ptr %[[#LLVMFatbin]],
+// OGCG-HOST-SAME: ptr @a,
+// OGCG-HOST-SAME: ptr @1,
+// OGCG-HOST-SAME: ptr @1,
+// OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i64 4,
+// OGCG-HOST-SAME: i32 0, i32 0)
+// OGCG-HOST: ret void 
 // OGCG-HOST: }
 
 // OGCG-HOST: define internal void @__hip_module_ctor() {

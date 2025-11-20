@@ -119,7 +119,7 @@ isSafeToConvert(const RecordDecl *RD, CIRGenTypes &CGT,
   // the class.
   if (const CXXRecordDecl *CRD = dyn_cast<CXXRecordDecl>(RD)) {
     for (const auto &I : CRD->bases())
-      if (!isSafeToConvert(I.getType()->castAs<RecordType>()->getOriginalDecl(), CGT,
+      if (!isSafeToConvert(I.getType()->castAs<RecordType>()->getDecl(), CGT,
                            AlreadyChecked))
         return false;
   }
@@ -145,7 +145,7 @@ isSafeToConvert(QualType T, CIRGenTypes &CGT,
 
   // If this is a record, check it.
   if (const auto *RT = T->getAs<RecordType>())
-    return isSafeToConvert(RT->getOriginalDecl(), CGT, AlreadyChecked);
+    return isSafeToConvert(RT->getDecl(), CGT, AlreadyChecked);
 
   // If this is an array, check the elements, which are embedded inline.
   if (const auto *AT = CGT.getContext().getAsArrayType(T))
@@ -203,8 +203,7 @@ mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
     for (const auto &I : cxxRecordDecl->bases()) {
       if (I.isVirtual())
         continue;
-      convertRecordDeclType(
-          I.getType()->castAs<clang::RecordType>()->getOriginalDecl());
+      convertRecordDeclType(I.getType()->getAsRecordDecl());
     }
   }
 
@@ -354,7 +353,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   }
 
   if (const auto *recordType = dyn_cast<RecordType>(T))
-    return convertRecordDeclType(recordType->getOriginalDecl());
+    return convertRecordDeclType(recordType->getDecl());
 
   // See if type is already cached.
   TypeCacheTy::iterator TCI = TypeCache.find(Ty);
@@ -698,7 +697,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   }
 
   case Type::Enum: {
-    const EnumDecl *ED = cast<EnumType>(Ty)->getOriginalDecl();
+    const EnumDecl *ED = cast<EnumType>(Ty)->getDecl();
     if (ED->isCompleteDefinition() || ED->isFixed())
       return convertType(ED->getIntegerType());
     // Return a placeholder 'i32' type.  This can be changed later when the
@@ -836,9 +835,9 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
     // a test case that meets that condition. C++ doesn't allow forward
     // declaration of enums, and C doesn't allow an incomplete forward
     // declaration with a non-default type.
-    assert(
-        !TypeCache.count(astContext.getCanonicalTagType(ED).getTypePtr()) ||
-        (convertType(ED->getIntegerType()) == TypeCache[astContext.getCanonicalTagType(ED).getTypePtr()]));
+    assert(!TypeCache.count(astContext.getCanonicalTagType(ED).getTypePtr()) ||
+           (convertType(ED->getIntegerType()) ==
+            TypeCache[astContext.getCanonicalTagType(ED).getTypePtr()]));
     // If necessary, provide the full definition of a type only used with a
     // declaration so far.
     assert(!cir::MissingFeatures::generateDebugInfo());
@@ -903,7 +902,7 @@ bool CIRGenTypes::isZeroInitializable(QualType T) {
   // Records are non-zero-initializable if they contain any
   // non-zero-initializable subobjects.
   if (const RecordType *RT = T->getAs<RecordType>()) {
-    const RecordDecl *RD = RT->getOriginalDecl();
+    const RecordDecl *RD = RT->getDecl();
     return isZeroInitializable(RD);
   }
 
