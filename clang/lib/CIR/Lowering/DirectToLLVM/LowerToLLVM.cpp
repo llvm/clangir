@@ -5015,8 +5015,8 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
 }
 
 static unsigned
-getTargetAddrSpaceFromCIRAddrSpaceAttr(cir::ClangAddressSpaceAttr addrSpace,
-                                       cir::LowerModule *lowerModule) {
+convertCIRAddrSpaceToTarget(cir::ClangAddressSpaceAttr addrSpace,
+                            cir::LowerModule *lowerModule) {
   assert(lowerModule && "CIR AS map is not available");
   return lowerModule->getTargetLoweringInfo()
       .getTargetAddrSpaceFromCIRAddrSpace(addrSpace.getValue());
@@ -5033,7 +5033,7 @@ static unsigned getTargetAddrSpaceFromASAttr(mlir::Attribute attr,
 
   cir::ClangAddressSpaceAttr addrSpaceAttr =
       mlir::dyn_cast<cir::ClangAddressSpaceAttr>(attr);
-  return getTargetAddrSpaceFromCIRAddrSpaceAttr(addrSpaceAttr, lowerModule);
+  return convertCIRAddrSpaceToTarget(addrSpaceAttr, lowerModule);
 }
 
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
