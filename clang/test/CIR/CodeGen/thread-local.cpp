@@ -27,6 +27,7 @@ int get_tls_static() {
 // LLVM-LABEL: @_Z14get_tls_staticv
 // LLVM: load{{.*}}@_ZZ14get_tls_staticvE15tls_func_static
 // OGCG-LABEL: @_Z14get_tls_staticv
+// OGCG: @llvm.threadlocal.address.p0(ptr{{.*}}@_ZZ14get_tls_staticvE15tls_func_static)
 
 // Test reading from thread_local variable
 int read_tls() {
@@ -59,4 +60,6 @@ int use_extern_tls() {
 // CIR-LABEL: cir.func{{.*}}@_Z14use_extern_tlsv
 // CIR: cir.get_global thread_local @tls_extern
 // LLVM-LABEL: @_Z14use_extern_tlsv
+// LLVM: @llvm.threadlocal.address.p0(ptr @tls_extern)
 // OGCG-LABEL: @_Z14use_extern_tlsv
+// OGCG: call ptr @_ZTW10tls_extern()
