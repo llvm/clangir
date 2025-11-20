@@ -31,6 +31,7 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Verifier.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -2072,6 +2073,9 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
         emitTopLevelDecl(childDecl);
     break;
   }
+  case Decl::FileScopeAsm:
+    buildFileScopeAsm(cast<FileScopeAsmDecl>(decl));
+    break;
   case Decl::PragmaComment: {
     const auto *PCD = cast<PragmaCommentDecl>(decl);
     switch (PCD->getCommentKind()) {
@@ -3776,6 +3780,9 @@ void CIRGenModule::Release() {
   if (getTriple().isPPC() && !MissingFeatures::mustTailCallUndefinedGlobals()) {
     llvm_unreachable("NYI");
   }
+
+  // Finalize module attributes (including inline assembly)
+  finalizeModuleAttributes();
 }
 
 namespace {
@@ -4429,4 +4436,29 @@ void CIRGenModule::updateResolvedBlockAddress(cir::BlockAddressOp op,
 cir::LabelOp
 CIRGenModule::lookupBlockAddressInfo(cir::BlockAddrInfoAttr blockInfo) {
   return blockAddressInfoToLabel.lookup(blockInfo);
+}
+
+void CIRGenModule::buildFileScopeAsm(const FileScopeAsmDecl *D) {
+  // Get assembly string from declaration
+  appendModuleInlineAsm(D->getAsmString());
+}
+
+void CIRGenModule::finalizeModuleAttributes() {
+  if (moduleAsm.empty())
+    return;
+
+  // Build array of string attributes
+  llvm::SmallVector<mlir::Attribute> asmStrings;
+  for (const auto &asmStr : moduleAsm) {
+    asmStrings.push_back(builder.getStringAttr(asmStr));
+  }
+
+  // Create array attribute
+  mlir::ArrayAttr asmArray = builder.getArrayAttr(asmStrings);
+
+  // Create ModuleAsmAttr
+  auto moduleAsmAttr = cir::ModuleAsmAttr::get(builder.getContext(), asmArray);
+
+  // Set as module attribute
+  theModule->setAttr("cir.module_asm", moduleAsmAttr);
 }

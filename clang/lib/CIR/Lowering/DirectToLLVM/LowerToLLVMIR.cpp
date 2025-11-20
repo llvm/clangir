@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/Target/LLVMIR/LLVMTranslationInterface.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
@@ -85,6 +86,17 @@ private:
     if (auto uwTableAttr =
             mlir::dyn_cast<cir::UWTableAttr>(attribute.getValue()))
       llvmModule->setUwtable(convertUWTableKind(uwTableAttr.getValue()));
+
+    // Handle module-level inline assembly
+    if (auto moduleAsmAttr =
+            mlir::dyn_cast<cir::ModuleAsmAttr>(attribute.getValue())) {
+      mlir::ArrayAttr asmStrings = moduleAsmAttr.getAsmStrings();
+      for (mlir::Attribute attr : asmStrings) {
+        if (auto strAttr = mlir::dyn_cast<mlir::StringAttr>(attr)) {
+          llvmModule->appendModuleInlineAsm(strAttr.getValue());
+        }
+      }
+    }
 
     // Drop ammended CIR attribute from LLVM op.
     module->removeAttr(attribute.getName());

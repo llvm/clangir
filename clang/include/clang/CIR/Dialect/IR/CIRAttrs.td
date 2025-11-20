@@ -221,6 +221,18 @@ def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
   }];
 }
 
+//===----------------------------------------------------------------------===//
+// FileScopeAsm
+//===----------------------------------------------------------------------===//
+
+def CIR_ModuleAsmAttr : CIR_Attr<"ModuleAsm", "module_asm"> {
+  let summary = "Module-level inline assembly";
+  let description = [{
+    Stores file-scope inline assembly strings.
+  }];
+  let parameters = (ins "mlir::ArrayAttr":$asm_strings);
+  let assemblyFormat = [{ `<` $asm_strings `>`}];
+}
 
 //===----------------------------------------------------------------------===//
 // BoolAttr

@@ -832,7 +832,10 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   case Decl::LinkageSpec:
   case Decl::Export:
   case Decl::ObjCPropertyImpl:
-  case Decl::FileScopeAsm:
+  case Decl::FileScopeAsm: {
+    CGM.buildFileScopeAsm(cast<FileScopeAsmDecl>(&D));
+    return;
+  }
   case Decl::Friend:
   case Decl::FriendTemplate:
   case Decl::Block:
