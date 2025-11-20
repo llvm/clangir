@@ -267,8 +267,9 @@ public:
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
   mlir::Attribute getCIRAllocaAddressSpace() const override {
-    return cir::ClangAddressSpaceAttr::get(&getABIInfo().CGT.getMLIRContext(),
-                                      cir::ClangAddressSpace::OffloadPrivate);
+    return cir::ClangAddressSpaceAttr::get(
+        &getABIInfo().CGT.getMLIRContext(),
+        cir::ClangAddressSpace::OffloadPrivate);
   }
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {

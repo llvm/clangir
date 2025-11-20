@@ -1032,7 +1032,7 @@ void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
 }
 
 mlir::Attribute cir::toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx,
-                                           clang::LangAS langAS) {
+                                                clang::LangAS langAS) {
   using clang::LangAS;
 
   if (langAS == LangAS::Default)

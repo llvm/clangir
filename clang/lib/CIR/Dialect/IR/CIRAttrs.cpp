@@ -87,7 +87,8 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
   return mlir::success();
 }
 
-void printAddressSpaceValue(mlir::AsmPrinter &p, cir::ClangAddressSpace addrSpace) {
+void printAddressSpaceValue(mlir::AsmPrinter &p,
+                            cir::ClangAddressSpace addrSpace) {
   p << cir::stringifyEnum(addrSpace);
 }
 

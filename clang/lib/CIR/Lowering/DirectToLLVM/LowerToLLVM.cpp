@@ -5044,9 +5044,9 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&,
                            lowerModule](cir::PointerType type) -> mlir::Type {
     mlir::Attribute addrSpaceAttr = type.getAddrSpace();
-    unsigned addrSpace = addrSpaceAttr
-        ? getTargetAddrSpaceFromASAttr(addrSpaceAttr, lowerModule)
-        : 0; // Default address space
+    unsigned addrSpace =
+        addrSpaceAttr ? getTargetAddrSpaceFromASAttr(addrSpaceAttr, lowerModule)
+                      : 0; // Default address space
     return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
   });
   converter.addConversion([&](cir::VPtrType type) -> mlir::Type {

@@ -1098,7 +1098,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     entry = dyn_cast_or_null<cir::GlobalOp>(v);
   }
 
-  mlir::Attribute cirAS = cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), langAS);
+  mlir::Attribute cirAS =
+      cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), langAS);
   if (entry) {
     mlir::Attribute entryCIRAS = entry.getAddrSpace();
     if (WeakRefReferences.erase(entry)) {
@@ -1154,7 +1155,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       return entry;
   }
 
-  mlir::Attribute declCIRAS = cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), getGlobalVarAddressSpace(d));
+  mlir::Attribute declCIRAS = cir::toCIRClangAddressSpaceAttr(
+      &getMLIRContext(), getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(d->getSourceRange());
@@ -1980,7 +1982,8 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
       linkage = cir::GlobalLinkageKind::InternalLinkage;
     }
   }
-  mlir::Attribute targetAS = cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), addrSpace);
+  mlir::Attribute targetAS =
+      cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), addrSpace);
 
   auto loc = getLoc(expr->getSourceRange());
   auto gv = createGlobalOp(*this, loc, name, type, isConstant, targetAS,
