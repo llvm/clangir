@@ -135,6 +135,9 @@ private:
   /// for the same decl.
   llvm::DenseSet<clang::GlobalDecl> DiagnosedConflictingDefinitions;
 
+  /// thread_local variables defined or used in this TU.
+  std::vector<const clang::VarDecl *> CXXThreadLocals;
+
   /// -------
   /// Annotations
   /// -------

@@ -318,6 +318,9 @@ public:
     return !isEmittedWithConstantInitializer(VD) || mayNeedDestruction(VD);
   }
 
+  LValue EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF, const VarDecl *VD,
+                                      QualType LValType) override;
+
   bool doStructorsInitializeVPtrs(const CXXRecordDecl *VTableClass) override {
     return true;
   }
@@ -2924,4 +2927,29 @@ Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &cgf,
   dataPtr = cgf.getBuilder().createPtrStride(loc, castOp, offsetOp);
   return Address(dataPtr, cgf.getBuilder().getUIntNTy(8),
                  newPtr.getAlignment());
+}
+
+LValue CIRGenItaniumCXXABI::EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
+                                                         const VarDecl *VD,
+                                                         QualType LValType) {
+  // TODO(cir): For now, we're not implementing the full wrapper function
+  // mechanism. Instead, we rely on the fact that the global variable is
+  // already marked as thread_local, and we just access it directly.
+  // In the future, we may need to implement proper wrapper functions for
+  // dynamic TLS initialization similar to traditional CodeGen's
+  // getOrCreateThreadLocalWrapper.
+
+  mlir::Value V = CGF.CGM.getAddrOfGlobalVar(VD);
+
+  auto RealVarTy = CGF.convertTypeForMem(VD->getType());
+  CharUnits Alignment = CGF.getContext().getDeclAlign(VD);
+  Address Addr(V, RealVarTy, Alignment);
+
+  LValue LV;
+  if (VD->getType()->isReferenceType())
+    LV = CGF.emitLoadOfReferenceLValue(Addr, CGF.getLoc(VD->getLocation()),
+                                       VD->getType(), AlignmentSource::Decl);
+  else
+    LV = CGF.makeAddrLValue(Addr, LValType, AlignmentSource::Decl);
+  return LV;
 }

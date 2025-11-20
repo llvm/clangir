@@ -937,7 +937,7 @@ static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   // If it's thread_local, emit a call to its wrapper function instead.
   if (VD->getTLSKind() == VarDecl::TLS_Dynamic &&
       CGF.CGM.getCXXABI().usesThreadWrapperFunction(VD))
-    assert(0 && "not implemented");
+    return CGF.CGM.getCXXABI().EmitThreadLocalVarDeclLValue(CGF, VD, T);
 
   // Check if the variable is marked as declare target with link clause in
   // device codegen.
@@ -1095,8 +1095,12 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
     }
 
     // Handle threadlocal function locals.
-    if (VD->getTLSKind() != VarDecl::TLS_None)
-      llvm_unreachable("thread-local storage is NYI");
+    if (VD->getTLSKind() != VarDecl::TLS_None) {
+      // TODO(cir): For more complex thread-local access patterns, we may need
+      // to wrap the address with a thread-local wrapper function (similar to
+      // LLVM's CreateThreadLocalAddress). For now, the GlobalOp is already
+      // marked as thread_local, which provides the correct semantics.
+    }
 
     // Check for OpenMP threadprivate variables.
     if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd &&

@@ -503,7 +503,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     GV.setComdat(true);
 
   if (D.getTLSKind())
-    llvm_unreachable("TLS mode is NYI");
+    setTLSMode(GV, D);
 
   setGVProperties(GV, &D);
 
