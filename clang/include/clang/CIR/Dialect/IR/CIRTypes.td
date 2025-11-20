@@ -287,12 +287,6 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
         return ptrType.isPtrTo(type);
       return false;
     }
-
-    /// Returns true if this pointer type uses a target address space.
-    bool hasTargetAddressSpace() const;
-
-    /// Returns true if this pointer type uses a language (logical) address space.
-    bool hasLanguageAddressSpace() const;
   }];
 }
 

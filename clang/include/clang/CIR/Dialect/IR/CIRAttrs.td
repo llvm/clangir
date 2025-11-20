@@ -963,7 +963,23 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "address_space"> {
+def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "clang_address_space"> {
+
+  let summary = "Represents a language/Clang-level address space";
+  let description = [{
+    Encodes the semantic address spaces defined by the front-end language
+    (e.g. `__shared__`, `__constant__`, `__local__`). Values are stored using the
+    `cir::ClangAddressSpace` enum, keeping the representation compact while and
+     preserves the qualifier until it is mapped onto target/LLVM address-space numbers.
+
+     Example: 
+     ``` mlir
+     !cir.ptr<!s32i, clang_address_space(offload_local)>
+     cir.global constant external clang_address_space(offload_constant)
+
+     ```
+  }];
+  
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
       return $_get($_ctxt, cir::toCIRClangAddressSpace(langAS));
@@ -991,31 +1007,27 @@ def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "address_sp
 // TargetAddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_TargetAddressSpaceAttr : CIR_Attr<"TargetAddressSpace", "target_address_space"> {
-  let summary = "Target-specific numeric address space attribute";
+def CIR_TargetAddressSpaceAttr : CIR_Attr< "TargetAddressSpace",
+                                         "target_address_space"> {
+  let summary = "Represents a target-specific numeric address space";
   let description = [{
     The TargetAddressSpaceAttr represents a target-specific numeric address space,
     corresponding to the LLVM IR `addressspace` qualifier and the clang
-     `target_address_space` attribute.
+     `address_space` attribute.
     
     A value of zero represents the default address space. The semantics of non-zero
     address spaces are target-specific.
 
-    Unlike `AddressSpaceAttr` which represents language-specific address spaces
-    (like OpenCL/CUDA address spaces), this attribute directly represents a
-    target-specific numeric address space value.
-
     Example:
     ```mlir
+    // Target-specific numeric address spaces
+    !cir.ptr<!s32i, target_address_space(1)>
     !cir.ptr<!s32i, target_address_space(1)>
     ```
   }];
 
   let parameters = (ins "unsigned":$value);
-
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
+  let assemblyFormat = "`<` `target` `<` $value `>` `>`";
 }
 
 //===----------------------------------------------------------------------===//

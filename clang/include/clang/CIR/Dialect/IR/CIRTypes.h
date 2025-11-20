@@ -37,14 +37,10 @@ bool isSized(mlir::Type ty);
 cir::ClangAddressSpace toCIRClangAddressSpace(clang::LangAS langAS);
 
 /// Convert a LangAS to the appropriate address space attribute.
-/// Returns AddressSpaceAttr for language-specific address spaces,
+/// Returns ClangAddressSpaceAttr for clang/language-specific address spaces,
 /// or TargetAddressSpaceAttr for target-specific address spaces.
 mlir::Attribute toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx,
                                       clang::LangAS langAS);
-
-/// Extract the AddressSpace enum from an address space attribute.
-/// Returns Default if the attribute is null.
-cir::ClangAddressSpace getCIRClangAddressSpaceFromAttr(mlir::Attribute attr);
 
 constexpr unsigned getAsUnsignedValue(cir::ClangAddressSpace as) {
   return static_cast<unsigned>(as);

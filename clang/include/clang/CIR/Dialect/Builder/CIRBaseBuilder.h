@@ -107,6 +107,8 @@ public:
   }
 
   /// Create a pointer type with an address space attribute.
+  /// Either a cir::ClangAddressSpaceAttr or cir::TargetAddressSpaceAttr is
+  /// expected.
   cir::PointerType getPointerTo(mlir::Type ty, mlir::Attribute addrSpaceAttr) {
     if (!addrSpaceAttr)
       return cir::PointerType::get(ty);

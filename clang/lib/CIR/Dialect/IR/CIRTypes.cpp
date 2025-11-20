@@ -1055,20 +1055,13 @@ mlir::LogicalResult cir::PointerType::verify(
   if (addrSpace) {
     if (!mlir::isa<cir::ClangAddressSpaceAttr>(addrSpace) &&
         !mlir::isa<cir::TargetAddressSpaceAttr>(addrSpace)) {
-      return emitError() << "pointer address space must be either "
-                            "!cir.address_space or !cir.target_address_space";
+      return emitError()
+             << "pointer address space must be either "
+                "clang_address_space or target_address_space attribute";
     }
   }
 
   return success();
-}
-
-bool PointerType::hasTargetAddressSpace() const {
-  return mlir::isa_and_nonnull<cir::TargetAddressSpaceAttr>(getAddrSpace());
-}
-
-bool PointerType::hasLanguageAddressSpace() const {
-  return mlir::isa_and_nonnull<cir::ClangAddressSpaceAttr>(getAddrSpace());
 }
 
 //===----------------------------------------------------------------------===//
