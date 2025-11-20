@@ -963,10 +963,10 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
+def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "address_space"> {
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
-      return $_get($_ctxt, cir::toCIRAddressSpace(langAS));
+      return $_get($_ctxt, cir::toCIRClangAddressSpace(langAS));
     }]>
   ];
 
@@ -974,12 +974,9 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
     `(` custom<AddressSpaceValue>($value) `)`
   }];
 
-  let defaultValue = "cir::AddressSpace::Default";
+  let defaultValue = "cir::ClangAddressSpace::Default";
 
   let extraClassDeclaration = [{
-    bool isLang() const;
-    bool isTarget() const;
-    unsigned getTargetValue() const;
     unsigned getAsUnsignedValue() const;
   }];
 

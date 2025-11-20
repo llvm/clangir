@@ -481,7 +481,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  mlir::Attribute AS = cir::toCIRAddressSpaceAttr(&getMLIRContext(),
+  mlir::Attribute AS = cir::toCIRClangAddressSpaceAttr(&getMLIRContext(),
                                                   getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared

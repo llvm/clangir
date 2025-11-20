@@ -1729,7 +1729,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // builtin / dynamic alloca we have to handle it here.
     assert(!cir::MissingFeatures::addressSpace());
     mlir::Attribute AAS = getCIRAllocaAddressSpace();
-    mlir::Attribute EAS = cir::toCIRAddressSpaceAttr(
+    mlir::Attribute EAS = cir::toCIRClangAddressSpaceAttr(
         &getMLIRContext(), E->getType()->getPointeeType().getAddressSpace());
     if (EAS != AAS) {
       assert(false && "Non-default address space for alloca NYI");

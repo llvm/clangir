@@ -922,27 +922,27 @@ MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
 // AddressSpace definitions
 //===----------------------------------------------------------------------===//
 
-cir::AddressSpace cir::toCIRAddressSpace(clang::LangAS langAS) {
+cir::ClangAddressSpace cir::toCIRClangAddressSpace(clang::LangAS langAS) {
   using clang::LangAS;
   switch (langAS) {
   case LangAS::Default:
-    return AddressSpace::Default;
+    return ClangAddressSpace::Default;
   case LangAS::opencl_global:
-    return AddressSpace::OffloadGlobal;
+    return ClangAddressSpace::OffloadGlobal;
   case LangAS::opencl_local:
   case LangAS::cuda_shared:
     // Local means local among the work-group (OpenCL) or block (CUDA).
     // All threads inside the kernel can access local memory.
-    return AddressSpace::OffloadLocal;
+    return ClangAddressSpace::OffloadLocal;
   case LangAS::cuda_device:
-    return AddressSpace::OffloadGlobal;
+    return ClangAddressSpace::OffloadGlobal;
   case LangAS::opencl_constant:
   case LangAS::cuda_constant:
-    return AddressSpace::OffloadConstant;
+    return ClangAddressSpace::OffloadConstant;
   case LangAS::opencl_private:
-    return AddressSpace::OffloadPrivate;
+    return ClangAddressSpace::OffloadPrivate;
   case LangAS::opencl_generic:
-    return AddressSpace::OffloadGeneric;
+    return ClangAddressSpace::OffloadGeneric;
   case LangAS::opencl_global_device:
   case LangAS::opencl_global_host:
   case LangAS::sycl_global:
@@ -984,13 +984,13 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
   if (p.parseOptionalKeyword("clang_address_space").succeeded()) {
     if (p.parseLParen())
       return p.emitError(loc, "expected '(' after clang address space");
-    mlir::FailureOr<cir::AddressSpace> result =
-        mlir::FieldParser<cir::AddressSpace>::parse(p);
+    mlir::FailureOr<cir::ClangAddressSpace> result =
+        mlir::FieldParser<cir::ClangAddressSpace>::parse(p);
 
     if (mlir::failed(result) || p.parseRParen())
       return p.emitError(loc, "expected clang address space keyword");
 
-    attr = cir::AddressSpaceAttr::get(p.getContext(), result.value());
+    attr = cir::ClangAddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
   }
 
@@ -1001,9 +1001,9 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, mlir::Attribute attr) {
   if (!attr)
     return;
 
-  if (auto logical = dyn_cast<cir::AddressSpaceAttr>(attr)) {
+  if (auto logical = dyn_cast<cir::ClangAddressSpaceAttr>(attr)) {
     p << "clang_address_space("
-      << cir::stringifyAddressSpace(logical.getValue()) << ')';
+      << cir::stringifyClangAddressSpace(logical.getValue()) << ')';
 
     return;
   }
@@ -1030,7 +1030,7 @@ void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
   printAddressSpaceValue(printer, attr);
 }
 
-mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
+mlir::Attribute cir::toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx,
                                            clang::LangAS langAS) {
   using clang::LangAS;
 
@@ -1042,19 +1042,8 @@ mlir::Attribute cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx,
     return cir::TargetAddressSpaceAttr::get(ctx, targetAS);
   }
 
-  return cir::AddressSpaceAttr::get(ctx, toCIRAddressSpace(langAS));
+  return cir::ClangAddressSpaceAttr::get(ctx, toCIRClangAddressSpace(langAS));
 }
-
-// cir::AddressSpace cir::getCIRAddressSpaceFromAttr(mlir::Attribute attr) {
-//   if (!attr)
-//     return AddressSpace::Default;
-//   if (auto addrSpaceAttr = mlir::dyn_cast<cir::AddressSpaceAttr>(attr))
-//     return addrSpaceAttr.getValue();
-//   if (auto targetAddrSpaceAttr =
-//           mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
-//     return cir::computeTargetAddressSpace(targetAddrSpaceAttr.getValue());
-//   return AddressSpace::Default;
-// }
 
 //===----------------------------------------------------------------------===//
 // PointerType Definitions
@@ -1064,7 +1053,7 @@ mlir::LogicalResult cir::PointerType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type pointee, mlir::Attribute addrSpace) {
   if (addrSpace) {
-    if (!mlir::isa<cir::AddressSpaceAttr>(addrSpace) &&
+    if (!mlir::isa<cir::ClangAddressSpaceAttr>(addrSpace) &&
         !mlir::isa<cir::TargetAddressSpaceAttr>(addrSpace)) {
       return emitError() << "pointer address space must be either "
                             "!cir.address_space or !cir.target_address_space";
@@ -1079,7 +1068,7 @@ bool PointerType::hasTargetAddressSpace() const {
 }
 
 bool PointerType::hasLanguageAddressSpace() const {
-  return mlir::isa_and_nonnull<cir::AddressSpaceAttr>(getAddrSpace());
+  return mlir::isa_and_nonnull<cir::ClangAddressSpaceAttr>(getAddrSpace());
 }
 
 //===----------------------------------------------------------------------===//

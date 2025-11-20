@@ -33,7 +33,7 @@ public:
   const ABIInfo &getABIInfo() const { return *Info; }
 
   virtual unsigned
-  getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace) const = 0;
+  getTargetAddrSpaceFromCIRAddrSpace(cir::ClangAddressSpace addrSpace) const = 0;
 };
 
 } // namespace cir

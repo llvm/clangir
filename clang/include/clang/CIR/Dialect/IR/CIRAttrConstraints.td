@@ -96,7 +96,7 @@ def CIR_AnyTBAAAttr : AnyAttrOf<[
 // NOTE: We might end up using this only for GlobalOps, as we cannot apply constraints
 // to types.
 def CIR_AddressSpaceAttrConstraint
-  : CIR_AttrConstraint<"::cir::AddressSpaceAttr", "language address space attribute">;
+  : CIR_AttrConstraint<"::cir::ClangAddressSpaceAttr", "clang address space attribute">;
 
 def CIR_TargetAddressSpaceAttrConstraint
   : CIR_AttrConstraint<"::cir::TargetAddressSpaceAttr", "target address space attribute">;

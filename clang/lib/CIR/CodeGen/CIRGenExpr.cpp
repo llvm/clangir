@@ -2081,9 +2081,9 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = emitLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    mlir::Attribute SrcAS = cir::toCIRAddressSpaceAttr(
+    mlir::Attribute SrcAS = cir::toCIRClangAddressSpaceAttr(
         &getMLIRContext(), E->getSubExpr()->getType().getAddressSpace());
-    mlir::Attribute DestAS = cir::toCIRAddressSpaceAttr(
+    mlir::Attribute DestAS = cir::toCIRClangAddressSpaceAttr(
         &getMLIRContext(), E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, convertType(DestTy));
@@ -3144,7 +3144,7 @@ Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
   // be different from the type defined by the language. For example,
   // in C++ the auto variables are in the default address space. Therefore
   // cast alloca to the default address space when necessary.
-  if (auto ASTAS = cir::toCIRAddressSpaceAttr(
+  if (auto ASTAS = cir::toCIRClangAddressSpaceAttr(
           &getMLIRContext(), CGM.getLangTempAllocaAddressSpace());
       getCIRAllocaAddressSpace() != ASTAS) {
     llvm_unreachable("Requires address space cast which is NYI");

@@ -41,8 +41,8 @@ class CIR_DefaultValuedEnumParameter<EnumAttrInfo info, string value = "">
   let defaultValue = value;
 }
 
-def CIR_AddressSpace : CIR_I32EnumAttr<
-  "AddressSpace", "clang address space kind", [
+def CIR_ClangAddressSpace : CIR_I32EnumAttr<
+  "ClangAddressSpace", "clang address space kind", [
   I32EnumAttrCase<"Default", 0, "default">,
   I32EnumAttrCase<"OffloadPrivate", 1, "offload_private">,
   I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,

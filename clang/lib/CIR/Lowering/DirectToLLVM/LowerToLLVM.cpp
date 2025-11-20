@@ -379,8 +379,6 @@ void lowerAnnotationValue(
   }
 }
 
-
-
 // Get addrspace by converting a pointer type.
 // TODO: The approach here is a little hacky. We should access the target info
 // directly to convert the address space of global op, similar to what we do
@@ -5017,7 +5015,7 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
 }
 
 static unsigned
-getTargetAddrSpaceFromCIRAddrSpaceAttr(cir::AddressSpaceAttr addrSpace,
+getTargetAddrSpaceFromCIRAddrSpaceAttr(cir::ClangAddressSpaceAttr addrSpace,
                                        cir::LowerModule *lowerModule) {
   assert(lowerModule && "CIR AS map is not available");
   return lowerModule->getTargetLoweringInfo()
@@ -5026,15 +5024,15 @@ getTargetAddrSpaceFromCIRAddrSpaceAttr(cir::AddressSpaceAttr addrSpace,
 
 static unsigned getTargetAddrSpaceFromASAttr(mlir::Attribute attr,
                                              cir::LowerModule *lowerModule) {
-  assert(mlir::isa_and_nonnull<cir::AddressSpaceAttr>(attr) ||
+  assert(mlir::isa_and_nonnull<cir::ClangAddressSpaceAttr>(attr) ||
          mlir::isa_and_nonnull<cir::TargetAddressSpaceAttr>(attr));
 
   if (auto targetAddrSpaceAttr =
           mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
     return targetAddrSpaceAttr.getValue();
 
-  cir::AddressSpaceAttr addrSpaceAttr =
-      mlir::dyn_cast<cir::AddressSpaceAttr>(attr);
+  cir::ClangAddressSpaceAttr addrSpaceAttr =
+      mlir::dyn_cast<cir::ClangAddressSpaceAttr>(attr);
   return getTargetAddrSpaceFromCIRAddrSpaceAttr(addrSpaceAttr, lowerModule);
 }
 

@@ -77,17 +77,17 @@ static void printConstPtr(mlir::AsmPrinter &p, mlir::IntegerAttr value);
 //===----------------------------------------------------------------------===//
 
 mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
-                                         cir::AddressSpace &addrSpace) {
+                                         cir::ClangAddressSpace &addrSpace) {
   llvm::SMLoc loc = p.getCurrentLocation();
-  mlir::FailureOr<cir::AddressSpace> result =
-      mlir::FieldParser<cir::AddressSpace>::parse(p);
+  mlir::FailureOr<cir::ClangAddressSpace> result =
+      mlir::FieldParser<cir::ClangAddressSpace>::parse(p);
   if (mlir::failed(result))
     return p.emitError(loc, "expected address space keyword");
   addrSpace = result.value();
   return mlir::success();
 }
 
-void printAddressSpaceValue(mlir::AsmPrinter &p, cir::AddressSpace addrSpace) {
+void printAddressSpaceValue(mlir::AsmPrinter &p, cir::ClangAddressSpace addrSpace) {
   p << cir::stringifyEnum(addrSpace);
 }
 
