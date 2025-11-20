@@ -370,6 +370,7 @@ bool RecordType::isLayoutIdentical(const RecordType &other) {
 llvm::TypeSize
 BoolType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                             ::mlir::DataLayoutEntryListRef params) const {
+  assert(!cir::MissingFeatures::dataLayoutPtrHandlingBasedOnLangAS());
   return llvm::TypeSize::getFixed(8);
 }
 
