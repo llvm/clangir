@@ -826,26 +826,40 @@ public:
     QualType qualSrcTy = E->getSrcExpr()->getType();
     QualType qualDstTy = E->getType();
 
-    // Bitwidth check
-    unsigned srcBits = CGF.getContext().getTypeSize(qualSrcTy);
-    unsigned dstBits = CGF.getContext().getTypeSize(qualDstTy);
-    if (srcBits != dstBits) {
-      emitError(CGF.getLoc(E->getExprLoc()),
-                "source and destination must have equal bitwidths: '" +
-                    llvm::Twine(srcBits) + "' vs '" + llvm::Twine(dstBits) +
-                    "'");
-      return nullptr;
-    }
-
-    // No-op if already same type
     mlir::Type srcTy = CGF.convertType(qualSrcTy);
     mlir::Type dstTy = CGF.convertType(qualDstTy);
+    auto loc = CGF.getLoc(E->getExprLoc());
+
+    unsigned numSrcElems = 0, numDstElems = 0;
+    if (auto v = dyn_cast<cir::VectorType>(srcTy))
+      numSrcElems = v.getSize();
+    if (auto v = dyn_cast<cir::VectorType>(dstTy))
+      numDstElems = v.getSize();
+
+    // Use bit vector expansion for ext_vector_type boolean vectors.
+    if (qualDstTy->isExtVectorBoolType()) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from vec3 to non-vec3 is a special case and requires a shuffle
+    // vector to get a vec4, then a bitcast if the target type is different.
+    if (numSrcElems == 3 && numDstElems != 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from non-vec3 to vec3 is a special case and requires a bitcast
+    // to vec4 if the original type is not vec4, then a shuffle vector to
+    // get a vec3.
+    if (numSrcElems != 3 && numDstElems == 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // If types are identical, return the source
     if (srcTy == dstTy)
       return src;
 
-    // Perform the bitcast
-    auto loc = CGF.getLoc(E->getExprLoc());
-    return Builder.create<cir::CastOp>(loc, dstTy, cir::CastKind::bitcast, src);
+    // Otherwise, fallback to CIR bitcast
+    return cir::CastOp::create(Builder, loc, dstTy, cir::CastKind::bitcast, src);
   }
 
   mlir::Value VisitAtomicExpr(AtomicExpr *E) {
