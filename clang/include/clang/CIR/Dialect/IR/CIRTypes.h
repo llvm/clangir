@@ -40,7 +40,7 @@ cir::ClangAddressSpace toCIRClangAddressSpace(clang::LangAS langAS);
 /// Returns ClangAddressSpaceAttr for clang/language-specific address spaces,
 /// or TargetAddressSpaceAttr for target-specific address spaces.
 mlir::Attribute toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx,
-                                      clang::LangAS langAS);
+                                           clang::LangAS langAS);
 
 constexpr unsigned getAsUnsignedValue(cir::ClangAddressSpace as) {
   return static_cast<unsigned>(as);

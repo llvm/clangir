@@ -55,9 +55,9 @@ using namespace mlir;
 #include "clang/CIR/Dialect/IR/CIROpsDialect.cpp.inc"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
-#include <clang/CIR/MissingFeatures.h>
-#include <clang/CIR/Dialect/IR/CIRTypes.h>
 #include <clang/CIR/Dialect/IR/CIRDialect.h>
+#include <clang/CIR/Dialect/IR/CIRTypes.h>
+#include <clang/CIR/MissingFeatures.h>
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
