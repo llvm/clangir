@@ -51,7 +51,7 @@ static bool typeHasMayAlias(clang::QualType qty) {
 /// Check if the given type is a valid base type to be used in access tags.
 static bool isValidBaseType(clang::QualType qty) {
   if (const clang::RecordType *tty = qty->getAs<clang::RecordType>()) {
-    const clang::RecordDecl *rd = tty->getOriginalDecl()->getDefinition();
+    const clang::RecordDecl *rd = tty->getDecl()->getDefinition();
     // Incomplete types are not valid base access types.
     if (!rd)
       return false;
@@ -216,7 +216,7 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
       // This also covers anonymous structs and unions, which have a different
       // compatibility rule, but it doesn't matter because you can never have a
       // pointer to an anonymous struct or union.
-      if (!rt->getOriginalDecl()->getDeclName())
+      if (!rt->getDecl()->getDeclName())
         return anyPtr;
 
       // For non-builtin types use the mangled name of the canonical type.
@@ -241,13 +241,13 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
   // however they aren't related for TBAA.
   if (const EnumType *ety = dyn_cast<EnumType>(ty)) {
     if (!features.CPlusPlus)
-      return getTypeInfo(ety->getOriginalDecl()->getIntegerType());
+      return getTypeInfo(ety->getDecl()->getIntegerType());
 
     // In C++ mode, types have linkage, so we can rely on the ODR and
     // on their mangled names, if they're external.
     // TODO: Is there a way to get a program-wide unique name for a
     // decl with local linkage or no linkage?
-    if (!ety->getOriginalDecl()->isExternallyVisible())
+    if (!ety->getDecl()->isExternallyVisible())
       return getChar();
 
     SmallString<256> outName;
@@ -361,7 +361,7 @@ cir::TBAAAttr CIRGenTBAA::getValidBaseTypeInfo(clang::QualType qty) {
 cir::TBAAAttr CIRGenTBAA::getBaseTypeInfoHelper(const clang::Type *ty) {
   using namespace clang;
   if (auto *tty = mlir::dyn_cast<clang::RecordType>(ty)) {
-    const clang::RecordDecl *rd = tty->getOriginalDecl()->getDefinition();
+    const clang::RecordDecl *rd = tty->getDecl()->getDefinition();
     const ASTRecordLayout &layout = astContext.getASTRecordLayout(rd);
     SmallVector<cir::TBAAMemberAttr, 4> fields;
     if (const CXXRecordDecl *cxxrd = dyn_cast<CXXRecordDecl>(rd)) {
