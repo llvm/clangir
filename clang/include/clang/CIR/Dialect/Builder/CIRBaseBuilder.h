@@ -108,9 +108,13 @@ public:
 
   /// Create a pointer type with an address space attribute.
   cir::PointerType getPointerTo(mlir::Type ty, mlir::Attribute addrSpaceAttr) {
-    assert(mlir::isa<cir::ClangAddressSpaceAttr>(addrSpaceAttr) ||
-           mlir::isa<cir::TargetAddressSpaceAttr>(addrSpaceAttr) &&
-               "expected address space attribute");
+    if (!addrSpaceAttr)
+      return cir::PointerType::get(ty);
+
+    assert((mlir::isa<cir::ClangAddressSpaceAttr>(addrSpaceAttr) ||
+            mlir::isa<cir::TargetAddressSpaceAttr>(addrSpaceAttr)) &&
+           "expected address space attribute");
+
     return cir::PointerType::get(ty, addrSpaceAttr);
   }
 
