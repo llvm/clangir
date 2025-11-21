@@ -1518,11 +1518,8 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   mlir::Value rhs = Ops.RHS; // pointer
   mlir::Location loc = CGF.getLoc(Ops.Loc);
 
-  mlir::Type lhsTy = lhs.getType();
-  mlir::Type rhsTy = rhs.getType();
-
-  auto lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhsTy);
-  auto rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhsTy);
+  auto lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhs.getType());
+  auto rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
 
   if (lhsPtrTy && rhsPtrTy) {
     auto lhsAS = lhsPtrTy.getAddrSpace();
