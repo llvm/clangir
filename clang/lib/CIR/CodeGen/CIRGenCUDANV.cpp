@@ -262,8 +262,8 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
                  launchFD->getParamDecl(5)->getType());
 
   mlir::Type launchTy = cgm.getTypes().convertType(launchFD->getType());
-  mlir::Operation *launchFn =
-      cgm.createRuntimeFunction(cast<cir::FuncType>(launchTy), launchKernelName);
+  mlir::Operation *launchFn = cgm.createRuntimeFunction(
+      cast<cir::FuncType>(launchTy), launchKernelName);
   const auto &callInfo = cgm.getTypes().arrangeFunctionDeclaration(launchFD);
   cgf.emitCall(callInfo, CIRGenCallee::forDirect(launchFn), ReturnValueSlot(),
                launchArgs);

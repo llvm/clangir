@@ -30,6 +30,26 @@
 // RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
+// Per Thread Stream test cases:
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
+// RUN:            -fgpu-default-stream=per-thread -DHIP_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            -x hip -fhip-new-launch-api \
+// RUN:            -I%S/../Inputs/ -emit-cir %s -o %t.cir
+// RUN: FileCheck --check-prefix=CIR-HOST-PTH --input-file=%t.cir %s
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
+// RUN:            -fgpu-default-stream=per-thread -DHIP_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            -x hip -emit-llvm -fhip-new-launch-api \
+// RUN:            -I%S/../Inputs/ %s -o %t.ll
+// RUN: FileCheck --check-prefix=LLVM-HOST-PTH --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu  \
+// RUN:            -fgpu-default-stream=per-thread -DHIP_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            -x  hip -emit-llvm -fhip-new-launch-api \
+// RUN:            -I%S/../Inputs/ %s -o %t.ll
+// RUN: FileCheck --check-prefix=OGCG-HOST-PTH --input-file=%t.ll %s
+
 
 // Attribute for global_fn
 // CIR-HOST: [[Kernel:#[a-zA-Z_0-9]+]] = {{.*}}#cir.cu.kernel_name<_Z9global_fni>{{.*}}
@@ -54,6 +74,7 @@ __global__ void global_fn(int a) {}
 // CIR-HOST: cir.call @__hipPopCallConfiguration
 // CIR-HOST: cir.get_global @_Z9global_fni : !cir.ptr<!cir.ptr<!cir.func<(!s32i)>>>
 // CIR-HOST: cir.call @hipLaunchKernel
+// CIR-HOST-PTH: cir.call @hipLaunchKernel_spt
 
 // LLVM-HOST: void @_Z24__device_stub__global_fni
 // LLVM-HOST: %[[#KernelArgs:]] = alloca [1 x ptr], i64 1, align 16
@@ -61,12 +82,14 @@ __global__ void global_fn(int a) {}
 // LLVM-HOST: %[[#GEP2:]] = getelementptr [1 x ptr], ptr %[[#KernelArgs]], i32 0, i64 0
 // LLVM-HOST: call i32 @__hipPopCallConfiguration
 // LLVM-HOST: call i32 @hipLaunchKernel(ptr @_Z9global_fni 
+// LLVM-HOST-PTH: call i32 @hipLaunchKernel_spt(ptr @_Z9global_fni 
 //
 // OGCG-HOST: define dso_local void @_Z24__device_stub__global_fni
 // OGCG-HOST: %kernel_args = alloca ptr, i64 1, align 16
 // OGCG-HOST: getelementptr ptr, ptr %kernel_args, i32 0
 // OGCG-HOST: call i32 @__hipPopCallConfiguration
 // OGCG-HOST: %call = call noundef i32 @hipLaunchKernel(ptr noundef @_Z9global_fni
+// OGCG-HOST-PTH: %call = call noundef i32 @hipLaunchKernel_spt(ptr noundef @_Z9global_fni
 
 
 int main() {
