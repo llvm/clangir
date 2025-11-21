@@ -347,7 +347,7 @@ public:
   // directly or require access through a thread wrapper function.
   virtual bool usesThreadWrapperFunction(const VarDecl *VD) const = 0;
 
-  virtual LValue EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
+  virtual LValue emitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
                                               const VarDecl *VD,
                                               QualType LValType) = 0;
 

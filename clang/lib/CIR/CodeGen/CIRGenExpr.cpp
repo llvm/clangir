@@ -937,7 +937,7 @@ static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   // If it's thread_local, emit a call to its wrapper function instead.
   if (VD->getTLSKind() == VarDecl::TLS_Dynamic &&
       CGF.CGM.getCXXABI().usesThreadWrapperFunction(VD))
-    return CGF.CGM.getCXXABI().EmitThreadLocalVarDeclLValue(CGF, VD, T);
+    return CGF.CGM.getCXXABI().emitThreadLocalVarDeclLValue(CGF, VD, T);
 
   // Check if the variable is marked as declare target with link clause in
   // device codegen.

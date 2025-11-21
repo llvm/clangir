@@ -318,8 +318,8 @@ public:
     return !isEmittedWithConstantInitializer(VD) || mayNeedDestruction(VD);
   }
 
-  LValue EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF, const VarDecl *VD,
-                                      QualType LValType) override;
+  LValue emitThreadLocalVarDeclLValue(CIRGenFunction &cgf, const VarDecl *vd,
+                                      QualType lvalType) override;
 
   bool doStructorsInitializeVPtrs(const CXXRecordDecl *VTableClass) override {
     return true;
@@ -2929,9 +2929,9 @@ Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &cgf,
                  newPtr.getAlignment());
 }
 
-LValue CIRGenItaniumCXXABI::EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
-                                                         const VarDecl *VD,
-                                                         QualType LValType) {
+LValue CIRGenItaniumCXXABI::emitThreadLocalVarDeclLValue(CIRGenFunction &cgf,
+                                                         const VarDecl *vd,
+                                                         QualType lvalType) {
   // ClangIR's approach to thread-local variables differs from traditional
   // CodeGen. Traditional CodeGen creates wrapper functions (e.g., _ZTW*) that
   // handle dynamic initialization. ClangIR instead marks the GlobalOp with
@@ -2939,17 +2939,17 @@ LValue CIRGenItaniumCXXABI::EmitThreadLocalVarDeclLValue(CIRGenFunction &CGF,
   // intrinsics, which achieves the same semantics without intermediate wrapper
   // functions in CIR.
 
-  mlir::Value V = CGF.CGM.getAddrOfGlobalVar(VD);
+  mlir::Value v = cgf.CGM.getAddrOfGlobalVar(vd);
 
-  auto RealVarTy = CGF.convertTypeForMem(VD->getType());
-  CharUnits Alignment = CGF.getContext().getDeclAlign(VD);
-  Address Addr(V, RealVarTy, Alignment);
+  auto realVarTy = cgf.convertTypeForMem(vd->getType());
+  CharUnits alignment = cgf.getContext().getDeclAlign(vd);
+  Address addr(v, realVarTy, alignment);
 
-  LValue LV;
-  if (VD->getType()->isReferenceType())
-    LV = CGF.emitLoadOfReferenceLValue(Addr, CGF.getLoc(VD->getLocation()),
-                                       VD->getType(), AlignmentSource::Decl);
+  LValue lv;
+  if (vd->getType()->isReferenceType())
+    lv = cgf.emitLoadOfReferenceLValue(addr, cgf.getLoc(vd->getLocation()),
+                                       vd->getType(), AlignmentSource::Decl);
   else
-    LV = CGF.makeAddrLValue(Addr, LValType, AlignmentSource::Decl);
-  return LV;
+    lv = cgf.makeAddrLValue(addr, lvalType, AlignmentSource::Decl);
+  return lv;
 }
