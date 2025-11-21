@@ -1513,35 +1513,41 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   if (!mlir::isa<cir::PointerType>(Ops.RHS.getType()))
     return emitPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
-  // Otherwise, this is a pointer subtraction
-  mlir::Value lhs = Ops.LHS; // pointer
-  mlir::Value rhs = Ops.RHS; // pointer
+  const BinaryOperator *Expr = cast<BinaryOperator>(Ops.E);
+  QualType ElementType = Expr->getLHS()->getType()->getPointeeType();
+
+  // Check if this is a VLA pointee type.
+  if (const auto *VLA = CGF.getContext().getAsVariableArrayType(ElementType)) {
+    llvm_unreachable("NYI: CIR ptrdiff on VLA pointee");
+  }
+  // TODO(cir): note for LLVM lowering out of this; when expanding this into
+  // LLVM we shall take VLA's, division by element size, etc.
+  // now we just ensure that all pointers are on the proper address space.
+  mlir::Value LHS = Ops.LHS;
+  mlir::Value RHS = Ops.RHS;
   mlir::Location loc = CGF.getLoc(Ops.Loc);
 
-  auto lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhs.getType());
-  auto rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
+  cir::PointerType LHSPtrTy = mlir::dyn_cast<cir::PointerType>(LHS.getType());
+  cir::PointerType RHSPtrTy = mlir::dyn_cast<cir::PointerType>(RHS.getType());
 
-  if (lhsPtrTy && rhsPtrTy) {
-    auto lhsAS = lhsPtrTy.getAddrSpace();
-    auto rhsAS = rhsPtrTy.getAddrSpace();
+  if (LHSPtrTy && RHSPtrTy) {
+    auto LHSAS = LHSPtrTy.getAddrSpace();
+    auto RHSAS = RHSPtrTy.getAddrSpace();
 
-    if (lhsAS != rhsAS) {
+    if (LHSAS != RHSAS) {
       // Different address spaces → use addrspacecast
-      rhs = Builder.createAddrSpaceCast(rhs, lhsPtrTy);
-    } else if (lhsPtrTy != rhsPtrTy) {
+      RHS = Builder.createAddrSpaceCast(RHS, LHSPtrTy);
+    } else if (LHSPtrTy != RHSPtrTy) {
       // Same addrspace but different pointee/type → bitcast is fine
-      rhs = Builder.createBitcast(rhs, lhsPtrTy);
+      RHS = Builder.createBitcast(RHS, LHSPtrTy);
     }
   }
   // Do the raw subtraction part.
   //
-  // TODO(cir): note for LLVM lowering out of this; when expanding this into
-  // LLVM we shall take VLA's, division by element size, etc.
-  //
   // See more in `EmitSub` in CGExprScalar.cpp.
   assert(!cir::MissingFeatures::llvmLoweringPtrDiffConsidersPointee());
   return cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc), CGF.PtrDiffTy,
-                                lhs, rhs);
+                                LHS, RHS);
 }
 
 mlir::Value ScalarExprEmitter::emitShl(const BinOpInfo &Ops) {
