@@ -1516,7 +1516,7 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   // Otherwise, this is a pointer subtraction
   mlir::Value lhs = Ops.LHS; // pointer
   mlir::Value rhs = Ops.RHS; // pointer
-  auto loc = CGF.getLoc(Ops.Loc);
+  mlir::Location loc = CGF.getLoc(Ops.Loc);
 
   mlir::Type lhsTy = lhs.getType();
   mlir::Type rhsTy = rhs.getType();
