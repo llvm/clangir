@@ -30,6 +30,26 @@
 // RUN:            %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
+// Per Thread Stream test cases:
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
+// RUN:            -x cuda -emit-cir -target-sdk-version=12.3 \
+// RUN: -fgpu-default-stream=per-thread -DCUDA_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            %s -o %t.cir
+// RUN: FileCheck --check-prefixes=CIR-HOST-PTH --input-file=%t.cir %s
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
+// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN: -fgpu-default-stream=per-thread -DCUDA_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefixes=LLVM-HOST-PTH --input-file=%t.ll %s
+
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu \
+// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN: -fgpu-default-stream=per-thread -DCUDA_API_PER_THREAD_DEFAULT_STREAM \
+// RUN:            %s -o %t.ll
+// RUN: FileCheck --check-prefixes=OGCG-HOST-PTH --input-file=%t.ll %s
+
 // Attribute for global_fn
 // CIR-HOST: [[Kernel:#[a-zA-Z_0-9]+]] = {{.*}}#cir.cu.kernel_name<_Z9global_fni>{{.*}}
 
@@ -54,6 +74,7 @@ __global__ void global_fn(int a) {}
 // CIR-HOST: cir.call @__cudaPopCallConfiguration
 // CIR-HOST: cir.get_global @_Z24__device_stub__global_fni
 // CIR-HOST: cir.call @cudaLaunchKernel
+// CIR-HOST-PTH: cir.call @cudaLaunchKernel_ptsz
 
 // LLVM-HOST: void @_Z24__device_stub__global_fni
 // LLVM-HOST: %[[#KernelArgs:]] = alloca [1 x ptr], i64 1, align 16
@@ -61,12 +82,14 @@ __global__ void global_fn(int a) {}
 // LLVM-HOST: %[[#GEP2:]] = getelementptr [1 x ptr], ptr %[[#KernelArgs]], i32 0, i64 0
 // LLVM-HOST: call i32 @__cudaPopCallConfiguration
 // LLVM-HOST: call i32 @cudaLaunchKernel(ptr @_Z24__device_stub__global_fni
+// LLVM-HOST-PTH: call i32 @cudaLaunchKernel_ptsz(ptr @_Z24__device_stub__global_fni
 
 // OGCG-HOST: void @_Z24__device_stub__global_fni
 // OGCG-HOST: %kernel_args = alloca ptr, i64 1, align 16
 // OGCG-HOST: getelementptr ptr, ptr %kernel_args, i32 0
 // OGCG-HOST: call i32 @__cudaPopCallConfiguration
 // OGCG-HOST: call noundef i32 @cudaLaunchKernel(ptr noundef @_Z24__device_stub__global_fni
+// OGCG-HOST-PTH: call noundef i32 @cudaLaunchKernel_ptsz(ptr noundef @_Z24__device_stub__global_fni
 
 
 int main() {
