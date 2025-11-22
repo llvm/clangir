@@ -88,9 +88,8 @@ static Address emitAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
   // address.
   const RecordDecl *rec = field->getParent();
   auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
-  unsigned idx = layout.getCIRFieldNo(field);
   auto offset = CharUnits::fromQuantity(layout.getCIRType().getElementOffset(
-      CGF.CGM.getDataLayout().layout, idx));
+      CGF.CGM.getDataLayout().layout, fieldIndex));
   auto addr =
       Address(memberAddr, Base.getAlignment().alignmentAtOffset(offset));
   return addr;
@@ -389,6 +388,15 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
       auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
+
+      // Check if the field exists in the record layout. This could fail if
+      // the field has a struct type that's empty and subject to Empty Base
+      // Optimization (EBO), such as with std::tuple<T*, EmptyDeleter>.
+      if (!layout.containsFieldDecl(field))
+        // Field doesn't exist in the CIR record layout (e.g., EBO case).
+        // Use the AST field index as a fallback.
+        return makeAddrLValue(addr, FieldType, FieldBaseInfo, FieldTBAAInfo);
+
       unsigned fieldIndex = layout.getCIRFieldNo(field);
 
       if (CGM.LambdaFieldToName.count(field))
@@ -441,6 +449,21 @@ LValue CIRGenFunction::emitLValueForFieldInitialization(
     return emitLValueForField(Base, Field);
 
   auto &layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
+
+  // Check if the field exists in the record layout. This could fail if
+  // the field has a struct type that's empty and subject to Empty Base
+  // Optimization (EBO).
+  if (!layout.containsFieldDecl(Field)) {
+    // Field doesn't exist in the CIR record layout (e.g., EBO case).
+    // For reference fields that don't exist in the layout, we can't
+    // initialize them through the normal path. Return the base address.
+    LValueBaseInfo BaseInfo = Base.getBaseInfo();
+    AlignmentSource FieldAlignSource = BaseInfo.getAlignmentSource();
+    LValueBaseInfo FieldBaseInfo(getFieldAlignmentSource(FieldAlignSource));
+    return makeAddrLValue(Base.getAddress(), FieldType, FieldBaseInfo,
+                          CGM.getTBAAInfoForSubobject(Base, FieldType));
+  }
+
   unsigned FieldIndex = layout.getCIRFieldNo(Field);
 
   Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName,
@@ -634,6 +657,14 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
 
 mlir::Value CIRGenFunction::emitToMemory(mlir::Value Value, QualType Ty) {
   // Bool has a different representation in memory than in registers.
+
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may exist as a vector type that needs conversion to integer for storage.
+  // Since we use integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -653,18 +684,21 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
 
   auto eltTy = addr.getElementType();
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("isExtVectorBoolType NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      llvm_unreachable("NYI");
+      if (vTy != newVecTy) {
+        llvm_unreachable("NYI");
+      }
     }
   }
 
@@ -2956,6 +2990,13 @@ mlir::Value CIRGenFunction::emitFromMemory(mlir::Value Value, QualType Ty) {
     llvm_unreachable("NIY");
   }
 
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may need truncation from storage type to value type. Since we use
+  // integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -2977,24 +3018,27 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   auto eltTy = addr.getElementType();
 
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      const Address cast = addr.withElementType(builder, newVecTy);
-      mlir::Value v = builder.createLoad(loc, cast, isVolatile);
-      const uint64_t oldNumElements = vTy.getSize();
-      SmallVector<int64_t, 16> mask(oldNumElements);
-      std::iota(mask.begin(), mask.end(), 0);
-      v = builder.createVecShuffle(loc, v, mask);
-      return emitFromMemory(v, ty);
+      if (vTy != newVecTy) {
+        const Address cast = addr.withElementType(builder, newVecTy);
+        mlir::Value v = builder.createLoad(loc, cast, isVolatile);
+        const uint64_t oldNumElements = vTy.getSize();
+        SmallVector<int64_t, 16> mask(oldNumElements);
+        std::iota(mask.begin(), mask.end(), 0);
+        v = builder.createVecShuffle(loc, v, mask);
+        return emitFromMemory(v, ty);
+      }
     }
   }
 
