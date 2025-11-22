@@ -47,6 +47,87 @@ static void setThunkProperties(CIRGenModule &cgm, const ThunkInfo &thunk,
   llvm_unreachable("NYI");
 }
 
+void CIRGenFunction::startThunk(cir::FuncOp Fn, GlobalDecl GD,
+                                const CIRGenFunctionInfo &FnInfo,
+                                bool IsUnprototyped) {
+  assert(!CurGD.getDecl() && "CurGD was already set!");
+  CurGD = GD;
+  CurFuncIsThunk = true;
+
+  // Build FunctionArgs.
+  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
+  QualType ThisType = MD->getThisType();
+  QualType ResultType;
+  if (IsUnprototyped)
+    ResultType = CGM.getASTContext().VoidTy;
+  else if (CGM.getCXXABI().HasThisReturn(GD))
+    ResultType = ThisType;
+  else if (CGM.getCXXABI().hasMostDerivedReturn(GD))
+    ResultType = CGM.getASTContext().VoidPtrTy;
+  else
+    ResultType = MD->getType()->castAs<FunctionProtoType>()->getReturnType();
+  FunctionArgList FunctionArgs;
+
+  // Create the implicit 'this' parameter declaration.
+  CGM.getCXXABI().buildThisParam(*this, FunctionArgs);
+
+  // Add the rest of the parameters, if we have a prototype to work with.
+  if (!IsUnprototyped) {
+    FunctionArgs.append(MD->param_begin(), MD->param_end());
+
+    if (isa<CXXDestructorDecl>(MD))
+      CGM.getCXXABI().addImplicitStructorParams(*this, ResultType,
+                                                FunctionArgs);
+  }
+
+  // Start defining the function.
+  // NOTE(cir): No ApplyDebugLocation in CIR
+  StartFunction(GlobalDecl(), ResultType, Fn, FnInfo, FunctionArgs,
+                MD->getLocation(), MD->getLocation());
+  // NOTE(cir): No ApplyDebugLocation in CIR
+
+  // Since we didn't pass a GlobalDecl to StartFunction, do this ourselves.
+  CGM.getCXXABI().emitInstanceFunctionProlog(MD->getLocation(), *this);
+  CXXThisValue = CXXABIThisValue;
+  CurCodeDecl = MD;
+  CurFuncDecl = MD;
+}
+
+void CIRGenFunction::emitCallAndReturnForThunk(cir::FuncOp Callee,
+                                               const ThunkInfo *Thunk,
+                                               bool IsUnprototyped) {
+  assert(isa<CXXMethodDecl>(CurGD.getDecl()) &&
+         "Please use a new CGF for this thunk");
+  llvm_unreachable("NYI: emitCallAndReturnForThunk");
+}
+
+void CIRGenFunction::emitMustTailThunk(GlobalDecl GD,
+                                       mlir::Value AdjustedThisPtr,
+                                       cir::FuncOp Callee) {
+  llvm_unreachable("NYI");
+}
+
+void CIRGenFunction::generateThunk(cir::FuncOp Fn,
+                                   const CIRGenFunctionInfo &FnInfo,
+                                   GlobalDecl GD, const ThunkInfo &Thunk,
+                                   bool IsUnprototyped) {
+  startThunk(Fn, GD, FnInfo, IsUnprototyped);
+  // NOTE(cir): No ApplyDebugLocation in CIR
+
+  // Get our callee. Use a placeholder type if this method is unprototyped so
+  // that CIRGenModule doesn't try to set attributes.
+  mlir::Type Ty;
+  if (IsUnprototyped)
+    llvm_unreachable("NYI: unprototyped thunk placeholder type");
+  else
+    Ty = CGM.getTypes().GetFunctionType(FnInfo);
+
+  cir::FuncOp Callee = CGM.GetAddrOfFunction(GD, Ty, /*ForVTable=*/true);
+
+  // Make the call and return the result.
+  emitCallAndReturnForThunk(Callee, &Thunk, IsUnprototyped);
+}
+
 static bool UseRelativeLayout(const CIRGenModule &CGM) {
   return CGM.getTarget().getCXXABI().isItaniumFamily() &&
          CGM.getItaniumVTableContext().isRelativeLayout();
@@ -280,11 +361,10 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
                layout.vtable_thunks()[nextVTableThunkIndex].first ==
                    componentIndex) {
       // Thunks.
-      llvm_unreachable("NYI");
-      // auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
+      auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
 
-      // nextVTableThunkIndex++;
-      // fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
+      nextVTableThunkIndex++;
+      fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
 
     } else {
       // Otherwise we can use the method definition directly.
@@ -776,7 +856,9 @@ cir::FuncOp CIRGenVTables::maybeEmitThunk(GlobalDecl GD,
       return ThunkFn;
     llvm_unreachable("NYI method, see OG GenerateVarArgsThunk");
   } else {
-    llvm_unreachable("NYI method, see OG generateThunk");
+    // Generate the thunk body
+    CIRGenFunction CGF(CGM, CGM.getBuilder());
+    CGF.generateThunk(ThunkFn, FnInfo, GD, ThunkAdjustments, IsUnprototyped);
   }
 
   setThunkProperties(CGM, ThunkAdjustments, ThunkFn, ForVTable, GD);

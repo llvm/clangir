@@ -670,8 +670,18 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   case Type::ExtVector:
   case Type::Vector: {
     const VectorType *V = cast<VectorType>(Ty);
-    auto ElementType = convertTypeForMem(V->getElementType());
-    ResultType = cir::VectorType::get(ElementType, V->getNumElements());
+    // Boolean vectors use an integer as storage type, matching traditional
+    // CodeGen. For N bool elements, storage is iM where M = max(N, 8).
+    if (V->isExtVectorBoolType()) {
+      uint64_t numElements = V->getNumElements();
+      // Pad to at least one byte (8 bits)
+      uint64_t storageBits = std::max<uint64_t>(numElements, 8);
+      ResultType = cir::IntType::get(Builder.getContext(), storageBits,
+                                     /*isSigned=*/false);
+    } else {
+      auto ElementType = convertTypeForMem(V->getElementType());
+      ResultType = cir::VectorType::get(ElementType, V->getNumElements());
+    }
     break;
   }
   case Type::ConstantMatrix: {
