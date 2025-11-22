@@ -1047,7 +1047,7 @@ public:
 
             // Perform element-wise comparison on actual elements
             cir::CmpOpKind kind = ClangCmpToCIRCmp(E->getOpcode());
-            result = cir::VecCmpOp::create(Builder, CGF.getLoc(BOInfo.Loc),
+            Result = cir::VecCmpOp::create(Builder, CGF.getLoc(BOInfo.Loc),
                                            actualVecTy, kind, lhs, rhs);
 
             // Pad result back to storage size using shuffle
@@ -1056,13 +1056,13 @@ public:
               padIndices[i] = i;
             for (uint64_t i = numElements; i < storageBits; ++i)
               padIndices[i] = -1; // undef for padding bits
-            result = Builder.createVecShuffle(CGF.getLoc(BOInfo.Loc), result,
-                                              result, padIndices);
+            Result = Builder.createVecShuffle(CGF.getLoc(BOInfo.Loc), Result,
+                                              Result, padIndices);
 
             // Bitcast back to integer storage
-            result = Builder.createBitcast(CGF.getLoc(BOInfo.Loc), result,
+            Result = Builder.createBitcast(CGF.getLoc(BOInfo.Loc), Result,
                                            CGF.convertType(E->getType()));
-            return emitScalarConversion(result, CGF.getContext().BoolTy,
+            return emitScalarConversion(Result, CGF.getContext().BoolTy,
                                         E->getType(), E->getExprLoc());
           }
         }
@@ -1087,13 +1087,13 @@ public:
 
         // Unsigned integers and pointers.
         if (CGF.CGM.getCodeGenOpts().StrictVTablePointers &&
-            mlir::isa<cir::PointerType>(LHS.getType()) &&
-            mlir::isa<cir::PointerType>(RHS.getType())) {
+            mlir::isa<cir::PointerType>(lhs.getType()) &&
+            mlir::isa<cir::PointerType>(rhs.getType())) {
           llvm_unreachable("NYI");
         }
 
         cir::CmpOpKind Kind = ClangCmpToCIRCmp(E->getOpcode());
-        Result = Builder.createCompare(CGF.getLoc(BOInfo.Loc), Kind, LHS, RHS);
+        Result = Builder.createCompare(CGF.getLoc(BOInfo.Loc), Kind, lhs, rhs);
       }
     } else { // Complex Comparison: can only be an equality comparison.
       assert(0 && "not implemented");

@@ -429,12 +429,3 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
   builder.setInsertionPointToEnd(block);
   cir::YieldOp::create(builder, addr->getLoc());
 }
-
-void CIRGenFunction::finishThunk() {
-  // Clear these to restore the invariants expected by
-  // StartFunction/FinishFunction.
-  CurCodeDecl = nullptr;
-  CurFuncDecl = nullptr;
-
-  finishFunction(SourceLocation());
-}
