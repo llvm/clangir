@@ -2130,6 +2130,24 @@ public:
 
   void emitDestructorBody(FunctionArgList &Args);
 
+  /// Generate a thunk for the given method.
+  void generateThunk(cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
+                     GlobalDecl GD, const ThunkInfo &Thunk,
+                     bool IsUnprototyped);
+
+  void startThunk(cir::FuncOp Fn, GlobalDecl GD,
+                  const CIRGenFunctionInfo &FnInfo, bool IsUnprototyped);
+
+  void emitCallAndReturnForThunk(cir::FuncOp Callee,
+                                 const ThunkInfo *Thunk,
+                                 bool IsUnprototyped);
+
+  /// Finish thunk generation.
+  void finishThunk();
+
+  void emitMustTailThunk(GlobalDecl GD, mlir::Value AdjustedThisPtr,
+                         cir::FuncOp Callee);
+
   mlir::LogicalResult emitDoStmt(const clang::DoStmt &S);
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
