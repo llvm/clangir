@@ -181,6 +181,11 @@ public:
   /// this record.
   cir::RecordType getBaseSubobjectCIRType() const { return BaseSubobjectType; }
 
+  /// Check if this record layout contains information about the given field.
+  bool containsFieldDecl(const clang::FieldDecl *FD) const {
+    return FieldInfo.count(FD) != 0;
+  }
+
   /// Return cir::RecordType element number that corresponds to the field FD.
   unsigned getCIRFieldNo(const clang::FieldDecl *FD) const {
     FD = FD->getCanonicalDecl();
