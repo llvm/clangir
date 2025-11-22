@@ -653,18 +653,20 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
 
   auto eltTy = addr.getElementType();
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. This is handled by
+    // convertTypeForMem, which returns an integer type for ExtVectorBoolType.
+    // Skip vector optimizations for bool vectors.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("isExtVectorBoolType NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      llvm_unreachable("NYI");
+      if (vTy != newVecTy) {
+        llvm_unreachable("NYI");
+      }
     }
   }
 
@@ -2977,24 +2979,26 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   auto eltTy = addr.getElementType();
 
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. This is handled by
+    // convertTypeForMem, which returns an integer type for ExtVectorBoolType.
+    // Skip vector optimizations for bool vectors.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      const Address cast = addr.withElementType(builder, newVecTy);
-      mlir::Value v = builder.createLoad(loc, cast, isVolatile);
-      const uint64_t oldNumElements = vTy.getSize();
-      SmallVector<int64_t, 16> mask(oldNumElements);
-      std::iota(mask.begin(), mask.end(), 0);
-      v = builder.createVecShuffle(loc, v, mask);
-      return emitFromMemory(v, ty);
+      if (vTy != newVecTy) {
+        const Address cast = addr.withElementType(builder, newVecTy);
+        mlir::Value v = builder.createLoad(loc, cast, isVolatile);
+        const uint64_t oldNumElements = vTy.getSize();
+        SmallVector<int64_t, 16> mask(oldNumElements);
+        std::iota(mask.begin(), mask.end(), 0);
+        v = builder.createVecShuffle(loc, v, mask);
+        return emitFromMemory(v, ty);
+      }
     }
   }
 
