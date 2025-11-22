@@ -1809,3 +1809,54 @@ mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
   return CGM.getCXXABI().emitDynamicCast(*this, loc, srcRecordTy, destRecordTy,
                                          destCirTy, isRefCast, ThisAddr);
 }
+
+mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
+  auto loc = getLoc(E->getSourceRange());
+
+  // If this is a type operand, just get the address of the RTTI descriptor.
+  if (E->isTypeOperand()) {
+    QualType operandTy = E->getTypeOperand(getContext());
+    mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+
+    // The RTTI descriptor is a GlobalViewAttr. Extract the symbol and look up
+    // the GlobalOp to get its symbol type, then create a GetGlobalOp.
+    auto globalView = mlir::cast<cir::GlobalViewAttr>(typeInfo);
+    auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+                                                       globalView.getSymbol());
+    assert(globalOp && "RTTI global not found");
+    auto global = mlir::cast<cir::GlobalOp>(globalOp);
+
+    // The result type of GetGlobalOp is a pointer to the global's symbol type.
+    auto ptrTy = builder.getPointerTo(global.getSymType());
+    return cir::GetGlobalOp::create(builder, loc, ptrTy,
+                                    globalView.getSymbol());
+  }
+
+  // C++ [expr.typeid]p2:
+  //   When typeid is applied to a glvalue expression whose type is a
+  //   polymorphic class type, the result refers to a std::type_info object
+  //   representing the type of the most derived object (that is, the dynamic
+  //   type) to which the glvalue refers.
+
+  // If the operand is already the most derived object, no need to look up
+  // vtable.
+  if (E->isPotentiallyEvaluated() && !E->isMostDerived(getContext())) {
+    // TODO: Implement vtable lookup for polymorphic types.
+    // This requires emitting code similar to dynamic_cast that looks up the
+    // type_info pointer from the vtable.
+    llvm_unreachable("NYI: typeid with polymorphic types (vtable lookup)");
+  }
+
+  // For non-polymorphic types, just return the static RTTI descriptor.
+  QualType operandTy = E->getExprOperand()->getType();
+  mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+
+  auto globalView = mlir::cast<cir::GlobalViewAttr>(typeInfo);
+  auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+                                                     globalView.getSymbol());
+  assert(globalOp && "RTTI global not found");
+  auto global = mlir::cast<cir::GlobalOp>(globalOp);
+
+  auto ptrTy = builder.getPointerTo(global.getSymType());
+  return cir::GetGlobalOp::create(builder, loc, ptrTy, globalView.getSymbol());
+}

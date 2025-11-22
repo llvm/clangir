@@ -2769,6 +2769,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitStmtExprLValue(cast<StmtExpr>(E));
   case Expr::ChooseExprClass:
     return emitLValue(cast<ChooseExpr>(E)->getChosenSubExpr());
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
   }
 
   llvm_unreachable("NYI");
@@ -3488,4 +3490,22 @@ RValue CIRGenFunction::emitPseudoObjectRValue(const PseudoObjectExpr *expr,
 
 LValue CIRGenFunction::emitPseudoObjectLValue(const PseudoObjectExpr *expr) {
   return emitPseudoObjectExpr(*this, expr, true, AggValueSlot::ignored()).lv;
+}
+
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  // Emit the typeid expression, which returns a !u8i pointer to the type_info
+  // object.
+  mlir::Value typeInfoPtr = emitCXXTypeidExpr(E);
+
+  // Cast the !u8i pointer to a pointer to the actual type_info type.
+  auto typeInfoTy = convertTypeForMem(E->getType());
+  auto typeInfoPtrTy = builder.getPointerTo(typeInfoTy);
+  typeInfoPtr = builder.createBitcast(getLoc(E->getSourceRange()), typeInfoPtr,
+                                      typeInfoPtrTy);
+
+  // Create an LValue from the pointer with natural alignment.
+  Address addr(typeInfoPtr, typeInfoTy,
+               getContext().getTypeAlignInChars(E->getType()));
+
+  return makeAddrLValue(addr, E->getType(), AlignmentSource::Decl);
 }
