@@ -1007,6 +1007,15 @@ public:
       mlir::Value RHS = BOInfo.RHS;
 
       if (LHSTy->isVectorType()) {
+        // Check for ExtVectorBoolType which uses integer storage, not vector
+        if (const auto *vecTy = LHSTy->getAs<clang::VectorType>()) {
+          if (vecTy->isExtVectorBoolType()) {
+            llvm_unreachable(
+                "NYI: ExtVectorBoolType comparison operations (requires "
+                "element-wise comparison on packed integer representation)");
+          }
+        }
+
         if (!E->getType()->isVectorType()) {
           // If AltiVec, the comparison results in a numeric type, so we use
           // intrinsics comparing vectors and giving 0 or 1 as a result
@@ -2107,6 +2116,15 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   if (E->getType()->isVectorType() &&
       E->getType()->castAs<VectorType>()->getVectorKind() ==
           VectorKind::Generic) {
+    // Check for ExtVectorBoolType which uses integer storage, not vector
+    if (const auto *vecTy = E->getType()->getAs<clang::VectorType>()) {
+      if (vecTy->isExtVectorBoolType()) {
+        llvm_unreachable(
+            "NYI: ExtVectorBoolType logical NOT (requires handling padding "
+            "bits in integer storage to ensure correct element-wise negation)");
+      }
+    }
+
     mlir::Value oper = Visit(E->getSubExpr());
     mlir::Location loc = CGF.getLoc(E->getExprLoc());
     auto operVecTy = mlir::cast<cir::VectorType>(oper.getType());

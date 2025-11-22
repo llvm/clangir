@@ -182,6 +182,8 @@ public:
   cir::RecordType getBaseSubobjectCIRType() const { return BaseSubobjectType; }
 
   /// Check if this record layout contains information about the given field.
+  /// Fields may be absent from the layout due to Empty Base Optimization (EBO),
+  /// where empty-type members are stored as base classes instead of fields.
   bool containsFieldDecl(const clang::FieldDecl *FD) const {
     return FieldInfo.count(FD) != 0;
   }

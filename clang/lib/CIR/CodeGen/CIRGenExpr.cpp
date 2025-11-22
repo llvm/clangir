@@ -902,6 +902,16 @@ void CIRGenFunction::emitStoreThroughLValue(RValue Src, LValue Dst,
                                             bool isInit) {
   if (!Dst.isSimple()) {
     if (Dst.isVectorElt()) {
+      // Check if this is an ExtVectorBoolType element assignment
+      QualType vectorType = Dst.getType();
+      if (const auto *vecTy = vectorType->getAs<clang::VectorType>()) {
+        if (vecTy->isExtVectorBoolType()) {
+          llvm_unreachable(
+              "NYI: ExtVectorBoolType element assignment (requires bit "
+              "manipulation to set/clear individual bits in integer storage)");
+        }
+      }
+
       // Read/modify/write the vector, inserting the new element
       mlir::Location loc = Dst.getVectorPointer().getLoc();
       mlir::Value Vector = builder.createLoad(loc, Dst.getVectorAddress());
@@ -2769,6 +2779,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitStmtExprLValue(cast<StmtExpr>(E));
   case Expr::ChooseExprClass:
     return emitLValue(cast<ChooseExpr>(E)->getChosenSubExpr());
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
   }
 
   llvm_unreachable("NYI");
@@ -3488,4 +3500,23 @@ RValue CIRGenFunction::emitPseudoObjectRValue(const PseudoObjectExpr *expr,
 
 LValue CIRGenFunction::emitPseudoObjectLValue(const PseudoObjectExpr *expr) {
   return emitPseudoObjectExpr(*this, expr, true, AggValueSlot::ignored()).lv;
+}
+
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  // Emit the typeid expression, which returns a pointer to the RTTI descriptor.
+  mlir::Value typeInfoPtr = emitCXXTypeidExpr(E);
+
+  // Cast the pointer to the actual type_info type for proper type safety.
+  auto typeInfoTy = convertTypeForMem(E->getType());
+  auto typeInfoPtrTy = builder.getPointerTo(typeInfoTy);
+  typeInfoPtr = builder.createBitcast(getLoc(E->getSourceRange()), typeInfoPtr,
+                                      typeInfoPtrTy);
+
+  // Create an LValue from the pointer with natural alignment.
+  // We use getTypeAlignInChars() which returns the natural alignment for the
+  // type_info type, matching traditional CodeGen's getNaturalTypeAlignment().
+  Address addr(typeInfoPtr, typeInfoTy,
+               getContext().getTypeAlignInChars(E->getType()));
+
+  return makeAddrLValue(addr, E->getType(), AlignmentSource::Decl);
 }
