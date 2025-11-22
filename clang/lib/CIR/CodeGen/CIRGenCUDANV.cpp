@@ -161,12 +161,18 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
 
   // The default stream is usually stream 0 (the legacy default stream).
   // For per-thread default stream, we need a different LaunchKernel function.
+  std::string kernelLaunchAPI = "LaunchKernel";
   if (cgm.getLangOpts().GPUDefaultStream ==
-      LangOptions::GPUDefaultStreamKind::PerThread)
-    llvm_unreachable("NYI");
+      LangOptions::GPUDefaultStreamKind::PerThread) {
+    if (cgf.getLangOpts().HIP)
+      kernelLaunchAPI = kernelLaunchAPI + "_spt";
+    else if (cgf.getLangOpts().CUDA)
+      kernelLaunchAPI = kernelLaunchAPI + "_ptsz";
+  }
 
-  std::string launchAPI = addPrefixToName("LaunchKernel");
-  const IdentifierInfo &launchII = cgm.getASTContext().Idents.get(launchAPI);
+  std::string launchKernelName = addPrefixToName(kernelLaunchAPI);
+  const IdentifierInfo &launchII =
+      cgm.getASTContext().Idents.get(launchKernelName);
   FunctionDecl *launchFD = nullptr;
   for (auto *result : dc->lookup(&launchII)) {
     if (FunctionDecl *fd = dyn_cast<FunctionDecl>(result))
@@ -175,7 +181,7 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
 
   if (launchFD == nullptr) {
     cgm.Error(cgf.CurFuncDecl->getLocation(),
-              "Can't find declaration for " + launchAPI);
+              "Can't find declaration for " + launchKernelName);
     return;
   }
 
@@ -256,8 +262,8 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
                  launchFD->getParamDecl(5)->getType());
 
   mlir::Type launchTy = cgm.getTypes().convertType(launchFD->getType());
-  mlir::Operation *launchFn =
-      cgm.createRuntimeFunction(cast<cir::FuncType>(launchTy), launchAPI);
+  mlir::Operation *launchFn = cgm.createRuntimeFunction(
+      cast<cir::FuncType>(launchTy), launchKernelName);
   const auto &callInfo = cgm.getTypes().arrangeFunctionDeclaration(launchFD);
   cgf.emitCall(callInfo, CIRGenCallee::forDirect(launchFn), ReturnValueSlot(),
                launchArgs);
