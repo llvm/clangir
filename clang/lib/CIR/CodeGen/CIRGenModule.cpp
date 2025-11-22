@@ -826,22 +826,14 @@ cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
     // Some global emissions are triggered while emitting a function, e.g.
     // void s() { const char *s = "yolo"; ... }
     //
-    // Save the current function context for later insertion logic
+    // Be sure to insert global before the current function
     auto *curCGF = cgm.getCurrCIRGenFun();
-
-    // Clear insertion point to prevent auto-insertion by create()
-    // We'll manually insert at the correct location below
-    builder.clearInsertionPoint();
+    if (curCGF)
+      builder.setInsertionPoint(curCGF->CurFn);
 
     g = cir::GlobalOp::create(builder, loc, name, t, isConstant, linkage,
                               addrSpace);
-
-    // Manually insert at the correct location
-    if (curCGF) {
-      // Insert before the current function being generated
-      cgm.getModule().insert(mlir::Block::iterator(curCGF->CurFn), g);
-    } else {
-      // Insert at specified point or at end of module
+    if (!curCGF) {
       if (insertPoint)
         cgm.getModule().insert(insertPoint, g);
       else
@@ -2718,12 +2710,10 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     // Some global emissions are triggered while emitting a function, e.g.
     // void s() { x.method() }
     //
-    // Save the current function context for later insertion logic
+    // Be sure to insert a new function before a current one.
     auto *curCGF = getCurrCIRGenFun();
-
-    // Clear insertion point to prevent auto-insertion by create()
-    // We'll manually insert at the correct location below
-    builder.clearInsertionPoint();
+    if (curCGF)
+      builder.setInsertionPoint(curCGF->CurFn);
 
     f = cir::FuncOp::create(builder, loc, name, ty);
 
@@ -2749,14 +2739,8 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     // Set the special member attribute for this function, if applicable.
     setCXXSpecialMemberAttr(f, fd);
 
-    // Manually insert at the correct location
-    if (curCGF) {
-      // Insert before the current function being generated
-      theModule.insert(mlir::Block::iterator(curCGF->CurFn), f);
-    } else {
-      // Insert at end of module
+    if (!curCGF)
       theModule.push_back(f);
-    }
   }
   return f;
 }
@@ -3074,6 +3058,7 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   // NOTE(cir): Original CodeGen checks if this is an intrinsic. In CIR we
   // represent them in dedicated ops. The correct attributes are ensured during
   // translation to LLVM. Thus, we don't need to check for them here.
+  assert(!isThunk && "isThunk NYI");
 
   if (!isIncompleteFunction) {
     setCIRFunctionAttributes(globalDecl,

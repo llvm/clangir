@@ -765,8 +765,8 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
   // Create a scope in the symbol table to hold variable declarations.
   SymTableScopeTy varScope(symbolTable);
   // Compiler synthetized functions might have invalid slocs...
-  auto bSrcLoc = (fd && fd->getBody()) ? fd->getBody()->getBeginLoc() : SourceLocation();
-  auto eSrcLoc = (fd && fd->getBody()) ? fd->getBody()->getEndLoc() : SourceLocation();
+  auto bSrcLoc = fd->getBody()->getBeginLoc();
+  auto eSrcLoc = fd->getBody()->getEndLoc();
   auto unknownLoc = builder.getUnknownLoc();
 
   auto fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
@@ -1158,11 +1158,11 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // Apply xray attributes to the function (as a string, for now)
-  if (d && d->getAttr<XRayInstrumentAttr>()) {
+  if (d->getAttr<XRayInstrumentAttr>()) {
     assert(!cir::MissingFeatures::xray());
   }
 
-  if (d && ShouldXRayInstrumentFunction()) {
+  if (ShouldXRayInstrumentFunction()) {
     assert(!cir::MissingFeatures::xray());
   }
 
@@ -1365,13 +1365,12 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
-      auto fnBodyBegin =
-          (fd && fd->getBody()) ? getLoc(fd->getBody()->getBeginLoc()) : getLoc(Loc);
+      auto fnBodyBegin = getLoc(fd->getBody()->getBeginLoc());
       builder.CIRBaseBuilderTy::createStore(fnBodyBegin, paramVal, addr);
     }
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    auto fnEndLoc = (fd && fd->getBody()) ? getLoc(fd->getBody()->getEndLoc()) : getLoc(Loc);
+    auto fnEndLoc = getLoc(fd->getBody()->getEndLoc());
 
     // When the current function is not void, create an address to store the
     // result value.
