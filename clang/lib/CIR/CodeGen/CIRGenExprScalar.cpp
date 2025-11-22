@@ -309,8 +309,39 @@ public:
     if (E->getBase()->getType()->isVectorType()) {
       assert(!cir::MissingFeatures::scalableVectors() &&
              "NYI: index into scalable vector");
-      // Subscript of vector type.  This is handled differently, with a custom
-      // operation.
+
+      // ExtVectorBoolType uses integer storage, handle it specially
+      const auto *VecTy = E->getBase()
+                              ->getType()
+                              .getCanonicalType()
+                              ->getAs<clang::VectorType>();
+      if (VecTy && VecTy->isExtVectorBoolType()) {
+        // For ExtVectorBoolType, extract a bit from the integer
+        mlir::Value IntValue = Visit(E->getBase());
+        mlir::Value IndexValue = Visit(E->getIdx());
+
+        // Extract the bit: (IntValue >> IndexValue) & 1
+        auto Loc = CGF.getLoc(E->getSourceRange());
+        auto BoolTy = CGF.builder.getBoolTy();
+        auto IntTy = IntValue.getType();
+
+        // Shift right by index: IntValue >> IndexValue
+        mlir::Value Shifted =
+            cir::ShiftOp::create(CGF.builder, Loc, IntTy, IntValue, IndexValue,
+                                 /*isShiftLeft=*/false);
+
+        // Mask with 1: Shifted & 1
+        mlir::Value One = CGF.builder.getConstInt(Loc, IntTy, 1);
+        mlir::Value Masked = cir::BinOp::create(
+            CGF.builder, Loc, IntTy, cir::BinOpKind::And, Shifted, One);
+
+        // Convert to bool: Masked != 0
+        mlir::Value Zero = CGF.builder.getConstInt(Loc, IntTy, 0);
+        return cir::CmpOp::create(CGF.builder, Loc, BoolTy, cir::CmpOpKind::ne,
+                                  Masked, Zero);
+      }
+
+      // Regular vector subscript
       mlir::Value VecValue = Visit(E->getBase());
       mlir::Value IndexValue = Visit(E->getIdx());
       return cir::VecExtractOp::create(CGF.getBuilder(),
@@ -976,6 +1007,15 @@ public:
       mlir::Value RHS = BOInfo.RHS;
 
       if (LHSTy->isVectorType()) {
+        // Check for ExtVectorBoolType which uses integer storage, not vector
+        if (const auto *vecTy = LHSTy->getAs<clang::VectorType>()) {
+          if (vecTy->isExtVectorBoolType()) {
+            llvm_unreachable(
+                "NYI: ExtVectorBoolType comparison operations (requires "
+                "element-wise comparison on packed integer representation)");
+          }
+        }
+
         if (!E->getType()->isVectorType()) {
           // If AltiVec, the comparison results in a numeric type, so we use
           // intrinsics comparing vectors and giving 0 or 1 as a result
@@ -2076,6 +2116,15 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   if (E->getType()->isVectorType() &&
       E->getType()->castAs<VectorType>()->getVectorKind() ==
           VectorKind::Generic) {
+    // Check for ExtVectorBoolType which uses integer storage, not vector
+    if (const auto *vecTy = E->getType()->getAs<clang::VectorType>()) {
+      if (vecTy->isExtVectorBoolType()) {
+        llvm_unreachable(
+            "NYI: ExtVectorBoolType logical NOT (requires handling padding "
+            "bits in integer storage to ensure correct element-wise negation)");
+      }
+    }
+
     mlir::Value oper = Visit(E->getSubExpr());
     mlir::Location loc = CGF.getLoc(E->getExprLoc());
     auto operVecTy = mlir::cast<cir::VectorType>(oper.getType());
