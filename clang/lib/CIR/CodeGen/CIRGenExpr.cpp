@@ -634,6 +634,14 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
 
 mlir::Value CIRGenFunction::emitToMemory(mlir::Value Value, QualType Ty) {
   // Bool has a different representation in memory than in registers.
+
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may exist as a vector type that needs conversion to integer for storage.
+  // Since we use integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -653,9 +661,10 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
 
   auto eltTy = addr.getElementType();
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type. This is handled by
-    // convertTypeForMem, which returns an integer type for ExtVectorBoolType.
-    // Skip vector optimizations for bool vectors.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
       // Storage is already an integer type, nothing special needed
     } else {
@@ -2958,6 +2967,13 @@ mlir::Value CIRGenFunction::emitFromMemory(mlir::Value Value, QualType Ty) {
     llvm_unreachable("NIY");
   }
 
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may need truncation from storage type to value type. Since we use
+  // integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -2979,9 +2995,10 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   auto eltTy = addr.getElementType();
 
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type. This is handled by
-    // convertTypeForMem, which returns an integer type for ExtVectorBoolType.
-    // Skip vector optimizations for bool vectors.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
       // Storage is already an integer type, nothing special needed
     } else {
