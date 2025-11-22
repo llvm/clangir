@@ -1197,7 +1197,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
 
     if (d->getTLSKind()) {
       if (d->getTLSKind() == VarDecl::TLS_Dynamic)
-        CXXThreadLocals.push_back(d);
+        cxxThreadLocals.push_back(d);
       setTLSMode(gv, *d);
     }
 
@@ -1622,7 +1622,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
 
   if (d->getTLSKind() && !gv.getTlsModelAttr()) {
     if (d->getTLSKind() == VarDecl::TLS_Dynamic)
-      CXXThreadLocals.push_back(d);
+      cxxThreadLocals.push_back(d);
     setTLSMode(gv, *d);
   }
 
