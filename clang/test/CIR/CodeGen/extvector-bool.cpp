@@ -59,11 +59,6 @@ void test_ops(bool4 a, bool4 b) {
   // OGCG: and <4 x i1>
 }
 
-// NOTE: The following operations are not yet fully implemented for
-// ExtVectorBoolType and require special handling:
-// - Element assignment (v[2] = true): Requires bit manipulation to set/clear individual bits
-// - Unary logical NOT (!v): May require special handling beyond bitwise NOT
-
 // Test bitwise operations
 // CIR-LABEL: cir.func {{.*}}@_Z16test_bitwise_opsv
 void test_bitwise_ops() {
