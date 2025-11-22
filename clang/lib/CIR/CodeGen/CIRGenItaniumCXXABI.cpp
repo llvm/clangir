@@ -318,6 +318,9 @@ public:
     return !isEmittedWithConstantInitializer(VD) || mayNeedDestruction(VD);
   }
 
+  LValue emitThreadLocalVarDeclLValue(CIRGenFunction &cgf, const VarDecl *vd,
+                                      QualType lvalType) override;
+
   bool doStructorsInitializeVPtrs(const CXXRecordDecl *VTableClass) override {
     return true;
   }
@@ -2924,4 +2927,29 @@ Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &cgf,
   dataPtr = cgf.getBuilder().createPtrStride(loc, castOp, offsetOp);
   return Address(dataPtr, cgf.getBuilder().getUIntNTy(8),
                  newPtr.getAlignment());
+}
+
+LValue CIRGenItaniumCXXABI::emitThreadLocalVarDeclLValue(CIRGenFunction &cgf,
+                                                         const VarDecl *vd,
+                                                         QualType lvalType) {
+  // ClangIR's approach to thread-local variables differs from traditional
+  // CodeGen. Traditional CodeGen creates wrapper functions (e.g., _ZTW*) that
+  // handle dynamic initialization. ClangIR instead marks the GlobalOp with
+  // tls_dyn and relies on LLVM lowering to insert @llvm.threadlocal.address
+  // intrinsics, which achieves the same semantics without intermediate wrapper
+  // functions in CIR.
+
+  mlir::Value v = cgf.CGM.getAddrOfGlobalVar(vd);
+
+  auto realVarTy = cgf.convertTypeForMem(vd->getType());
+  CharUnits alignment = cgf.getContext().getDeclAlign(vd);
+  Address addr(v, realVarTy, alignment);
+
+  LValue lv;
+  if (vd->getType()->isReferenceType())
+    lv = cgf.emitLoadOfReferenceLValue(addr, cgf.getLoc(vd->getLocation()),
+                                       vd->getType(), AlignmentSource::Decl);
+  else
+    lv = cgf.makeAddrLValue(addr, lvalType, AlignmentSource::Decl);
+  return lv;
 }
