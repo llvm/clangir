@@ -2746,6 +2746,18 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
     return lowerInitializer(rewriter, op, abiLlvmType, init,
                             useInitializerRegion);
   }
+  if (auto methodAttr = mlir::dyn_cast<cir::MethodAttr>(init)) {
+    assert(lowerMod && "lower module is not available");
+    mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+    mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerMethodConstant(
+        methodAttr, layout, *typeConverter);
+    init = abiValue;
+    auto abiLlvmType = convertTypeForMemory(*getTypeConverter(), dataLayout,
+                                            abiValue.getType());
+    // Recursively lower the CIR attribute produced by the C++ ABI.
+    return lowerInitializer(rewriter, op, abiLlvmType, init,
+                            useInitializerRegion);
+  }
 
   op.emitError() << "unsupported initializer '" << init << "'";
   return mlir::failure();

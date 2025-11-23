@@ -362,6 +362,16 @@ public:
   cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                          const CXXMethodDecl *MD) override;
 
+  mlir::TypedAttr emitMemberPointer(const APValue &memberPointer,
+                                    QualType mpType) override;
+
+  mlir::TypedAttr buildMemberFunctionPointer(cir::MethodType methodTy,
+                                             const CXXMethodDecl *methodDecl,
+                                             CharUnits thisAdjustment) override;
+
+  mlir::TypedAttr buildMemberDataPointer(const MemberPointerType *mpt,
+                                         CharUnits offset) override;
+
   Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
                                 mlir::Value NumElements, const CXXNewExpr *E,
                                 QualType ElementType) override;
@@ -2985,6 +2995,82 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
   }
 
   return cir::MethodAttr::get(MethodTy, VTableOffset);
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::buildMemberFunctionPointer(cir::MethodType methodTy,
+                                                const CXXMethodDecl *methodDecl,
+                                                CharUnits thisAdjustment) {
+  assert(methodDecl->isInstance() && "Member function must not be static!");
+
+  // Get the function pointer (or index if this is a virtual function).
+  if (methodDecl->isVirtual()) {
+    uint64_t index =
+        CGM.getItaniumVTableContext().getMethodVTableIndex(methodDecl);
+    uint64_t vTableOffset;
+    if (CGM.getItaniumVTableContext().isRelativeLayout()) {
+      // Multiply by 4-byte relative offsets.
+      vTableOffset = index * 4;
+    } else {
+      const ASTContext &astContext = getContext();
+      CharUnits pointerWidth = astContext.toCharUnitsFromBits(
+          astContext.getTargetInfo().getPointerWidth(LangAS::Default));
+      vTableOffset = index * pointerWidth.getQuantity();
+    }
+
+    // Itanium C++ ABI 2.3:
+    //   For a virtual function, [the pointer field] is 1 plus the
+    //   virtual table offset (in bytes) of the function,
+    //   represented as a ptrdiff_t.
+    return cir::MethodAttr::get(methodTy, vTableOffset,
+                                thisAdjustment.getQuantity());
+  }
+
+  // For non-virtual functions, get the function symbol.
+  auto methodFuncOp = CGM.GetAddrOfFunction(methodDecl);
+  auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
+  return cir::MethodAttr::get(methodTy, methodFuncSymbolRef,
+                              thisAdjustment.getQuantity());
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::buildMemberDataPointer(const MemberPointerType *mpt,
+                                            CharUnits offset) {
+  // This method is not currently used for APValue emission.
+  // Data member pointers are handled directly in emitMemberPointer.
+  llvm_unreachable("NYI: buildMemberDataPointer");
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::emitMemberPointer(const APValue &memberPointer,
+                                       QualType mpType) {
+  const auto *mpt = mpType->castAs<MemberPointerType>();
+  const ValueDecl *mpd = memberPointer.getMemberPointerDecl();
+
+  if (!mpd) {
+    // Null member pointer.
+    if (mpt->isMemberDataPointer()) {
+      auto ty = mlir::cast<cir::DataMemberType>(CGM.convertType(mpType));
+      return cir::DataMemberAttr::get(ty);
+    }
+    // Null member function pointer.
+    auto ty = mlir::cast<cir::MethodType>(CGM.convertType(mpType));
+    return cir::MethodAttr::get(ty);
+  }
+
+  CharUnits thisAdjustment =
+      getContext().getMemberPointerPathAdjustment(memberPointer);
+
+  if (const auto *md = dyn_cast<CXXMethodDecl>(mpd)) {
+    auto ty = mlir::cast<cir::MethodType>(CGM.convertType(mpType));
+    return buildMemberFunctionPointer(ty, md, thisAdjustment);
+  }
+
+  // Data member pointer.
+  auto &builder = CGM.getBuilder();
+  auto ty = mlir::cast<cir::DataMemberType>(CGM.convertType(mpType));
+  const auto *fieldDecl = cast<FieldDecl>(mpd);
+  return builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex());
 }
 
 /// The Itanium ABI requires non-zero initialization only for data

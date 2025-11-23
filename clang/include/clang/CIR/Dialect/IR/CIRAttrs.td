@@ -697,6 +697,10 @@ def CIR_MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
     gives the offset of the vtable entry corresponding to the virtual member
     function.
 
+    The `adjustment` parameter specifies the this-pointer adjustment required
+    for the member function pointer, in bytes. This is needed for multiple
+    inheritance and virtual base classes.
+
     `symbol` and `vtable_offset` cannot be present at the same time. If both of
     `symbol` and `vtable_offset` are not present, the attribute represents a
     null pointer constant.
@@ -707,19 +711,31 @@ def CIR_MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
                         OptionalParameter<
                             "std::optional<mlir::FlatSymbolRefAttr>">:$symbol,
                         OptionalParameter<
-                            "std::optional<uint64_t>">:$vtable_offset);
+                            "std::optional<uint64_t>">:$vtable_offset,
+                        DefaultValuedParameter<
+                            "int64_t", "0">:$adjustment);
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "cir::MethodType":$type), [{
-      return $_get(type.getContext(), type, std::nullopt, std::nullopt);
+      return $_get(type.getContext(), type, std::nullopt, std::nullopt, 0);
     }]>,
     AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
                                         "mlir::FlatSymbolRefAttr":$symbol), [{
-      return $_get(type.getContext(), type, symbol, std::nullopt);
+      return $_get(type.getContext(), type, symbol, std::nullopt, 0);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
+                                        "mlir::FlatSymbolRefAttr":$symbol,
+                                        "int64_t":$adjustment), [{
+      return $_get(type.getContext(), type, symbol, std::nullopt, adjustment);
     }]>,
     AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
                                         "uint64_t":$vtable_offset), [{
-      return $_get(type.getContext(), type, std::nullopt, vtable_offset);
+      return $_get(type.getContext(), type, std::nullopt, vtable_offset, 0);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
+                                        "uint64_t":$vtable_offset,
+                                        "int64_t":$adjustment), [{
+      return $_get(type.getContext(), type, std::nullopt, vtable_offset, adjustment);
     }]>,
   ];
 

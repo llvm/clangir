@@ -547,7 +547,8 @@ DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 LogicalResult MethodAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                  cir::MethodType type,
                                  std::optional<FlatSymbolRefAttr> symbol,
-                                 std::optional<uint64_t> vtable_offset) {
+                                 std::optional<uint64_t> vtable_offset,
+                                 int64_t adjustment) {
   if (symbol.has_value() && vtable_offset.has_value())
     return emitError()
            << "at most one of symbol and vtable_offset can be present "
@@ -576,9 +577,18 @@ Attribute MethodAttr::parse(AsmParser &parser, Type odsType) {
   if (parseSymbolRefResult.has_value()) {
     if (parseSymbolRefResult.value().failed())
       return {};
+
+    // Try to parse optional adjustment.
+    int64_t adjustment = 0;
+    if (parser.parseOptionalComma().succeeded()) {
+      if (parser.parseKeyword("adjustment") || parser.parseEqual() ||
+          parser.parseInteger(adjustment))
+        return {};
+    }
+
     if (parser.parseGreater())
       return {};
-    return get(ty, symbol);
+    return get(ty, symbol, adjustment);
   }
 
   // Parse a uint64 that represents the vtable offset.
@@ -590,21 +600,36 @@ Attribute MethodAttr::parse(AsmParser &parser, Type odsType) {
   if (parser.parseInteger(vtableOffset))
     return {};
 
+  // Try to parse optional adjustment.
+  int64_t adjustment = 0;
+  if (parser.parseOptionalComma().succeeded()) {
+    if (parser.parseKeyword("adjustment") || parser.parseEqual() ||
+        parser.parseInteger(adjustment))
+      return {};
+  }
+
   if (parser.parseGreater())
     return {};
 
-  return get(ty, vtableOffset);
+  return get(ty, vtableOffset, adjustment);
 }
 
 void MethodAttr::print(AsmPrinter &printer) const {
   auto symbol = getSymbol();
   auto vtableOffset = getVtableOffset();
+  auto adjustment = getAdjustment();
 
   printer << '<';
   if (symbol.has_value()) {
     printer << *symbol;
+    if (adjustment != 0) {
+      printer << ", adjustment = " << adjustment;
+    }
   } else if (vtableOffset.has_value()) {
     printer << "vtable_offset = " << *vtableOffset;
+    if (adjustment != 0) {
+      printer << ", adjustment = " << adjustment;
+    }
   } else {
     printer << "null";
   }
