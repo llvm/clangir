@@ -237,20 +237,20 @@ public:
   /// Perform adjustment on the this pointer for a thunk.
   /// Returns the adjusted this pointer value.
   virtual mlir::Value
-  performThisAdjustment(CIRGenFunction &CGF, Address This,
-                        const CXXRecordDecl *UnadjustedClass,
-                        const ThunkInfo &TI) = 0;
+  performThisAdjustment(CIRGenFunction &cgf, Address thisAddr,
+                        const CXXRecordDecl *unadjustedClass,
+                        const ThunkInfo &ti) = 0;
 
   /// Perform adjustment on a return pointer for a thunk (covariant returns).
   /// Returns the adjusted return pointer value.
   virtual mlir::Value
-  performReturnAdjustment(CIRGenFunction &CGF, Address Ret,
-                          const CXXRecordDecl *UnadjustedClass,
-                          const ReturnAdjustment &RA) = 0;
+  performReturnAdjustment(CIRGenFunction &cgf, Address ret,
+                          const CXXRecordDecl *unadjustedClass,
+                          const ReturnAdjustment &ra) = 0;
 
   /// Emit a return from a thunk.
-  virtual void EmitReturnFromThunk(CIRGenFunction &CGF, RValue RV,
-                                   QualType ResultType);
+  virtual void emitReturnFromThunk(CIRGenFunction &cgf, RValue rv,
+                                   QualType resultType);
 
   virtual mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                                   QualType Ty) = 0;

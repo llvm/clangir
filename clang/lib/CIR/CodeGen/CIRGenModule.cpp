@@ -2683,6 +2683,11 @@ void CIRGenModule::setDSOLocal(mlir::Operation *op) const {
   }
 }
 
+void CIRGenModule::setGVProperties(mlir::Operation *op, GlobalDecl gd) const {
+  assert(!cir::MissingFeatures::setDLLImportDLLExport());
+  setGVPropertiesAux(op, dyn_cast<NamedDecl>(gd.getDecl()));
+}
+
 void CIRGenModule::setGVProperties(mlir::Operation *op,
                                    const NamedDecl *d) const {
   assert(!cir::MissingFeatures::setDLLImportDLLExport());
@@ -3075,18 +3080,26 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   // represent them in dedicated ops. The correct attributes are ensured during
   // translation to LLVM. Thus, we don't need to check for them here.
 
-  if (!isIncompleteFunction) {
+  const auto *funcDecl = dyn_cast<FunctionDecl>(globalDecl.getDecl());
+
+  if (!isIncompleteFunction)
     setCIRFunctionAttributes(globalDecl,
                              getTypes().arrangeGlobalDeclaration(globalDecl),
                              func, isThunk);
+
+  // Add the Returned attribute for "this", except for iOS 5 and earlier
+  // where substantial code, including the libstdc++ dylib, was compiled with
+  // GCC and does not actually return "this".
+  if (!isThunk && getCXXABI().HasThisReturn(globalDecl) &&
+      !(getTriple().isiOS() && getTriple().isOSVersionLT(6))) {
+    llvm_unreachable("NYI");
   }
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!cir::MissingFeatures::setFunctionAttributes());
 
   if (!isIncompleteFunction && func.isDeclaration())
-    getTargetCIRGenInfo().setTargetAttributes(globalDecl.getDecl(), func,
-                                              *this);
+    getTargetCIRGenInfo().setTargetAttributes(funcDecl, func, *this);
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of

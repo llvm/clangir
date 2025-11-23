@@ -2131,31 +2131,26 @@ public:
   void emitDestructorBody(FunctionArgList &Args);
 
   /// Generate a thunk for the given method.
-  void generateThunk(cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
-                     GlobalDecl GD, const ThunkInfo &Thunk,
-                     bool IsUnprototyped);
+  void generateThunk(cir::FuncOp fn, const CIRGenFunctionInfo &fnInfo,
+                     GlobalDecl gd, const ThunkInfo &thunk,
+                     bool isUnprototyped);
 
-  void startThunk(cir::FuncOp Fn, GlobalDecl GD,
-                  const CIRGenFunctionInfo &FnInfo, bool IsUnprototyped);
+  void startThunk(cir::FuncOp fn, GlobalDecl gd,
+                  const CIRGenFunctionInfo &fnInfo, bool isUnprototyped);
 
-  void emitCallAndReturnForThunk(cir::FuncOp Callee, const ThunkInfo *Thunk,
-                                 bool IsUnprototyped);
+  void emitCallAndReturnForThunk(cir::FuncOp callee, const ThunkInfo *thunk,
+                                 bool isUnprototyped);
 
   /// Finish thunk generation.
   void finishThunk();
 
-  void emitMustTailThunk(GlobalDecl GD, mlir::Value adjustedThisPtr,
-                         cir::FuncOp Callee);
+  /// Emit a musttail call for a thunk with a potentially adjusted this pointer.
+  void emitMustTailThunk(GlobalDecl gd, mlir::Value adjustedThisPtr,
+                         cir::FuncOp callee);
 
   mlir::LogicalResult emitDoStmt(const clang::DoStmt &S);
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
-
-  /// Emit the operand of a typeid expression as an mlir::Value.
-  mlir::Value emitCXXTypeidExpr(const CXXTypeidExpr *E);
-
-  /// Emit a typeid expression as an l-value.
-  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
 
   /// Emits try/catch information for the current EH stack.
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
