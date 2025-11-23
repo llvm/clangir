@@ -1513,41 +1513,64 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   if (!mlir::isa<cir::PointerType>(Ops.RHS.getType()))
     return emitPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
-  const BinaryOperator *Expr = cast<BinaryOperator>(Ops.E);
-  QualType ElementType = Expr->getLHS()->getType()->getPointeeType();
+  // Do the raw subtraction part.
+  mlir::Value lhs = Ops.LHS;
+  mlir::Value rhs = Ops.RHS;
 
-  // Check if this is a VLA pointee type.
-  if (const auto *VLA = CGF.getContext().getAsVariableArrayType(ElementType)) {
-    llvm_unreachable("NYI: CIR ptrdiff on VLA pointee");
-  }
-  // TODO(cir): note for LLVM lowering out of this; when expanding this into
-  // LLVM we shall take VLA's, division by element size, etc.
-  // now we just ensure that all pointers are on the proper address space.
-  mlir::Value LHS = Ops.LHS;
-  mlir::Value RHS = Ops.RHS;
-  mlir::Location loc = CGF.getLoc(Ops.Loc);
+  cir::PointerType lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhs.getType());
+  cir::PointerType rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
 
-  cir::PointerType LHSPtrTy = mlir::dyn_cast<cir::PointerType>(LHS.getType());
-  cir::PointerType RHSPtrTy = mlir::dyn_cast<cir::PointerType>(RHS.getType());
+  if (lhsPtrTy && rhsPtrTy) {
+    cir::AddressSpace lhsAS = lhsPtrTy.getAddrSpace();
+    cir::AddressSpace rhsAS = rhsPtrTy.getAddrSpace();
 
-  if (LHSPtrTy && RHSPtrTy) {
-    auto LHSAS = LHSPtrTy.getAddrSpace();
-    auto RHSAS = RHSPtrTy.getAddrSpace();
-
-    if (LHSAS != RHSAS) {
+    if (lhsAS != rhsAS) {
       // Different address spaces → use addrspacecast
-      RHS = Builder.createAddrSpaceCast(RHS, LHSPtrTy);
-    } else if (LHSPtrTy != RHSPtrTy) {
+      rhs = Builder.createAddrSpaceCast(rhs, lhsPtrTy);
+    } else if (lhsPtrTy != rhsPtrTy) {
       // Same addrspace but different pointee/type → bitcast is fine
-      RHS = Builder.createBitcast(RHS, LHSPtrTy);
+      rhs = Builder.createBitcast(rhs, lhsPtrTy);
     }
   }
-  // Do the raw subtraction part.
-  //
-  // See more in `EmitSub` in CGExprScalar.cpp.
+
   assert(!cir::MissingFeatures::llvmLoweringPtrDiffConsidersPointee());
-  return cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc), CGF.PtrDiffTy,
-                                LHS, RHS);
+  mlir::Value diff = cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc),
+                                            CGF.PtrDiffTy, lhs, rhs);
+
+  const BinaryOperator *expr = cast<BinaryOperator>(Ops.E);
+  QualType elementType = expr->getLHS()->getType()->getPointeeType();
+
+  mlir::Location loc = CGF.getLoc(Ops.Loc);
+  mlir::Value divisor;
+
+  // Check if this is a VLA pointee type.
+  if (const auto *vla = CGF.getContext().getAsVariableArrayType(elementType)) {
+    auto vlaSize = CGF.getVLASize(vla);
+    elementType = vlaSize.Type;
+    divisor = vlaSize.NumElts;
+
+    CharUnits eltSize = CGF.getContext().getTypeSizeInChars(elementType);
+    if (!eltSize.isOne()) {
+      cir::IntType cirIntTy = llvm::cast<cir::IntType>(CGF.PtrDiffTy);
+      cir::IntAttr eltSizeAttr =
+          cir::IntAttr::get(cirIntTy, eltSize.getQuantity());
+
+      if (divisor.getType() != CGF.PtrDiffTy)
+        divisor = Builder.createIntCast(divisor, CGF.PtrDiffTy);
+
+      auto eltSizeVal =
+          cir::ConstantOp::create(Builder, loc, cirIntTy, eltSizeAttr)
+              .getResult();
+      divisor = Builder.createNUWAMul(eltSizeVal, divisor);
+    }
+  } else {
+    // cir::ptrdiff correctly computes the ABI difference of 2 pointers. We
+    // do not need to compute anything else here. We just return it.
+    return diff;
+  }
+
+  return cir::BinOp::create(Builder, loc, CGF.PtrDiffTy, cir::BinOpKind::Div,
+                            diff, divisor);
 }
 
 mlir::Value ScalarExprEmitter::emitShl(const BinOpInfo &Ops) {
