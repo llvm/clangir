@@ -239,6 +239,9 @@ public:
   llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclMap;
   llvm::DenseMap<const Decl *, cir::GlobalOp> staticLocalDeclGuardMap;
   llvm::DenseMap<const VarDecl *, cir::GlobalOp> initializerConstants;
+
+  llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclGuardMap;
+
   llvm::DenseMap<llvm::StringRef, mlir::Value> Globals;
   mlir::Operation *getGlobalValue(llvm::StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
@@ -256,6 +259,14 @@ public:
 
   void setStaticLocalDeclAddress(const VarDecl *D, cir::GlobalOp C) {
     StaticLocalDeclMap[D] = C;
+  }
+
+  cir::GlobalOp getStaticLocalDeclGuardAddress(const VarDecl *D) {
+    return StaticLocalDeclGuardMap[D];
+  }
+
+  void setStaticLocalDeclGuardAddress(const VarDecl *D, cir::GlobalOp C) {
+    StaticLocalDeclGuardMap[D] = C;
   }
 
   cir::GlobalOp getOrCreateStaticVarDecl(const VarDecl &D,

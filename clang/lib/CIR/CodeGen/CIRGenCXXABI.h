@@ -182,6 +182,19 @@ public:
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                                   cir::FuncOp dtor, mlir::Value Addr) = 0;
 
+  /// Emit the guarded initialization code for static local variables with
+  /// non-trivial initialization or destruction. This implements the C++
+  /// standard's requirements for thread-safe static initialization.
+  ///
+  /// \param CGF - The code generation function context
+  /// \param D - The variable being initialized
+  /// \param DeclPtr - The global variable representing the static local
+  /// \param PerformInit - Whether to perform initialization (true) or just
+  ///                      register the destructor (false, for constant-init
+  ///                      variables with non-trivial destructors)
+  virtual void emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                               cir::GlobalOp DeclPtr, bool PerformInit) = 0;
+
   virtual void emitVirtualObjectDelete(CIRGenFunction &CGF,
                                        const CXXDeleteExpr *DE, Address Ptr,
                                        QualType ElementType,
