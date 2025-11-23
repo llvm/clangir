@@ -821,20 +821,56 @@ public:
     llvm_unreachable("NYI");
   }
 
+  // Create cast instructions for converting LLVM value Src to MLIR type  DstTy.
+  // Src has the same size as DstTy. Both are single value types
+  // but could be scalar or vectors of different lengths, and either can be
+  // pointer.
+  mlir::Value createCastsForTypeOfSameSize(mlir::Value Src, mlir::Type DstTy) {
+    auto SrcTy = Src.getType();
+
+    // Case 1.
+    if (!isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy))
+      return Builder.createBitcast(Src, DstTy);
+
+    // Case 2.
+    if (isa<cir::PointerType>(SrcTy) && isa<cir::PointerType>(DstTy))
+      return Builder.createPointerBitCastOrAddrSpaceCast(Src, DstTy);
+
+    // Case 3.
+    if (isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy)) {
+      // Case 3b.
+      if (!Builder.isInt(DstTy))
+        llvm_unreachable("NYI");
+      // Cases 3a and 3b.
+      llvm_unreachable("NYI");
+    }
+
+    // Case 4b.
+    if (!Builder.isInt(SrcTy))
+      llvm_unreachable("NYI");
+
+    // Cases 4a and 4b.
+    llvm_unreachable("NYI");
+  }
+
   mlir::Value VisitAsTypeExpr(AsTypeExpr *E) {
-    mlir::Value src = CGF.emitScalarExpr(E->getSrcExpr());
+    unsigned numSrcElems = 0;
     QualType qualSrcTy = E->getSrcExpr()->getType();
-    QualType qualDstTy = E->getType();
-
     mlir::Type srcTy = CGF.convertType(qualSrcTy);
-    mlir::Type dstTy = CGF.convertType(qualDstTy);
-    auto loc = CGF.getLoc(E->getExprLoc());
-
-    unsigned numSrcElems = 0, numDstElems = 0;
-    if (auto v = dyn_cast<cir::VectorType>(srcTy))
+    if (auto v = dyn_cast<cir::VectorType>(srcTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector src");
       numSrcElems = v.getSize();
-    if (auto v = dyn_cast<cir::VectorType>(dstTy))
+    }
+
+    unsigned numDstElems = 0;
+    QualType qualDstTy = E->getType();
+    mlir::Type dstTy = CGF.convertType(qualDstTy);
+    if (auto v = dyn_cast<cir::VectorType>(dstTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector dst");
       numDstElems = v.getSize();
+    }
 
     // Use bit vector expansion for ext_vector_type boolean vectors.
     if (qualDstTy->isExtVectorBoolType()) {
@@ -854,12 +890,9 @@ public:
       llvm_unreachable("NYI");
     }
 
-    // If types are identical, return the source
-    if (srcTy == dstTy)
-      return src;
-
-    // Otherwise, fallback to CIR bitcast
-    return cir::CastOp::create(Builder, loc, dstTy, cir::CastKind::bitcast, src);
+    // Otherwise, fallback to bitcast of same size
+    mlir::Value src = CGF.emitScalarExpr(E->getSrcExpr());
+    return createCastsForTypeOfSameSize(src, dstTy);
   }
 
   mlir::Value VisitAtomicExpr(AtomicExpr *E) {
