@@ -93,3 +93,59 @@ int f9(unsigned n, char (*p)[n][n+1][6]) {
 
   return p2 - p;
 }
+
+long f10(int n) {
+    int (*p)[n];
+    int (*q)[n];
+    return q - p;
+}
+// CHECK: cir.func dso_local @f10(%arg0: !s32i
+// CHECK:   %[[N_ADDR:.*]] = cir.alloca !s32i
+// CHECK:   %[[RETVAL:.*]] = cir.alloca !s64i
+// CHECK:   %[[P_ADDR:.*]] = cir.alloca !cir.ptr<!s32i>
+// CHECK:   %[[Q_ADDR:.*]] = cir.alloca !cir.ptr<!s32i>
+
+// CHECK:   %[[N:.*]] = cir.load{{.*}} %[[N_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CHECK:   %[[N_U64:.*]] = cir.cast integral %[[N]] : !s32i -> !u64i
+
+// CHECK:   %[[Q:.*]] = cir.load{{.*}} %[[Q_ADDR]]
+// CHECK:   %[[P:.*]] = cir.load{{.*}} %[[P_ADDR]]
+
+// CHECK:   %[[DIFF:.*]] = cir.ptr_diff %[[Q]], %[[P]] : !cir.ptr<!s32i> -> !s64i
+
+// CHECK:   %[[N_S64:.*]] = cir.cast integral %[[N_U64]] : !u64i -> !s64i
+// CHECK:   %[[ELTSIZE:.*]] = cir.const #cir.int<4> : !s64i
+// CHECK:   %[[DIVISOR:.*]] = cir.binop(mul, %[[ELTSIZE]], %[[N_S64]]) nuw : !s64i
+
+// CHECK:   %[[RESULT:.*]] = cir.binop(div, %[[DIFF]], %[[DIVISOR]]) : !s64i
+
+
+long f11(int n, int m) {
+    int (*p)[n][m];
+    int (*q)[n][m];
+    return q - p;
+}
+// CHECK:  cir.func dso_local @f11(
+// CHECK:    %[[N_ADDR:.*]] = cir.alloca !s32i
+// CHECK:    %[[M_ADDR:.*]] = cir.alloca !s32i
+// CHECK:    %[[P_ADDR:.*]] = cir.alloca !cir.ptr<!s32i>
+// CHECK:    %[[Q_ADDR:.*]] = cir.alloca !cir.ptr<!s32i>
+
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[N_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CHECK:    %[[N_U64:.*]] = cir.cast integral %[[N]] : !s32i -> !u64i
+
+// CHECK:    %[[M:.*]] = cir.load{{.*}} %[[M_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CHECK:    %[[M_U64:.*]] = cir.cast integral %[[M]] : !s32i -> !u64i
+
+// CHECK:    %[[Q:.*]] = cir.load{{.*}} %[[Q_ADDR]]
+// CHECK:    %[[P:.*]] = cir.load{{.*}} %[[P_ADDR]]
+
+// CHECK:    %[[DIFF:.*]] = cir.ptr_diff %[[Q]], %[[P]] : !cir.ptr<!s32i> -> !s64i
+
+// CHECK:    %[[NM_UL:.*]] = cir.binop(mul, %[[N_U64]], %[[M_U64]]) : !u64i
+// CHECK:    %[[NM:.*]] = cir.cast integral %[[NM_UL]] : !u64i -> !s64i
+
+// CHECK:    %[[ELTSIZE:.*]] = cir.const #cir.int<4> : !s64i
+// CHECK:    %[[TOTALSIZE:.*]] = cir.binop(mul, %[[ELTSIZE]], %[[NM]]) nuw : !s64i
+
+// CHECK:    %[[RESULT:.*]] = cir.binop(div, %[[DIFF]], %[[TOTALSIZE]]) : !s64i
