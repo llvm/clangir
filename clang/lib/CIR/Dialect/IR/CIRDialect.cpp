@@ -360,8 +360,8 @@ void cir::ConditionOp::getSuccessorRegions(
   regions.emplace_back(&await.getSuspend(), await.getSuspend().getArguments());
 }
 
-MutableOperandRange cir::ConditionOp::getMutableSuccessorOperands(
-    RegionSuccessor /*successor*/) {
+MutableOperandRange
+cir::ConditionOp::getMutableSuccessorOperands(RegionSuccessor /*successor*/) {
   // No values are yielded to the successor region.
   return MutableOperandRange(getOperation(), 0, 0);
 }
@@ -1525,8 +1525,7 @@ void cir::ScopeOp::getSuccessorRegions(
     mlir::RegionBranchPoint point, SmallVectorImpl<RegionSuccessor> &regions) {
   // The only region always branch back to the parent operation.
   if (!point.isParent()) {
-    regions.push_back(
-        RegionSuccessor(getOperation(), this->getODSResults(0)));
+    regions.push_back(RegionSuccessor(getOperation(), this->getODSResults(0)));
     return;
   }
 
@@ -1787,8 +1786,8 @@ void cir::TernaryOp::build(
 // YieldOp
 //===----------------------------------------------------------------------===//
 
-MutableOperandRange cir::YieldOp::getMutableSuccessorOperands(
-    RegionSuccessor successor) {
+MutableOperandRange
+cir::YieldOp::getMutableSuccessorOperands(RegionSuccessor successor) {
   Operation *op = getOperation();
   if (auto loop = dyn_cast<LoopOpInterface>(op->getParentOp())) {
     if (op->getParentRegion() == &loop.getCond())
@@ -3113,17 +3112,26 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
   if (!fnAttr)
     return success();
 
+  // Look up the callee - it can be either a FuncOp or an IFuncOp
   cir::FuncOp fn = symbolTable.lookupNearestSymbolFrom<cir::FuncOp>(op, fnAttr);
-  if (!fn)
+  cir::IFuncOp ifn =
+      symbolTable.lookupNearestSymbolFrom<cir::IFuncOp>(op, fnAttr);
+
+  if (!fn && !ifn)
     return op->emitOpError() << "'" << fnAttr.getValue()
                              << "' does not reference a valid function";
+
   auto callIf = dyn_cast<cir::CIRCallOpInterface>(op);
   assert(callIf && "expected CIR call interface to be always available");
 
+  // Get function type from either FuncOp or IFuncOp
+  cir::FuncType fnType = fn ? fn.getFunctionType() : ifn.getFunctionType();
+
   // Verify that the operand and result types match the callee. Note that
   // argument-checking is disabled for functions without a prototype.
-  auto fnType = fn.getFunctionType();
-  if (!fn.getNoProto()) {
+  // IFuncs are always considered to have a prototype.
+  bool hasProto = ifn || !fn.getNoProto();
+  if (hasProto) {
     unsigned numCallOperands = callIf.getNumArgOperands();
     unsigned numFnOpOperands = fnType.getNumInputs();
 
@@ -3140,8 +3148,9 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
                << op->getOperand(i).getType() << " for operand number " << i;
   }
 
-  // Calling convention must match.
-  if (callIf.getCallingConv() != fn.getCallingConv())
+  // Calling convention must match (only check for FuncOp; IFuncOp uses the
+  // type's convention)
+  if (fn && callIf.getCallingConv() != fn.getCallingConv())
     return op->emitOpError("calling convention mismatch: expected ")
            << stringifyCallingConv(fn.getCallingConv()) << ", but provided "
            << stringifyCallingConv(callIf.getCallingConv());
