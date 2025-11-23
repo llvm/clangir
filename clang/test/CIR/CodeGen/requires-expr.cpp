@@ -3,7 +3,7 @@
 
 // Test RequiresExpr as a boolean expression
 bool test_requires_simple() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_requires_simplev
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_requires_simplev
   // CHECK: %{{.*}} = cir.const #true
   return requires { 1 + 1; };
 }
@@ -14,7 +14,7 @@ bool test_requires_param() {
 }
 
 bool use_requires_param() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}use_requires_paramv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}use_requires_paramv
   // Instantiation with int should succeed
   return test_requires_param<int>();
   // CHECK: cir.call @{{.*}}test_requires_paramIiEbv
@@ -22,7 +22,7 @@ bool use_requires_param() {
 
 // Test requires expression with multiple requirements
 bool test_requires_multiple() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_requires_multiplev
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_requires_multiplev
   // CHECK: %{{.*}} = cir.const #true
   return requires {
     1 + 1;
@@ -32,7 +32,7 @@ bool test_requires_multiple() {
 
 // Test requires expression in if statement
 int test_requires_in_if() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_requires_in_ifv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_requires_in_ifv
   if (requires { 1 + 1; }) {
     // CHECK: %{{.*}} = cir.const #true
     // CHECK: cir.if %{{.*}} {
@@ -48,7 +48,7 @@ bool test_requires_fail() {
 }
 
 bool use_requires_fail() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}use_requires_failv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}use_requires_failv
   // Should return false for int (no member named nonexistent_member)
   return test_requires_fail<int>();
   // CHECK: cir.call @{{.*}}test_requires_failIiEbv
@@ -56,7 +56,7 @@ bool use_requires_fail() {
 
 // Test nested requires
 bool test_nested_requires() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_nested_requiresv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_nested_requiresv
   // CHECK: %{{.*}} = cir.const #true
   return requires {
     requires true;
@@ -67,7 +67,7 @@ bool test_nested_requires() {
 constexpr bool can_add_int = requires(int a, int b) { a + b; };
 
 int use_constexpr_requires() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}use_constexpr_requiresv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}use_constexpr_requiresv
   if (can_add_int) {
     return 42;
   }

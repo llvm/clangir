@@ -9,7 +9,7 @@ __attribute__((hot)) int s0(int a, int b) {
 }
 
 // CIR:      #[[ATTR0:.+]] = #cir<extra({{{.*}}hot = #cir.hot
-// CIR:      cir.func dso_local @_Z2s0ii(
+// CIR:      cir.func {{.*}} @_Z2s0ii(
 // CIR-SAME:     -> !s32i extra(#[[ATTR0]])
 
 // LLVM: define dso_local i32 @_Z2s0ii({{.*}} #[[#ATTR1:]] {

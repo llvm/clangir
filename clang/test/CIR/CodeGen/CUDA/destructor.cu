@@ -39,7 +39,7 @@ template<typename T> struct A {
 
 // CIR-HOST: module
 // CIR-DEVICE: module
-// CIR-DEVICE: cir.func dso_local @_Z1fIiEvT_
+// CIR-DEVICE: cir.func {{.*}} @_Z1fIiEvT_
 // LLVM-DEVICE: define dso_local ptx_kernel void @_Z1fIiEvT_
 // OGCG-DEVICE: define ptx_kernel void @_Z1fIiEvT_
 

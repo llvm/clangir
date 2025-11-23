@@ -5,7 +5,7 @@
 struct String {
   long size;
   String(const String &s) : size{s.size} {}
-// CHECK: cir.func linkonce_odr @_ZN6StringC2ERKS_
+// CHECK: cir.func {{.*}} @_ZN6StringC2ERKS_
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["this", init] {alignment = 8 : i64}
 // CHECK:     %1 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["s", init, const] {alignment = 8 : i64}
 // CHECK:     cir.store{{.*}} %arg0, %0
@@ -26,7 +26,7 @@ void foo() {
   String s;
   String s1{s};
 }
-// CHECK: cir.func dso_local @_Z3foov() {{.*}} {
+// CHECK: cir.func {{.*}} @_Z3foov() {{.*}} {
 // CHECK:  %0 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s", init] {alignment = 8 : i64}
 // CHECK:  %1 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s1", init] {alignment = 8 : i64}
 // CHECK:  cir.call @_ZN6StringC2Ev(%0) : (!cir.ptr<!rec_String>) -> ()

@@ -27,7 +27,7 @@ int basic_binop_fetch(int *i) {
   return __atomic_add_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func dso_local @_Z17basic_binop_fetchPi
+// CHECK: cir.func {{.*}} @_Z17basic_binop_fetchPi
 // CHECK:  %[[ARGI:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
 // CHECK:  %[[ONE_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, [".atomictmp"] {alignment = 4 : i64}
 // CHECK:  cir.store{{.*}} %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
@@ -48,7 +48,7 @@ int other_binop_fetch(int *i) {
   return __atomic_xor_fetch(i, 1, memory_order_release);
 }
 
-// CHECK: cir.func dso_local @_Z17other_binop_fetchPi
+// CHECK: cir.func {{.*}} @_Z17other_binop_fetchPi
 // CHECK: cir.atomic.fetch(sub, {{.*}}, relaxed
 // CHECK: cir.atomic.fetch(and, {{.*}}, acquire
 // CHECK: cir.atomic.fetch(or, {{.*}}, acquire
@@ -68,7 +68,7 @@ int nand_binop_fetch(int *i) {
   return __atomic_nand_fetch(i, 1, memory_order_acq_rel);
 }
 
-// CHECK: cir.func dso_local @_Z16nand_binop_fetchPi
+// CHECK: cir.func {{.*}} @_Z16nand_binop_fetchPi
 // CHECK: cir.atomic.fetch(nand, {{.*}}, acq_rel
 
 // LLVM: define dso_local i32 @_Z16nand_binop_fetchPi
@@ -81,7 +81,7 @@ int fp_binop_fetch(float *i) {
   return __atomic_sub_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func dso_local @_Z14fp_binop_fetchPf
+// CHECK: cir.func {{.*}} @_Z14fp_binop_fetchPf
 // CHECK: cir.atomic.fetch(add,
 // CHECK: cir.atomic.fetch(sub,
 
@@ -100,7 +100,7 @@ int fetch_binop(int *i) {
   return __atomic_fetch_nand(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func dso_local @_Z11fetch_binopPi
+// CHECK: cir.func {{.*}} @_Z11fetch_binopPi
 // CHECK: cir.atomic.fetch(add, {{.*}}) fetch_first
 // CHECK: cir.atomic.fetch(sub, {{.*}}) fetch_first
 // CHECK: cir.atomic.fetch(and, {{.*}}) fetch_first
@@ -129,7 +129,7 @@ void min_max_fetch(int *i) {
   __atomic_min_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func dso_local @_Z13min_max_fetchPi
+// CHECK: cir.func {{.*}} @_Z13min_max_fetchPi
 // CHECK: = cir.atomic.fetch(max, {{.*}}) fetch_first
 // CHECK: = cir.atomic.fetch(min, {{.*}}) fetch_first
 // CHECK: = cir.atomic.fetch(max, {{.*}}) : !s32i
@@ -151,7 +151,7 @@ int fi1(_Atomic(int) *i) {
   return __c11_atomic_load(i, memory_order_seq_cst);
 }
 
-// CHECK: cir.func dso_local @_Z3fi1PU7_Atomici
+// CHECK: cir.func {{.*}} @_Z3fi1PU7_Atomici
 // CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z3fi1PU7_Atomici

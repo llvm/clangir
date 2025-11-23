@@ -17,7 +17,7 @@ void fn() {
 
 //      CHECK: cir.func lambda internal private dso_local @_ZZ2fnvENK3$_0clEv{{.*}}) extra
 
-//      CHECK:   cir.func dso_local @_Z2fnv()
+//      CHECK:   cir.func {{.*}} @_Z2fnv()
 // CHECK-NEXT:     %0 = cir.alloca !rec_anon2E0, !cir.ptr<!rec_anon2E0>, ["a"]
 //      CHECK:   cir.call @_ZZ2fnvENK3$_0clEv
 

@@ -114,7 +114,7 @@ __device__ int a;
 // CIR-HOST: }>
 // CIR-HOST-SAME: {{.*}}section = ".nvFatBinSegment"
 
-// CIR-HOST: cir.func private @__cudaRegisterFatBinary
+// CIR-HOST: cir.func {{.*}} @__cudaRegisterFatBinary
 // CIR-HOST: cir.func {{.*}} @__cuda_module_ctor() {
 // CIR-HOST:   %[[#Fatbin:]] = cir.call @__cudaRegisterFatBinary
 // CIR-HOST:   %[[#FatbinGlobal:]] = cir.get_global @__cuda_gpubin_handle

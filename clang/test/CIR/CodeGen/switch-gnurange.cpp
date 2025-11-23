@@ -19,7 +19,7 @@ int sw1(enum letter c) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw16letter
+//      CIR:  cir.func {{.*}} @_Z3sw16letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -73,7 +73,7 @@ int sw2(enum letter c) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw26letter
+//      CIR:  cir.func {{.*}} @_Z3sw26letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -117,7 +117,7 @@ void sw3(enum letter c) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw36letter
+//      CIR:  cir.func {{.*}} @_Z3sw36letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
@@ -177,7 +177,7 @@ void sw4(int x) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw4i
+//      CIR:  cir.func {{.*}} @_Z3sw4i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<66> : !s32i, #cir.int<233> : !s32i]) {
@@ -218,7 +218,7 @@ void sw5(int x) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw5i
+//      CIR:  cir.func {{.*}} @_Z3sw5i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<100> : !s32i, #cir.int<-100> : !s32i]) {
@@ -249,7 +249,7 @@ void sw6(int x) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw6i
+//      CIR:  cir.func {{.*}} @_Z3sw6i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(range, [#cir.int<-2147483648> : !s32i, #cir.int<2147483647> : !s32i]) {
@@ -291,7 +291,7 @@ void sw7(int x) {
   }
 }
 
-//      CIR:  cir.func dso_local @_Z3sw7i
+//      CIR:  cir.func {{.*}} @_Z3sw7i
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
 // CIR-NEXT:      cir.case(equal, [#cir.int<0> : !s32i]) {

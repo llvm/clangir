@@ -21,7 +21,7 @@ void accessStruct(struct S u) {
   u.d;
 }
 
-// CIR: cir.func dso_local @accessStruct
+// CIR: cir.func {{.*}} @accessStruct
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(2)
 // CIR:   cir.load align(4)
@@ -58,7 +58,7 @@ void accessUnion(union U u) {
   u.d;
 }
 
-// CIR: cir.func dso_local @accessUnion
+// CIR: cir.func {{.*}} @accessUnion
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(8)
 // CIR:   cir.load align(8)

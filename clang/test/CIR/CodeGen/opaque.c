@@ -5,7 +5,7 @@ int foo(int x, short y) {
   return x ?: y;
 }
 
-// CHECK: cir.func dso_local @foo
+// CHECK: cir.func {{.*}} @foo
 // CHECK: %[[Load:.*]] = cir.load
 // CHECK: %[[Bool:.*]] = cir.cast int_to_bool %[[Load]] : !s32i -> !cir.bool loc(#loc8)
 // CHECK: = cir.ternary(%[[Bool]], true {

@@ -15,7 +15,7 @@ int global_line = __builtin_LINE();
 #line 15 "clang/test/CIR/CodeGen/source-loc-expr.cpp"
 // Test __builtin_LINE
 int test_builtin_LINE() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_builtin_LINE
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_LINE
   // CIR: %{{.*}} = cir.const #cir.int<25> : !u32i
 
   // LLVM-LABEL: @{{.*}}test_builtin_LINE
@@ -28,7 +28,7 @@ int test_builtin_LINE() {
 
 // Test __builtin_FILE
 const char* test_builtin_FILE() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_builtin_FILE
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_FILE
   // CIR: %{{.*}} = cir.const #cir.global_view<@".str{{.*}}"> : !cir.ptr<!s8i>
 
   // LLVM-LABEL: @{{.*}}test_builtin_FILE
@@ -41,7 +41,7 @@ const char* test_builtin_FILE() {
 
 // Test __builtin_FUNCTION
 const char* test_builtin_FUNCTION() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_builtin_FUNCTION
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_FUNCTION
   // CIR: %{{.*}} = cir.const #cir.global_view<@".str{{.*}}"> : !cir.ptr<!s8i>
 
   // LLVM-LABEL: @{{.*}}test_builtin_FUNCTION
@@ -54,7 +54,7 @@ const char* test_builtin_FUNCTION() {
 
 // Test __builtin_COLUMN
 int test_builtin_COLUMN() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_builtin_COLUMN
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_COLUMN
   // The column number is the position of '__builtin_COLUMN'
   // CIR: %{{.*}} = cir.const #cir.int<10> : !u32i
 
@@ -72,7 +72,7 @@ int get_line(int l = __builtin_LINE()) {
 }
 
 void test_default_arg() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_default_arg
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_default_arg
   // The LINE should be from the call site, not the default argument definition
   #line 111
   int x = get_line();
@@ -89,7 +89,7 @@ void test_default_arg() {
 #line 200 "lambda-test.cpp"
 // Test in lambda (this tests that source location correctly captures context)
 void test_in_lambda() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_in_lambda
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_in_lambda
   auto lambda = []() {
     return __builtin_LINE();
   };
@@ -105,7 +105,7 @@ void test_in_lambda() {
 #line 214 "combined-test.cpp"
 // Test multiple builtins in one expression
 void test_combined() {
-  // CIR-LABEL: cir.func {{.*}}@{{.*}}test_combined
+  // CIR-LABEL: cir.func{{.*}} @{{.*}}test_combined
   const char* file = __builtin_FILE();
   int line = __builtin_LINE();
   const char* func = __builtin_FUNCTION();

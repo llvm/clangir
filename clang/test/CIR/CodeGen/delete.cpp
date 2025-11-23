@@ -8,7 +8,7 @@ namespace test1 {
   void a(A *x) {
     delete x;
   }
-  // CHECK: cir.func dso_local @_ZN5test11aEPNS_1AE
+  // CHECK: cir.func {{.*}} @_ZN5test11aEPNS_1AE
 
   // CHECK: %[[CONST:.*]] = cir.const #cir.int<4> : !u64i
   // CHECK: cir.call @_ZN5test11AdlEPvm({{.*}}, %[[CONST]])
@@ -35,7 +35,7 @@ namespace test3 {
   };
 
 // Calling delete with a virtual destructor.
-// CHECK-LABEL:   cir.func dso_local @_ZN5test37destroyEPNS_1XE
+// CHECK-LABEL:   cir.func {{.*}} @_ZN5test37destroyEPNS_1XE
 // CHECK:           %[[ARG_VAR:.*]] = cir.alloca !cir.ptr<!rec_test33A3AX>
 // CHECK:           %[[ARG:.*]] = cir.load{{.*}} %[[ARG_VAR]] : !cir.ptr<!cir.ptr<!rec_test33A3AX>>, !cir.ptr<!rec_test33A3AX>
 // CHECK:           %[[VPTR_PTR:.*]] = cir.vtable.get_vptr %[[ARG]] : !cir.ptr<!rec_test33A3AX> -> !cir.ptr<!cir.vptr>

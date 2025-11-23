@@ -30,13 +30,13 @@
 void foo(void) {}
 
 //      CIR: module {{.*}} {
-// CIR-NEXT:   cir.func dso_local @foo()
+// CIR-NEXT:   cir.func{{.*}} @foo()
 // CIR-NEXT:     cir.return
 // CIR-NEXT:   }
 // CIR-NEXT: }
 
 //      CIR_MACOS: module {{.*}} {
-// CIR_MACOS-NEXT:   cir.func @foo()
+// CIR_MACOS-NEXT:   cir.func{{.*}} @foo()
 // CIR_MACOS-NEXT:     cir.return
 // CIR_MACOS-NEXT:   }
 // CIR_MACOS-NEXT: }

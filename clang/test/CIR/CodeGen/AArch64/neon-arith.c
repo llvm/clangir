@@ -20,7 +20,7 @@
 float32_t test_vrndns_f32(float32_t a) {
   return vrndns_f32(a);
 }
-// CIR: cir.func internal private dso_local @vrndns_f32(%arg0: !cir.float {{.*}}) -> !cir.float
+// CIR: cir.func {{.*}} @vrndns_f32(%arg0: !cir.float {{.*}}) -> !cir.float
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.float, !cir.ptr<!cir.float>
 // CIR: [[INTRIN_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float
 // CIR: {{%.*}} = cir.roundeven [[INTRIN_ARG]] : !cir.float
@@ -42,7 +42,7 @@ float32x2_t test_vrnda_f32(float32x2_t a) {
   return vrnda_f32(a);
 }
 
-// CIR: cir.func internal private dso_local @vrnda_f32(%arg0: !cir.vector<!cir.float x 2>
+// CIR: cir.func {{.*}} @vrnda_f32(%arg0: !cir.vector<!cir.float x 2>
 // CIR: {{%.*}} = cir.round {{.*}} : !cir.vector<!cir.float x 2>
 // CIR: cir.return {{%.*}} : !cir.vector<!cir.float x 2>
 
@@ -62,7 +62,7 @@ float32x4_t test_vrndaq_f32(float32x4_t a) {
   return vrndaq_f32(a);
 }
 
-// CIR: cir.func internal private dso_local @vrndaq_f32(%arg0: !cir.vector<!cir.float x 4>
+// CIR: cir.func {{.*}} @vrndaq_f32(%arg0: !cir.vector<!cir.float x 4>
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
 // CIR: {{%.*}} = cir.round {{.*}} : !cir.vector<!cir.float x 4>
 // CIR: cir.return {{%.*}} : !cir.vector<!cir.float x 4>

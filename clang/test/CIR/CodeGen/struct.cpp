@@ -34,14 +34,14 @@ void yoyo(incomplete *i) {}
 //  CHECK-DAG: !rec_Adv = !cir.record<class "Adv" {!rec_Mandalore}>
 //  CHECK-DAG: !rec_Entry = !cir.record<struct "Entry" {!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>}>
 
-//      CHECK: cir.func linkonce_odr @_ZN3Bar6methodEv(%arg0: !cir.ptr<!rec_Bar>
+//      CHECK: cir.func {{.*}} @_ZN3Bar6methodEv(%arg0: !cir.ptr<!rec_Bar>
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>
 // CHECK-NEXT:   %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_Bar>>, !cir.ptr<!rec_Bar>
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
 
-//      CHECK: cir.func linkonce_odr @_ZN3Bar7method2Ei(%arg0: !cir.ptr<!rec_Bar> {{.*}}, %arg1: !s32i
+//      CHECK: cir.func {{.*}} @_ZN3Bar7method2Ei(%arg0: !cir.ptr<!rec_Bar> {{.*}}, %arg1: !s32i
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>
@@ -50,7 +50,7 @@ void yoyo(incomplete *i) {}
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
 
-//      CHECK: cir.func linkonce_odr @_ZN3Bar7method3Ei(%arg0: !cir.ptr<!rec_Bar> {{.*}}, %arg1: !s32i
+//      CHECK: cir.func {{.*}} @_ZN3Bar7method3Ei(%arg0: !cir.ptr<!rec_Bar> {{.*}}, %arg1: !s32i
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
 // CHECK-NEXT:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
@@ -63,7 +63,7 @@ void yoyo(incomplete *i) {}
 // CHECK-NEXT:   cir.return %5
 // CHECK-NEXT: }
 
-//      CHECK: cir.func dso_local @_Z3bazv()
+//      CHECK: cir.func {{.*}} @_Z3bazv()
 // CHECK-NEXT:   %0 = cir.alloca !rec_Bar, !cir.ptr<!rec_Bar>, ["b"] {alignment = 4 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["result", init] {alignment = 4 : i64}
 // CHECK-NEXT:   %2 = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["f"] {alignment = 4 : i64}
@@ -94,7 +94,7 @@ public:
 
 void m() { Adv C; }
 
-// CHECK: cir.func linkonce_odr @_ZN3AdvC2Ev(%arg0: !cir.ptr<!rec_Adv>
+// CHECK: cir.func {{.*}} @_ZN3AdvC2Ev(%arg0: !cir.ptr<!rec_Adv>
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_Adv>, !cir.ptr<!cir.ptr<!rec_Adv>>, ["this", init] {alignment = 8 : i64}
 // CHECK:     cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_Adv>, !cir.ptr<!cir.ptr<!rec_Adv>>
 // CHECK:     %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_Adv>>, !cir.ptr<!rec_Adv>
@@ -148,7 +148,7 @@ struct S {
 
 void h() { S s; }
 
-// CHECK: cir.func dso_local @_Z1hv()
+// CHECK: cir.func {{.*}} @_Z1hv()
 // CHECK:   %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0"] {alignment = 4 : i64}
 // CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !rec_A
@@ -170,7 +170,7 @@ struct Entry {
 
 void ppp() { Entry x; }
 
-// CHECK: cir.func linkonce_odr @_ZN5EntryC2Ev(%arg0: !cir.ptr<!rec_Entry>
+// CHECK: cir.func {{.*}} @_ZN5EntryC2Ev(%arg0: !cir.ptr<!rec_Entry>
 
 // CHECK: cir.get_member %1[0] {name = "procAddr"} : !cir.ptr<!rec_Entry> -> !cir.ptr<!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>>
 

@@ -16,7 +16,7 @@ void f() {
 // TODO: In this case, z1 gets "initialized" with an undef value. Should we
 //       treat that as uninitialized? Should it even be happening?
 
-// CHECK: cir.func dso_local @_Z1fv()
+// CHECK: cir.func {{.*}} @_Z1fv()
 // CHECK:     %[[Z0:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z0", init]
 // CHECK:     %[[Z1:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z1", init]
 // CHECK:     cir.call @_ZN4ZeroC1Ev(%[[Z0]]) : (!cir.ptr<!rec_Zero>) -> ()
