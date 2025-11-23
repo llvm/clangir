@@ -1770,6 +1770,9 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
     // will fill in later.)
     if (!field->isBitField() &&
         !isEmptyFieldForLayout(CGM.getASTContext(), field)) {
+      // Check if field exists in layout (could be missing due to EBO).
+      if (!layout.containsFieldDecl(field))
+        continue;
       unsigned fieldIndex = layout.getCIRFieldNo(field);
       elements[fieldIndex] = CGM.emitNullConstant(field->getType());
     }

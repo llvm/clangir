@@ -89,9 +89,8 @@ static Address emitAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
   // address.
   const RecordDecl *rec = field->getParent();
   auto &layout = CGF.CGM.getTypes().getCIRGenRecordLayout(rec);
-  unsigned idx = layout.getCIRFieldNo(field);
   auto offset = CharUnits::fromQuantity(layout.getCIRType().getElementOffset(
-      CGF.CGM.getDataLayout().layout, idx));
+      CGF.CGM.getDataLayout().layout, fieldIndex));
   auto addr =
       Address(memberAddr, Base.getAlignment().alignmentAtOffset(offset));
   return addr;
@@ -390,6 +389,15 @@ LValue CIRGenFunction::emitLValueForField(LValue base, const FieldDecl *field) {
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
       auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
+
+      // Check if the field exists in the record layout. This could fail if
+      // the field has a struct type that's empty and subject to Empty Base
+      // Optimization (EBO), such as with std::tuple<T*, EmptyDeleter>.
+      if (!layout.containsFieldDecl(field))
+        // Field doesn't exist in the CIR record layout (e.g., EBO case).
+        // Use the AST field index as a fallback.
+        return makeAddrLValue(addr, FieldType, FieldBaseInfo, FieldTBAAInfo);
+
       unsigned fieldIndex = layout.getCIRFieldNo(field);
 
       if (CGM.LambdaFieldToName.count(field))
@@ -442,6 +450,21 @@ LValue CIRGenFunction::emitLValueForFieldInitialization(
     return emitLValueForField(Base, Field);
 
   auto &layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
+
+  // Check if the field exists in the record layout. This could fail if
+  // the field has a struct type that's empty and subject to Empty Base
+  // Optimization (EBO).
+  if (!layout.containsFieldDecl(Field)) {
+    // Field doesn't exist in the CIR record layout (e.g., EBO case).
+    // For reference fields that don't exist in the layout, we can't
+    // initialize them through the normal path. Return the base address.
+    LValueBaseInfo BaseInfo = Base.getBaseInfo();
+    AlignmentSource FieldAlignSource = BaseInfo.getAlignmentSource();
+    LValueBaseInfo FieldBaseInfo(getFieldAlignmentSource(FieldAlignSource));
+    return makeAddrLValue(Base.getAddress(), FieldType, FieldBaseInfo,
+                          CGM.getTBAAInfoForSubobject(Base, FieldType));
+  }
+
   unsigned FieldIndex = layout.getCIRFieldNo(Field);
 
   Address V = emitAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName,
