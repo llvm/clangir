@@ -577,6 +577,15 @@ static CIRGenCallee emitDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
       return CIRGenCallee::forBuiltin(builtinID, FD);
   }
 
+  // Handle ifunc specially - get the IFuncOp directly
+  if (FD->hasAttr<IFuncAttr>()) {
+    llvm::StringRef mangledName = CGM.getMangledName(GD);
+    mlir::Operation *ifuncOp = CGM.getGlobalValue(mangledName);
+    assert(ifuncOp && isa<cir::IFuncOp>(ifuncOp) &&
+           "Expected IFuncOp for ifunc");
+    return CIRGenCallee::forDirect(ifuncOp, GD);
+  }
+
   mlir::Operation *CalleePtr = emitFunctionDeclPointer(CGM, GD);
 
   if ((CGM.getLangOpts().HIP || CGM.getLangOpts().CUDA) &&

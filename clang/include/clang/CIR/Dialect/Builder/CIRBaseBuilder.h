@@ -763,6 +763,16 @@ public:
                         callingConv, sideEffect, extraFnAttr);
   }
 
+  cir::CallOp createCallOp(mlir::Location loc, cir::IFuncOp callee,
+                           mlir::ValueRange operands = mlir::ValueRange(),
+                           cir::CallingConv callingConv = cir::CallingConv::C,
+                           cir::SideEffect sideEffect = cir::SideEffect::All,
+                           cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
+    return createCallOp(loc, mlir::SymbolRefAttr::get(callee),
+                        callee.getFunctionType().getReturnType(), operands,
+                        callingConv, sideEffect, extraFnAttr);
+  }
+
   cir::CallOp
   createIndirectCallOp(mlir::Location loc, mlir::Value ind_target,
                        cir::FuncType fn_type,
@@ -810,6 +820,17 @@ public:
 
   cir::CallOp
   createTryCallOp(mlir::Location loc, cir::FuncOp callee,
+                  mlir::ValueRange operands,
+                  cir::CallingConv callingConv = cir::CallingConv::C,
+                  cir::SideEffect sideEffect = cir::SideEffect::All,
+                  cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
+    return createTryCallOp(loc, mlir::SymbolRefAttr::get(callee),
+                           callee.getFunctionType().getReturnType(), operands,
+                           callingConv, sideEffect, extraFnAttr);
+  }
+
+  cir::CallOp
+  createTryCallOp(mlir::Location loc, cir::IFuncOp callee,
                   mlir::ValueRange operands,
                   cir::CallingConv callingConv = cir::CallingConv::C,
                   cir::SideEffect sideEffect = cir::SideEffect::All,

@@ -600,7 +600,10 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
 
   const auto *global = cast<ValueDecl>(gd.getDecl());
 
-  assert(!global->hasAttr<IFuncAttr>() && "NYI");
+  // IFunc like an alias whose value is resolved at runtime by calling resolver.
+  if (global->hasAttr<IFuncAttr>())
+    return emitIFuncDefinition(gd);
+
   assert(!global->hasAttr<CPUDispatchAttr>() && "NYI");
 
   if (langOpts.CUDA || langOpts.HIP) {
@@ -722,6 +725,77 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
     // use of the mangled name will cause it to move into DeferredDeclsToEmit.
     DeferredDecls[mangledName] = gd;
   }
+}
+
+void CIRGenModule::emitIFuncDefinition(GlobalDecl globalDecl) {
+  const auto *d = cast<FunctionDecl>(globalDecl.getDecl());
+  const IFuncAttr *ifa = d->getAttr<IFuncAttr>();
+  assert(ifa && "Not an ifunc?");
+
+  llvm::StringRef mangledName = getMangledName(globalDecl);
+
+  if (ifa->getResolver() == mangledName) {
+    getDiags().Report(ifa->getLocation(), diag::err_cyclic_alias) << 1;
+    return;
+  }
+
+  // Get function type for the ifunc.
+  mlir::Type declTy = getTypes().convertTypeForMem(d->getType());
+  auto funcTy = mlir::dyn_cast<cir::FuncType>(declTy);
+  assert(funcTy && "IFunc must have function type");
+
+  // The resolver might not be visited yet. Create a forward declaration for it.
+  mlir::Type resolverRetTy = builder.getPointerTo(funcTy);
+  auto resolverFuncTy =
+      cir::FuncType::get(llvm::ArrayRef<mlir::Type>{}, resolverRetTy);
+
+  // Ensure the resolver function is created.
+  GetOrCreateCIRFunction(ifa->getResolver(), resolverFuncTy, GlobalDecl(),
+                         /*ForVTable=*/false);
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(theModule.getBody());
+
+  // Report an error if some definition overrides ifunc.
+  mlir::Operation *entry = getGlobalValue(mangledName);
+  if (entry) {
+    // Check if this is a non-declaration (an actual definition).
+    bool isDeclaration = false;
+    if (auto func = mlir::dyn_cast<cir::FuncOp>(entry))
+      isDeclaration = func.isDeclaration();
+
+    if (!isDeclaration) {
+      GlobalDecl otherGd;
+      if (lookupRepresentativeDecl(mangledName, otherGd) &&
+          DiagnosedConflictingDefinitions.insert(globalDecl).second) {
+        getDiags().Report(d->getLocation(), diag::err_duplicate_mangled_name)
+            << mangledName;
+        getDiags().Report(otherGd.getDecl()->getLocation(),
+                          diag::note_previous_definition);
+      }
+      return;
+    }
+
+    // This is just a forward declaration, remove it.
+    if (auto func = mlir::dyn_cast<cir::FuncOp>(entry)) {
+      func.erase();
+    }
+  }
+
+  // Get linkage
+  GVALinkage linkage = astContext.GetGVALinkageForFunction(d);
+  cir::GlobalLinkageKind cirLinkage =
+      getCIRLinkageForDeclarator(d, linkage, /*IsConstantVariable=*/false);
+
+  // Get visibility
+  cir::VisibilityAttr visibilityAttr = getGlobalVisibilityAttrFromDecl(d);
+  cir::VisibilityKind visibilityKind = visibilityAttr.getValue();
+
+  auto ifuncOp = builder.create<cir::IFuncOp>(
+      theModule.getLoc(), mangledName, visibilityKind, funcTy,
+      ifa->getResolver(), cirLinkage, /*sym_visibility=*/mlir::StringAttr{});
+
+  setCommonAttributes(globalDecl, ifuncOp);
 }
 
 void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl gd,
@@ -2482,6 +2556,10 @@ void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
       // Replace type
       getGlobalOp.getAddr().setType(
           cir::PointerType::get(newFn.getFunctionType()));
+    } else if (auto ifuncOp = dyn_cast<cir::IFuncOp>(use.getUser())) {
+      // IFuncOp references the resolver function by symbol.
+      // The symbol reference doesn't need updating - it's name-based.
+      // The resolver's signature is validated when the IFuncOp is created.
     } else {
       llvm_unreachable("NIY");
     }
@@ -3292,6 +3370,11 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // Lookup the entry, lazily creating it if necessary.
   mlir::Operation *entry = getGlobalValue(mangledName);
   if (entry) {
+    // If this is an ifunc, we can't create a FuncOp for it. Just return nullptr
+    // and let the caller handle calling through the ifunc.
+    if (isa<cir::IFuncOp>(entry))
+      return nullptr;
+
     assert(isa<cir::FuncOp>(entry) &&
            "not implemented, only supports FuncOp for now");
 
