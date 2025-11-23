@@ -104,3 +104,10 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
 
   return E->getAllocatedType().isDestructedType();
 }
+
+void CIRGenCXXABI::EmitReturnFromThunk(CIRGenFunction &CGF, RValue RV,
+                                       QualType ResultType) {
+  // Default implementation: just emit a normal return
+  auto loc = CGF.getBuilder().getUnknownLoc();
+  CGF.emitReturnOfRValue(loc, RV, ResultType);
+}

@@ -243,6 +243,15 @@ public:
   }
 
   bool exportThunk() override { return true; }
+
+  mlir::Value performThisAdjustment(CIRGenFunction &CGF, Address This,
+                                    const CXXRecordDecl *UnadjustedClass,
+                                    const ThunkInfo &TI) override;
+
+  mlir::Value performReturnAdjustment(CIRGenFunction &CGF, Address Ret,
+                                      const CXXRecordDecl *UnadjustedClass,
+                                      const ReturnAdjustment &RA) override;
+
   mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                           QualType Ty) override;
   bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,
@@ -2146,6 +2155,84 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
 mlir::Attribute CIRGenItaniumCXXABI::getAddrOfRTTIDescriptor(mlir::Location loc,
                                                              QualType Ty) {
   return CIRGenItaniumRTTIBuilder(*this, CGM).BuildTypeInfo(loc, Ty);
+}
+
+mlir::Value
+CIRGenItaniumCXXABI::performThisAdjustment(CIRGenFunction &CGF, Address This,
+                                           const CXXRecordDecl *UnadjustedClass,
+                                           const ThunkInfo &TI) {
+  // Handle trivial case: no adjustment needed
+  if (!TI.This.NonVirtual && !TI.This.Virtual.Itanium.VCallOffsetOffset)
+    return This.getPointer();
+
+  auto &builder = CGF.getBuilder();
+  auto loc = builder.getUnknownLoc();
+  mlir::Value V = This.getPointer();
+
+  // Apply non-virtual adjustment first (for base-to-derived cast)
+  if (TI.This.NonVirtual) {
+    // Cast to i8* for byte-level pointer arithmetic
+    auto i8PtrTy = builder.getUInt8PtrTy();
+    V = builder.createBitcast(V, i8PtrTy);
+
+    // Create offset constant (NonVirtual is in bytes)
+    auto offsetConst = builder.getSInt64(TI.This.NonVirtual, loc);
+
+    // Perform pointer arithmetic: this_ptr + offset
+    V = builder.create<cir::PtrStrideOp>(loc, i8PtrTy, V, offsetConst);
+
+    // Cast back to original pointer type
+    V = builder.createBitcast(V, This.getType());
+  }
+
+  // Virtual adjustment (vcall offset lookup from vtable)
+  if (TI.This.Virtual.Itanium.VCallOffsetOffset) {
+    // TODO: Implement virtual adjustment - requires GetVTablePtr equivalent
+    llvm_unreachable(
+        "Virtual this adjustment NYI - requires vtable offset lookup");
+  }
+
+  return V;
+}
+
+mlir::Value CIRGenItaniumCXXABI::performReturnAdjustment(
+    CIRGenFunction &CGF, Address Ret, const CXXRecordDecl *UnadjustedClass,
+    const ReturnAdjustment &RA) {
+  // Handle trivial case: no adjustment needed
+  if (!RA.NonVirtual && !RA.Virtual.Itanium.VBaseOffsetOffset)
+    return Ret.getPointer();
+
+  auto &builder = CGF.getBuilder();
+  auto loc = builder.getUnknownLoc();
+  mlir::Value V = Ret.getPointer();
+
+  // For return adjustment, virtual adjustment is applied first,
+  // then non-virtual (opposite order from this adjustment)
+
+  // Virtual adjustment
+  if (RA.Virtual.Itanium.VBaseOffsetOffset) {
+    // TODO: Implement virtual return adjustment
+    llvm_unreachable(
+        "Virtual return adjustment NYI - requires vtable offset lookup");
+  }
+
+  // Apply non-virtual adjustment second (for derived-to-base cast)
+  if (RA.NonVirtual) {
+    // Cast to i8* for byte-level pointer arithmetic
+    auto i8PtrTy = builder.getUInt8PtrTy();
+    V = builder.createBitcast(V, i8PtrTy);
+
+    // Create offset constant
+    auto offsetConst = builder.getSInt64(RA.NonVirtual, loc);
+
+    // Perform pointer arithmetic
+    V = builder.create<cir::PtrStrideOp>(loc, i8PtrTy, V, offsetConst);
+
+    // Cast back to original pointer type
+    V = builder.createBitcast(V, Ret.getType());
+  }
+
+  return V;
 }
 
 void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,

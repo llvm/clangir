@@ -234,6 +234,24 @@ public:
   virtual void setThunkLinkage(cir::FuncOp Thunk, bool ForVTable, GlobalDecl GD,
                                bool ReturnAdjustment) = 0;
 
+  /// Perform adjustment on the this pointer for a thunk.
+  /// Returns the adjusted this pointer value.
+  virtual mlir::Value
+  performThisAdjustment(CIRGenFunction &CGF, Address This,
+                        const CXXRecordDecl *UnadjustedClass,
+                        const ThunkInfo &TI) = 0;
+
+  /// Perform adjustment on a return pointer for a thunk (covariant returns).
+  /// Returns the adjusted return pointer value.
+  virtual mlir::Value
+  performReturnAdjustment(CIRGenFunction &CGF, Address Ret,
+                          const CXXRecordDecl *UnadjustedClass,
+                          const ReturnAdjustment &RA) = 0;
+
+  /// Emit a return from a thunk.
+  virtual void EmitReturnFromThunk(CIRGenFunction &CGF, RValue RV,
+                                   QualType ResultType);
+
   virtual mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                                   QualType Ty) = 0;
   virtual CatchTypeInfo
