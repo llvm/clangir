@@ -17,7 +17,7 @@ void test() {
   String s3{"abcdefghijklmnop"};
 }
 
-//      CHECK: cir.func linkonce_odr @_ZN6StringC2Ev
+//      CHECK: cir.func {{.*}} @_ZN6StringC2Ev
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_String>
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0
 // CHECK-NEXT:   %1 = cir.load{{.*}} %0
@@ -30,7 +30,7 @@ void test() {
 // CHECK-NEXT:   cir.store{{.*}} %6, %4 : !s64i, !cir.ptr<!s64i>
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
-//      CHECK: cir.func linkonce_odr @_ZN6StringC2Ei
+//      CHECK: cir.func {{.*}} @_ZN6StringC2Ei
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_String>
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["size", init]
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0
@@ -46,7 +46,7 @@ void test() {
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
 
-//      CHECK: cir.func linkonce_odr @_ZN6StringC2EPKc
+//      CHECK: cir.func {{.*}} @_ZN6StringC2EPKc
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["s", init] {alignment = 8 : i64}
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>
@@ -57,7 +57,7 @@ void test() {
 // CHECK-NEXT:   cir.store{{.*}} %4, %3 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CHECK-NEXT:   cir.return
 
-//      CHECK: cir.func linkonce_odr @_ZN6StringC1EPKc
+//      CHECK: cir.func {{.*}} @_ZN6StringC1EPKc
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["s", init] {alignment = 8 : i64}
 // CHECK-NEXT:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>
@@ -67,7 +67,7 @@ void test() {
 // CHECK-NEXT:   cir.call @_ZN6StringC2EPKc(%2, %3) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
 // CHECK-NEXT:   cir.return
 
-// CHECK: cir.func dso_local @_Z4testv()
+// CHECK: cir.func {{.*}} @_Z4testv()
 // CHECK:   cir.call @_ZN6StringC1Ev(%0) : (!cir.ptr<!rec_String>) -> ()
 // CHECK:   cir.call @_ZN6StringC1Ei(%1, %3) : (!cir.ptr<!rec_String>, !s32i) -> ()
 // CHECK:   cir.call @_ZN6StringC1EPKc(%2, %5) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()

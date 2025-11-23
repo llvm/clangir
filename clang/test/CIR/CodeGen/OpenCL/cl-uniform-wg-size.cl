@@ -26,11 +26,11 @@
 // CIR-NOT: cl.uniform_work_group_size
 
 kernel void ker() {};
-// CIR: cir.func @ker{{.*}} extra(#fn_attr) {
+// CIR: cir.func{{.*}} @ker{{.*}} extra(#fn_attr)
 // LLVM: define{{.*}}@ker() #0
 
 void foo() {};
-// CIR: cir.func @foo{{.*}} extra(#fn_attr1) {
+// CIR: cir.func{{.*}} @foo{{.*}} extra(#fn_attr1)
 // LLVM: define{{.*}}@foo() #1
 
 // LLVM-LABEL: attributes #0

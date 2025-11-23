@@ -5,7 +5,7 @@ void a0() {
   int a[10];
 }
 
-// CHECK: cir.func dso_local @_Z2a0v()
+// CHECK: cir.func {{.*}} @_Z2a0v()
 // CHECK-NEXT:   %0 = cir.alloca !cir.array<!s32i x 10>, !cir.ptr<!cir.array<!s32i x 10>>, ["a"] {alignment = 16 : i64}
 
 void a1() {
@@ -13,7 +13,7 @@ void a1() {
   a[0] = 1;
 }
 
-// CHECK: cir.func dso_local @_Z2a1v()
+// CHECK: cir.func {{.*}} @_Z2a1v()
 // CHECK-NEXT:  %0 = cir.alloca !cir.array<!s32i x 10>, !cir.ptr<!cir.array<!s32i x 10>>, ["a"] {alignment = 16 : i64}
 // CHECK-NEXT:  %1 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:  %2 = cir.const #cir.int<0> : !s32i
@@ -25,7 +25,7 @@ int *a2() {
   return &a[0];
 }
 
-// CHECK: cir.func dso_local @_Z2a2v() -> !cir.ptr<!s32i>
+// CHECK: cir.func {{.*}} @_Z2a2v() -> !cir.ptr<!s32i>
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["__retval"] {alignment = 8 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !cir.array<!s32i x 4>, !cir.ptr<!cir.array<!s32i x 4>>, ["a"] {alignment = 16 : i64}
 // CHECK-NEXT:   %2 = cir.const #cir.int<0> : !s32i
@@ -39,7 +39,7 @@ void local_stringlit() {
 }
 
 // CHECK: cir.global "private" constant cir_private dso_local @".str" = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8> {alignment = 1 : i64}
-// CHECK: cir.func dso_local @_Z15local_stringlitv()
+// CHECK: cir.func {{.*}} @_Z15local_stringlitv()
 // CHECK-NEXT:  %0 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["s", init] {alignment = 8 : i64}
 // CHECK-NEXT:  %1 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 8>>
 // CHECK-NEXT:  %2 = cir.cast array_to_ptrdecay %1 : !cir.ptr<!cir.array<!s8i x 8>> -> !cir.ptr<!s8i>
@@ -69,7 +69,7 @@ struct S {
 // CHECK: cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_S, #cir.zero : !rec_S, #cir.zero : !rec_S]> : !cir.array<!rec_S x 3>
 
 void testPointerDecaySubscriptAccess(int arr[]) {
-// CHECK: cir.func dso_local @{{.+}}testPointerDecaySubscriptAccess
+// CHECK: cir.func {{.*}} @{{.+}}testPointerDecaySubscriptAccess
   arr[1] = 2;
   // CHECK: %[[#TWO:]] = cir.const #cir.int<2> : !s32i
   // CHECK: %[[#BASE:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
@@ -79,7 +79,7 @@ void testPointerDecaySubscriptAccess(int arr[]) {
 }
 
 void testPointerDecayedArrayMultiDimSubscriptAccess(int arr[][3]) {
-// CHECK: cir.func dso_local @{{.+}}testPointerDecayedArrayMultiDimSubscriptAccess
+// CHECK: cir.func {{.*}} @{{.+}}testPointerDecayedArrayMultiDimSubscriptAccess
   arr[1][2] = 3;
   // CHECK: %[[#THREE:]] = cir.const #cir.int<3> : !s32i
   // CHECK: %[[#ARRAY:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 3>>>, !cir.ptr<!cir.array<!s32i x 3>>

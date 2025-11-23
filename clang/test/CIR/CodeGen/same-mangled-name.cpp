@@ -5,11 +5,11 @@
 // definition" error: https://github.com/llvm/clangir/issues/991.
 namespace N {
 struct S {
-  // CHECK: cir.func linkonce_odr @_ZN1N1S3fooEv({{.*}} {
+  // CHECK: cir.func {{.*}} @_ZN1N1S3fooEv({{.*}} {
   void foo() {}
 };
 
-// CHECK: cir.func dso_local @_ZN1N1fEv() {{.*}} {
+// CHECK: cir.func {{.*}} @_ZN1N1fEv() {{.*}} {
 // CHECK:   cir.call @_ZN1N1S3fooEv(
 void f() { S().foo(); }
 } // namespace N

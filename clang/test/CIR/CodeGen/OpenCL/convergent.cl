@@ -14,7 +14,7 @@ void non_convfun(void) {
   volatile int* p;
   *p = 0;
 }
-// CIR: cir.func @non_convfun(){{.*}} extra(#fn_attr[[CONV_NOINLINE_ATTR]])
+// CIR: cir.func{{.*}} @non_convfun(){{.*}} extra(#fn_attr[[CONV_NOINLINE_ATTR]])
 // LLVM: define{{.*}} spir_func void @non_convfun() local_unnamed_addr #[[NON_CONV_ATTR:[0-9]+]]
 // LLVM: ret void
 
@@ -36,7 +36,7 @@ void test_merge_if(int a) {
     g();
   }
 }
-// CIR: cir.func @test_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.*}} @test_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
 
 // The LLVM IR below is equivalent to:
 //    if (a) {
@@ -80,7 +80,7 @@ void test_no_merge_if(int a) {
     g();
   }
 }
-// CIR: cir.func @test_no_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.*}} @test_no_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
 
 // LLVM-LABEL: define{{.*}} spir_func void @test_no_merge_if
 // LLVM:         %[[tobool:.+]] = icmp eq i32 %[[ARG:.+]], 0

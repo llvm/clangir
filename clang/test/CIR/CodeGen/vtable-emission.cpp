@@ -27,4 +27,4 @@ void S::key() {}
 // LLVM-SAME: (i8, ptr @_ZTV1S, i64 16) }, align 8
 
 // The reference from the vtable should result in nonKey being emitted.
-// CHECK: cir.func linkonce_odr @_ZN1S6nonKeyEv({{.*}} {
+// CHECK: cir.func {{.*}} @_ZN1S6nonKeyEv({{.*}} {

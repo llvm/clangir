@@ -2,7 +2,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -O2 -fclangir -emit-llvm %s -o - | FileCheck %s --check-prefix=LLVM
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -O2 -emit-llvm %s -o - | FileCheck %s --check-prefix=LLVM
 
-// CIR-LABEL: cir.func dso_local @_Z4testv() -> !cir.bool
+// CIR-LABEL: cir.func {{.*}} @_Z4testv() -> !cir.bool
 // CIR:       %[[RETVAL:.+]] = cir.alloca !cir.bool
 // CIR:       %[[CONST_TRUE:.+]] = cir.const #true
 // CIR:       cir.store %[[CONST_TRUE]], %[[RETVAL]]

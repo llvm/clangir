@@ -11,7 +11,7 @@ struct String {
   String(char const *s) : size{strlen(s)}, capacity{size} {}
   // StringView::StringView(String const&)
   //
-  // CHECK: cir.func linkonce_odr @_ZN10StringViewC2ERK6String
+  // CHECK: cir.func {{.*}} @_ZN10StringViewC2ERK6String
   // CHECK:   %0 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["this", init] {alignment = 8 : i64}
   // CHECK:   %1 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["s", init, const] {alignment = 8 : i64}
   // CHECK:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_StringView>
@@ -39,7 +39,7 @@ struct String {
 
   // StringView::operator=(StringView&&)
   //
-  // CHECK: cir.func linkonce_odr @_ZN10StringViewaSEOS_
+  // CHECK: cir.func {{.*}} @_ZN10StringViewaSEOS_
   // CHECK-SAME:                  special_member<#cir.cxx_assign<!rec_StringView, move>>
   // CHECK:   %0 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["this", init] {alignment = 8 : i64}
   // CHECK:   %1 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["", init, const] {alignment = 8 : i64}
@@ -73,7 +73,7 @@ int main() {
   }
 }
 
-// CHECK: cir.func dso_local @main() -> !s32i
+// CHECK: cir.func {{.*}} @main() -> !s32i
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK:     %1 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["sv", init] {alignment = 8 : i64}
 // CHECK:     cir.call @_ZN10StringViewC2Ev(%1) : (!cir.ptr<!rec_StringView>) -> ()
@@ -108,7 +108,7 @@ struct ContainsNonTrivial {
   ContainsNonTrivial &operator=(const ContainsNonTrivial &);
 };
 
-// CHECK-LABEL: cir.func dso_local @_ZN18ContainsNonTrivialaSERKS_(
+// CHECK-LABEL: cir.func {{.*}} @_ZN18ContainsNonTrivialaSERKS_(
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsNonTrivial, copy>>
 // CHECK-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
 // CHECK-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
@@ -156,7 +156,7 @@ struct Trivial {
   int l[3];
 };
 
-// CHECK-LABEL: cir.func linkonce_odr @_ZN7TrivialaSERKS_(
+// CHECK-LABEL: cir.func {{.*}} @_ZN7TrivialaSERKS_(
 // CHECK-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_Trivial>
 // CHECK-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_Trivial>
 // CHECK-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.ptr<!rec_Trivial>
@@ -177,7 +177,7 @@ struct Trivial {
 // CHECK-NEXT:  }
 
 // We should explicitly call operator= even for trivial types.
-// CHECK-LABEL: cir.func dso_local @_Z11copyTrivialR7TrivialS0_(
+// CHECK-LABEL: cir.func {{.*}} @_Z11copyTrivialR7TrivialS0_(
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
 void copyTrivial(Trivial &a, Trivial &b) {
   a = b;
@@ -190,7 +190,7 @@ struct ContainsTrivial {
 };
 
 // We should explicitly call operator= even for trivial types.
-// CHECK-LABEL: cir.func dso_local @_ZN15ContainsTrivialaSERKS_(
+// CHECK-LABEL: cir.func {{.*}} @_ZN15ContainsTrivialaSERKS_(
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsTrivial, copy>>
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
@@ -202,7 +202,7 @@ struct ContainsTrivialArray {
 };
 
 // We should be calling operator= here but don't currently.
-// CHECK-LABEL: cir.func dso_local @_ZN20ContainsTrivialArrayaSERKS_(
+// CHECK-LABEL: cir.func {{.*}} @_ZN20ContainsTrivialArrayaSERKS_(
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsTrivialArray, copy>>
 // CHECK:         %[[#THIS_LOAD:]] = cir.load{{.*}} deref %[[#]]
 // CHECK-NEXT:    %[[#THIS_ARR:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "arr"}

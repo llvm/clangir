@@ -17,12 +17,12 @@ void test() {
 
 // CIR: [[INITLIST_TYPE:!.*]] = !cir.record<class "std::initializer_list<int>" {!cir.ptr<!s32i>, !u64i}>
 
-// CIR: cir.func linkonce_odr @_ZSt1fIiEvSt16initializer_listIT_E(%arg0: [[INITLIST_TYPE]]
+// CIR: cir.func {{.*}} @_ZSt1fIiEvSt16initializer_listIT_E(%arg0: [[INITLIST_TYPE]]
 // CIR: [[REG0:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: cir.store{{.*}} %arg0, [[REG0]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>
 // CIR: cir.return
 
-// CIR: cir.func dso_local @_ZSt4testv()
+// CIR: cir.func {{.*}} @_ZSt4testv()
 // CIR: cir.scope {
 // CIR: [[LIST_PTR:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: [[ARRAY:%.*]] = cir.alloca !cir.array<!s32i x 1>, !cir.ptr<!cir.array<!s32i x 1>>,

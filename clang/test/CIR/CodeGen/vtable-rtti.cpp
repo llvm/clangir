@@ -37,8 +37,8 @@ public:
 // B ctor => @B::B()
 // Calls @A::A() and initialize __vptr with address of B's vtable.
 //
-// CHECK: cir.func linkonce_odr @_ZN1BC2Ev(%arg0: !cir.ptr<![[ClassB]]>
-// RTTI_DISABLED: cir.func linkonce_odr @_ZN1BC2Ev(%arg0: !cir.ptr<![[ClassB]]>
+// CHECK: cir.func {{.*}} @_ZN1BC2Ev(%arg0: !cir.ptr<![[ClassB]]>
+// RTTI_DISABLED: cir.func {{.*}} @_ZN1BC2Ev(%arg0: !cir.ptr<![[ClassB]]>
 
 // CHECK:   %0 = cir.alloca !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %0 : !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>
@@ -53,7 +53,7 @@ public:
 
 // foo - zero initialize object B and call ctor (@B::B())
 //
-// CHECK: cir.func dso_local @_Z3foov()
+// CHECK: cir.func {{.*}} @_Z3foov()
 // CHECK:   cir.scope {
 // CHECK:     %0 = cir.alloca !rec_B, !cir.ptr<!rec_B>, ["agg.tmp.ensured"] {alignment = 8 : i64}
 // CHECK:     %1 = cir.const #cir.zero : ![[ClassB]]
@@ -69,7 +69,7 @@ public:
 // A ctor => @A::A()
 // Calls @A::A() and initialize __vptr with address of A's vtable
 //
-// CHECK:  cir.func linkonce_odr @_ZN1AC2Ev(%arg0: !cir.ptr<![[ClassA]]>
+// CHECK:  cir.func {{.*}} @_ZN1AC2Ev(%arg0: !cir.ptr<![[ClassA]]>
 // CHECK:    %0 = cir.alloca !cir.ptr<![[ClassA]]>, !cir.ptr<!cir.ptr<![[ClassA]]>>, ["this", init] {alignment = 8 : i64}
 // CHECK:    cir.store{{.*}} %arg0, %0 : !cir.ptr<![[ClassA]]>, !cir.ptr<!cir.ptr<![[ClassA]]>>
 // CHECK:    %1 = cir.load %0 : !cir.ptr<!cir.ptr<![[ClassA]]>>, !cir.ptr<![[ClassA]]>

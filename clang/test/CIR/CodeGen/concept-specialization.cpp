@@ -9,32 +9,32 @@ concept Signed = Integral<T> && __is_signed(T);
 
 // Test ConceptSpecializationExpr as a boolean value
 bool test_concept_bool() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_concept_boolv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_concept_boolv
   // CHECK: %{{.*}} = cir.const #true
   return Integral<int>;
 }
 
 bool test_concept_false() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_concept_falsev
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_concept_falsev
   // CHECK: %{{.*}} = cir.const #false
   return Integral<float>;
 }
 
 bool test_concept_compound() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_concept_compoundv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_concept_compoundv
   // CHECK: %{{.*}} = cir.const #true
   return Signed<int>;
 }
 
 bool test_concept_unsigned() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_concept_unsignedv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_concept_unsignedv
   // CHECK: %{{.*}} = cir.const #false
   return Signed<unsigned>;
 }
 
 // Test in conditional
 int test_concept_in_if() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}test_concept_in_ifv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_concept_in_ifv
   if (Integral<int>) {
     // CHECK: %{{.*}} = cir.const #true
     // CHECK: cir.if %{{.*}} {
@@ -47,7 +47,7 @@ int test_concept_in_if() {
 constexpr bool is_int_integral = Integral<int>;
 
 int use_constexpr() {
-  // CHECK-LABEL: cir.func {{.*}}@{{.*}}use_constexprv
+  // CHECK-LABEL: cir.func{{.*}} @{{.*}}use_constexprv
   if (is_int_integral) {
     // This should be optimized to a constant true
     return 42;
