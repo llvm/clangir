@@ -366,6 +366,13 @@ public:
 
   virtual void emitBadCastCall(CIRGenFunction &CGF, mlir::Location loc) = 0;
 
+  virtual void emitBadTypeidCall(CIRGenFunction &cgf) = 0;
+  virtual bool shouldTypeidBeNullChecked(QualType srcRecordTy) = 0;
+
+  virtual mlir::Value emitTypeid(CIRGenFunction &cgf, mlir::Location loc,
+                                 QualType srcRecordTy, Address thisPtr,
+                                 mlir::Type stdTypeInfoPtrTy) = 0;
+
   virtual mlir::Value
   getVirtualBaseClassOffset(mlir::Location loc, CIRGenFunction &CGF,
                             Address This, const CXXRecordDecl *ClassDecl,

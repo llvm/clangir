@@ -1810,6 +1810,58 @@ mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
                                          destCirTy, isRefCast, ThisAddr);
 }
 
+static mlir::Value emitTypeidFromVTable(CIRGenFunction &cgf, mlir::Location loc,
+                                        const Expr *e,
+                                        mlir::Type stdTypeInfoPtrTy,
+                                        bool hasNullCheck) {
+  // Get the vtable pointer.
+  Address thisPtr = cgf.emitLValue(e).getAddress();
+
+  QualType srcRecordTy = e->getType();
+
+  // C++ [class.cdtor]p4:
+  //   If the operand of typeid refers to the object under construction or
+  //   destruction and the static type of the operand is neither the constructor
+  //   or destructor's class nor one of its bases, the behavior is undefined.
+  cgf.emitTypeCheck(CIRGenFunction::TCK_DynamicOperation, e->getExprLoc(),
+                    thisPtr.getPointer(), srcRecordTy);
+
+  // Whether we need an explicit null pointer check. For example, with the
+  // Microsoft ABI, if this is a call to __RTtypeid, the null pointer check and
+  // exception throw is inside the __RTtypeid(nullptr) call
+  if (hasNullCheck &&
+      cgf.CGM.getCXXABI().shouldTypeidBeNullChecked(srcRecordTy)) {
+    auto &builder = cgf.getBuilder();
+
+    // Create blocks for null and non-null paths
+    auto *currBlock = builder.getInsertionBlock();
+    auto *parentOp = currBlock->getParent()->getParentOp();
+    auto &region = parentOp->getRegion(0);
+
+    mlir::Block *badTypeidBlock = builder.createBlock(&region);
+    mlir::Block *endBlock = builder.createBlock(&region);
+
+    // Check if pointer is null
+    builder.setInsertionPointToEnd(currBlock);
+    mlir::Value nullPtr =
+        builder.getNullPtr(thisPtr.getPointer().getType(), loc);
+    mlir::Value isNull = builder.createCompare(loc, cir::CmpOpKind::eq,
+                                               thisPtr.getPointer(), nullPtr);
+
+    builder.create<cir::BrCondOp>(loc, isNull, badTypeidBlock, endBlock);
+
+    // Emit bad typeid path
+    builder.setInsertionPointToEnd(badTypeidBlock);
+    cgf.CGM.getCXXABI().emitBadTypeidCall(cgf);
+
+    // Continue on non-null path
+    builder.setInsertionPointToEnd(endBlock);
+  }
+
+  return cgf.CGM.getCXXABI().emitTypeid(cgf, loc, srcRecordTy, thisPtr,
+                                        stdTypeInfoPtrTy);
+}
+
 mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
   auto loc = getLoc(E->getSourceRange());
 
@@ -1843,10 +1895,10 @@ mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
   // If the operand is already the most derived object, no need to look up
   // vtable.
   if (E->isPotentiallyEvaluated() && !E->isMostDerived(getContext())) {
-    // This requires emitting code similar to dynamic_cast that looks up the
-    // type_info pointer from the vtable. Note that this path also needs to
-    // handle null checking when E->hasNullCheck() is true.
-    llvm_unreachable("NYI: typeid with polymorphic types (vtable lookup)");
+    // Polymorphic case: need runtime vtable lookup
+    mlir::Type typeInfoPtrTy = builder.getUInt8PtrTy();
+    return emitTypeidFromVTable(*this, loc, E->getExprOperand(), typeInfoPtrTy,
+                                E->hasNullCheck());
   }
 
   // For non-polymorphic types, just return the static RTTI descriptor.
