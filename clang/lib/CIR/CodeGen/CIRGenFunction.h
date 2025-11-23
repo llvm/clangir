@@ -1914,7 +1914,6 @@ public:
                                              cir::CaseOpKind kind,
                                              bool buildingTopLevelCase);
   LValue emitCastLValue(const CastExpr *E);
-  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
 
   mlir::LogicalResult emitCaseStmt(const clang::CaseStmt &S,
                                    mlir::Type condType,
@@ -2152,6 +2151,12 @@ public:
   mlir::LogicalResult emitDoStmt(const clang::DoStmt &S);
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
+
+  /// Emit the operand of a typeid expression as an mlir::Value.
+  mlir::Value emitCXXTypeidExpr(const CXXTypeidExpr *E);
+
+  /// Emit a typeid expression as an l-value.
+  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
 
   /// Emits try/catch information for the current EH stack.
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
