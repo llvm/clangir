@@ -384,6 +384,40 @@ public:
                                 /*tbaa=*/cir::TBAAAttr{});
   }
 
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Value src,
+                                                  mlir::Type dstTy) {
+    auto srcTy = src.getType();
+
+    // Only handle pointer → pointer here. Everything else is a plain bitcast.
+    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy)) {
+      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy)) {
+        if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
+          return createAddrSpaceCast(src, dstTy);
+
+        // Same addrspace → real bitcast.
+        return createBitcast(src, dstTy);
+      }
+    }
+
+    // Non-pointer or weird case: fall back to old behavior.
+    return createBitcast(src, dstTy);
+  }
+
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Location loc,
+                                                  mlir::Value src,
+                                                  mlir::Type dstTy) {
+    auto srcTy = src.getType();
+    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy)) {
+      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy)) {
+        if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
+          return createAddrSpaceCast(loc, src, dstTy);
+
+        return createBitcast(loc, src, dstTy);
+      }
+    }
+    return createBitcast(loc, src, dstTy);
+  }
+
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
                            mlir::Type type, llvm::StringRef name,
                            mlir::IntegerAttr alignment,

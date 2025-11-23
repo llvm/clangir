@@ -491,7 +491,8 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       // can happen due to trivial type mismatches.
       if (ArgNo < CIRFuncTy.getNumInputs() &&
           V.getType() != CIRFuncTy.getInput(ArgNo))
-        V = builder.createBitcast(V, CIRFuncTy.getInput(ArgNo));
+        V = builder.createPointerBitCastOrAddrSpaceCast(
+            V, CIRFuncTy.getInput(ArgNo));
 
       CIRCallArgs.push_back(V);
     } else {

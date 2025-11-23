@@ -23,3 +23,9 @@ __constant__ int c;
 // LLVM-DEVICE: @c = addrspace(4) externally_initialized constant i32 0, align 4
 // OGCG-DEVICE: @c = addrspace(4) externally_initialized constant i32 0, align 4
 
+extern "C" __device__ void bar(const char *str);
+
+__device__ void foo() {
+  char cchar[] = "const char.\n";
+  bar(cchar);
+}
