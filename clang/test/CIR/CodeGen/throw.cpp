@@ -2,6 +2,8 @@
 // RUN: FileCheck --input-file=%t.cir --check-prefix=CIR %s
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll --check-prefix=LLVM %s
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -emit-llvm %s -o %t.og.ll
+// RUN: FileCheck --input-file=%t.og.ll --check-prefix=OGCG %s
 
 double d(int a, int b) {
    if (b == 0)
@@ -24,6 +26,11 @@ double d(int a, int b) {
 // LLVM: store ptr @.str, ptr %[[ADDR]], align 16
 // LLVM: call void @__cxa_throw(ptr %[[ADDR]], ptr @_ZTIPKc, ptr null)
 // LLVM: unreachable
+
+// OGCG: %[[ADDR:.*]] = call {{.*}} @__cxa_allocate_exception(i64 8)
+// OGCG: store {{.*}} @.str, {{.*}} %[[ADDR]]
+// OGCG: call {{.*}} @__cxa_throw({{.*}} %[[ADDR]]
+// OGCG: unreachable
 
 struct S {
   S() {}
@@ -307,15 +314,13 @@ void statements() {
 // CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
 // CIR-NEXT:   cir.unreachable
-// CIR-NEXT: ^bb1:
-// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
-// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
-// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
-// CIR-NEXT:   cir.return
 // CIR-NEXT: }
 
 // LLVM: call void @__cxa_throw
 // LLVM: unreachable
+
+// OGCG: call {{.*}} @__cxa_throw
+// OGCG: unreachable
 
 void paren_expr() { (throw 0, 123 + 456); }
 
@@ -325,15 +330,13 @@ void paren_expr() { (throw 0, 123 + 456); }
 // CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
 // CIR-NEXT:   cir.unreachable
-// CIR-NEXT: ^bb1:
-// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
-// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
-// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
-// CIR-NEXT:   cir.return
 // CIR-NEXT: }
 
 // LLVM: call void @__cxa_throw
 // LLVM: unreachable
+
+// OGCG: call {{.*}} @__cxa_throw
+// OGCG: unreachable
 
 int ternary_throw1(bool condition, int x) {
   return condition ? throw x : x;
@@ -358,7 +361,7 @@ int ternary_throw1(bool condition, int x) {
 // CIR-NEXT:     cir.throw %[[V9]] : !cir.ptr<!s32i>, @_ZTIi
 // CIR-NEXT:     cir.unreachable
 // CIR-NEXT:   ^bb1:  // no predecessors
-// CIR-NEXT:     %[[V11:.*]] = cir.const #cir.int<0> : !s32i loc(#loc173)
+// CIR-NEXT:     %[[V11:.*]] = cir.const #cir.int<0> : !s32i loc(#loc169)
 // CIR-NEXT:     cir.yield %[[V11]] : !s32i
 // CIR-NEXT:   }, false {
 // CIR-NEXT:     %[[V9:.*]] = cir.load align(4) %[[V1]] : !cir.ptr<!s32i>, !s32i

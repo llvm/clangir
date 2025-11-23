@@ -13,24 +13,18 @@ end:
 }
 
 // CHECK:   cir.func dso_local @_Z2g0i
-// CHECK-NEXT  %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
-// CHECK-NEXT  %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init] {alignment = 4 : i64}
-// CHECK-NEXT  cir.store %arg0, %0 : !s32i, !cir.ptr<!s32i>
-// CHECK-NEXT  %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT  cir.store %2, %1 : !s32i, !cir.ptr<!s32i>
-// CHECK-NEXT  cir.br ^bb2
-// CHECK-NEXT ^bb1:  // no predecessors
-// CHECK-NEXT   %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT   %4 = cir.const 1 : !s32i
-// CHECK-NEXT   %5 = cir.binop(add, %3, %4) : !s32i
-// CHECK-NEXT   cir.store %5, %1 : !s32i, !cir.ptr<!s32i>
-// CHECK-NEXT   cir.br ^bb2
-// CHECK-NEXT ^bb2:  // 2 preds: ^bb0, ^bb1
-// CHECK-NEXT   %6 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT   %7 = cir.const 2 : !s32i
-// CHECK-NEXT   %8 = cir.binop(add, %6, %7) : !s32i
-// CHECK-NEXT   cir.store %8, %1 : !s32i, !cir.ptr<!s32i>
-// CHECK-NEXT   cir.return
+// CHECK-NEXT:  %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
+// CHECK-NEXT:  %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init] {alignment = 4 : i64}
+// CHECK-NEXT:  cir.store %arg0, %0 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:  %2 = cir.load {{.*}} %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:  cir.store {{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:  cir.br ^bb1
+// CHECK-NEXT: ^bb1:  // pred: ^bb0
+// CHECK-NEXT:   %3 = cir.load {{.*}} %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:   %4 = cir.const #cir.int<2> : !s32i
+// CHECK-NEXT:   %5 = cir.binop(add, %3, %4) {{.*}} : !s32i
+// CHECK-NEXT:   cir.store {{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:   cir.return
 
 void g1(int a) {
   int x = 0;
@@ -60,13 +54,12 @@ end:
 
 // CHECK: cir.func dso_local @_Z2g2v() -> !s32i
 
-// CHECK:     cir.br ^bb2
-// CHECK-NEXT:   ^bb1:  // no predecessors
-// CHECK:   ^bb2:  // 2 preds: ^bb0, ^bb1
+// CHECK:     cir.br ^bb1
+// CHECK: ^bb1:  // pred: ^bb0
 
 // CHECK:     [[R:%[0-9]+]] = cir.load %0 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT:     [[R]] : !s32i
-// CHECK-NEXT:   }
+// CHECK:     [[R]] : !s32i
+// CHECK:   }
 
 void g3() {
 label:
@@ -90,9 +83,6 @@ err:
 // NOFLAT:      cir.goto "err"
 // NOFLAT:    }
 // NOFLAT:  ^bb1:
-// NOFLAT:    %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-// NOFLAT:    cir.return %3 : !s32i
-// NOFLAT:  ^bb2:  // no predecessors
 // NOFLAT:    cir.label "err"
 
 int shouldGenBranch(int x) {
@@ -135,9 +125,7 @@ end:
 }
 // NOFLAT:  cir.func dso_local @_Z18severalGotosInARowi
 // NOFLAT:    cir.goto "end"
-// NOFLAT:  ^bb[[#BLK1:]]:
-// NOFLAT:    cir.goto "end"
-// NOFLAT:  ^bb[[#BLK2:]]:
+// NOFLAT:  ^bb{{[0-9]+}}:  // no predecessors
 // NOFLAT:    cir.label "end"
 
 
@@ -145,7 +133,9 @@ void labelWithoutMatch() {
 end:
   return;
 }
-// NOFLAT:  cir.func dso_local @_Z17labelWithoutMatchv()
+// NOFLAT:  cir.func dso_local @_Z17labelWithoutMatchv() {{.*}} {
+// NOFLAT:    cir.br ^bb1
+// NOFLAT:  ^bb1:
 // NOFLAT:    cir.label "end"
 // NOFLAT:    cir.return
 // NOFLAT:  }

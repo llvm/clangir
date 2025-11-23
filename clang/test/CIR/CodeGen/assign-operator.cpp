@@ -1,5 +1,9 @@
 // RUN: %clang_cc1 -std=c++17 -mconstructor-aliases -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// RUN: FileCheck --input-file=%t.cir %s
+// RUN: FileCheck --input-file=%t.cir --check-prefix=CIR %s
+// RUN: %clang_cc1 -std=c++17 -mconstructor-aliases -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll --check-prefix=LLVM %s
+// RUN: %clang_cc1 -std=c++17 -mconstructor-aliases -triple x86_64-unknown-linux-gnu -emit-llvm %s -o %t.og.ll
+// RUN: FileCheck --input-file=%t.og.ll --check-prefix=OGCG %s
 
 int strlen(char const *);
 
@@ -73,24 +77,46 @@ int main() {
   }
 }
 
-// CHECK: cir.func dso_local @main() -> !s32i
-// CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
-// CHECK:     %1 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["sv", init] {alignment = 8 : i64}
-// CHECK:     cir.call @_ZN10StringViewC2Ev(%1) : (!cir.ptr<!rec_StringView>) -> ()
-// CHECK:     cir.scope {
-// CHECK:       %3 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s", init] {alignment = 8 : i64}
-// CHECK:       %4 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 3>>
-// CHECK:       %5 = cir.cast array_to_ptrdecay %4 : !cir.ptr<!cir.array<!s8i x 3>> -> !cir.ptr<!s8i>
-// CHECK:       cir.call @_ZN6StringC2EPKc(%3, %5) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
-// CHECK:       cir.scope {
-// CHECK:         %6 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["ref.tmp0"] {alignment = 8 : i64}
-// CHECK:         cir.call @_ZN10StringViewC2ERK6String(%6, %3) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_String>) -> ()
-// CHECK:         %7 = cir.call @_ZN10StringViewaSEOS_(%1, %6) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_StringView>) -> !cir.ptr<!rec_StringView>
-// CHECK:       }
-// CHECK:     }
-// CHECK:     %2 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
-// CHECK:     cir.return %2 : !s32i
-// CHECK: }
+// CIR: cir.func dso_local @main() -> !s32i
+// CIR:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
+// CIR:     %1 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["sv", init] {alignment = 8 : i64}
+// CIR:     cir.call @_ZN10StringViewC2Ev(%1) : (!cir.ptr<!rec_StringView>) -> ()
+// CIR:     cir.scope {
+// CIR:       %4 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s", init] {alignment = 8 : i64}
+// CIR:       %5 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 3>>
+// CIR:       %6 = cir.cast array_to_ptrdecay %5 : !cir.ptr<!cir.array<!s8i x 3>> -> !cir.ptr<!s8i>
+// CIR:       cir.call @_ZN6StringC2EPKc(%4, %6) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
+// CIR:       cir.scope {
+// CIR:         %7 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["ref.tmp0"] {alignment = 8 : i64}
+// CIR:         cir.call @_ZN10StringViewC2ERK6String(%7, %4) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_String>) -> ()
+// CIR:         %8 = cir.call @_ZN10StringViewaSEOS_(%1, %7) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_StringView>) -> !cir.ptr<!rec_StringView>
+// CIR:       }
+// CIR:     }
+// CIR:     %2 = cir.const #cir.int<0> : !s32i
+// CIR:     cir.store %2, %0 : !s32i, !cir.ptr<!s32i>
+// CIR:     %3 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CIR:     cir.return %3 : !s32i
+// CIR: }
+
+// LLVM-LABEL: define dso_local i32 @main()
+// LLVM:         call void @_ZN10StringViewC2Ev(
+// LLVM:         call void @_ZN6StringC2EPKc(
+// LLVM:         call void @_ZN10StringViewC2ERK6String(
+// LLVM:         call ptr @_ZN10StringViewaSEOS_(
+// LLVM:         store i32 0, ptr %{{.*}}, align 4
+// LLVM:         %{{.*}} = load i32, ptr %{{.*}}, align 4
+// LLVM:         ret i32 %{{.*}}
+// LLVM:       }
+
+// NOTE: Both ClangIR and original CodeGen implicitly return 0 for main() when it falls off the end.
+// Also note that OGCG uses memcpy for the assignment, while ClangIR calls the operator.
+// OGCG-LABEL: define {{.*}} i32 @main()
+// OGCG:         call {{.*}} @_ZN10StringViewC2Ev(
+// OGCG:         call {{.*}} @_ZN6StringC2EPKc(
+// OGCG:         call {{.*}} @_ZN10StringViewC2ERK6String(
+// OGCG:         call void @llvm.memcpy
+// OGCG:         ret i32 0
+// OGCG:       }
 
 struct HasNonTrivialAssignOp {
   HasNonTrivialAssignOp &operator=(const HasNonTrivialAssignOp &);
@@ -178,7 +204,7 @@ struct Trivial {
 
 // We should explicitly call operator= even for trivial types.
 // CHECK-LABEL: cir.func dso_local @_Z11copyTrivialR7TrivialS0_(
-// CHECK:         cir.call @_ZN7TrivialaSERKS_(
+// CIR:         cir.call @_ZN7TrivialaSERKS_(
 void copyTrivial(Trivial &a, Trivial &b) {
   a = b;
 }
@@ -192,8 +218,8 @@ struct ContainsTrivial {
 // We should explicitly call operator= even for trivial types.
 // CHECK-LABEL: cir.func dso_local @_ZN15ContainsTrivialaSERKS_(
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsTrivial, copy>>
-// CHECK:         cir.call @_ZN7TrivialaSERKS_(
-// CHECK:         cir.call @_ZN7TrivialaSERKS_(
+// CIR:         cir.call @_ZN7TrivialaSERKS_(
+// CIR:         cir.call @_ZN7TrivialaSERKS_(
 ContainsTrivial &ContainsTrivial::operator=(const ContainsTrivial &) = default;
 
 struct ContainsTrivialArray {
@@ -204,7 +230,7 @@ struct ContainsTrivialArray {
 // We should be calling operator= here but don't currently.
 // CHECK-LABEL: cir.func dso_local @_ZN20ContainsTrivialArrayaSERKS_(
 // CHECK-SAME:    special_member<#cir.cxx_assign<!rec_ContainsTrivialArray, copy>>
-// CHECK:         %[[#THIS_LOAD:]] = cir.load{{.*}} deref %[[#]]
+// CIR:         %[[#THIS_LOAD:]] = cir.load{{.*}} deref %[[#]]
 // CHECK-NEXT:    %[[#THIS_ARR:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "arr"}
 // CHECK-NEXT:    %[[#THIS_ARR_CAST:]] = cir.cast bitcast %[[#THIS_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>> -> !cir.ptr<!void>
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#]]

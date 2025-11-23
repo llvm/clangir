@@ -225,37 +225,29 @@ D:
 }
 
 //CIR:  cir.func dso_local @E()
-//CIR:  ^bb1({{.*}}: !cir.ptr<!void> {{.*}}):  // no predecessors
-//CIR:    cir.indirectbr {{.*}} poison : <!void>, [
-//CIR-NEXT:    ^bb5,
-//CIR-NEXT:    ^bb4,
-//CIR-NEXT:    ^bb3,
-//CIR-NEXT:    ^bb2
-//CIR:    ]
-//CIR:  ^bb2:  // 2 preds: ^bb0, ^bb1
-//CIR:    cir.label "A" loc(#loc65)
-//CIR:  ^bb3:  // 2 preds: ^bb1, ^bb2
-//CIR:    cir.label "B" loc(#loc66)
-//CIR:  ^bb4:  // 2 preds: ^bb1, ^bb3
+//CIR:  ^bb1:  // pred: ^bb0
+//CIR:    cir.label "A"
+//CIR:  ^bb2:  // pred: ^bb1
+//CIR:    cir.label "B"
+//CIR:  ^bb3:  // pred: ^bb2
 //CIR:    cir.label "C"
-//CIR:  ^bb5:  // 2 preds: ^bb1, ^bb4
+//CIR:  ^bb4:  // pred: ^bb3
 //CIR:    cir.label "D"
 
 // LLVM: define dso_local void @E()
 // LLVM:   store ptr blockaddress(@E, %[[D:.*]])
 // LLVM:   store ptr blockaddress(@E, %[[C:.*]])
 // LLVM:   br label %[[A:.*]]
-// LLVM: [[indirectgoto:.*]]:                                                ; No predecessors!
-// LLVM:   indirectbr ptr poison, [label %[[D]], label %[[C]], label %[[B:.*]], label %[[A]]]
 // LLVM: [[A]]:
-// LLVM:   br label %[[B]]
+// LLVM:   br label %[[B:.*]]
 // LLVM: [[B]]:
-// LLVM:   store ptr blockaddress(@E, %[[B]]), ptr %3, align 8
-// LLVM:   store ptr blockaddress(@E, %[[A]]), ptr %4, align 8
-// LLVM:   br label %8
+// LLVM:   store ptr blockaddress(@E, %[[B]]), ptr %{{.*}}, align 8
+// LLVM:   store ptr blockaddress(@E, %[[A]]), ptr %{{.*}}, align 8
+// LLVM:   br label %[[C]]
 // LLVM: [[C]]:
-// LLVM:   br label %9
+// LLVM:   br label %[[D]]
 // LLVM: [[D]]:
+// LLVM:   ret void
 
 // OGCG: define dso_local void @E() #0 {
 // OGCG:   store ptr blockaddress(@E, %D), ptr %ptr, align 8

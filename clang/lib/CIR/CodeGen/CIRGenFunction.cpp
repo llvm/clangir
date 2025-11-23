@@ -511,12 +511,16 @@ void CIRGenFunction::LexicalScope::emitImplicitReturn() {
 
     if (CGF.SanOpts.has(SanitizerKind::Return) || shouldEmitUnreachable) {
       cir::UnreachableOp::create(builder, localScope->EndLoc);
-      builder.clearInsertionPoint();
+      // Create a new block for potential unreachable code that follows
+      // (e.g., labels targeted by gotos from earlier in the function)
+      builder.createBlock(builder.getBlock()->getParent());
       return;
     }
   }
 
   (void)emitReturn(localScope->EndLoc);
+  // Create a new block for potential unreachable code that follows
+  builder.createBlock(builder.getBlock()->getParent());
 }
 
 cir::TryOp CIRGenFunction::LexicalScope::getClosestTryParent() {
@@ -594,6 +598,48 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // Original LLVM codegen does EmitReturnBlock() here, CIRGen handles
   // this as part of LexicalScope instead, given CIR might have multiple
   // blocks with `cir.return`.
+
+  // Handle the case where the function falls off the end without a return.
+  // After cir.scope operations yield, the entry block may lack a terminator.
+  // Only check the entry block - other blocks are either control flow blocks
+  // (which get terminators from their constructs) or dead blocks (which are
+  // intentionally left unterminated for later cleanup).
+  auto fnOp = mlir::cast<cir::FuncOp>(CurFn);
+  mlir::Block &entryBlock = fnOp.getBody().front();
+
+  // Check if entry block needs a terminator
+  if (!entryBlock.empty() &&
+      !entryBlock.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+    // Entry block lacks a terminator - add one based on function return type
+    builder.setInsertionPointToEnd(&entryBlock);
+
+    const auto *fd = cast<FunctionDecl>(CurGD.getDecl());
+    if (fd->getReturnType()->isVoidType()) {
+      // Void function can have implicit return
+      ReturnOp::create(builder, getLoc(endLoc));
+    } else if (fd->hasImplicitReturnZero()) {
+      // Special case: main() and similar entry points implicitly return 0
+      auto retType = convertType(fd->getReturnType());
+      auto zero = builder.getConstInt(getLoc(endLoc), retType, 0);
+      builder.CIRBaseBuilderTy::createStore(getLoc(endLoc), zero, *FnRetAlloca);
+      auto retVal =
+          LoadOp::create(builder, getLoc(endLoc), retType, *FnRetAlloca);
+      ReturnOp::create(builder, getLoc(endLoc),
+                       llvm::ArrayRef(retVal.getResult()));
+    } else {
+      // Non-void function falling off the end is undefined behavior
+      // At O0, emit trap for better debugging. At higher optimization levels,
+      // emit unreachable to allow optimizations.
+      if (CGM.getCodeGenOpts().OptimizationLevel == 0)
+        cir::TrapOp::create(builder, getLoc(endLoc));
+      else
+        cir::UnreachableOp::create(builder, getLoc(endLoc));
+    }
+    // Don't clear insertion point here - subsequent code may need it.
+    // Unreachable dummy blocks will be cleaned up by
+    // eraseEmptyAndUnusedBlocks().
+  }
+
   if (ShouldInstrumentFunction()) {
     assert(!cir::MissingFeatures::shouldInstrumentFunction() && "NYI");
   }
@@ -659,10 +705,32 @@ static void eraseEmptyAndUnusedBlocks(cir::FuncOp fnOp) {
   // not represent unrecheable code useful for warnings nor anything deemed
   // useful in general.
   SmallVector<mlir::Block *> blocksToDelete;
+  mlir::Block &entryBlock = fnOp.getBody().front();
+
   for (auto &blk : fnOp.getBlocks()) {
-    if (!blk.empty() || !blk.getUses().empty())
+    // Skip the entry block - it's always reachable
+    if (&blk == &entryBlock)
       continue;
-    blocksToDelete.push_back(&blk);
+
+    // For unreachable blocks (no predecessors), clear their operations first
+    // to avoid verification issues during lowering - BUT only if the block
+    // doesn't contain label operations (which are targeted by gotos).
+    // Labels can be nested inside other operations (like loops), so we need
+    // to search recursively.
+    if (blk.hasNoPredecessors()) {
+      bool hasLabel = false;
+      blk.walk([&](cir::LabelOp) {
+        hasLabel = true;
+        return mlir::WalkResult::interrupt();
+      });
+      if (!hasLabel) {
+        blk.clear();
+      }
+    }
+
+    // Now delete if empty and unused
+    if (blk.empty() && blk.getUses().empty())
+      blocksToDelete.push_back(&blk);
   }
   for (auto *b : blocksToDelete)
     b->erase();

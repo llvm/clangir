@@ -649,7 +649,14 @@ mlir::LogicalResult CIRGenFunction::emitLabel(const LabelDecl *D) {
       mlir::OpBuilder::InsertionGuard guard(builder);
       labelBlock = builder.createBlock(builder.getBlock()->getParent());
     }
-    BrOp::create(builder, getLoc(D->getSourceRange()), labelBlock);
+    // Only create a branch if the current block doesn't have a terminator.
+    // This handles cases where labels appear after return, unreachable, trap,
+    // etc. The label block will still be created and can be targeted by
+    // indirectbr for address-taken labels.
+    if (currBlock->empty() ||
+        !currBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+      BrOp::create(builder, getLoc(D->getSourceRange()), labelBlock);
+    }
   }
 
   builder.setInsertionPointToEnd(labelBlock);
@@ -685,8 +692,7 @@ CIRGenFunction::emitContinueStmt(const clang::ContinueStmt &S) {
   return mlir::success();
 }
 
-mlir::LogicalResult
-CIRGenFunction::emitBreakStmt(const clang::BreakStmt &S) {
+mlir::LogicalResult CIRGenFunction::emitBreakStmt(const clang::BreakStmt &S) {
   builder.createBreak(getLoc(S.getBeginLoc()));
 
   // Insert the new block to continue codegen after the break statement.

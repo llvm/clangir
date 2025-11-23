@@ -22,7 +22,4 @@ void code_after_unreachable() {
 //      CHECK: cir.func dso_local @_Z22code_after_unreachablev()
 // CHECK-NEXT:   cir.call @_Z3foov() : () -> ()
 // CHECK-NEXT:   cir.trap
-// CHECK-NEXT: ^bb1:
-// CHECK-NEXT:   cir.call @_Z3foov() : () -> ()
-// CHECK-NEXT:   cir.return
 // CHECK-NEXT: }

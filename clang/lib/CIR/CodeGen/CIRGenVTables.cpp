@@ -276,6 +276,11 @@ void CIRGenFunction::generateThunk(cir::FuncOp fn,
   // Create lexical scope - must stay alive for entire thunk generation
   // StartFunction() requires currLexScope to be set
   auto unknownLoc = builder.getUnknownLoc();
+
+  // Set currSrcLoc for thunks so getLoc() can fall back to it when
+  // SourceLocation() is invalid (which is the case for thunks)
+  SourceLocRAIIObject thunkLoc(*this, unknownLoc);
+
   LexicalScope lexScope{*this, unknownLoc, entryBb};
 
   startThunk(fn, gd, fnInfo, isUnprototyped);
