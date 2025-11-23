@@ -309,8 +309,39 @@ public:
     if (E->getBase()->getType()->isVectorType()) {
       assert(!cir::MissingFeatures::scalableVectors() &&
              "NYI: index into scalable vector");
-      // Subscript of vector type.  This is handled differently, with a custom
-      // operation.
+
+      // ExtVectorBoolType uses integer storage, handle it specially
+      const auto *VecTy = E->getBase()
+                              ->getType()
+                              .getCanonicalType()
+                              ->getAs<clang::VectorType>();
+      if (VecTy && VecTy->isExtVectorBoolType()) {
+        // For ExtVectorBoolType, extract a bit from the integer
+        mlir::Value IntValue = Visit(E->getBase());
+        mlir::Value IndexValue = Visit(E->getIdx());
+
+        // Extract the bit: (IntValue >> IndexValue) & 1
+        auto Loc = CGF.getLoc(E->getSourceRange());
+        auto BoolTy = CGF.builder.getBoolTy();
+        auto IntTy = IntValue.getType();
+
+        // Shift right by index: IntValue >> IndexValue
+        mlir::Value Shifted =
+            cir::ShiftOp::create(CGF.builder, Loc, IntTy, IntValue, IndexValue,
+                                 /*isShiftLeft=*/false);
+
+        // Mask with 1: Shifted & 1
+        mlir::Value One = CGF.builder.getConstInt(Loc, IntTy, 1);
+        mlir::Value Masked = cir::BinOp::create(
+            CGF.builder, Loc, IntTy, cir::BinOpKind::And, Shifted, One);
+
+        // Convert to bool: Masked != 0
+        mlir::Value Zero = CGF.builder.getConstInt(Loc, IntTy, 0);
+        return cir::CmpOp::create(CGF.builder, Loc, BoolTy, cir::CmpOpKind::ne,
+                                  Masked, Zero);
+      }
+
+      // Regular vector subscript
       mlir::Value VecValue = Visit(E->getBase());
       mlir::Value IndexValue = Visit(E->getIdx());
       return cir::VecExtractOp::create(CGF.getBuilder(),
@@ -972,10 +1003,70 @@ public:
           Builder.createCompare(CGF.getLoc(E->getExprLoc()), kind, lhs, rhs);
     } else if (!LHSTy->isAnyComplexType() && !RHSTy->isAnyComplexType()) {
       BinOpInfo BOInfo = emitBinOps(E);
-      mlir::Value LHS = BOInfo.LHS;
-      mlir::Value RHS = BOInfo.RHS;
+      mlir::Value lhs = BOInfo.LHS;
+      mlir::Value rhs = BOInfo.RHS;
 
       if (LHSTy->isVectorType()) {
+        // Check for ExtVectorBoolType which uses integer storage, not vector
+        if (const auto *vecTy = LHSTy->getAs<clang::VectorType>()) {
+          if (vecTy->isExtVectorBoolType()) {
+            // ExtVectorBoolType is stored as an integer (!cir.int<u, N>) in
+            // CIR. To compare elements, we need to:
+            // 1. Bitcast iN -> <P x !cir.int<u, 1>> where P is the STORAGE size
+            // (padded to at least 8)
+            // 2. Shuffle to extract actual elements <P x i1> -> <N x i1>
+            // 3. Perform vector comparison on actual elements
+            // 4. Shuffle result back <N x i1> -> <P x i1> (pad with undef)
+            // 5. Bitcast result back to iN
+
+            uint64_t numElements = vecTy->getNumElements();
+            // Storage is padded to at least 8 bits (1 byte)
+            uint64_t storageBits = std::max<uint64_t>(numElements, 8);
+
+            // Use !cir.int<u, 1> instead of !cir.bool for vector elements
+            auto i1Ty = cir::IntType::get(Builder.getContext(), 1, false);
+            // Create vector types: padded storage size and actual element count
+            auto paddedVecTy = cir::VectorType::get(i1Ty, storageBits);
+            auto actualVecTy = cir::VectorType::get(i1Ty, numElements);
+
+            // Bitcast integer storage to padded vector of i1 for both operands
+            lhs =
+                Builder.createBitcast(CGF.getLoc(BOInfo.Loc), lhs, paddedVecTy);
+            rhs =
+                Builder.createBitcast(CGF.getLoc(BOInfo.Loc), rhs, paddedVecTy);
+
+            // Extract actual elements using shuffle (indices 0 to
+            // numElements-1)
+            llvm::SmallVector<int64_t> extractIndices(numElements);
+            for (uint64_t i = 0; i < numElements; ++i)
+              extractIndices[i] = i;
+            lhs = Builder.createVecShuffle(CGF.getLoc(BOInfo.Loc), lhs, lhs,
+                                           extractIndices);
+            rhs = Builder.createVecShuffle(CGF.getLoc(BOInfo.Loc), rhs, rhs,
+                                           extractIndices);
+
+            // Perform element-wise comparison on actual elements
+            cir::CmpOpKind kind = ClangCmpToCIRCmp(E->getOpcode());
+            Result = cir::VecCmpOp::create(Builder, CGF.getLoc(BOInfo.Loc),
+                                           actualVecTy, kind, lhs, rhs);
+
+            // Pad result back to storage size using shuffle
+            llvm::SmallVector<int64_t> padIndices(storageBits);
+            for (uint64_t i = 0; i < numElements; ++i)
+              padIndices[i] = i;
+            for (uint64_t i = numElements; i < storageBits; ++i)
+              padIndices[i] = -1; // undef for padding bits
+            Result = Builder.createVecShuffle(CGF.getLoc(BOInfo.Loc), Result,
+                                              Result, padIndices);
+
+            // Bitcast back to integer storage
+            Result = Builder.createBitcast(CGF.getLoc(BOInfo.Loc), Result,
+                                           CGF.convertType(E->getType()));
+            return emitScalarConversion(Result, CGF.getContext().BoolTy,
+                                        E->getType(), E->getExprLoc());
+          }
+        }
+
         if (!E->getType()->isVectorType()) {
           // If AltiVec, the comparison results in a numeric type, so we use
           // intrinsics comparing vectors and giving 0 or 1 as a result
@@ -996,13 +1087,13 @@ public:
 
         // Unsigned integers and pointers.
         if (CGF.CGM.getCodeGenOpts().StrictVTablePointers &&
-            mlir::isa<cir::PointerType>(LHS.getType()) &&
-            mlir::isa<cir::PointerType>(RHS.getType())) {
+            mlir::isa<cir::PointerType>(lhs.getType()) &&
+            mlir::isa<cir::PointerType>(rhs.getType())) {
           llvm_unreachable("NYI");
         }
 
         cir::CmpOpKind Kind = ClangCmpToCIRCmp(E->getOpcode());
-        Result = Builder.createCompare(CGF.getLoc(BOInfo.Loc), Kind, LHS, RHS);
+        Result = Builder.createCompare(CGF.getLoc(BOInfo.Loc), Kind, lhs, rhs);
       }
     } else { // Complex Comparison: can only be an equality comparison.
       assert(0 && "not implemented");
@@ -2076,6 +2167,60 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   if (E->getType()->isVectorType() &&
       E->getType()->castAs<VectorType>()->getVectorKind() ==
           VectorKind::Generic) {
+    // Check for ExtVectorBoolType which uses integer storage, not vector
+    if (const auto *vecTy = E->getType()->getAs<clang::VectorType>()) {
+      if (vecTy->isExtVectorBoolType()) {
+        // ExtVectorBoolType is stored as an integer (!cir.int<u, N>) in CIR.
+        // Logical NOT is implemented as comparison with zero: !v == (v == 0)
+        // 1. Get the operand (already in integer form)
+        // 2. Bitcast iN -> <P x !cir.int<u, 1>> where P is the STORAGE size
+        // (padded to at least 8)
+        // 3. Shuffle to extract actual elements <P x i1> -> <N x i1>
+        // 4. Compare with zero vector
+        // 5. Shuffle result back <N x i1> -> <P x i1> (pad with undef)
+        // 6. Bitcast result back to iN
+
+        mlir::Value oper = Visit(E->getSubExpr());
+        mlir::Location loc = CGF.getLoc(E->getExprLoc());
+
+        uint64_t numElements = vecTy->getNumElements();
+        // Storage is padded to at least 8 bits (1 byte)
+        uint64_t storageBits = std::max<uint64_t>(numElements, 8);
+
+        // Use !cir.int<u, 1> instead of !cir.bool for vector elements
+        auto i1Ty = cir::IntType::get(Builder.getContext(), 1, false);
+        // Create vector types: padded storage size and actual element count
+        auto paddedVecTy = cir::VectorType::get(i1Ty, storageBits);
+        auto actualVecTy = cir::VectorType::get(i1Ty, numElements);
+
+        // Bitcast integer storage to padded vector of i1
+        oper = Builder.createBitcast(loc, oper, paddedVecTy);
+
+        // Extract actual elements using shuffle (indices 0 to numElements-1)
+        llvm::SmallVector<int64_t> extractIndices(numElements);
+        for (uint64_t i = 0; i < numElements; ++i)
+          extractIndices[i] = i;
+        oper = Builder.createVecShuffle(loc, oper, oper, extractIndices);
+
+        // Create zero vector and compare with actual elements
+        mlir::Value zeroVec = Builder.getNullValue(actualVecTy, loc);
+        mlir::Value result = cir::VecCmpOp::create(
+            Builder, loc, actualVecTy, cir::CmpOpKind::eq, oper, zeroVec);
+
+        // Pad result back to storage size using shuffle
+        llvm::SmallVector<int64_t> padIndices(storageBits);
+        for (uint64_t i = 0; i < numElements; ++i)
+          padIndices[i] = i;
+        for (uint64_t i = numElements; i < storageBits; ++i)
+          padIndices[i] = -1; // undef for padding bits
+        result = Builder.createVecShuffle(loc, result, result, padIndices);
+
+        // Bitcast back to integer storage
+        return Builder.createBitcast(loc, result,
+                                     CGF.convertType(E->getType()));
+      }
+    }
+
     mlir::Value oper = Visit(E->getSubExpr());
     mlir::Location loc = CGF.getLoc(E->getExprLoc());
     auto operVecTy = mlir::cast<cir::VectorType>(oper.getType());
