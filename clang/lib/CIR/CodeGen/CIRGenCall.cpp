@@ -19,8 +19,13 @@
 #include "TargetInfo.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/Specifiers.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -943,6 +948,12 @@ static CanQual<FunctionProtoType> GetFormalType(const CXXMethodDecl *MD) {
       .getAs<FunctionProtoType>();
 }
 
+void CIRGenFunction::emitFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                                        cir::FuncOp fn,
+                                        const FunctionArgList &args) {
+  return;
+}
+
 /// TODO(cir): this should be shared with LLVM codegen
 static void addExtParameterInfosForCall(
     llvm::SmallVectorImpl<FunctionProtoType::ExtParameterInfo> &paramInfos,
@@ -1319,6 +1330,7 @@ CIRGenTypes::arrangeUnprototypedMustTailThunk(const CXXMethodDecl *md) {
   return arrangeCIRFunctionInfo(astContext.VoidTy, cir::FnInfoOpts::None,
                                 ArgTys, FTP->getExtInfo(), {}, RequiredArgs(1));
 }
+
 /// Figure out the rules for calling a function with the given formal type using
 /// the given arguments. The arguments are necessary because the function might
 /// be unprototyped, in which case it's target-dependent in crazy ways.
@@ -1481,5 +1493,37 @@ void CIRGenModule::getDefaultFunctionAttributes(
   // attributes.
   if (!attrOnCallSite) {
     // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts, funcAttrs);
+  }
+}
+
+void CIRGenFunction::createCoercedStore(mlir::Value src, Address dst,
+                                        llvm::TypeSize dstSize,
+                                        bool dstIsVolatile) {
+  if (!dstSize)
+    return;
+
+  mlir::Type srcTy = src.getType();
+  llvm::TypeSize srcSize = CGM.getDataLayout().getTypeAllocSize(srcTy);
+
+  // GEP into structs to try to make typesm match.
+  // FIXME: This isn't really that useful with opaque types, but it impacts a
+  // lot of regressiont ests.
+  if (srcTy != dst.getElementType()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (srcSize.isScalable() || srcSize <= dstSize) {
+    if (isa<cir::IntType>(srcTy) &&
+        isa<cir::PointerType>(dst.getElementType()) &&
+        srcSize == CGM.getDataLayout().getTypeAllocSize(dst.getElementType())) {
+      llvm_unreachable("NYI");
+    } else {
+      getBuilder().createStore(src.getLoc(), src, dst.withElementType(getBuilder(), srcTy),
+                               dstIsVolatile);
+    }
+  } else if (isa<cir::IntType>(srcTy)) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
   }
 }
