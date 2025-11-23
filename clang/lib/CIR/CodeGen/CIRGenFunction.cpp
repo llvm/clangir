@@ -1331,7 +1331,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
   }
 
-  // TODO: emitFunctionProlog
+  emitFunctionProlog(*CurFnInfo, cast<cir::FuncOp>(CurFn), args);
 
   {
     // Set the insertion point in the builder to the beginning of the

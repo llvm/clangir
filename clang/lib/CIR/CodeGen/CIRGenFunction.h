@@ -426,6 +426,16 @@ public:
     }
   };
 
+  /// Used by -fsanitize=nullability-return to determine whether the return
+  /// value can be checked.
+  mlir::Value retValNullabilityPrecondition = nullptr;
+
+  /// Check if -fsanitize=nullability-return instrumentation is required for
+  /// this function.
+  bool requiresReturnValueNullabilityCheck() const {
+    return bool(retValNullabilityPrecondition);
+  }
+
   /// A mapping from NRVO variables to the flags used to indicate
   /// when the NRVO has been applied to this variable.
   llvm::DenseMap<const VarDecl *, mlir::Value> NRVOFlags;
@@ -552,6 +562,9 @@ public:
   /// In C++, whether we are code generating a thunk. This controls whether we
   /// should emit cleanups.
   bool CurFuncIsThunk = false;
+
+  /// In ARC, whether we should autorelease the return value.
+  bool autoreleaseResult = false;
 
   /// Hold counters for incrementally naming temporaries
   unsigned CounterRefTmp = 0;
@@ -707,6 +720,35 @@ public:
   mlir::Value getAsNaturalPointerTo(Address Addr, QualType PointeeType) {
     return getAsNaturalAddressOf(Addr, PointeeType).getBasePointer();
   }
+
+  mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
+                              llvm::ArrayRef<mlir::Value> args = {});
+
+  void emitInvariantStart(CharUnits Size);
+
+
+  /// emitFunctionProlog - Emit the target specific CIR code to load the
+  /// arguments for the given function. This is also responsible for naming the
+  /// MLIR function arguments.
+  void emitFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                           cir::FuncOp fn, const FunctionArgList &args);
+
+  /// Create a check for a function parameter that may potentially be
+  /// declared as non-null.
+  void emitNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
+                           AbstractCallee AC, unsigned ParmNum);
+
+  void emitCallArg(CallArgList &args, const clang::Expr *E,
+                   clang::QualType ArgType);
+
+  LValue emitCallExprLValue(const CallExpr *E);
+
+  /// Similarly to emitAnyExpr(), however, the result will always be accessible
+  /// even if no aggregate location is provided.
+  RValue emitAnyExprToTemp(const clang::Expr *E);
+
+  CIRGenCallee emitCallee(const clang::Expr *E);
+
 
   void finishFunction(SourceLocation EndLoc);
 
@@ -904,6 +946,46 @@ public:
     return JumpDest(target, EHStack.getInnermostNormalCleanup(),
                     nextCleanupDestIndex++);
   }
+
+  class ParamValue {
+    union {
+      Address addr;
+      mlir::Value value;
+    };
+
+    bool isIndirectV;
+
+    ParamValue(mlir::Value v) : value(v), isIndirectV(false) {}
+    ParamValue(Address a) : addr(a), isIndirectV(true) {}
+
+  public:
+    static ParamValue forDirect(mlir::Value value) { return ParamValue(value); }
+    static ParamValue forIndirect(Address addr) {
+      assert(!addr.getAlignment().isZero());
+      return ParamValue(addr);
+    }
+
+    bool isIndirect() const { return isIndirectV; }
+    mlir::Value getAnyValue() const {
+      if (!isIndirect())
+        return value;
+      assert(!addr.hasOffset() && "unexpected offset");
+      return addr.getBasePointer();
+    }
+
+    mlir::Value getDirectValue() const {
+      assert(!isIndirect());
+      return value;
+    }
+
+    Address getIndirectAddress() const {
+      assert(isIndirect());
+      return addr;
+    }
+  };
+
+  // emitParmDecl - Emit a ParmVarDecl or an ImplicitParmDecl.
+  void emitParmDecl(const VarDecl &varDecl, ParamValue arg, unsigned argNo);
 
   /// Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -1165,6 +1247,35 @@ public:
       return RD->hasVolatileMember();
     return false;
   }
+
+  /// Emit an aggregate assignment.
+  void emitAggregateAssign(LValue Dest, LValue Src, QualType EltTy) {
+    bool IsVolatile = hasVolatileMember(EltTy);
+    emitAggregateCopy(Dest, Src, EltTy, AggValueSlot::MayOverlap, IsVolatile);
+  }
+
+  LValue emitAggExprToLValue(const Expr *E);
+
+  /// Create a store to \arg dstPtr from \arg src, truncating the stored value
+  /// to at most \arg dstSize bytes.
+  void createCoercedStore(mlir::Value src, Address dst, llvm::TypeSize dstSize,
+                          bool dstIsVolatile);
+
+  /// Emit an aggregate copy.
+  ///
+  /// \param isVolatile \c true iff either the source or the destination is
+  ///        volatile.
+  /// \param MayOverlap Whether the tail padding of the destination might be
+  ///        occupied by some other object. More efficient code can often be
+  ///        generated if not.
+  void emitAggregateCopy(LValue Dest, LValue Src, QualType EltTy,
+                         AggValueSlot::Overlap_t MayOverlap,
+                         bool isVolatile = false);
+
+  /// Emit a reached-unreachable diagnostic if \p Loc is valid and runtime
+  /// checking is enabled. Otherwise, just emit an unreachable instruction.
+  void emitUnreachable(SourceLocation Loc);
+
 
   ///
   /// Cleanups
@@ -1708,28 +1819,9 @@ public:
   mlir::Value emitAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
-  /// Emit an aggregate assignment.
-  void emitAggregateAssign(LValue Dest, LValue Src, QualType EltTy) {
-    bool IsVolatile = hasVolatileMember(EltTy);
-    emitAggregateCopy(Dest, Src, EltTy, AggValueSlot::MayOverlap, IsVolatile);
-  }
-
-  /// Emit an aggregate copy.
-  ///
-  /// \param isVolatile \c true iff either the source or the destination is
-  ///        volatile.
-  /// \param MayOverlap Whether the tail padding of the destination might be
-  ///        occupied by some other object. More efficient code can often be
-  ///        generated if not.
-  void emitAggregateCopy(LValue Dest, LValue Src, QualType EltTy,
-                         AggValueSlot::Overlap_t MayOverlap,
-                         bool isVolatile = false);
-
   void emitAggregateStore(mlir::Value Val, Address Dest, bool DestIsVolatile);
 
   void emitAggExpr(const clang::Expr *E, AggValueSlot Slot);
-
-  LValue emitAggExprToLValue(const Expr *E);
 
   mlir::Value emitAlignmentAssumption(mlir::Value ptrValue, QualType ty,
                                       SourceLocation loc,
@@ -1770,10 +1862,6 @@ public:
   /// given memory location.
   void emitAnyExprToMem(const Expr *E, Address Location, Qualifiers Quals,
                         bool IsInitializer);
-
-  /// Similarly to emitAnyExpr(), however, the result will always be accessible
-  /// even if no aggregate location is provided.
-  RValue emitAnyExprToTemp(const clang::Expr *E);
 
   mlir::Value emitARMMVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                                     ReturnValueSlot ReturnValue,
@@ -1892,21 +1980,14 @@ public:
                   const clang::CallExpr *E, ReturnValueSlot returnValue,
                   mlir::Value Chain = nullptr);
 
-  void emitCallArg(CallArgList &args, const clang::Expr *E,
-                   clang::QualType ArgType);
-
   void emitCallArgs(
       CallArgList &Args, PrototypeWrapper Prototype,
       llvm::iterator_range<clang::CallExpr::const_arg_iterator> ArgRange,
       AbstractCallee AC = AbstractCallee(), unsigned ParamsToSkip = 0,
       EvaluationOrder Order = EvaluationOrder::Default);
 
-  CIRGenCallee emitCallee(const clang::Expr *E);
-
   RValue emitCallExpr(const clang::CallExpr *E,
                       ReturnValueSlot ReturnValue = ReturnValueSlot());
-
-  LValue emitCallExprLValue(const CallExpr *E);
 
   template <typename T>
   mlir::LogicalResult emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
@@ -2218,8 +2299,6 @@ public:
                                        bool InheritedFromVBase,
                                        const CXXInheritedCtorInitExpr *E);
 
-  void emitInvariantStart(CharUnits Size);
-
   mlir::LogicalResult emitLabel(const clang::LabelDecl *D);
   mlir::LogicalResult emitLabelStmt(const clang::LabelStmt &S);
 
@@ -2304,11 +2383,6 @@ public:
                                mlir::Value NumElements,
                                mlir::Value AllocSizeWithoutCookie);
 
-  /// Create a check for a function parameter that may potentially be
-  /// declared as non-null.
-  void emitNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
-                           AbstractCallee AC, unsigned ParmNum);
-
   /// Given an assignment `*LHS = RHS`, emit a test that checks if \p RHS is
   /// nonnull, if 1\p LHS is marked _Nonnull.
   void emitNullabilityCheck(LValue LHS, mlir::Value RHS,
@@ -2372,9 +2446,6 @@ public:
   mlir::LogicalResult emitReturnStmt(const clang::ReturnStmt &S);
 
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
-
-  mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
-                              llvm::ArrayRef<mlir::Value> args = {});
 
   mlir::Value emitScalarConstant(const ConstantEmission &Constant, Expr *E);
 
@@ -2475,10 +2546,6 @@ public:
   LValue emitUnaryOpLValue(const clang::UnaryOperator *E);
 
   mlir::Value emitUnPromotedValue(mlir::Value result, QualType PromotionType);
-
-  /// Emit a reached-unreachable diagnostic if \p Loc is valid and runtime
-  /// checking is enabled. Otherwise, just emit an unreachable instruction.
-  void emitUnreachable(SourceLocation Loc);
 
   /// Emit local annotations for the local variable V, declared by D.
   void emitVarAnnotations(const VarDecl *decl, mlir::Value val);
