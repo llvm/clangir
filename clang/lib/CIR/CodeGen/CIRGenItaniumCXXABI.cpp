@@ -1542,10 +1542,6 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(mlir::Location loc,
   // We want to operate on the canonical type.
   Ty = Ty.getCanonicalType();
 
-  // RTTI descriptors for qualified types are really just descriptors
-  // for the unqualified type, so strip qualifiers.
-  Ty = Ty.getUnqualifiedType();
-
   // Check if we've already emitted an RTTI descriptor for this type.
   SmallString<256> Name;
   llvm::raw_svector_ostream Out(Name);
@@ -2700,9 +2696,9 @@ static cir::DynamicCastInfoAttr emitDynamicCastInfo(CIRGenFunction &CGF,
                                                     QualType SrcRecordTy,
                                                     QualType DestRecordTy) {
   auto srcRtti = mlir::cast<cir::GlobalViewAttr>(
-      CGF.CGM.getAddrOfRTTIDescriptor(Loc, SrcRecordTy.getUnqualifiedType()));
+      CGF.CGM.getAddrOfRTTIDescriptor(Loc, SrcRecordTy));
   auto destRtti = mlir::cast<cir::GlobalViewAttr>(
-      CGF.CGM.getAddrOfRTTIDescriptor(Loc, DestRecordTy.getUnqualifiedType()));
+      CGF.CGM.getAddrOfRTTIDescriptor(Loc, DestRecordTy));
 
   auto runtimeFuncOp = getItaniumDynamicCastFn(CGF);
   auto badCastFuncOp = getBadCastFn(CGF);
