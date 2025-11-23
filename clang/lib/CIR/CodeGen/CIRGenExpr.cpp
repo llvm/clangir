@@ -635,6 +635,14 @@ CIRGenCallee CIRGenFunction::emitCallee(const clang::Expr *E) {
 
 mlir::Value CIRGenFunction::emitToMemory(mlir::Value Value, QualType Ty) {
   // Bool has a different representation in memory than in registers.
+
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may exist as a vector type that needs conversion to integer for storage.
+  // Since we use integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -654,18 +662,21 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
 
   auto eltTy = addr.getElementType();
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("isExtVectorBoolType NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      llvm_unreachable("NYI");
+      if (vTy != newVecTy) {
+        llvm_unreachable("NYI");
+      }
     }
   }
 
@@ -869,6 +880,16 @@ void CIRGenFunction::emitStoreThroughLValue(RValue Src, LValue Dst,
                                             bool isInit) {
   if (!Dst.isSimple()) {
     if (Dst.isVectorElt()) {
+      // Check if this is an ExtVectorBoolType element assignment
+      QualType vectorType = Dst.getType();
+      if (const auto *vecTy = vectorType->getAs<clang::VectorType>()) {
+        if (vecTy->isExtVectorBoolType()) {
+          llvm_unreachable(
+              "NYI: ExtVectorBoolType element assignment (requires bit "
+              "manipulation to set/clear individual bits in integer storage)");
+        }
+      }
+
       // Read/modify/write the vector, inserting the new element
       mlir::Location loc = Dst.getVectorPointer().getLoc();
       mlir::Value Vector = builder.createLoad(loc, Dst.getVectorAddress());
@@ -3048,6 +3069,13 @@ mlir::Value CIRGenFunction::emitFromMemory(mlir::Value Value, QualType Ty) {
     llvm_unreachable("NIY");
   }
 
+  // ExtVectorBoolType: In ClangIR, ExtVectorBoolType is always represented
+  // as an integer type (!cir.int<u, N>) throughout the IR, including both
+  // in registers and in memory. This differs from traditional CodeGen where
+  // it may need truncation from storage type to value type. Since we use
+  // integer representation consistently, no conversion is needed.
+  // See CIRGenTypes.cpp:675-683 for the type conversion logic.
+
   return Value;
 }
 
@@ -3069,24 +3097,27 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   auto eltTy = addr.getElementType();
 
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
-    // Boolean vectors use `iN` as storage type.
+    // Boolean vectors use `iN` as storage type. The type conversion in
+    // CIRGenTypes::convertType (lines 675-683) returns an integer type for
+    // ExtVectorBoolType, so eltTy is already an integer. Skip vector
+    // optimizations for bool vectors since they're not actually vectors in CIR.
     if (clangVecTy->isExtVectorBoolType()) {
-      llvm_unreachable("NYI");
-    }
+      // Storage is already an integer type, nothing special needed
+    } else {
+      // Handle vectors of size 3 like size 4 for better performance.
+      const auto vTy = cast<cir::VectorType>(eltTy);
+      auto newVecTy =
+          CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
-    // Handle vectors of size 3 like size 4 for better performance.
-    const auto vTy = cast<cir::VectorType>(eltTy);
-    auto newVecTy =
-        CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
-
-    if (vTy != newVecTy) {
-      const Address cast = addr.withElementType(builder, newVecTy);
-      mlir::Value v = builder.createLoad(loc, cast, isVolatile);
-      const uint64_t oldNumElements = vTy.getSize();
-      SmallVector<int64_t, 16> mask(oldNumElements);
-      std::iota(mask.begin(), mask.end(), 0);
-      v = builder.createVecShuffle(loc, v, mask);
-      return emitFromMemory(v, ty);
+      if (vTy != newVecTy) {
+        const Address cast = addr.withElementType(builder, newVecTy);
+        mlir::Value v = builder.createLoad(loc, cast, isVolatile);
+        const uint64_t oldNumElements = vTy.getSize();
+        SmallVector<int64_t, 16> mask(oldNumElements);
+        std::iota(mask.begin(), mask.end(), 0);
+        v = builder.createVecShuffle(loc, v, mask);
+        return emitFromMemory(v, ty);
+      }
     }
   }
 
