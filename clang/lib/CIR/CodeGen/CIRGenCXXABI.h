@@ -334,6 +334,16 @@ public:
   /// Create a null member pointer of the given type.
   virtual mlir::TypedAttr emitNullMemberPointer(clang::QualType T);
 
+  /// Returns the adjustment, in bytes, required for the given
+  /// member-pointer operation.  Returns null if no adjustment is
+  /// required. Does not handle virtual conversions.
+  mlir::Attribute getMemberPointerAdjustment(const CastExpr *castExpr);
+
+  /// Perform a derived-to-base, base-to-derived, or bitcast member pointer
+  /// conversion on a constant value.
+  virtual mlir::Attribute emitMemberPointerConversion(const CastExpr *castExpr,
+                                                      mlir::Attribute src);
+
   /// Gets the offsets of all the virtual base pointers in a given class.
   virtual std::vector<CharUnits> getVBPtrOffsets(const CXXRecordDecl *RD);
 

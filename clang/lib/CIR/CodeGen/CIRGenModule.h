@@ -412,6 +412,13 @@ public:
                                CastExpr::path_const_iterator pathBegin,
                                CastExpr::path_const_iterator pathEnd);
 
+  /// Returns the offset from a derived class to a class as a constant
+  /// attribute. Returns null if the offset is 0.
+  mlir::Attribute
+  getNonVirtualBaseClassOffsetAsAttr(const CXXRecordDecl *classDecl,
+                                     CastExpr::path_const_iterator pathBegin,
+                                     CastExpr::path_const_iterator pathEnd);
+
   /// Get the CIR attributes and calling convention to use for a particular
   /// function type.
   ///
