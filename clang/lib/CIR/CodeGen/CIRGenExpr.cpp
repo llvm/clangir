@@ -903,22 +903,57 @@ void CIRGenFunction::emitStoreThroughLValue(RValue Src, LValue Dst,
                                             bool isInit) {
   if (!Dst.isSimple()) {
     if (Dst.isVectorElt()) {
+      mlir::Location loc = Dst.getVectorPointer().getLoc();
+      mlir::Value vector = builder.createLoad(loc, Dst.getVectorAddress());
+      mlir::Value srcVal = Src.getScalarVal();
+
       // Check if this is an ExtVectorBoolType element assignment
       QualType vectorType = Dst.getType();
       if (const auto *vecTy = vectorType->getAs<clang::VectorType>()) {
         if (vecTy->isExtVectorBoolType()) {
-          llvm_unreachable(
-              "NYI: ExtVectorBoolType element assignment (requires bit "
-              "manipulation to set/clear individual bits in integer storage)");
+          // ExtVectorBoolType is stored as an integer (!cir.int<u, N>) in CIR.
+          // To set an element, we need to:
+          // 1. Bitcast iN -> <N x !cir.int<u, 1>> where N is the STORAGE size
+          // (padded to at least 8)
+          // 2. Insert element at the actual index (0 to numElements-1)
+          // 3. Bitcast <N x !cir.int<u, 1>> -> iN
+          // The padding bits (numElements to N-1) are preserved through the
+          // operation.
+
+          uint64_t numElements = vecTy->getNumElements();
+          // Storage is padded to at least 8 bits (1 byte)
+          uint64_t storageBits = std::max<uint64_t>(numElements, 8);
+
+          // Use !cir.int<u, 1> instead of !cir.bool for vector elements
+          auto i1Ty = cir::IntType::get(builder.getContext(), 1, false);
+          // Create vector with storage size (padded), not actual element count
+          auto vecI1Ty = cir::VectorType::get(i1Ty, storageBits);
+
+          // Bitcast integer storage to vector of i1 (with padding)
+          vector = builder.createBitcast(loc, vector, vecI1Ty);
+
+          // Insert the element (cast bool to i1 if needed)
+          if (srcVal.getType() != i1Ty) {
+            srcVal = cir::CastOp::create(builder, loc, i1Ty,
+                                         cir::CastKind::bool_to_int, srcVal);
+          }
+          // Insert at the actual index - padding bits remain unchanged
+          vector = cir::VecInsertOp::create(builder, loc, vector, srcVal,
+                                            Dst.getVectorIdx());
+
+          // Bitcast back to integer storage
+          vector = builder.createBitcast(
+              loc, vector, Dst.getVectorAddress().getElementType());
+
+          builder.createStore(loc, vector, Dst.getVectorAddress());
+          return;
         }
       }
 
       // Read/modify/write the vector, inserting the new element
-      mlir::Location loc = Dst.getVectorPointer().getLoc();
-      mlir::Value Vector = builder.createLoad(loc, Dst.getVectorAddress());
-      Vector = cir::VecInsertOp::create(builder, loc, Vector,
-                                        Src.getScalarVal(), Dst.getVectorIdx());
-      builder.createStore(loc, Vector, Dst.getVectorAddress());
+      vector = cir::VecInsertOp::create(builder, loc, vector, srcVal,
+                                        Dst.getVectorIdx());
+      builder.createStore(loc, vector, Dst.getVectorAddress());
       return;
     }
 
