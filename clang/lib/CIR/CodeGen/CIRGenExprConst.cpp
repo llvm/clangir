@@ -1134,11 +1134,42 @@ public:
   }
 
   mlir::Attribute EmitVectorInitialization(InitListExpr *ILE, QualType T) {
-    cir::VectorType VecTy = mlir::cast<cir::VectorType>(CGM.convertType(T));
-    unsigned NumElements = VecTy.getSize();
+    auto *VecTy = T->castAs<VectorType>();
+
+    // ExtVectorBoolType uses integer storage, not vector type
+    if (VecTy->isExtVectorBoolType()) {
+      // For ExtVectorBoolType, the storage is an integer type
+      // Compute the value by packing bools into an integer
+      uint64_t numElements = VecTy->getNumElements();
+      unsigned numInits = ILE->getNumInits();
+      assert(numElements >= numInits && "Too many initializers for a vector");
+
+      // Create integer value by packing bool elements
+      uint64_t value = 0;
+      for (unsigned i = 0; i < numInits; ++i) {
+        auto Init = ILE->getInit(i);
+        Expr::EvalResult result;
+        if (!Init->EvaluateAsRValue(result, CGM.getASTContext()))
+          return {};
+        bool boolVal = result.Val.getInt().getBoolValue();
+        if (boolVal)
+          value |= (uint64_t(1) << i);
+      }
+
+      // Pad to at least 8 bits
+      uint64_t storageBits = std::max<uint64_t>(numElements, 8);
+      auto storageTy =
+          cir::IntType::get(CGM.getBuilder().getContext(), storageBits,
+                            /*isSigned=*/false);
+      return cir::IntAttr::get(storageTy, value);
+    }
+
+    // Regular vector type
+    cir::VectorType CIRVecTy = mlir::cast<cir::VectorType>(CGM.convertType(T));
+    unsigned NumElements = CIRVecTy.getSize();
     unsigned NumInits = ILE->getNumInits();
     assert(NumElements >= NumInits && "Too many initializers for a vector");
-    QualType EltTy = T->castAs<VectorType>()->getElementType();
+    QualType EltTy = VecTy->getElementType();
     SmallVector<mlir::Attribute, 8> Elts;
     // Process the explicit initializers
     for (unsigned i = 0; i < NumInits; ++i) {
@@ -1149,10 +1180,11 @@ public:
     }
     // Zero-fill the rest of the vector
     for (unsigned i = NumInits; i < NumElements; ++i) {
-      Elts.push_back(CGM.getBuilder().getZeroInitAttr(VecTy.getElementType()));
+      Elts.push_back(
+          CGM.getBuilder().getZeroInitAttr(CIRVecTy.getElementType()));
     }
     return cir::ConstVectorAttr::get(
-        VecTy, mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Elts));
+        CIRVecTy, mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Elts));
   }
 
   mlir::Attribute VisitImplicitValueInitExpr(ImplicitValueInitExpr *E,
