@@ -1,11 +1,8 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // XFAIL: *
 //
-// Constant expression NYI
-// Location: CIRGenExprConst.cpp:1006
-//
-// Original failure: exprconst_1006 from LLVM build
-// Reduced from /tmp/HexagonAttributeParser-40f1ed.cpp
+// Member function pointer emission NYI
+// Location: CIRGenExprConst.cpp:2045
 
 class a {
 public:

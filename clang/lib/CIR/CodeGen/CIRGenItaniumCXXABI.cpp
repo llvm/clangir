@@ -124,6 +124,8 @@ public:
   bool classifyReturnType(CIRGenFunctionInfo &FI) const override;
   bool isZeroInitializable(const MemberPointerType *MPT) override;
   mlir::TypedAttr emitNullMemberPointer(clang::QualType T) override;
+  mlir::Attribute emitMemberPointerConversion(const CastExpr *castExpr,
+                                              mlir::Attribute src) override;
 
   AddedStructorArgCounts
   buildStructorSignature(GlobalDecl GD,
@@ -3184,6 +3186,59 @@ mlir::TypedAttr CIRGenItaniumCXXABI::emitNullMemberPointer(clang::QualType T) {
 
   // Create an annon struct with two constant int of CGM.PtrDiffTy size.
   llvm_unreachable("NYI");
+}
+
+mlir::Attribute
+CIRGenItaniumCXXABI::emitMemberPointerConversion(const CastExpr *castExpr,
+                                                 mlir::Attribute src) {
+  assert(castExpr->getCastKind() == CK_DerivedToBaseMemberPointer ||
+         castExpr->getCastKind() == CK_BaseToDerivedMemberPointer ||
+         castExpr->getCastKind() == CK_ReinterpretMemberPointer);
+
+  // Under Itanium, reinterprets don't require any additional processing.
+  if (castExpr->getCastKind() == CK_ReinterpretMemberPointer)
+    return src;
+
+  // If the adjustment is trivial, we don't need to do anything.
+  mlir::Attribute adj = getMemberPointerAdjustment(castExpr);
+  if (!adj)
+    return src;
+
+  bool isDerivedToBase =
+      (castExpr->getCastKind() == CK_DerivedToBaseMemberPointer);
+
+  const MemberPointerType *destTy =
+      castExpr->getType()->castAs<MemberPointerType>();
+
+  // For member data pointers, this is just a matter of adding the
+  // offset if the source is non-null.
+  if (destTy->isMemberDataPointer()) {
+    auto dataMemberAttr = cast<cir::DataMemberAttr>(src);
+    auto adjIntAttr = cast<cir::IntAttr>(adj);
+
+    // null maps to null.
+    if (dataMemberAttr.isNullPtr())
+      return src;
+
+    // Get the current member index.
+    auto memberIndex = dataMemberAttr.getMemberIndex().value();
+
+    // Apply the adjustment.
+    int64_t newIndex;
+    if (isDerivedToBase)
+      newIndex = memberIndex - adjIntAttr.getSInt();
+    else
+      newIndex = memberIndex + adjIntAttr.getSInt();
+
+    // Create a new data member attribute with the adjusted index.
+    auto resultType =
+        cast<cir::DataMemberType>(CGM.convertType(castExpr->getType()));
+    return cir::DataMemberAttr::get(resultType, newIndex);
+  }
+
+  // For member function pointers, the adjustment is more complex.
+  // They are represented as a struct with {ptr, adj}.
+  llvm_unreachable("Member function pointer conversions NYI");
 }
 
 /// The Itanium ABI always places an offset to the complete object
