@@ -411,6 +411,21 @@ public:
   virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                                  const CXXMethodDecl *MD) = 0;
 
+  /// Emit a member pointer constant from an APValue.
+  virtual mlir::TypedAttr emitMemberPointer(const APValue &memberPointer,
+                                            QualType mpType) = 0;
+
+  /// Build a member function pointer constant with the given method and
+  /// adjustment.
+  virtual mlir::TypedAttr
+  buildMemberFunctionPointer(cir::MethodType methodTy,
+                             const CXXMethodDecl *methodDecl,
+                             CharUnits thisAdjustment) = 0;
+
+  /// Build a member data pointer constant with the given field offset.
+  virtual mlir::TypedAttr buildMemberDataPointer(const MemberPointerType *mpt,
+                                                 CharUnits offset) = 0;
+
   /**************************** Array cookies ******************************/
 
   /// Returns the extra size required in order to store the array
