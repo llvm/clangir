@@ -2152,6 +2152,12 @@ public:
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
 
+  /// Emit the operand of a typeid expression as an mlir::Value.
+  mlir::Value emitCXXTypeidExpr(const CXXTypeidExpr *E);
+
+  /// Emit a typeid expression as an l-value.
+  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
+
   /// Emits try/catch information for the current EH stack.
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
                          mlir::Location loc);
