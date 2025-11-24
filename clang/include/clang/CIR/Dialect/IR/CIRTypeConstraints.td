@@ -169,6 +169,12 @@ def CIR_AnyIntOrFloatType : AnyTypeOf<[CIR_AnyFloatType, CIR_AnyIntType],
 
 def CIR_AnyComplexType : CIR_TypeBase<"::cir::ComplexType", "complex type">;
 
+def CIR_AnyComplexOrIntOrFloatType : AnyTypeOf<[
+    CIR_AnyComplexType, CIR_AnyFloatType, CIR_AnyIntType
+], "complex, integer or floating point type"> {
+    let cppFunctionName = "isComplexOrIntegerOrFloatingPointType";
+}
+
 //===----------------------------------------------------------------------===//
 // Record Type predicates
 //===----------------------------------------------------------------------===//
