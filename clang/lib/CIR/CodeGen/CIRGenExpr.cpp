@@ -2764,6 +2764,8 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
   case Expr::CXXAddrspaceCastExprClass:
   case Expr::ObjCBridgedCastExprClass:
     return emitCastLValue(cast<CastExpr>(E));
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
   case Expr::OpaqueValueExprClass:
     return emitOpaqueValueLValue(cast<OpaqueValueExpr>(E));
 

@@ -1809,3 +1809,60 @@ mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
   return CGM.getCXXABI().emitDynamicCast(*this, loc, srcRecordTy, destRecordTy,
                                          destCirTy, isRefCast, ThisAddr);
 }
+
+mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
+  auto loc = getLoc(E->getSourceRange());
+
+  // Helper to create a GetGlobalOp from an RTTI descriptor attribute.
+  auto createGetGlobalForRTTI = [&](mlir::Attribute typeInfo) -> mlir::Value {
+    auto globalView = mlir::cast<cir::GlobalViewAttr>(typeInfo);
+    auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+                                                       globalView.getSymbol());
+    assert(globalOp && "RTTI global not found");
+    auto global = mlir::cast<cir::GlobalOp>(globalOp);
+
+    // The result type of GetGlobalOp is a pointer to the global's symbol type.
+    auto ptrTy = builder.getPointerTo(global.getSymType());
+    return cir::GetGlobalOp::create(builder, loc, ptrTy,
+                                    globalView.getSymbol());
+  };
+
+  // If this is a type operand, just get the address of the RTTI descriptor.
+  if (E->isTypeOperand()) {
+    QualType operandTy = E->getTypeOperand(getContext());
+    mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+    return createGetGlobalForRTTI(typeInfo);
+  }
+
+  // C++ [expr.typeid]p2:
+  //   When typeid is applied to a glvalue expression whose type is a
+  //   polymorphic class type, the result refers to a std::type_info object
+  //   representing the type of the most derived object (that is, the dynamic
+  //   type) to which the glvalue refers.
+
+  // If the operand is already the most derived object, no need to look up
+  // vtable.
+  if (E->isPotentiallyEvaluated() && !E->isMostDerived(getContext())) {
+    // This requires emitting code similar to dynamic_cast that looks up the
+    // type_info pointer from the vtable. Note that this path also needs to
+    // handle null checking when E->hasNullCheck() is true.
+    llvm_unreachable("NYI: typeid with polymorphic types (vtable lookup)");
+  }
+
+  // For non-polymorphic types, just return the static RTTI descriptor.
+  QualType operandTy = E->getExprOperand()->getType();
+  mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+  return createGetGlobalForRTTI(typeInfo);
+}
+
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  mlir::Value V = emitCXXTypeidExpr(E);
+
+  LValueBaseInfo baseInfo;
+  TBAAAccessInfo tbaaInfo;
+  CharUnits alignment = CGM.getNaturalTypeAlignment(E->getType(), &baseInfo, &tbaaInfo);
+
+  // Use the Address constructor that extracts the element type from the pointer
+  Address addr(V, alignment);
+  return LValue::makeAddr(addr, E->getType(), getContext(), baseInfo, tbaaInfo);
+}
