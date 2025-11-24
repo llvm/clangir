@@ -524,7 +524,9 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
       if (Scope.hasBranchThroughs() ||
           (FallthroughSource && FallthroughIsBranchThrough) ||
           (HasFixups && HasEnclosingCleanups)) {
-        llvm_unreachable("NYI");
+        assert(HasEnclosingCleanups);
+        EHScope &S = *EHStack.find(Scope.getEnclosingNormalCleanup());
+        branchThroughDest = createNormalEntry(*this, cast<EHCleanupScope>(S));
       }
 
       mlir::Block *fallthroughDest = nullptr;
@@ -562,12 +564,23 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
       emitCleanup(*this, Fn, cleanupFlags, NormalActiveFlag);
 
       // Append the prepared cleanup prologue from above.
+      mlir::Block *normalExit = builder.getInsertionBlock();
       assert(!cir::MissingFeatures::cleanupAppendInsts());
 
       // Optimistically hope that any fixups will continue falling through.
       for (unsigned I = FixupDepth, E = EHStack.getNumBranchFixups(); I < E;
            ++I) {
-        llvm_unreachable("NYI");
+        BranchFixup &Fixup = EHStack.getBranchFixup(I);
+        if (!Fixup.destination)
+          continue;
+        if (!Fixup.optimisticBranchBlock) {
+          // TODO: Need to implement cleanup destination slot mechanism
+          // For now, just set the successor directly
+          if (Fixup.initialBranch && normalEntry) {
+            Fixup.initialBranch.setSuccessor(normalEntry);
+          }
+        }
+        Fixup.optimisticBranchBlock = normalExit;
       }
 
       // V.  Set up the fallthrough edge out.
@@ -892,10 +905,10 @@ void EHScopeStack::popNullFixups() {
   assert(hasNormalCleanups());
 
   EHScopeStack::iterator it = find(InnermostNormalCleanup);
-  unsigned minSize = cast<EHCleanupScope>(*it).getFixupDepth();
-  assert(BranchFixups.size() >= minSize && "fixup stack out of order");
+  unsigned MinSize = cast<EHCleanupScope>(*it).getFixupDepth();
+  assert(BranchFixups.size() >= MinSize && "fixup stack out of order");
 
-  while (BranchFixups.size() > minSize &&
+  while (BranchFixups.size() > MinSize &&
          BranchFixups.back().destination == nullptr)
     BranchFixups.pop_back();
 }
