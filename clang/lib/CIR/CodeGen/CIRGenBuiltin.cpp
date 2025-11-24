@@ -498,7 +498,12 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
     return cir::VectorType::get(context, elementType, numElements);
   }
   case IITDescriptor::Pointer:
-    llvm_unreachable("NYI: IITDescriptor::Pointer");
+  case IITDescriptor::Pointer: {
+    mlir::Type pointee = {};
+    auto addrSpace =
+        static_cast<cir::AddressSpace>(descriptor.Pointer_AddressSpace);
+    return cir::PointerType::get(context, pointee, addrSpace);
+  }
   case IITDescriptor::Struct:
     llvm_unreachable("NYI: IITDescriptor::Struct");
   case IITDescriptor::Argument:
@@ -2803,8 +2808,24 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       mlir::Type correctedExpectedTy =
           getIntrinsicArgumentTypeFromAST(expectedTy, E, i, &getMLIRContext());
 
-      if (argType != correctedExpectedTy)
-        llvm_unreachable("NYI");
+      if (argType != correctedExpectedTy) {
+        if (isa<cir::PointerType>(argType)) {
+          auto ptrType = mlir::cast<cir::PointerType>(argType);
+          auto expectedPtrType = mlir::cast<cir::PointerType>(expectedTy);
+          if (ptrType.getPointee() != expectedPtrType.getPointee()) {
+            if (expectedPtrType.getAddrSpace() != ptrType.getAddrSpace()) {
+              auto newPtrType =
+                  cir::PointerType::get(&getMLIRContext(), ptrType.getPointee(),
+                                        expectedPtrType.getAddrSpace());
+              argValue = builder.createAddrSpaceCast(argValue, newPtrType);
+            }
+          } else {
+            llvm_unreachable("NYI");
+          }
+        } else {
+          llvm_unreachable("NYI");
+        }
+      }
 
       args.push_back(argValue);
     }
