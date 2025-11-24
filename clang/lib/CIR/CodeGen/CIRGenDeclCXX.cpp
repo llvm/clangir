@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "TargetInfo.h"
@@ -50,4 +51,16 @@ void CIRGenModule::emitCXXGlobalVarDeclInitFunc(const VarDecl *D,
     return;
 
   emitCXXGlobalVarDeclInit(D, Addr, PerformInit);
+}
+
+void CIRGenFunction::emitCXXGuardedInit(const VarDecl &D, cir::GlobalOp DeclPtr,
+                                        bool PerformInit) {
+  // Darwin kernel configurations forbid guard variables to reduce overhead.
+  // See CodeGen: CGDeclCXX.cpp:390-396
+  if (CGM.getCodeGenOpts().ForbidGuardVariables)
+    CGM.Error(D.getLocation(),
+              "this initialization requires a guard variable, which "
+              "the kernel does not support");
+
+  CGM.getCXXABI().emitGuardedInit(*this, D, DeclPtr, PerformInit);
 }
