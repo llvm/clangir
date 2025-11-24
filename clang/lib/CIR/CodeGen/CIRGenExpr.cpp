@@ -1025,10 +1025,22 @@ void CIRGenFunction::emitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   mlir::Type resLTy = convertTypeForMem(Dst.getType());
   Address ptr = Dst.getBitFieldAddress();
 
-  // Bool bitfield stores require bool-to-int conversion before SetBitfield.
-  // This is NYI - will be implemented in follow-up commit.
-  if (Dst.getType()->isBooleanType())
-    llvm_unreachable("bool bitfield stores are NYI");
+  // Get the source value
+  mlir::Value srcVal = Src.getScalarVal();
+
+  // SetBitfield operation requires integer types for both source value and
+  // result. For bool bitfields, we need to cast from bool to int before
+  // storing, since CIR's type system treats BoolType and IntType as distinct
+  // types, unlike LLVM where i1 is an integer type.
+  if (Dst.getType()->isBooleanType()) {
+    // Use an unsigned integer type matching the bitfield size
+    mlir::Type bitfieldIntTy =
+        cir::IntType::get(builder.getContext(), info.Size, /*isSigned=*/false);
+    srcVal = cir::CastOp::create(builder, srcVal.getLoc(), bitfieldIntTy,
+                                 cir::CastKind::bool_to_int, srcVal);
+    // SetBitfieldOp also requires IntType for the result
+    resLTy = bitfieldIntTy;
+  }
 
   const bool useVolatile =
       CGM.getCodeGenOpts().AAPCSBitfieldWidth && Dst.isVolatileQualified() &&
@@ -1036,9 +1048,9 @@ void CIRGenFunction::emitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
 
   mlir::Value dstAddr = Dst.getAddress().getPointer();
 
-  Result = builder.createSetBitfield(
-      dstAddr.getLoc(), resLTy, ptr, ptr.getElementType(), Src.getScalarVal(),
-      info, Dst.isVolatileQualified(), useVolatile);
+  Result = builder.createSetBitfield(dstAddr.getLoc(), resLTy, ptr,
+                                     ptr.getElementType(), srcVal, info,
+                                     Dst.isVolatileQualified(), useVolatile);
 }
 
 static LValue emitGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
