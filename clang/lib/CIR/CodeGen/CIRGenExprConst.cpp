@@ -1003,7 +1003,10 @@ public:
     case CK_ReinterpretMemberPointer:
     case CK_DerivedToBaseMemberPointer:
     case CK_BaseToDerivedMemberPointer: {
-      llvm_unreachable("not implemented");
+      auto src = Emitter.tryEmitPrivate(subExpr, subExpr->getType());
+      if (!src)
+        return nullptr;
+      return CGM.getCXXABI().emitMemberPointerConversion(E, src);
     }
 
     // These will never be supported.
