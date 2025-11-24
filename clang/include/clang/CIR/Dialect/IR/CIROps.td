@@ -1525,7 +1525,7 @@ def CIR_ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
   }];
 
   let results = (outs CIR_AnyIntOrFloatType:$result);
-  let arguments = (ins CIR_ComplexType:$operand);
+  let arguments = (ins CIR_AnyComplexOrIntOrFloatType:$operand);
 
   let assemblyFormat = [{
     $operand `:` qualified(type($operand)) `->` qualified(type($result))

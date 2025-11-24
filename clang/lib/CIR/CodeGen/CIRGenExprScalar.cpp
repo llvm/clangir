@@ -2105,8 +2105,8 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
   // TODO(cir): handle scalar promotion.
 
   Expr *Op = E->getSubExpr();
+  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
   if (Op->getType()->isAnyComplexType()) {
-    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
 
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
@@ -2120,7 +2120,7 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
     return Builder.createComplexReal(Loc, CGF.emitComplexExpr(Op));
   }
 
-  return Visit(Op);
+  return Builder.createComplexReal(Loc, Visit(Op));
 }
 
 mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
