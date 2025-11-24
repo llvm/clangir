@@ -360,8 +360,8 @@ void cir::ConditionOp::getSuccessorRegions(
   regions.emplace_back(&await.getSuspend(), await.getSuspend().getArguments());
 }
 
-MutableOperandRange cir::ConditionOp::getMutableSuccessorOperands(
-    RegionSuccessor /*successor*/) {
+MutableOperandRange
+cir::ConditionOp::getMutableSuccessorOperands(RegionSuccessor /*successor*/) {
   // No values are yielded to the successor region.
   return MutableOperandRange(getOperation(), 0, 0);
 }
@@ -1525,8 +1525,7 @@ void cir::ScopeOp::getSuccessorRegions(
     mlir::RegionBranchPoint point, SmallVectorImpl<RegionSuccessor> &regions) {
   // The only region always branch back to the parent operation.
   if (!point.isParent()) {
-    regions.push_back(
-        RegionSuccessor(getOperation(), this->getODSResults(0)));
+    regions.push_back(RegionSuccessor(getOperation(), this->getODSResults(0)));
     return;
   }
 
@@ -1787,8 +1786,8 @@ void cir::TernaryOp::build(
 // YieldOp
 //===----------------------------------------------------------------------===//
 
-MutableOperandRange cir::YieldOp::getMutableSuccessorOperands(
-    RegionSuccessor successor) {
+MutableOperandRange
+cir::YieldOp::getMutableSuccessorOperands(RegionSuccessor successor) {
   Operation *op = getOperation();
   if (auto loop = dyn_cast<LoopOpInterface>(op->getParentOp())) {
     if (op->getParentRegion() == &loop.getCond())
@@ -2502,6 +2501,28 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
               "space of the global @"
            << getName();
   }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// GuardedInitOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::GuardedInitOp::verify() {
+  // Verify that the guard variable is a pointer type.
+  auto guardPtrTy = mlir::dyn_cast<PointerType>(getGuardVar().getType());
+  if (!guardPtrTy)
+    return emitOpError("guard_var must be a pointer type");
+
+  // Verify that the init region has exactly one block.
+  if (getInitRegion().getBlocks().size() != 1)
+    return emitOpError("init_region must have exactly one block");
+
+  // Verify that the init region terminates with a yield.
+  auto &block = getInitRegion().front();
+  if (block.empty() || !isa<YieldOp>(block.back()))
+    return emitOpError("init_region must terminate with cir.yield");
 
   return success();
 }

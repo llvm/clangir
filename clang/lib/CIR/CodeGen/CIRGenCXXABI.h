@@ -182,6 +182,19 @@ public:
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                                   cir::FuncOp dtor, mlir::Value Addr) = 0;
 
+  /// Emit the guarded initialization code for static local variables with
+  /// non-trivial initialization or destruction. This implements the C++
+  /// standard's requirements for thread-safe static initialization.
+  ///
+  /// \param CGF - The code generation function context
+  /// \param D - The variable being initialized
+  /// \param DeclPtr - The global variable representing the static local
+  /// \param PerformInit - Whether to perform initialization (true) or just
+  ///                      register the destructor (false, for constant-init
+  ///                      variables with non-trivial destructors)
+  virtual void emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                               cir::GlobalOp DeclPtr, bool PerformInit) = 0;
+
   virtual void emitVirtualObjectDelete(CIRGenFunction &CGF,
                                        const CXXDeleteExpr *DE, Address Ptr,
                                        QualType ElementType,
@@ -233,6 +246,24 @@ public:
   virtual bool exportThunk() = 0;
   virtual void setThunkLinkage(cir::FuncOp Thunk, bool ForVTable, GlobalDecl GD,
                                bool ReturnAdjustment) = 0;
+
+  /// Perform adjustment on the this pointer for a thunk.
+  /// Returns the adjusted this pointer value.
+  virtual mlir::Value
+  performThisAdjustment(CIRGenFunction &cgf, Address thisAddr,
+                        const CXXRecordDecl *unadjustedClass,
+                        const ThunkInfo &ti) = 0;
+
+  /// Perform adjustment on a return pointer for a thunk (covariant returns).
+  /// Returns the adjusted return pointer value.
+  virtual mlir::Value
+  performReturnAdjustment(CIRGenFunction &cgf, Address ret,
+                          const CXXRecordDecl *unadjustedClass,
+                          const ReturnAdjustment &ra) = 0;
+
+  /// Emit a return from a thunk.
+  virtual void emitReturnFromThunk(CIRGenFunction &cgf, RValue rv,
+                                   QualType resultType);
 
   virtual mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                                   QualType Ty) = 0;
@@ -379,6 +410,21 @@ public:
 
   virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                                  const CXXMethodDecl *MD) = 0;
+
+  /// Emit a member pointer constant from an APValue.
+  virtual mlir::TypedAttr emitMemberPointer(const APValue &memberPointer,
+                                            QualType mpType) = 0;
+
+  /// Build a member function pointer constant with the given method and
+  /// adjustment.
+  virtual mlir::TypedAttr
+  buildMemberFunctionPointer(cir::MethodType methodTy,
+                             const CXXMethodDecl *methodDecl,
+                             CharUnits thisAdjustment) = 0;
+
+  /// Build a member data pointer constant with the given field offset.
+  virtual mlir::TypedAttr buildMemberDataPointer(const MemberPointerType *mpt,
+                                                 CharUnits offset) = 0;
 
   /**************************** Array cookies ******************************/
 
