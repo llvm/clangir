@@ -194,6 +194,8 @@ public:
                           QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
+  void emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                       cir::GlobalOp DeclPtr, bool PerformInit) override;
   void emitVirtualObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
                                Address Ptr, QualType ElementType,
                                const CXXDestructorDecl *Dtor) override;
@@ -2373,6 +2375,145 @@ void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
 
   // The default behavior is to use atexit. This is handled in lowering
   // prepare. Nothing to be done for CIR here.
+}
+
+void CIRGenItaniumCXXABI::emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                                          cir::GlobalOp declPtr,
+                                          bool performInit) {
+  auto &builder = CGF.getBuilder();
+  mlir::Location loc = CGF.getLoc(D.getLocation());
+
+  // Inline variables that weren't instantiated from variable templates have
+  // partially-ordered initialization within their translation unit.
+  bool nonTemplateInline =
+      D.isInline() &&
+      !isTemplateInstantiation(D.getTemplateSpecializationKind());
+
+  // We only need to use thread-safe statics for local non-TLS variables and
+  // inline variables; other global initialization is always single-threaded
+  // or (through lazy dynamic loading in multiple threads) unsequenced.
+  bool threadSafe = getContext().getLangOpts().ThreadsafeStatics &&
+                    (D.isLocalVarDecl() || nonTemplateInline) &&
+                    !D.getTLSKind();
+
+  // If we have a global variable with internal linkage and thread-safe statics
+  // are disabled, we can just let the guard variable be of type i8.
+  bool useInt8GuardVariable =
+      !threadSafe &&
+      declPtr.getLinkage() == cir::GlobalLinkageKind::InternalLinkage;
+
+  // Determine the guard variable type.
+  mlir::Type guardTy;
+  if (useInt8GuardVariable) {
+    guardTy = builder.getUInt8Ty();
+  } else {
+    // Guard variables are 64 bits in the generic ABI and size width on ARM
+    // (i.e. 32-bit on AArch32, 64-bit on AArch64).
+    if (UseARMGuardVarABI) {
+      llvm_unreachable("NYI: ARM guard variable ABI");
+    } else {
+      guardTy = builder.getUInt64Ty();
+    }
+  }
+
+  // Create the guard variable if we don't already have it (as we
+  // might if we're double-emitting this function body).
+  // See CodeGen: ItaniumCXXABI.cpp:2735-2772
+  cir::GlobalOp guardGlobal = CGM.getStaticLocalDeclGuardAddress(&D);
+  if (!guardGlobal) {
+    // Mangle the name for the guard variable.
+    SmallString<256> guardName;
+    {
+      llvm::raw_svector_ostream out(guardName);
+      getMangleContext().mangleStaticGuardVariable(&D, out);
+    }
+
+    // Create the guard variable with a zero-initializer.
+    // Just absorb linkage, visibility and dll storage class from the guarded
+    // variable.
+    guardGlobal = CIRGenModule::createGlobalOp(
+        CGM, loc, guardName.str(), guardTy, /*isConstant=*/false,
+        cir::AddressSpace::Default, /*insertPoint=*/nullptr,
+        declPtr.getLinkage());
+    guardGlobal.setVisibility(declPtr.getVisibility());
+    guardGlobal.setDSOLocal(declPtr.isDSOLocal());
+
+    // DLL storage class should match the guarded variable.
+    // See CodeGen: ItaniumCXXABI.cpp:2755
+    assert(!cir::MissingFeatures::setDLLStorageClass());
+
+    // Set alignment for the guard variable based on its type.
+    // See CodeGen: ItaniumCXXABI.cpp:2716-2728, 2758
+    CharUnits guardAlignment;
+    if (useInt8GuardVariable) {
+      guardAlignment = CharUnits::One();
+    } else {
+      if (UseARMGuardVarABI) {
+        llvm_unreachable("NYI: ARM guard variable ABI alignment");
+      } else {
+        guardAlignment = CharUnits::fromQuantity(
+            CGM.getDataLayout().getABITypeAlign(guardTy));
+      }
+    }
+    guardGlobal.setAlignment(guardAlignment.getQuantity());
+
+    // Set the initial value to zero.
+    guardGlobal.setInitialValueAttr(builder.getZeroInitAttr(guardTy));
+
+    // The ABI says: "It is suggested that it be emitted in the same COMDAT
+    // group as the associated data object." In practice, this doesn't work for
+    // non-ELF and non-Wasm object formats, so only do it for ELF and Wasm.
+    // See CodeGen: ItaniumCXXABI.cpp:2760-2770
+    bool declHasComdat = declPtr.getComdat();
+    if (!D.isLocalVarDecl() && declHasComdat &&
+        (CGM.getTarget().getTriple().isOSBinFormatELF() ||
+         CGM.getTarget().getTriple().isOSBinFormatWasm())) {
+      guardGlobal.setComdat(true);
+    } else if (CGM.supportsCOMDAT() && guardGlobal.isWeakForLinker()) {
+      guardGlobal.setComdat(true);
+    }
+
+    // Register the guard variable so we don't create it again.
+    CGM.setStaticLocalDeclGuardAddress(&D, guardGlobal);
+  }
+
+  // If the variable is thread-local, so is its guard variable.
+  if (D.getTLSKind())
+    llvm_unreachable("NYI: thread-local guard variables");
+
+  // Create a pointer to the guard variable for the GuardedInitOp.
+  auto guardAddr = builder.createGetGlobal(guardGlobal);
+
+  // Get a symbol reference to the static variable.
+  auto staticVarSymbol =
+      mlir::FlatSymbolRefAttr::get(builder.getContext(), declPtr.getSymName());
+
+  // Create the GuardedInitOp.
+  bool isLocalVar = D.isLocalVarDecl();
+  mlir::UnitAttr threadSafeAttr = threadSafe ? builder.getUnitAttr() : nullptr;
+  mlir::UnitAttr performInitAttr =
+      performInit ? builder.getUnitAttr() : nullptr;
+  mlir::UnitAttr isLocalVarAttr = isLocalVar ? builder.getUnitAttr() : nullptr;
+  auto guardedInitOp = builder.create<cir::GuardedInitOp>(
+      loc, guardAddr, staticVarSymbol, threadSafeAttr, performInitAttr,
+      isLocalVarAttr);
+
+  // Build the init region.
+  mlir::Region &initRegion = guardedInitOp.getInitRegion();
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  mlir::Block *initBlock = builder.createBlock(&initRegion);
+  builder.setInsertionPointToStart(initBlock);
+
+  // Emit the initialization code if performInit is true.
+  if (performInit) {
+    // Get the address of the static variable for initialization.
+    Address declAddr(CGF.getBuilder().createGetGlobal(declPtr),
+                     declPtr.getSymType(), getContext().getDeclAlign(&D));
+    CGF.emitCXXGlobalVarDeclInit(D, declAddr, /*performInit=*/true);
+  }
+
+  // Terminate the init region with a yield.
+  builder.create<cir::YieldOp>(loc);
 }
 
 mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
