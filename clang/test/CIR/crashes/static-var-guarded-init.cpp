@@ -1,14 +1,21 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// XFAIL: *
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-threadsafe-statics -emit-cir %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s
 //
-// Declaration handling NYI
-// Location: CIRGenDecl.cpp:616
-//
-// Original failure: decl_616 from LLVM build
-// Reduced from /tmp/MSFError-102e4d.cpp
+// Test static local variable with non-trivial destructor
+// (Previously crashed with "C++ guarded init is NYI")
 
 class a {
 public:
   ~a();
 };
 void b() { static a c; }
+
+// CHECK: cir.global "private" internal dso_local @_ZZ1bvE1c = #cir.zero : !rec_a
+// CHECK: cir.global "private" internal dso_local @_ZGVZ1bvE1c = #cir.int<0> : !u8i
+// CHECK: cir.func dso_local @_Z1bv()
+// CHECK: cir.get_global @_ZZ1bvE1c
+// CHECK: cir.get_global @_ZGVZ1bvE1c
+// CHECK: cir.load
+// CHECK: cir.cmp(eq,
+// CHECK: cir.if
+// CHECK: cir.return
