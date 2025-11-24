@@ -90,6 +90,33 @@ mlir::TypedAttr CIRGenCXXABI::emitNullMemberPointer(clang::QualType T) {
   llvm_unreachable("NYI");
 }
 
+/// Returns the adjustment, in bytes, required for the given
+/// member-pointer operation.  Returns null if no adjustment is
+/// required.
+mlir::Attribute
+CIRGenCXXABI::getMemberPointerAdjustment(const CastExpr *castExpr) {
+  assert(castExpr->getCastKind() == CK_DerivedToBaseMemberPointer ||
+         castExpr->getCastKind() == CK_BaseToDerivedMemberPointer);
+
+  QualType derivedType;
+  if (castExpr->getCastKind() == CK_DerivedToBaseMemberPointer)
+    derivedType = castExpr->getSubExpr()->getType();
+  else
+    derivedType = castExpr->getType();
+
+  const CXXRecordDecl *derivedClass =
+      derivedType->castAs<MemberPointerType>()->getMostRecentCXXRecordDecl();
+
+  return CGM.getNonVirtualBaseClassOffsetAsAttr(
+      derivedClass, castExpr->path_begin(), castExpr->path_end());
+}
+
+mlir::Attribute
+CIRGenCXXABI::emitMemberPointerConversion(const CastExpr *castExpr,
+                                          mlir::Attribute src) {
+  llvm_unreachable("NYI");
+}
+
 CharUnits CIRGenCXXABI::getArrayCookieSize(const CXXNewExpr *E) {
   if (!requiresArrayCookie(E))
     return CharUnits::Zero();

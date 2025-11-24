@@ -4277,6 +4277,22 @@ CharUnits CIRGenModule::computeNonVirtualBaseClassOffset(
   return offset;
 }
 
+mlir::Attribute CIRGenModule::getNonVirtualBaseClassOffsetAsAttr(
+    const CXXRecordDecl *classDecl, CastExpr::path_const_iterator pathBegin,
+    CastExpr::path_const_iterator pathEnd) {
+  assert(pathBegin != pathEnd && "Base path should not be empty!");
+
+  CharUnits offset =
+      computeNonVirtualBaseClassOffset(classDecl, pathBegin, pathEnd);
+  if (offset.isZero())
+    return nullptr;
+
+  mlir::Type ptrDiffTy =
+      getTypes().convertType(getASTContext().getPointerDiffType());
+
+  return cir::IntAttr::get(ptrDiffTy, offset.getQuantity());
+}
+
 void CIRGenModule::Error(SourceLocation loc, StringRef message) {
   unsigned diagID = getDiags().getCustomDiagID(DiagnosticsEngine::Error, "%0");
   getDiags().Report(astContext.getFullLoc(loc), diagID) << message;
