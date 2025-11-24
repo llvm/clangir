@@ -556,8 +556,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     const VarDecl &D, cir::GlobalOp GV, cir::GetGlobalOp GVAddr) {
   ConstantEmitter emitter(*this);
   mlir::TypedAttr Init =
-      mlir::dyn_cast<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
-  assert(Init && "Expected typed attribute");
+      mlir::dyn_cast_or_null<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
 
   // If constant emission failed, then this should be a C++ static
   // initializer.
@@ -570,7 +569,8 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
       // Since we have a static initializer, this global variable can't
       // be constant.
       GV.setConstant(false);
-      llvm_unreachable("C++ guarded init it NYI");
+
+      emitCXXGuardedInit(D, GV, /*PerformInit=*/true);
     }
     return GV;
   }
@@ -613,7 +613,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // We have a constant initializer, but a nontrivial destructor. We still
     // need to perform a guarded "initialization" in order to register the
     // destructor.
-    llvm_unreachable("C++ guarded init is NYI");
+    emitCXXGuardedInit(D, GV, /*PerformInit=*/false);
   }
 
   return GV;
