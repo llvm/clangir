@@ -2200,7 +2200,45 @@ static mlir::Value performTypeAdjustment(CIRGenFunction &cgf,
   // Perform the virtual adjustment if we have one.
   mlir::Value resultPtr;
   if (virtualAdjustment) {
-    llvm_unreachable("Virtual adjustment NYI - requires vtable offset lookup");
+    // Cast the pointer to the appropriate type for vtable access
+    Address vtableAddr(v, cgf.getPointerAlign());
+
+    // Get the vtable pointer for this object
+    mlir::Value vtablePtr = cgf.getVTablePtr(loc, vtableAddr, unadjustedClass);
+
+    // Cast the vtable pointer to i8* for pointer arithmetic
+    vtablePtr = builder.createBitcast(vtablePtr, i8PtrTy);
+
+    // The virtual adjustment is an offset into the vtable where we can find
+    // the actual offset to apply to the pointer.
+    auto vtableOffsetConst = builder.getSInt64(virtualAdjustment, loc);
+    mlir::Value offsetPtr = cir::PtrStrideOp::create(
+        builder, loc, i8PtrTy, vtablePtr, vtableOffsetConst);
+
+    // Load the adjustment offset from the vtable.
+    mlir::Value offset;
+    if (cgf.CGM.getItaniumVTableContext().isRelativeLayout()) {
+      // Load the adjustment offset as a 32-bit int for relative layout
+      auto int32Ty = builder.getSInt32Ty();
+      auto int32PtrTy = builder.getPointerTo(int32Ty);
+      mlir::Value offsetPtrCasted =
+          builder.createBitcast(offsetPtr, int32PtrTy);
+      offset = builder.createAlignedLoad(loc, int32Ty, offsetPtrCasted,
+                                         llvm::MaybeAlign(4));
+      // Sign-extend to i64 for pointer arithmetic
+      offset = builder.createIntCast(offset, builder.getSInt64Ty());
+    } else {
+      // Load the adjustment offset as ptrdiff_t (i64 on x86_64)
+      auto ptrDiffTy = cgf.convertType(cgf.getContext().getPointerDiffType());
+      auto ptrDiffPtrTy = builder.getPointerTo(ptrDiffTy);
+      mlir::Value offsetPtrCasted =
+          builder.createBitcast(offsetPtr, ptrDiffPtrTy);
+      offset = builder.createAlignedLoad(loc, ptrDiffTy, offsetPtrCasted,
+                                         cgf.getPointerAlign());
+    }
+
+    // Adjust our pointer using the loaded offset
+    resultPtr = cir::PtrStrideOp::create(builder, loc, i8PtrTy, v, offset);
   } else {
     resultPtr = v;
   }
