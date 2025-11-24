@@ -106,6 +106,12 @@ void CIRGenFunction::startThunk(cir::FuncOp fn, GlobalDecl gd,
     resultType = md->getType()->castAs<FunctionProtoType>()->getReturnType();
   FunctionArgList functionArgs;
 
+  // Set up return type info for thunks.
+  // This is normally done in generateCode, but thunks bypass that path.
+  FnRetQualTy = resultType;
+  if (!FnRetQualTy->isVoidType())
+    FnRetCIRTy = convertType(FnRetQualTy);
+
   // Create the implicit 'this' parameter declaration.
   CGM.getCXXABI().buildThisParam(*this, functionArgs);
 

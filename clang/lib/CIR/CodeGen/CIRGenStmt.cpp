@@ -1219,7 +1219,8 @@ void CIRGenFunction::emitReturnOfRValue(mlir::Location loc, RValue RV,
     LValue Src = makeAddrLValue(RV.getAggregateAddress(), Ty);
     emitAggregateCopy(Dest, Src, Ty, getOverlapForReturnValue());
   } else {
-    llvm_unreachable("NYI");
+    emitStoreOfComplex(loc, RV.getComplexVal(), makeAddrLValue(ReturnValue, Ty),
+                       /*init=*/true);
   }
   auto *retBlock = currLexScope->getOrCreateRetBlock(*this, loc);
   emitBranchThroughCleanup(loc, returnBlock(retBlock));

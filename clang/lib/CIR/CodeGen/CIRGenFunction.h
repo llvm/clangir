@@ -1062,6 +1062,13 @@ public:
   }
   Address LoadCXXThisAddress();
 
+  /// Get the return value address for the current function.
+  /// Returns an invalid Address if the function has special return semantics
+  /// (e.g., constructors/destructors with HasThisReturn). Prefer this accessor
+  /// over direct ReturnValue access in ABI code to make the special cases
+  /// explicit and easier to audit.
+  Address getReturnValueOrNull() const { return ReturnValue; }
+
   /// Load the VTT parameter to base constructors/destructors have virtual
   /// bases. FIXME: Every place that calls LoadCXXVTT is something that needs to
   /// be abstracted properly.
