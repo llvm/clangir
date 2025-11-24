@@ -82,6 +82,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   void lowerVAArgOp(VAArgOp op);
   void lowerDeleteArrayOp(DeleteArrayOp op);
   void lowerGlobalOp(GlobalOp op);
+  void lowerGuardedInitOp(GuardedInitOp op);
   void lowerDynamicCastOp(DynamicCastOp op);
   void lowerStdFindOp(StdFindOp op);
   void lowerIterBeginOp(IterBeginOp op);
@@ -918,6 +919,92 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
   if (annotations) {
     addGlobalAnnotations(op, annotations.value());
   }
+}
+
+void LoweringPreparePass::lowerGuardedInitOp(GuardedInitOp op) {
+  CIRBaseBuilderTy builder(getContext());
+  mlir::Location loc = op.getLoc();
+  builder.setInsertionPoint(op);
+
+  auto guardVar = op.getGuardVar();
+  bool threadSafe = op.getThreadSafe();
+  bool performInit = op.getPerformInit();
+  bool isLocalVar = op.getIsLocalVar();
+
+  // For now, assert on thread-safe guards as they require runtime calls
+  // that we'll implement in a follow-up.
+  if (threadSafe) {
+    llvm_unreachable(
+        "NYI: thread-safe guards with __cxa_guard_acquire/release");
+  }
+
+  // Create labels for the control flow.
+  // We'll emit: if (!guard) { init_code; guard = 1; }
+  // For non-local variables, guard is set to 1 BEFORE initialization.
+  // For local variables, guard is set to 1 AFTER initialization.
+
+  // Get the guard variable's element type (should be i8 or i64).
+  auto guardPtrTy = mlir::cast<cir::PointerType>(guardVar.getType());
+  auto guardTy = guardPtrTy.getPointee();
+
+  // Load the first byte of the guard to check initialization status.
+  auto guardAddr = builder.createBitcast(
+      guardVar, builder.getPointerTo(builder.getUIntNTy(8)));
+  auto guardValue = builder.createLoad(loc, guardAddr);
+
+  // Check if the guard is zero (uninitialized).
+  auto zero = builder.getUnsignedInt(loc, 0, 8);
+  auto needsInit =
+      builder.createCompare(loc, cir::CmpOpKind::eq, guardValue, zero);
+
+  // Create an if operation to conditionally execute the initialization.
+  cir::IfOp::create(builder, loc, needsInit, /*withElse=*/false,
+                    [&](mlir::OpBuilder &b, mlir::Location l) {
+                      CIRBaseBuilderTy ifBuilder(b);
+                      ifBuilder.setInsertionPointToStart(
+                          ifBuilder.getInsertionBlock());
+
+                      // Create the constant value '1' to set in the guard after
+                      // initialization.
+                      auto one = ifBuilder.getUnsignedInt(l, 1, 8);
+
+                      // For non-local variables, set guard to 1 BEFORE init
+                      // to prevent recursive initialization during
+                      // construction.
+                      if (!isLocalVar) {
+                        ifBuilder.createStore(l, one, guardAddr);
+                      }
+
+                      // Move the initialization code from the init_region into
+                      // the if block.
+                      mlir::Region &initRegion = op.getInitRegion();
+                      if (!initRegion.empty()) {
+                        mlir::Block &initBlock = initRegion.front();
+                        // Move all operations except the terminator.
+                        auto &ops = initBlock.getOperations();
+                        while (!ops.empty()) {
+                          mlir::Operation &frontOp = ops.front();
+                          if (mlir::isa<cir::YieldOp>(frontOp)) {
+                            frontOp.erase();
+                            break;
+                          }
+                          frontOp.moveBefore(ifBuilder.getInsertionBlock(),
+                                             ifBuilder.getInsertionPoint());
+                        }
+                      }
+
+                      // For local variables, set guard to 1 AFTER init
+                      // to allow retrying initialization if interrupted by
+                      // exception.
+                      if (isLocalVar) {
+                        ifBuilder.createStore(l, one, guardAddr);
+                      }
+
+                      ifBuilder.createYield(l);
+                    });
+
+  // Remove the GuardedInitOp.
+  op.erase();
 }
 
 template <typename AttributeTy>
@@ -1839,6 +1926,8 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     lowerThrowOp(throwOp);
   } else if (auto callOp = dyn_cast<CallOp>(op)) {
     lowerTrivialConstructorCall(callOp);
+  } else if (auto guardedInitOp = dyn_cast<GuardedInitOp>(op)) {
+    lowerGuardedInitOp(guardedInitOp);
   }
 }
 
@@ -1855,7 +1944,8 @@ void LoweringPreparePass::runOnOperation() {
   op->walk([&](Operation *op) {
     if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,
             GlobalOp, DynamicCastOp, StdFindOp, IterEndOp, IterBeginOp,
-            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp>(op))
+            ArrayCtor, ArrayDtor, cir::FuncOp, StoreOp, ThrowOp, CallOp,
+            GuardedInitOp>(op))
       opsToTransform.push_back(op);
   });
 

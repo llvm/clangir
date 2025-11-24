@@ -212,6 +212,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
       lowerMethodType(attr.getType(), typeConverter));
 
   auto zero = cir::IntAttr::get(ptrdiffCIRTy, 0);
+  auto adj = cir::IntAttr::get(ptrdiffCIRTy, attr.getAdjustment());
 
   // Itanium C++ ABI 2.3.2:
   //   In all representations, the basic ABI properties of member function
@@ -257,7 +258,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
     auto ptr =
         cir::IntAttr::get(ptrdiffCIRTy, 1 + attr.getVtableOffset().value());
     return cir::ConstRecordAttr::get(
-        loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, zero}));
+        loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, adj}));
   }
 
   // Itanium C++ ABI 2.3.2:
@@ -267,7 +268,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
   //   ABI's representation of function pointers.
   auto ptr = cir::GlobalViewAttr::get(ptrdiffCIRTy, attr.getSymbol().value());
   return cir::ConstRecordAttr::get(
-      loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, zero}));
+      loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, adj}));
 }
 
 mlir::Operation *ItaniumCXXABI::lowerGetRuntimeMember(

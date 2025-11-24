@@ -2789,19 +2789,18 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitCompoundLiteralLValue(cast<CompoundLiteralExpr>(E));
   case Expr::PredefinedExprClass:
     return emitPredefinedLValue(cast<PredefinedExpr>(E));
+  case Expr::ImplicitCastExprClass:
+  case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
+  case Expr::CXXStaticCastExprClass:
+  case Expr::CXXDynamicCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
   case Expr::CXXAddrspaceCastExprClass:
   case Expr::ObjCBridgedCastExprClass:
-    emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
-        << E->getStmtClassName() << "'";
-    assert(0 && "Use emitCastLValue below, remove me when adding testcase");
-  case Expr::CStyleCastExprClass:
-  case Expr::CXXStaticCastExprClass:
-  case Expr::CXXDynamicCastExprClass:
-  case Expr::ImplicitCastExprClass:
     return emitCastLValue(cast<CastExpr>(E));
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
   case Expr::OpaqueValueExprClass:
     return emitOpaqueValueLValue(cast<OpaqueValueExpr>(E));
 
@@ -2814,8 +2813,6 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitStmtExprLValue(cast<StmtExpr>(E));
   case Expr::ChooseExprClass:
     return emitLValue(cast<ChooseExpr>(E)->getChosenSubExpr());
-  case Expr::CXXTypeidExprClass:
-    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
   }
 
   llvm_unreachable("NYI");
@@ -3535,23 +3532,4 @@ RValue CIRGenFunction::emitPseudoObjectRValue(const PseudoObjectExpr *expr,
 
 LValue CIRGenFunction::emitPseudoObjectLValue(const PseudoObjectExpr *expr) {
   return emitPseudoObjectExpr(*this, expr, true, AggValueSlot::ignored()).lv;
-}
-
-LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
-  // Emit the typeid expression, which returns a pointer to the RTTI descriptor.
-  mlir::Value typeInfoPtr = emitCXXTypeidExpr(E);
-
-  // Cast the pointer to the actual type_info type for proper type safety.
-  auto typeInfoTy = convertTypeForMem(E->getType());
-  auto typeInfoPtrTy = builder.getPointerTo(typeInfoTy);
-  typeInfoPtr = builder.createBitcast(getLoc(E->getSourceRange()), typeInfoPtr,
-                                      typeInfoPtrTy);
-
-  // Create an LValue from the pointer with natural alignment.
-  // We use getTypeAlignInChars() which returns the natural alignment for the
-  // type_info type, matching traditional CodeGen's getNaturalTypeAlignment().
-  Address addr(typeInfoPtr, typeInfoTy,
-               getContext().getTypeAlignInChars(E->getType()));
-
-  return makeAddrLValue(addr, E->getType(), AlignmentSource::Decl);
 }
