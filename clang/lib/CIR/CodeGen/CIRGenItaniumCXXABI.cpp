@@ -344,6 +344,12 @@ public:
 
   void emitBadCastCall(CIRGenFunction &CGF, mlir::Location loc) override;
 
+  void emitBadTypeidCall(CIRGenFunction &CGF) override;
+  bool shouldTypeidBeNullChecked(QualType SrcRecordTy) override;
+  mlir::Value emitTypeid(CIRGenFunction &CGF, mlir::Location loc,
+                         QualType SrcRecordTy, Address ThisPtr,
+                         mlir::Type StdTypeInfoPtrTy) override;
+
   mlir::Value
   getVirtualBaseClassOffset(mlir::Location loc, CIRGenFunction &CGF,
                             Address This, const CXXRecordDecl *ClassDecl,
@@ -2700,6 +2706,88 @@ static void emitCallToBadCast(CIRGenFunction &CGF, mlir::Location loc) {
 void CIRGenItaniumCXXABI::emitBadCastCall(CIRGenFunction &CGF,
                                           mlir::Location loc) {
   emitCallToBadCast(CGF, loc);
+}
+
+void CIRGenItaniumCXXABI::emitBadTypeidCall(CIRGenFunction &CGF) {
+  auto loc = CGF.getLoc(SourceLocation());
+  // TODO: When exception support is complete, emit throw std::bad_typeid
+  // For now, emit unreachable since calling typeid on null is UB
+  cir::UnreachableOp::create(CGF.getBuilder(), loc);
+  CGF.getBuilder().clearInsertionPoint();
+}
+
+bool CIRGenItaniumCXXABI::shouldTypeidBeNullChecked(QualType srcRecordTy) {
+  // Match CodeGen behavior: always check for null.
+  // TODO(cir): The Itanium ABI 2.9.5p3 states only pointer operands need
+  // null checking (references cannot be null), but CodeGen conservatively
+  // always returns true. We match this behavior for consistency.
+  // Consider optimizing to: return srcRecordTy->isPointerType();
+  return true;
+}
+
+mlir::Value CIRGenItaniumCXXABI::emitTypeid(CIRGenFunction &CGF,
+                                            mlir::Location loc,
+                                            QualType srcRecordTy,
+                                            Address thisPtr,
+                                            mlir::Type stdTypeInfoPtrTy) {
+  auto &builder = CGF.getBuilder();
+  auto *classDecl = srcRecordTy->castAsCXXRecordDecl();
+
+  // Get the vtable pointer from the object
+  mlir::Value vTable = CGF.getVTablePtr(loc, thisPtr, classDecl);
+
+  mlir::Value typeInfoPtr;
+
+  if (CGM.getItaniumVTableContext().isRelativeLayout()) {
+    // Relative layout: type_info offset is at vptr[-4] (4 bytes before vptr)
+    // Load the offset and add it to the vtable pointer
+    auto int32Ty = builder.getSInt32Ty();
+    auto int8PtrTy = builder.getUInt8PtrTy();
+
+    // Cast vtable to i8* for byte arithmetic
+    auto vTableBytes = builder.createBitcast(loc, vTable, int8PtrTy);
+
+    // Get address of the offset: vtable - 4
+    auto offsetAddrPtr = cir::PtrStrideOp::create(
+        builder, loc, builder.getPointerTo(int32Ty), vTableBytes,
+        builder.getConstInt(loc, builder.getSInt64Ty(), -4));
+
+    // Load the 32-bit offset
+    auto offsetAddr =
+        Address(offsetAddrPtr, int32Ty, CharUnits::fromQuantity(4));
+    auto offset = builder.createLoad(loc, offsetAddr);
+
+    // Sign-extend offset to pointer width
+    auto offset64 = cir::CastOp::create(builder, loc, builder.getSInt64Ty(),
+                                        cir::CastKind::integral, offset);
+
+    // Add offset to vtable pointer: vtable + offset
+    auto typeInfoBytes = cir::PtrStrideOp::create(builder, loc, int8PtrTy,
+                                                  vTableBytes, offset64);
+
+    // Cast result to type_info pointer type
+    typeInfoPtr = builder.createBitcast(loc, typeInfoBytes, stdTypeInfoPtrTy);
+
+  } else {
+    // Absolute layout: type_info* is at vtable[-1]
+    // GEP to get address, then load
+
+    // Cast vtable pointer to a regular pointer type for ptr_stride
+    auto vTablePtr = builder.createBitcast(
+        loc, vTable, builder.getPointerTo(stdTypeInfoPtrTy));
+
+    // Get vtable[-1]
+    auto typeInfoAddrPtr = cir::PtrStrideOp::create(
+        builder, loc, builder.getPointerTo(stdTypeInfoPtrTy), vTablePtr,
+        builder.getConstInt(loc, builder.getSInt64Ty(), -1));
+
+    // Load the type_info pointer
+    auto typeInfoAddr =
+        Address(typeInfoAddrPtr, stdTypeInfoPtrTy, CGF.getPointerAlign());
+    typeInfoPtr = builder.createLoad(loc, typeInfoAddr);
+  }
+
+  return typeInfoPtr;
 }
 
 static CharUnits computeOffsetHint(ASTContext &astContext,
