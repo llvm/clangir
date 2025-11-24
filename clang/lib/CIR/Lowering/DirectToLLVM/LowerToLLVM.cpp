@@ -1615,7 +1615,7 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
     if (auto fn = dyn_cast<mlir::FunctionOpInterface>(callee)) {
       llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(
           converter->convertType(fn.getFunctionType()));
-    } else if (auto alias = cast<mlir::LLVM::AliasOp>(callee)) {
+    } else if (auto alias = dyn_cast<mlir::LLVM::AliasOp>(callee)) {
       // If the callee wasan alias. In that case,
       // we need to prepend the address of the alias to the operands. The
       // way aliases work in the LLVM dialect is a little counter-intuitive.
@@ -1638,8 +1638,11 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
       // Clear the callee attribute because we're calling an alias.
       calleeAttr = {};
       llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(alias.getType());
+    } else if (auto ifunc = dyn_cast<mlir::LLVM::IFuncOp>(callee)) {
+      // IFunc can be called directly like a regular function.
+      // The ifunc resolves to the actual implementation at runtime.
+      llvmFnTy = cast<mlir::LLVM::LLVMFunctionType>(ifunc.getIFuncType());
     } else {
-      // Was this an ifunc?
       return op->emitError("Unexpected callee type!");
     }
   } else { // indirect call
@@ -2560,6 +2563,40 @@ mlir::LogicalResult CIRToLLVMGetGlobalOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMIFuncOpLowering::matchAndRewrite(
+    cir::IFuncOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  // Get the function type for the ifunc
+  auto funcTy = mlir::cast<mlir::LLVM::LLVMFunctionType>(
+      getTypeConverter()->convertType(op.getFunctionType()));
+
+  // Get the linkage
+  auto linkage = convertLinkage(op.getLinkage());
+
+  // Get the resolver symbol name
+  auto resolverName = op.getResolver();
+
+  // The resolver_type for IFuncOp should be a pointer type (!llvm.ptr).
+  // This represents the return type of the resolver function, not the function
+  // type itself. The verifier checks that resolver_type is a pointer matching
+  // the ifunc's address space.
+  auto ptrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+
+  // Convert visibility
+  auto visibility = lowerCIRVisibilityToLLVMVisibility(
+      op.getGlobalVisibilityAttr().getValue());
+
+  // Create the LLVM IFunc
+  // Note: The 4th parameter is the resolver_type, which must be a pointer type
+  rewriter.create<mlir::LLVM::IFuncOp>(
+      op.getLoc(), op.getSymName(), funcTy, resolverName, ptrTy, linkage,
+      /*dso_local=*/false,
+      /*address_space=*/0, mlir::LLVM::UnnamedAddr::None, visibility);
+
+  rewriter.eraseOp(op);
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMComplexCreateOpLowering::matchAndRewrite(
     cir::ComplexCreateOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -2723,6 +2760,18 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
     mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
     mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerDataMemberConstant(
         dataMemberAttr, layout, *typeConverter);
+    init = abiValue;
+    auto abiLlvmType = convertTypeForMemory(*getTypeConverter(), dataLayout,
+                                            abiValue.getType());
+    // Recursively lower the CIR attribute produced by the C++ ABI.
+    return lowerInitializer(rewriter, op, abiLlvmType, init,
+                            useInitializerRegion);
+  }
+  if (auto methodAttr = mlir::dyn_cast<cir::MethodAttr>(init)) {
+    assert(lowerMod && "lower module is not available");
+    mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+    mlir::TypedAttr abiValue = lowerMod->getCXXABI().lowerMethodConstant(
+        methodAttr, layout, *typeConverter);
     init = abiValue;
     auto abiLlvmType = convertTypeForMemory(*getTypeConverter(), dataLayout,
                                             abiValue.getType());
@@ -4935,6 +4984,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMFuncOpLowering,
       CIRToLLVMGetBitfieldOpLowering,
       CIRToLLVMGetGlobalOpLowering,
+      CIRToLLVMIFuncOpLowering,
       CIRToLLVMGetMemberOpLowering,
       CIRToLLVMInsertMemberOpLowering,
       CIRToLLVMDeleteArrayOpLowering,

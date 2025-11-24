@@ -237,6 +237,7 @@ public:
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
 
   llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclMap;
+  llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclGuardMap;
   llvm::DenseMap<llvm::StringRef, mlir::Value> Globals;
   mlir::Operation *getGlobalValue(llvm::StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
@@ -254,6 +255,14 @@ public:
 
   void setStaticLocalDeclAddress(const VarDecl *D, cir::GlobalOp C) {
     StaticLocalDeclMap[D] = C;
+  }
+
+  cir::GlobalOp getStaticLocalDeclGuardAddress(const VarDecl *D) {
+    return StaticLocalDeclGuardMap[D];
+  }
+
+  void setStaticLocalDeclGuardAddress(const VarDecl *D, cir::GlobalOp C) {
+    StaticLocalDeclGuardMap[D] = C;
   }
 
   cir::GlobalOp getOrCreateStaticVarDecl(const VarDecl &D,
@@ -680,8 +689,9 @@ public:
   void setDSOLocal(mlir::Operation *Op) const;
   /// Set visibility, dllimport/dllexport and dso_local.
   /// This must be called after dllimport/dllexport is set.
-  void setGVProperties(mlir::Operation *Op, const NamedDecl *D) const;
-  void setGVPropertiesAux(mlir::Operation *Op, const NamedDecl *D) const;
+  void setGVProperties(mlir::Operation *op, GlobalDecl gd) const;
+  void setGVProperties(mlir::Operation *op, const NamedDecl *d) const;
+  void setGVPropertiesAux(mlir::Operation *op, const NamedDecl *d) const;
 
   /// Set the TLS mode for the given global Op for the thread-local
   /// variable declaration D.
@@ -760,8 +770,8 @@ public:
   void UpdateCompletedType(const clang::TagDecl *TD);
 
   /// Set function attributes for a function declaration.
-  void setFunctionAttributes(GlobalDecl GD, cir::FuncOp F,
-                             bool IsIncompleteFunction, bool IsThunk);
+  void setFunctionAttributes(GlobalDecl globalDecl, cir::FuncOp func,
+                             bool isIncompleteFunction, bool isThunk);
 
   /// Set the CIR function attributes (sext, zext, etc).
   void setCIRFunctionAttributes(GlobalDecl GD, const CIRGenFunctionInfo &info,
@@ -773,6 +783,7 @@ public:
                                              cir::FuncOp func);
 
   void emitGlobalDefinition(clang::GlobalDecl D, mlir::Operation *Op = nullptr);
+  void emitIFuncDefinition(clang::GlobalDecl globalDecl);
   void emitGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
   void emitGlobalVarDefinition(const clang::VarDecl *D,
                                bool IsTentative = false);

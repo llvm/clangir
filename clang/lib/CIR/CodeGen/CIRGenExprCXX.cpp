@@ -1809,3 +1809,112 @@ mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
   return CGM.getCXXABI().emitDynamicCast(*this, loc, srcRecordTy, destRecordTy,
                                          destCirTy, isRefCast, ThisAddr);
 }
+
+static mlir::Value emitTypeidFromVTable(CIRGenFunction &cgf, mlir::Location loc,
+                                        const Expr *e,
+                                        mlir::Type stdTypeInfoPtrTy,
+                                        bool hasNullCheck) {
+  // Get the vtable pointer.
+  Address thisPtr = cgf.emitLValue(e).getAddress();
+
+  QualType srcRecordTy = e->getType();
+
+  // C++ [class.cdtor]p4:
+  //   If the operand of typeid refers to the object under construction or
+  //   destruction and the static type of the operand is neither the constructor
+  //   or destructor's class nor one of its bases, the behavior is undefined.
+  cgf.emitTypeCheck(CIRGenFunction::TCK_DynamicOperation, e->getExprLoc(),
+                    thisPtr.getPointer(), srcRecordTy);
+
+  // Whether we need an explicit null pointer check. For example, with the
+  // Microsoft ABI, if this is a call to __RTtypeid, the null pointer check and
+  // exception throw is inside the __RTtypeid(nullptr) call
+  if (hasNullCheck &&
+      cgf.CGM.getCXXABI().shouldTypeidBeNullChecked(srcRecordTy)) {
+    auto &builder = cgf.getBuilder();
+
+    // Create blocks for null and non-null paths
+    auto *currBlock = builder.getInsertionBlock();
+    auto *parentOp = currBlock->getParent()->getParentOp();
+    auto &region = parentOp->getRegion(0);
+
+    mlir::Block *badTypeidBlock = builder.createBlock(&region);
+    mlir::Block *endBlock = builder.createBlock(&region);
+
+    // Check if pointer is null
+    builder.setInsertionPointToEnd(currBlock);
+    mlir::Value nullPtr =
+        builder.getNullPtr(thisPtr.getPointer().getType(), loc);
+    mlir::Value isNull = builder.createCompare(loc, cir::CmpOpKind::eq,
+                                               thisPtr.getPointer(), nullPtr);
+
+    builder.create<cir::BrCondOp>(loc, isNull, badTypeidBlock, endBlock);
+
+    // Emit bad typeid path
+    builder.setInsertionPointToEnd(badTypeidBlock);
+    cgf.CGM.getCXXABI().emitBadTypeidCall(cgf);
+
+    // Continue on non-null path
+    builder.setInsertionPointToEnd(endBlock);
+  }
+
+  return cgf.CGM.getCXXABI().emitTypeid(cgf, loc, srcRecordTy, thisPtr,
+                                        stdTypeInfoPtrTy);
+}
+
+mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
+  auto loc = getLoc(E->getSourceRange());
+
+  // Helper to create a GetGlobalOp from an RTTI descriptor attribute.
+  auto createGetGlobalForRTTI = [&](mlir::Attribute typeInfo) -> mlir::Value {
+    auto globalView = mlir::cast<cir::GlobalViewAttr>(typeInfo);
+    auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+                                                       globalView.getSymbol());
+    assert(globalOp && "RTTI global not found");
+    auto global = mlir::cast<cir::GlobalOp>(globalOp);
+
+    // The result type of GetGlobalOp is a pointer to the global's symbol type.
+    auto ptrTy = builder.getPointerTo(global.getSymType());
+    return cir::GetGlobalOp::create(builder, loc, ptrTy,
+                                    globalView.getSymbol());
+  };
+
+  // If this is a type operand, just get the address of the RTTI descriptor.
+  if (E->isTypeOperand()) {
+    QualType operandTy = E->getTypeOperand(getContext());
+    mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+    return createGetGlobalForRTTI(typeInfo);
+  }
+
+  // C++ [expr.typeid]p2:
+  //   When typeid is applied to a glvalue expression whose type is a
+  //   polymorphic class type, the result refers to a std::type_info object
+  //   representing the type of the most derived object (that is, the dynamic
+  //   type) to which the glvalue refers.
+
+  // If the operand is already the most derived object, no need to look up
+  // vtable.
+  if (E->isPotentiallyEvaluated() && !E->isMostDerived(getContext())) {
+    // Polymorphic case: need runtime vtable lookup
+    mlir::Type typeInfoPtrTy = builder.getUInt8PtrTy();
+    return emitTypeidFromVTable(*this, loc, E->getExprOperand(), typeInfoPtrTy,
+                                E->hasNullCheck());
+  }
+
+  // For non-polymorphic types, just return the static RTTI descriptor.
+  QualType operandTy = E->getExprOperand()->getType();
+  mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
+  return createGetGlobalForRTTI(typeInfo);
+}
+
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  mlir::Value V = emitCXXTypeidExpr(E);
+
+  LValueBaseInfo baseInfo;
+  TBAAAccessInfo tbaaInfo;
+  CharUnits alignment = CGM.getNaturalTypeAlignment(E->getType(), &baseInfo, &tbaaInfo);
+
+  // Use the Address constructor that extracts the element type from the pointer
+  Address addr(V, alignment);
+  return LValue::makeAddr(addr, E->getType(), getContext(), baseInfo, tbaaInfo);
+}
