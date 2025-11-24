@@ -827,9 +827,26 @@ RValue CIRGenFunction::emitLoadOfBitfieldLValue(LValue LV, SourceLocation Loc) {
   bool useVolatile = LV.isVolatileQualified() &&
                      info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
 
-  auto field =
-      builder.createGetBitfield(getLoc(Loc), resLTy, ptr, ptr.getElementType(),
-                                info, LV.isVolatile(), useVolatile);
+  // GetBitfield operation requires an integer type as the result.
+  // For bool bitfields, we need to use an integer type and then cast to bool.
+  mlir::Type bitfieldResultTy = resLTy;
+  bool isBoolBitfield = LV.getType()->isBooleanType();
+  if (isBoolBitfield) {
+    // Use an unsigned integer type with the bitfield size for bool bitfields.
+    bitfieldResultTy = cir::IntType::get(builder.getContext(), info.Size,
+                                         /*isSigned=*/false);
+  }
+
+  auto field = builder.createGetBitfield(getLoc(Loc), bitfieldResultTy, ptr,
+                                         ptr.getElementType(), info,
+                                         LV.isVolatile(), useVolatile);
+
+  // If this is a bool bitfield, cast from int to bool.
+  if (isBoolBitfield) {
+    field = cir::CastOp::create(builder, getLoc(Loc), resLTy,
+                                cir::CastKind::int_to_bool, field);
+  }
+
   assert(!cir::MissingFeatures::emitScalarRangeCheck() && "NYI");
   return RValue::get(field);
 }
@@ -1007,6 +1024,11 @@ void CIRGenFunction::emitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   const CIRGenBitFieldInfo &info = Dst.getBitFieldInfo();
   mlir::Type resLTy = convertTypeForMem(Dst.getType());
   Address ptr = Dst.getBitFieldAddress();
+
+  // Bool bitfield stores require bool-to-int conversion before SetBitfield.
+  // This is NYI - will be implemented in follow-up commit.
+  if (Dst.getType()->isBooleanType())
+    llvm_unreachable("bool bitfield stores are NYI");
 
   const bool useVolatile =
       CGM.getCodeGenOpts().AAPCSBitfieldWidth && Dst.isVolatileQualified() &&
