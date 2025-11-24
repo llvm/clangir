@@ -3134,17 +3134,26 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
   if (!fnAttr)
     return success();
 
+  // Look up the callee - it can be either a FuncOp or an IFuncOp
   cir::FuncOp fn = symbolTable.lookupNearestSymbolFrom<cir::FuncOp>(op, fnAttr);
-  if (!fn)
+  cir::IFuncOp ifn =
+      symbolTable.lookupNearestSymbolFrom<cir::IFuncOp>(op, fnAttr);
+
+  if (!fn && !ifn)
     return op->emitOpError() << "'" << fnAttr.getValue()
                              << "' does not reference a valid function";
+
   auto callIf = dyn_cast<cir::CIRCallOpInterface>(op);
   assert(callIf && "expected CIR call interface to be always available");
 
+  // Get function type from either FuncOp or IFuncOp
+  cir::FuncType fnType = fn ? fn.getFunctionType() : ifn.getFunctionType();
+
   // Verify that the operand and result types match the callee. Note that
   // argument-checking is disabled for functions without a prototype.
-  auto fnType = fn.getFunctionType();
-  if (!fn.getNoProto()) {
+  // IFuncs are always considered to have a prototype.
+  bool hasProto = ifn || !fn.getNoProto();
+  if (hasProto) {
     unsigned numCallOperands = callIf.getNumArgOperands();
     unsigned numFnOpOperands = fnType.getNumInputs();
 
@@ -3161,8 +3170,9 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
                << op->getOperand(i).getType() << " for operand number " << i;
   }
 
-  // Calling convention must match.
-  if (callIf.getCallingConv() != fn.getCallingConv())
+  // Calling convention must match (only check for FuncOp; IFuncOp uses the
+  // type's convention)
+  if (fn && callIf.getCallingConv() != fn.getCallingConv())
     return op->emitOpError("calling convention mismatch: expected ")
            << stringifyCallingConv(fn.getCallingConv()) << ", but provided "
            << stringifyCallingConv(callIf.getCallingConv());

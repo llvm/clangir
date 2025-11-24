@@ -599,6 +599,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMIFuncOpLowering
+    : public mlir::OpConversionPattern<cir::IFuncOp> {
+public:
+  using mlir::OpConversionPattern<cir::IFuncOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::IFuncOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMComplexCreateOpLowering
     : public mlir::OpConversionPattern<cir::ComplexCreateOp> {
 public:
