@@ -2130,9 +2130,33 @@ public:
 
   void emitDestructorBody(FunctionArgList &Args);
 
+  /// Generate a thunk for the given method.
+  void generateThunk(cir::FuncOp fn, const CIRGenFunctionInfo &fnInfo,
+                     GlobalDecl gd, const ThunkInfo &thunk,
+                     bool isUnprototyped);
+
+  void startThunk(cir::FuncOp fn, GlobalDecl gd,
+                  const CIRGenFunctionInfo &fnInfo, bool isUnprototyped);
+
+  void emitCallAndReturnForThunk(cir::FuncOp callee, const ThunkInfo *thunk,
+                                 bool isUnprototyped);
+
+  /// Finish thunk generation.
+  void finishThunk();
+
+  /// Emit a musttail call for a thunk with a potentially adjusted this pointer.
+  void emitMustTailThunk(GlobalDecl gd, mlir::Value adjustedThisPtr,
+                         cir::FuncOp callee);
+
   mlir::LogicalResult emitDoStmt(const clang::DoStmt &S);
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
+
+  /// Emit the operand of a typeid expression as an mlir::Value.
+  mlir::Value emitCXXTypeidExpr(const CXXTypeidExpr *E);
+
+  /// Emit a typeid expression as an l-value.
+  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
 
   /// Emits try/catch information for the current EH stack.
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
@@ -2401,6 +2425,14 @@ public:
                                      bool useCurrentScope);
 
   void emitStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
+
+  void emitCXXGuardedInit(const VarDecl &D, cir::GlobalOp DeclPtr,
+                          bool PerformInit);
+
+  /// Emit code to perform initialization/destruction for a static local
+  /// variable from within a function. This is used by guarded init.
+  void emitCXXGlobalVarDeclInit(const VarDecl &D, Address DeclAddr,
+                                bool PerformInit);
 
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.

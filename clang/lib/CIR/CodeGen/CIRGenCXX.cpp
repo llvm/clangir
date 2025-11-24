@@ -282,6 +282,30 @@ static void emitDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   CGM.getCXXABI().registerGlobalDtor(CGF, D, fnOp, nullptr);
 }
 
+/// Emit the code to initialize a static local variable from within a function
+/// context. This is called from guarded init for static locals.
+void CIRGenFunction::emitCXXGlobalVarDeclInit(const VarDecl &D,
+                                              Address DeclAddr,
+                                              bool PerformInit) {
+  const Expr *Init = D.getInit();
+  QualType T = D.getType();
+
+  if (!T->isReferenceType()) {
+    bool NeedsDtor =
+        D.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
+    if (PerformInit)
+      emitDeclInit(*this, &D, DeclAddr);
+    if (NeedsDtor)
+      emitDeclDestroy(*this, &D);
+    return;
+  }
+
+  assert(PerformInit && "cannot have constant initializer which needs "
+                        "destruction for reference");
+  RValue RV = emitReferenceBindingToExpr(Init);
+  emitStoreThroughLValue(RV, makeAddrLValue(DeclAddr, T));
+}
+
 cir::FuncOp CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
   const auto &FnInfo = getTypes().arrangeCXXStructorDeclaration(GD);
   auto Fn = getAddrOfCXXStructor(GD, &FnInfo, /*FnType=*/nullptr,
