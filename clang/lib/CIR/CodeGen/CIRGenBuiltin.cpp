@@ -473,7 +473,8 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
   case IITDescriptor::Void:
     return VoidType::get(context);
   case IITDescriptor::VarArg:
-    llvm_unreachable("NYI: IITDescriptor::VarArg");
+    // VarArg isn't a type, just a marker. The caller should handle it.
+    llvm_unreachable("VarArg should be handled by getIntrinsicType, not here");
   case IITDescriptor::MMX:
     llvm_unreachable("NYI: IITDescriptor::MMX");
   case IITDescriptor::Token:
@@ -575,10 +576,22 @@ static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
   mlir::Type resultTy = decodeFixedType(tableRef, context);
 
   SmallVector<mlir::Type, 8> argTypes;
-  while (!tableRef.empty())
+  bool isVarArg = false;
+  while (!tableRef.empty()) {
+    auto kind = tableRef.front().Kind;
+    if (kind == IITDescriptor::VarArg) {
+      isVarArg = true;
+      break; // VarArg is last
+    }
     argTypes.push_back(decodeFixedType(tableRef, context));
+  }
 
-  return FuncType::get(argTypes, resultTy);
+  // CIR convention: no explicit void return type
+  if (isa<cir::VoidType>(resultTy))
+    return FuncType::get(context, argTypes, /*optionalReturnType=*/nullptr,
+                         isVarArg);
+
+  return cir::FuncType::get(context, argTypes, resultTy, isVarArg);
 }
 
 RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
