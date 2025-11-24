@@ -388,18 +388,11 @@ public:
                                                   mlir::Type dstTy) {
     auto srcTy = src.getType();
 
-    // Only handle pointer → pointer here. Everything else is a plain bitcast.
-    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy)) {
-      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy)) {
+    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy))
+      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy))
         if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
           return createAddrSpaceCast(src, dstTy);
 
-        // Same addrspace → real bitcast.
-        return createBitcast(src, dstTy);
-      }
-    }
-
-    // Non-pointer or weird case: fall back to old behavior.
     return createBitcast(src, dstTy);
   }
 
@@ -407,14 +400,11 @@ public:
                                                   mlir::Value src,
                                                   mlir::Type dstTy) {
     auto srcTy = src.getType();
-    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy)) {
-      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy)) {
+    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy))
+      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy))
         if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
           return createAddrSpaceCast(loc, src, dstTy);
 
-        return createBitcast(loc, src, dstTy);
-      }
-    }
     return createBitcast(loc, src, dstTy);
   }
 
@@ -577,9 +567,10 @@ public:
     return createCast(cir::CastKind::ptr_to_bool, v, getBoolTy());
   }
 
-  // TODO(cir): the following function was introduced to keep in sync with LLVM
-  // codegen. CIR does not have "zext" operations. It should eventually be
-  // renamed or removed. For now, we just add whatever cast is required here.
+  // TODO(cir): the following function was introduced to keep in sync with
+  // LLVM codegen. CIR does not have "zext" operations. It should eventually
+  // be renamed or removed. For now, we just add whatever cast is required
+  // here.
   mlir::Value createZExtOrBitCast(mlir::Location loc, mlir::Value src,
                                   mlir::Type newTy) {
     auto srcTy = src.getType();
@@ -643,8 +634,9 @@ public:
   // Alignment and size helpers
   //
 
-  // Note that mlir::IntegerType is used instead of cir::IntType here because we
-  // don't need sign information for these to be useful, so keep it simple.
+  // Note that mlir::IntegerType is used instead of cir::IntType here
+  // because we don't need sign information for these to be useful, so keep
+  // it simple.
 
   // For 0 alignment, any overload of `getAlignmentAttr` returns an empty
   // attribute.
