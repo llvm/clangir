@@ -194,6 +194,8 @@ public:
                           QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
+  void emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                       cir::GlobalOp DeclPtr, bool PerformInit) override;
   void emitVirtualObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
                                Address Ptr, QualType ElementType,
                                const CXXDestructorDecl *Dtor) override;
@@ -243,6 +245,15 @@ public:
   }
 
   bool exportThunk() override { return true; }
+
+  mlir::Value performThisAdjustment(CIRGenFunction &cgf, Address thisAddr,
+                                    const CXXRecordDecl *unadjustedClass,
+                                    const ThunkInfo &ti) override;
+
+  mlir::Value performReturnAdjustment(CIRGenFunction &cgf, Address ret,
+                                      const CXXRecordDecl *unadjustedClass,
+                                      const ReturnAdjustment &ra) override;
+
   mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                           QualType Ty) override;
   bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,
@@ -350,6 +361,16 @@ public:
 
   cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                          const CXXMethodDecl *MD) override;
+
+  mlir::TypedAttr emitMemberPointer(const APValue &memberPointer,
+                                    QualType mpType) override;
+
+  mlir::TypedAttr buildMemberFunctionPointer(cir::MethodType methodTy,
+                                             const CXXMethodDecl *methodDecl,
+                                             CharUnits thisAdjustment) override;
+
+  mlir::TypedAttr buildMemberDataPointer(const MemberPointerType *mpt,
+                                         CharUnits offset) override;
 
   Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
                                 mlir::Value NumElements, const CXXNewExpr *E,
@@ -2144,6 +2165,63 @@ mlir::Attribute CIRGenItaniumCXXABI::getAddrOfRTTIDescriptor(mlir::Location loc,
   return CIRGenItaniumRTTIBuilder(*this, CGM).BuildTypeInfo(loc, Ty);
 }
 
+static mlir::Value performTypeAdjustment(CIRGenFunction &cgf,
+                                         Address initialPtr,
+                                         const CXXRecordDecl *unadjustedClass,
+                                         int64_t nonVirtualAdjustment,
+                                         int64_t virtualAdjustment,
+                                         bool isReturnAdjustment) {
+  if (!nonVirtualAdjustment && !virtualAdjustment)
+    return initialPtr.getPointer();
+
+  auto &builder = cgf.getBuilder();
+  auto loc = builder.getUnknownLoc();
+  auto i8PtrTy = builder.getUInt8PtrTy();
+  mlir::Value v = builder.createBitcast(initialPtr.getPointer(), i8PtrTy);
+
+  // In a base-to-derived cast, the non-virtual adjustment is applied first.
+  if (nonVirtualAdjustment && !isReturnAdjustment) {
+    auto offsetConst = builder.getSInt64(nonVirtualAdjustment, loc);
+    v = builder.create<cir::PtrStrideOp>(loc, i8PtrTy, v, offsetConst);
+  }
+
+  // Perform the virtual adjustment if we have one.
+  mlir::Value resultPtr;
+  if (virtualAdjustment) {
+    llvm_unreachable("Virtual adjustment NYI - requires vtable offset lookup");
+  } else {
+    resultPtr = v;
+  }
+
+  // In a derived-to-base conversion, the non-virtual adjustment is
+  // applied second.
+  if (nonVirtualAdjustment && isReturnAdjustment) {
+    auto offsetConst = builder.getSInt64(nonVirtualAdjustment, loc);
+    resultPtr =
+        builder.create<cir::PtrStrideOp>(loc, i8PtrTy, resultPtr, offsetConst);
+  }
+
+  // Cast back to original pointer type
+  return builder.createBitcast(resultPtr, initialPtr.getType());
+}
+
+mlir::Value CIRGenItaniumCXXABI::performThisAdjustment(
+    CIRGenFunction &cgf, Address thisAddr, const CXXRecordDecl *unadjustedClass,
+    const ThunkInfo &ti) {
+  return performTypeAdjustment(cgf, thisAddr, unadjustedClass,
+                               ti.This.NonVirtual,
+                               ti.This.Virtual.Itanium.VCallOffsetOffset,
+                               /*IsReturnAdjustment=*/false);
+}
+
+mlir::Value CIRGenItaniumCXXABI::performReturnAdjustment(
+    CIRGenFunction &cgf, Address ret, const CXXRecordDecl *unadjustedClass,
+    const ReturnAdjustment &ra) {
+  return performTypeAdjustment(cgf, ret, unadjustedClass, ra.NonVirtual,
+                               ra.Virtual.Itanium.VBaseOffsetOffset,
+                               /*IsReturnAdjustment=*/true);
+}
+
 void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
                                                 const CXXRecordDecl *RD) {
   auto VTable = getAddrOfVTable(RD, CharUnits());
@@ -2307,6 +2385,145 @@ void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
 
   // The default behavior is to use atexit. This is handled in lowering
   // prepare. Nothing to be done for CIR here.
+}
+
+void CIRGenItaniumCXXABI::emitGuardedInit(CIRGenFunction &CGF, const VarDecl &D,
+                                          cir::GlobalOp declPtr,
+                                          bool performInit) {
+  auto &builder = CGF.getBuilder();
+  mlir::Location loc = CGF.getLoc(D.getLocation());
+
+  // Inline variables that weren't instantiated from variable templates have
+  // partially-ordered initialization within their translation unit.
+  bool nonTemplateInline =
+      D.isInline() &&
+      !isTemplateInstantiation(D.getTemplateSpecializationKind());
+
+  // We only need to use thread-safe statics for local non-TLS variables and
+  // inline variables; other global initialization is always single-threaded
+  // or (through lazy dynamic loading in multiple threads) unsequenced.
+  bool threadSafe = getContext().getLangOpts().ThreadsafeStatics &&
+                    (D.isLocalVarDecl() || nonTemplateInline) &&
+                    !D.getTLSKind();
+
+  // If we have a global variable with internal linkage and thread-safe statics
+  // are disabled, we can just let the guard variable be of type i8.
+  bool useInt8GuardVariable =
+      !threadSafe &&
+      declPtr.getLinkage() == cir::GlobalLinkageKind::InternalLinkage;
+
+  // Determine the guard variable type.
+  mlir::Type guardTy;
+  if (useInt8GuardVariable) {
+    guardTy = builder.getUInt8Ty();
+  } else {
+    // Guard variables are 64 bits in the generic ABI and size width on ARM
+    // (i.e. 32-bit on AArch32, 64-bit on AArch64).
+    if (UseARMGuardVarABI) {
+      llvm_unreachable("NYI: ARM guard variable ABI");
+    } else {
+      guardTy = builder.getUInt64Ty();
+    }
+  }
+
+  // Create the guard variable if we don't already have it (as we
+  // might if we're double-emitting this function body).
+  // See CodeGen: ItaniumCXXABI.cpp:2735-2772
+  cir::GlobalOp guardGlobal = CGM.getStaticLocalDeclGuardAddress(&D);
+  if (!guardGlobal) {
+    // Mangle the name for the guard variable.
+    SmallString<256> guardName;
+    {
+      llvm::raw_svector_ostream out(guardName);
+      getMangleContext().mangleStaticGuardVariable(&D, out);
+    }
+
+    // Create the guard variable with a zero-initializer.
+    // Just absorb linkage, visibility and dll storage class from the guarded
+    // variable.
+    guardGlobal = CIRGenModule::createGlobalOp(
+        CGM, loc, guardName.str(), guardTy, /*isConstant=*/false,
+        cir::AddressSpace::Default, /*insertPoint=*/nullptr,
+        declPtr.getLinkage());
+    guardGlobal.setVisibility(declPtr.getVisibility());
+    guardGlobal.setDSOLocal(declPtr.isDSOLocal());
+
+    // DLL storage class should match the guarded variable.
+    // See CodeGen: ItaniumCXXABI.cpp:2755
+    assert(!cir::MissingFeatures::setDLLStorageClass());
+
+    // Set alignment for the guard variable based on its type.
+    // See CodeGen: ItaniumCXXABI.cpp:2716-2728, 2758
+    CharUnits guardAlignment;
+    if (useInt8GuardVariable) {
+      guardAlignment = CharUnits::One();
+    } else {
+      if (UseARMGuardVarABI) {
+        llvm_unreachable("NYI: ARM guard variable ABI alignment");
+      } else {
+        guardAlignment = CharUnits::fromQuantity(
+            CGM.getDataLayout().getABITypeAlign(guardTy));
+      }
+    }
+    guardGlobal.setAlignment(guardAlignment.getQuantity());
+
+    // Set the initial value to zero.
+    guardGlobal.setInitialValueAttr(builder.getZeroInitAttr(guardTy));
+
+    // The ABI says: "It is suggested that it be emitted in the same COMDAT
+    // group as the associated data object." In practice, this doesn't work for
+    // non-ELF and non-Wasm object formats, so only do it for ELF and Wasm.
+    // See CodeGen: ItaniumCXXABI.cpp:2760-2770
+    bool declHasComdat = declPtr.getComdat();
+    if (!D.isLocalVarDecl() && declHasComdat &&
+        (CGM.getTarget().getTriple().isOSBinFormatELF() ||
+         CGM.getTarget().getTriple().isOSBinFormatWasm())) {
+      guardGlobal.setComdat(true);
+    } else if (CGM.supportsCOMDAT() && guardGlobal.isWeakForLinker()) {
+      guardGlobal.setComdat(true);
+    }
+
+    // Register the guard variable so we don't create it again.
+    CGM.setStaticLocalDeclGuardAddress(&D, guardGlobal);
+  }
+
+  // If the variable is thread-local, so is its guard variable.
+  if (D.getTLSKind())
+    llvm_unreachable("NYI: thread-local guard variables");
+
+  // Create a pointer to the guard variable for the GuardedInitOp.
+  auto guardAddr = builder.createGetGlobal(guardGlobal);
+
+  // Get a symbol reference to the static variable.
+  auto staticVarSymbol =
+      mlir::FlatSymbolRefAttr::get(builder.getContext(), declPtr.getSymName());
+
+  // Create the GuardedInitOp.
+  bool isLocalVar = D.isLocalVarDecl();
+  mlir::UnitAttr threadSafeAttr = threadSafe ? builder.getUnitAttr() : nullptr;
+  mlir::UnitAttr performInitAttr =
+      performInit ? builder.getUnitAttr() : nullptr;
+  mlir::UnitAttr isLocalVarAttr = isLocalVar ? builder.getUnitAttr() : nullptr;
+  auto guardedInitOp = builder.create<cir::GuardedInitOp>(
+      loc, guardAddr, staticVarSymbol, threadSafeAttr, performInitAttr,
+      isLocalVarAttr);
+
+  // Build the init region.
+  mlir::Region &initRegion = guardedInitOp.getInitRegion();
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  mlir::Block *initBlock = builder.createBlock(&initRegion);
+  builder.setInsertionPointToStart(initBlock);
+
+  // Emit the initialization code if performInit is true.
+  if (performInit) {
+    // Get the address of the static variable for initialization.
+    Address declAddr(CGF.getBuilder().createGetGlobal(declPtr),
+                     declPtr.getSymType(), getContext().getDeclAlign(&D));
+    CGF.emitCXXGlobalVarDeclInit(D, declAddr, /*performInit=*/true);
+  }
+
+  // Terminate the init region with a yield.
+  builder.create<cir::YieldOp>(loc);
 }
 
 mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
@@ -2778,6 +2995,82 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
   }
 
   return cir::MethodAttr::get(MethodTy, VTableOffset);
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::buildMemberFunctionPointer(cir::MethodType methodTy,
+                                                const CXXMethodDecl *methodDecl,
+                                                CharUnits thisAdjustment) {
+  assert(methodDecl->isInstance() && "Member function must not be static!");
+
+  // Get the function pointer (or index if this is a virtual function).
+  if (methodDecl->isVirtual()) {
+    uint64_t index =
+        CGM.getItaniumVTableContext().getMethodVTableIndex(methodDecl);
+    uint64_t vTableOffset;
+    if (CGM.getItaniumVTableContext().isRelativeLayout()) {
+      // Multiply by 4-byte relative offsets.
+      vTableOffset = index * 4;
+    } else {
+      const ASTContext &astContext = getContext();
+      CharUnits pointerWidth = astContext.toCharUnitsFromBits(
+          astContext.getTargetInfo().getPointerWidth(LangAS::Default));
+      vTableOffset = index * pointerWidth.getQuantity();
+    }
+
+    // Itanium C++ ABI 2.3:
+    //   For a virtual function, [the pointer field] is 1 plus the
+    //   virtual table offset (in bytes) of the function,
+    //   represented as a ptrdiff_t.
+    return cir::MethodAttr::get(methodTy, vTableOffset,
+                                thisAdjustment.getQuantity());
+  }
+
+  // For non-virtual functions, get the function symbol.
+  auto methodFuncOp = CGM.GetAddrOfFunction(methodDecl);
+  auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
+  return cir::MethodAttr::get(methodTy, methodFuncSymbolRef,
+                              thisAdjustment.getQuantity());
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::buildMemberDataPointer(const MemberPointerType *mpt,
+                                            CharUnits offset) {
+  // This method is not currently used for APValue emission.
+  // Data member pointers are handled directly in emitMemberPointer.
+  llvm_unreachable("NYI: buildMemberDataPointer");
+}
+
+mlir::TypedAttr
+CIRGenItaniumCXXABI::emitMemberPointer(const APValue &memberPointer,
+                                       QualType mpType) {
+  const auto *mpt = mpType->castAs<MemberPointerType>();
+  const ValueDecl *mpd = memberPointer.getMemberPointerDecl();
+
+  if (!mpd) {
+    // Null member pointer.
+    if (mpt->isMemberDataPointer()) {
+      auto ty = mlir::cast<cir::DataMemberType>(CGM.convertType(mpType));
+      return cir::DataMemberAttr::get(ty);
+    }
+    // Null member function pointer.
+    auto ty = mlir::cast<cir::MethodType>(CGM.convertType(mpType));
+    return cir::MethodAttr::get(ty);
+  }
+
+  CharUnits thisAdjustment =
+      getContext().getMemberPointerPathAdjustment(memberPointer);
+
+  if (const auto *md = dyn_cast<CXXMethodDecl>(mpd)) {
+    auto ty = mlir::cast<cir::MethodType>(CGM.convertType(mpType));
+    return buildMemberFunctionPointer(ty, md, thisAdjustment);
+  }
+
+  // Data member pointer.
+  auto &builder = CGM.getBuilder();
+  auto ty = mlir::cast<cir::DataMemberType>(CGM.convertType(mpType));
+  const auto *fieldDecl = cast<FieldDecl>(mpd);
+  return builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex());
 }
 
 /// The Itanium ABI requires non-zero initialization only for data

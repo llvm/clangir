@@ -2033,16 +2033,10 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::MemberPointer: {
     assert(!cir::MissingFeatures::cxxABI());
 
-    const ValueDecl *memberDecl = Value.getMemberPointerDecl();
-    assert(!Value.isMemberPointerToDerivedMember() && "NYI");
+    if (Value.isMemberPointerToDerivedMember())
+      llvm_unreachable("NYI: derived-to-base member pointer conversions");
 
-    if (isa<CXXMethodDecl>(memberDecl))
-      assert(0 && "not implemented");
-
-    auto cirTy = mlir::cast<cir::DataMemberType>(CGM.convertType(DestType));
-
-    const auto *fieldDecl = cast<FieldDecl>(memberDecl);
-    return builder.getDataMemberAttr(cirTy, fieldDecl->getFieldIndex());
+    return CGM.getCXXABI().emitMemberPointer(Value, DestType);
   }
   case APValue::LValue:
     return ConstantLValueEmitter(*this, Value, DestType).tryEmit();
