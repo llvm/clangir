@@ -625,7 +625,12 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
-    cir::TryOp tryOp = ehEntry->getParentOp()->getParentOfType<cir::TryOp>();
+    // MLIR blocks may not have parent operations in all scenarios (unlike LLVM
+    // BasicBlocks which always have a parent Function). Check before accessing.
+    cir::TryOp tryOp =
+        ehEntry && ehEntry->getParentOp()
+            ? ehEntry->getParentOp()->getParentOfType<cir::TryOp>()
+            : nullptr;
 
     if (EHParent == EHStack.stable_end() && !tryOp)
       return;
@@ -660,8 +665,8 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
       // We skip the cleanups at the end of CIR scopes as they will be handled
       // later. This prevents cases like multiple destructor calls for the same
-      // object.
-      if (!isa<ScopeOp>(yield->getParentOp())) {
+      // object. Defensive check for parent in case of detached operations.
+      if (yield->getParentOp() && !isa<ScopeOp>(yield->getParentOp())) {
         cleanupFlags.setIsForEHCleanup();
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPoint(yield);
