@@ -1171,7 +1171,7 @@ public:
   /// --------
 
   /// Header for data within LifetimeExtendedCleanupStack.
-  struct LifetimeExtendedCleanupHeader {
+  struct alignas(uint64_t) LifetimeExtendedCleanupHeader {
     /// The size of the following cleanup object.
     unsigned Size;
     /// The kind of cleanup to push: a value from the CleanupKind enumeration.
@@ -1310,6 +1310,12 @@ public:
                                        QualType type, Destroyer *destroyer,
                                        bool useEHCleanupForArray);
 
+  void pushLifetimeExtendedDestroy(QualType::DestructionKind dtorKind,
+                                   Address addr, QualType type);
+  void pushLifetimeExtendedDestroy(CleanupKind cleanupKind, Address addr,
+                                   QualType type, Destroyer *destroyer,
+                                   bool useEHCleanupForArray);
+
   /// The values of function arguments to use when evaluating
   /// CXXInheritedCtorInitExprs within this context.
   CallArgList CXXInheritedCtorInitExprArgs;
@@ -1340,6 +1346,47 @@ public:
     typedef EHScopeStack::ConditionalCleanup<T, As...> CleanupType;
     EHStack.pushCleanupTuple<CleanupType>(kind, Saved);
     initFullExprCleanup();
+  }
+
+  /// Queue a cleanup to be pushed after finishing the current full-expression,
+  /// potentially with an active flag.
+  template <class T, class... As>
+  void pushCleanupAfterFullExpr(CleanupKind kind, As... A) {
+    if (!isInConditionalBranch())
+      return pushCleanupAfterFullExprWithActiveFlag<T>(kind, Address::invalid(),
+                                                       A...);
+
+    Address activeFlag = createCleanupActiveFlag();
+    assert(!DominatingValue<Address>::needsSaving(activeFlag) &&
+           "cleanup active flag should never need saving");
+
+    typedef std::tuple<typename DominatingValue<As>::saved_type...> SavedTuple;
+    SavedTuple saved{saveValueInCond(A)...};
+
+    typedef EHScopeStack::ConditionalCleanup<T, As...> CleanupType;
+    pushCleanupAfterFullExprWithActiveFlag<CleanupType>(kind, activeFlag,
+                                                        saved);
+  }
+
+  template <class T, class... As>
+  void pushCleanupAfterFullExprWithActiveFlag(CleanupKind kind,
+                                              Address activeFlag, As... A) {
+    LifetimeExtendedCleanupHeader header = {sizeof(T), kind,
+                                            activeFlag.isValid()};
+
+    size_t oldSize = LifetimeExtendedCleanupStack.size();
+    LifetimeExtendedCleanupStack.resize(
+        LifetimeExtendedCleanupStack.size() + sizeof(header) + header.Size +
+        (header.IsConditional ? sizeof(activeFlag) : 0));
+
+    static_assert((alignof(LifetimeExtendedCleanupHeader) == alignof(T)) &&
+                      (alignof(T) == alignof(Address)),
+                  "Cleanup will be allocated on misaligned address");
+    char *buffer = &LifetimeExtendedCleanupStack[oldSize];
+    new (buffer) LifetimeExtendedCleanupHeader(header);
+    new (buffer + sizeof(header)) T(A...);
+    if (header.IsConditional)
+      new (buffer + sizeof(header) + sizeof(T)) Address(activeFlag);
   }
 
   /// Set up the last cleanup that was pushed as a conditional

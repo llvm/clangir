@@ -1355,3 +1355,30 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
   pushDestroy(cleanupKind, addr, type, destroyer, useEHCleanupForArray);
   DeferredDeactivationCleanupStack.push_back({EHStack.stable_begin(), flag});
 }
+
+void CIRGenFunction::pushLifetimeExtendedDestroy(
+    QualType::DestructionKind dtorKind, Address addr, QualType type) {
+  CleanupKind cleanupKind = getCleanupKind(dtorKind);
+  pushLifetimeExtendedDestroy(cleanupKind, addr, type, getDestroyer(dtorKind),
+                              cleanupKind & EHCleanup);
+}
+
+void CIRGenFunction::pushLifetimeExtendedDestroy(CleanupKind cleanupKind,
+                                                 Address addr, QualType type,
+                                                 Destroyer *destroyer,
+                                                 bool useEHCleanupForArray) {
+  // For now, just directly push to the lifetime-extended stack without
+  // the intermediate deferred cleanup. This is a simplified implementation.
+  // FIXME: The full CodeGen implementation uses pushDestroyAndDeferDeactivation
+  // to handle the cleanup during the full-expression, then moves it to
+  // lifetime-extended. We should implement that once the cleanup system
+  // is more robust.
+  if (!isInConditionalBranch()) {
+    return pushCleanupAfterFullExprWithActiveFlag<DestroyObject>(
+        cleanupKind, Address::invalid(), addr, type, destroyer,
+        useEHCleanupForArray);
+  }
+
+  // Conditional branch path not yet implemented
+  llvm_unreachable("pushLifetimeExtendedDestroy in conditional branch NYI");
+}

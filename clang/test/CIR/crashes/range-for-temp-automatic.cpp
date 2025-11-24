@@ -1,8 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// XFAIL: *
-//
-// SD_Automatic storage duration for reference temporaries in range-based for loops
-// Location: CIRGenExpr.cpp:2435
+// RUN: FileCheck --input-file=%t.cir %s
 
 template <typename> struct b;
 template <typename> struct f;
@@ -42,6 +39,29 @@ public:
   G<p *> u();
   m<p *> r();
 } q;
+
+// CHECK: cir.func dso_local @_Z1sv()
+// CHECK:   %[[A:.*]] = cir.alloca !rec_m{{.*}}, !cir.ptr<!rec_m{{.*}}>, ["a", init]
+// CHECK:   cir.scope {
+// CHECK:     cir.for : cond {
+// CHECK:     } body {
+// CHECK:       cir.scope {
+// Verify temporary allocation for range-based for over v->u()
+// CHECK:         %{{.*}} = cir.alloca !rec_G{{.*}}, !cir.ptr<!rec_G{{.*}}>, ["ref.tmp0"]
+// CHECK:         cir.scope {
+// CHECK:           %{{.*}} = cir.call @{{.*}}u{{.*}}(
+// CHECK:         }
+// CHECK:         cir.for : cond {
+// CHECK:         } body {
+// CHECK:         } step {
+// CHECK:         }
+// Verify destructor call for the temporary G object at end of scope
+// CHECK:         cir.call @{{.*}}D1Ev(%{{.*}}) : (!cir.ptr<!rec_G{{.*}}>) -> ()
+// CHECK:       }
+// CHECK:     } step {
+// CHECK:     }
+// CHECK:   }
+// CHECK:   cir.return
 void s() {
   m a = q.r();
   for (p *v : a)
