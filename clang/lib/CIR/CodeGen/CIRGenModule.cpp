@@ -4341,7 +4341,15 @@ TBAAAccessInfo CIRGenModule::getTBAAAccessInfo(QualType accessType) {
     return TBAAAccessInfo();
   }
   if (getLangOpts().CUDAIsDevice) {
-    llvm_unreachable("NYI");
+    if (getLangOpts().CUDAIsDevice) {
+      // As CUDA builtin surface/texture types are replaced, skip generating
+      // TBAA access info.
+      if (accessType->isCUDADeviceBuiltinSurfaceType()) {
+        llvm_unreachable("NYI");
+      } else if (accessType->isCUDADeviceBuiltinTextureType()) {
+        llvm_unreachable("NYI");
+      }
+    }
   }
   return tbaa->getAccessInfo(accessType);
 }
