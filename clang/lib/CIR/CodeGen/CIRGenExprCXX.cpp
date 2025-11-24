@@ -1854,3 +1854,15 @@ mlir::Value CIRGenFunction::emitCXXTypeidExpr(const CXXTypeidExpr *E) {
   mlir::Attribute typeInfo = CGM.getAddrOfRTTIDescriptor(loc, operandTy);
   return createGetGlobalForRTTI(typeInfo);
 }
+
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  mlir::Value V = emitCXXTypeidExpr(E);
+
+  LValueBaseInfo baseInfo;
+  TBAAAccessInfo tbaaInfo;
+  CharUnits alignment = CGM.getNaturalTypeAlignment(E->getType(), &baseInfo, &tbaaInfo);
+
+  // Use the Address constructor that extracts the element type from the pointer
+  Address addr(V, alignment);
+  return LValue::makeAddr(addr, E->getType(), getContext(), baseInfo, tbaaInfo);
+}
