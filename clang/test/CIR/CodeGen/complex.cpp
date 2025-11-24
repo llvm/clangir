@@ -390,3 +390,23 @@ void real_on_scalar_glvalue() {
 // OGCG: %[[B_ADDR:.*]] = alloca float, align 4
 // OGCG: %[[TMP_A:.*]] = load float, ptr %[[A_ADDR]], align 4
 // OGCG: store float %[[TMP_A]], ptr %[[B_ADDR]], align 4
+
+void imag_on_scalar_glvalue() {
+  float a;
+  float b = __imag__ a;
+}
+
+// CIR: %[[A_ADDR:.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["a"]
+// CIR: %[[B_ADDR:.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["b", init]
+// CIR: %[[TMP_A:.*]] = cir.load{{.*}} %[[A_ADDR]] : !cir.ptr<!cir.float>, !cir.float
+// CIR: %[[A_IMAG:.*]] = cir.complex.imag %[[TMP_A]] : !cir.float -> !cir.float
+// CIR: cir.store{{.*}} %[[A_IMAG]], %[[B_ADDR]] : !cir.float, !cir.ptr<!cir.float>
+
+// LLVM: %[[A_ADDR:.*]] = alloca float, i64 1, align 4
+// LLVM: %[[B_ADDR:.*]] = alloca float, i64 1, align 4
+// LLVM: %[[TMP_A:.*]] = load float, ptr %[[A_ADDR]], align 4
+// LLVM: store float 0.000000e+00, ptr %[[B_ADDR]], align 4
+
+// OGCG: %[[A_ADDR:.*]] = alloca float, align 4
+// OGCG: %[[B_ADDR:.*]] = alloca float, align 4
+// OGCG: store float 0.000000e+00, ptr %[[B_ADDR]], align 4
