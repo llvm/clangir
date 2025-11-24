@@ -313,6 +313,12 @@ public:
       return true;
     }
 
+    if (const auto methodAttr = mlir::dyn_cast<cir::MethodAttr>(attr))
+      return methodAttr.isNull();
+
+    if (const auto dataMemberAttr = mlir::dyn_cast<cir::DataMemberAttr>(attr))
+      return dataMemberAttr.isNullPtr();
+
     llvm_unreachable("NYI");
   }
 

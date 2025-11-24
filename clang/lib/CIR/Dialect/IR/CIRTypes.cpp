@@ -919,7 +919,7 @@ MethodType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
                             mlir::DataLayoutEntryListRef params) const {
-  return dataLayout.getTypeSizeInBits(getMethodLayoutType(getContext()));
+  return dataLayout.getTypeABIAlignment(getMethodLayoutType(getContext()));
 }
 
 //===----------------------------------------------------------------------===//

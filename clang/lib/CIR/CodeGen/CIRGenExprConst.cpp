@@ -359,7 +359,36 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   // If we want an array type, see if all the elements are the same type and
   // appropriately spaced.
   if (auto aty = mlir::dyn_cast<cir::ArrayType>(DesiredTy)) {
-    llvm_unreachable("NYI");
+    assert(!AllowOversized && "oversized array emission not supported");
+
+    bool canEmitArray = true;
+    mlir::Type commonType = mlir::cast<mlir::TypedAttr>(Elems[0]).getType();
+    mlir::TypedAttr filler = mlir::cast<mlir::TypedAttr>(
+        CGM.getBuilder().getZeroInitAttr(commonType));
+    CharUnits elemSize = Utils.getSize(aty.getElementType());
+    SmallVector<mlir::TypedAttr, 32> arrayElements;
+    for (size_t I = 0; I != Elems.size(); ++I) {
+      // Skip zeroes; we'll use a zero value as our array filler.
+      if (CGM.getBuilder().isNullValue(Elems[I]))
+        continue;
+
+      mlir::TypedAttr elemAttr = mlir::cast<mlir::TypedAttr>(Elems[I]);
+      // All remaining elements must be the same type.
+      if (elemAttr.getType() != commonType ||
+          !Offset(I).isMultipleOf(elemSize)) {
+        canEmitArray = false;
+        break;
+      }
+      arrayElements.resize(Offset(I) / elemSize + 1, filler);
+      arrayElements.back() = elemAttr;
+    }
+
+    if (canEmitArray) {
+      return emitArrayConstant(CGM, aty, commonType, aty.getSize(),
+                               arrayElements, filler);
+    }
+
+    // Can't emit as an array, carry on to emit as a struct.
   }
 
   // The size of the constant we plan to generate. This is usually just the size

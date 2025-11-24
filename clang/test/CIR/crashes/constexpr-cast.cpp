@@ -1,8 +1,9 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// XFAIL: *
+// RUN: FileCheck --input-file=%t.cir %s
 //
-// Member function pointer emission NYI
-// Location: CIRGenExprConst.cpp:2045
+// Test for member pointer base-to-derived casts in constant expressions.
+// This was previously failing but is now fixed by the array handling and
+// MethodType::getABIAlignment fixes.
 
 class a {
 public:
@@ -13,4 +14,7 @@ class c : a {
     int (c::*e)(unsigned);
   } static const f[];
 };
+
+// CHECK: cir.global constant external @_ZN1c1fE = #cir.const_array<[
+// CHECK-SAME: #cir.const_record<{#cir.method<@_ZN1a1bEj>
 const c::d c::f[]{&a::b};
