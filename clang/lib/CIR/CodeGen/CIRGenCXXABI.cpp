@@ -104,3 +104,11 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
 
   return E->getAllocatedType().isDestructedType();
 }
+
+void CIRGenCXXABI::emitReturnFromThunk(CIRGenFunction &cgf, RValue rv,
+                                       QualType resultType) {
+  assert(!cgf.hasAggregateEvaluationKind(resultType) &&
+         "cannot handle aggregates");
+  auto loc = cgf.getBuilder().getUnknownLoc();
+  cgf.emitReturnOfRValue(loc, rv, resultType);
+}
