@@ -2596,6 +2596,53 @@ def CIR_GetGlobalOp
   }];
 }
 
+def CIR_IFuncOp : CIR_Op<"func.ifunc", [Symbol]> {
+  let summary = "Indirect function (ifunc) declaration";
+  let description = [{
+    The `cir.func.ifunc` operation declares an indirect function, which allows
+    runtime selection of function implementations based on CPU features or other
+    runtime conditions. The actual function to call is determined by a resolver
+    function at runtime.
+
+    The resolver function must return a pointer to a function with the same
+    signature as the ifunc. The resolver typically inspects CPU features or
+    other runtime conditions to select the appropriate implementation.
+
+    This corresponds to the GNU indirect function attribute:
+    `__attribute__((ifunc("resolver")))`
+
+    Example:
+    ```mlir
+    // Resolver function that returns a function pointer
+    cir.func internal @resolve_foo() -> !cir.ptr<!cir.func<i32 ()>> {
+      ...
+      cir.return %impl : !cir.ptr<!cir.func<i32 ()>>
+    }
+
+    // IFunc declaration
+    cir.func.ifunc @foo resolver(@resolve_foo) : !cir.func<i32 ()>
+
+    // Usage
+    cir.func @use_foo() {
+      %result = cir.call @foo() : () -> i32
+      cir.return
+    }
+    ```
+  }];
+
+  let arguments = (ins SymbolNameAttr:$sym_name,
+      CIR_VisibilityAttr:$global_visibility,
+      TypeAttrOf<CIR_FuncType>:$function_type, FlatSymbolRefAttr:$resolver,
+      DefaultValuedAttr<CIR_GlobalLinkageKind,
+                        "GlobalLinkageKind::ExternalLinkage">:$linkage,
+      OptionalAttr<StrAttr>:$sym_visibility);
+
+  let assemblyFormat = [{
+    $sym_name `resolver` `(` $resolver `)` attr-dict `:`
+    $function_type
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // GuardedInitOp
 //===----------------------------------------------------------------------===//

@@ -783,6 +783,7 @@ public:
                                              cir::FuncOp func);
 
   void emitGlobalDefinition(clang::GlobalDecl D, mlir::Operation *Op = nullptr);
+  void emitIFuncDefinition(clang::GlobalDecl globalDecl);
   void emitGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
   void emitGlobalVarDefinition(const clang::VarDecl *D,
                                bool IsTentative = false);
