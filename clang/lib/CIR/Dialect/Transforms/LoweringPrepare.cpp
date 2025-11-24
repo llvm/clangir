@@ -270,11 +270,12 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
                                     block.begin(), std::prev(block.end()));
   }
 
-  // Register the destructor call with __cxa_atexit
+  // Register the destructor call with __cxa_atexit or __cxa_thread_atexit
   auto &dtorRegion = op.getDtorRegion();
   if (!dtorRegion.empty()) {
-    assert(op.getAst() &&
-           op.getAst()->getTLSKind() == clang::VarDecl::TLS_None && " TLS NYI");
+    assert(op.getAst());
+    bool isTLS = op.getAst()->getTLSKind() != clang::VarDecl::TLS_None;
+
     // Create a variable that binds the atexit to this shared object.
     builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
     auto Handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
@@ -295,6 +296,9 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
 
     // Create a runtime helper function:
     //    extern "C" int __cxa_atexit(void (*f)(void *), void *p, void *d);
+    // or for TLS:
+    //    extern "C" int __cxa_thread_atexit(void (*f)(void *), void *p, void
+    //    *d);
     auto voidPtrTy = cir::PointerType::get(voidTy);
     auto voidFnTy = cir::FuncType::get({voidPtrTy}, voidTy);
     auto voidFnPtrTy = cir::PointerType::get(voidFnTy);
@@ -302,11 +306,19 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
     auto fnAtExitType =
         cir::FuncType::get({voidFnPtrTy, voidPtrTy, HandlePtrTy},
                            cir::VoidType::get(builder.getContext()));
+
+    // Determine the correct atexit function name
     const char *nameAtExit = "__cxa_atexit";
+    if (isTLS) {
+      const llvm::Triple &triple = astCtx->getTargetInfo().getTriple();
+      nameAtExit = triple.isOSDarwin() ? "_tlv_atexit" : "__cxa_thread_atexit";
+    }
+
     FuncOp fnAtExit =
         buildRuntimeFunction(builder, nameAtExit, op.getLoc(), fnAtExitType);
 
-    // Replace the dtor call with a call to __cxa_atexit(&dtor, &var,
+    // Replace the dtor call with a call to
+    // __cxa_atexit/__cxa_thread_atexit(&dtor, &var,
     // &__dso_handle)
     builder.setInsertionPointAfter(dtorCall);
     mlir::Value args[3];

@@ -261,7 +261,6 @@ static void emitDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   auto UsingExternalHelper = CGM.getCodeGenOpts().CXAAtExit;
   cir::FuncOp fnOp;
   if (Record && (CanRegisterDestructor || UsingExternalHelper)) {
-    assert(!D->getTLSKind() && "TLS NYI");
     assert(!Record->hasTrivialDestructor());
     assert(!cir::MissingFeatures::openCLCXX());
     CXXDestructorDecl *Dtor = Record->getDestructor();
