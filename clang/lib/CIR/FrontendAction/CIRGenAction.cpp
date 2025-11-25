@@ -59,7 +59,6 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Transforms/IPO/Internalize.h"
-#include <iostream>
 
 #include <memory>
 
@@ -130,8 +129,8 @@ class CIRGenConsumer : public clang::ASTConsumer {
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS;
   std::unique_ptr<CIRGenerator> Gen;
 
-  // NOTE: LinkModule is taken from clang/include/clang/CodeGen/CodeGenAction.h
-  // This is clearly suboptimal and we should reuse their functionality.
+  /// NOTE: LinkModule is taken from clang/include/clang/CodeGen/CodeGenAction.h
+  /// This is clearly suboptimal and we should reuse their functionality.
   /// Info about module to link into a module we're generating.
   struct LinkModule {
     /// The module to link in.
