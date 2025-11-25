@@ -2710,18 +2710,15 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitCompoundLiteralLValue(cast<CompoundLiteralExpr>(E));
   case Expr::PredefinedExprClass:
     return emitPredefinedLValue(cast<PredefinedExpr>(E));
+  case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
+  case Expr::CXXStaticCastExprClass:
+  case Expr::CXXDynamicCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
   case Expr::CXXAddrspaceCastExprClass:
-  case Expr::ObjCBridgedCastExprClass:
-    emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
-        << E->getStmtClassName() << "'";
-    assert(0 && "Use emitCastLValue below, remove me when adding testcase");
-  case Expr::CStyleCastExprClass:
-  case Expr::CXXStaticCastExprClass:
-  case Expr::CXXDynamicCastExprClass:
   case Expr::ImplicitCastExprClass:
+  case Expr::ObjCBridgedCastExprClass:
     return emitCastLValue(cast<CastExpr>(E));
   case Expr::OpaqueValueExprClass:
     return emitOpaqueValueLValue(cast<OpaqueValueExpr>(E));
