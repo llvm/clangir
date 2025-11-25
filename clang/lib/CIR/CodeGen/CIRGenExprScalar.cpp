@@ -831,7 +831,81 @@ public:
   mlir::Value VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) { llvm_unreachable("NYI"); }
+
+  // Create cast instructions for converting LLVM value Src to MLIR type  DstTy.
+  // Src has the same size as DstTy. Both are single value types
+  // but could be scalar or vectors of different lengths, and either can be
+  // pointer.
+  mlir::Value createCastsForTypeOfSameSize(mlir::Value Src, mlir::Type DstTy) {
+    auto SrcTy = Src.getType();
+
+    // Case 1.
+    if (!isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy))
+      return Builder.createBitcast(Src, DstTy);
+
+    // Case 2.
+    if (isa<cir::PointerType>(SrcTy) && isa<cir::PointerType>(DstTy))
+      return Builder.createPointerBitCastOrAddrSpaceCast(Src, DstTy);
+
+    // Case 3.
+    if (isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy)) {
+      // Case 3b.
+      if (!Builder.isInt(DstTy))
+        llvm_unreachable("NYI");
+      // Cases 3a and 3b.
+      llvm_unreachable("NYI");
+    }
+
+    // Case 4b.
+    if (!Builder.isInt(SrcTy))
+      llvm_unreachable("NYI");
+
+    // Cases 4a and 4b.
+    llvm_unreachable("NYI");
+  }
+
+  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) {
+    unsigned numSrcElems = 0;
+    QualType qualSrcTy = E->getSrcExpr()->getType();
+    mlir::Type srcTy = CGF.convertType(qualSrcTy);
+    if (auto v = dyn_cast<cir::VectorType>(srcTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector src");
+      numSrcElems = v.getSize();
+    }
+
+    unsigned numDstElems = 0;
+    QualType qualDstTy = E->getType();
+    mlir::Type dstTy = CGF.convertType(qualDstTy);
+    if (auto v = dyn_cast<cir::VectorType>(dstTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector dst");
+      numDstElems = v.getSize();
+    }
+
+    // Use bit vector expansion for ext_vector_type boolean vectors.
+    if (qualDstTy->isExtVectorBoolType()) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from vec3 to non-vec3 is a special case and requires a shuffle
+    // vector to get a vec4, then a bitcast if the target type is different.
+    if (numSrcElems == 3 && numDstElems != 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from non-vec3 to vec3 is a special case and requires a bitcast
+    // to vec4 if the original type is not vec4, then a shuffle vector to
+    // get a vec3.
+    if (numSrcElems != 3 && numDstElems == 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // Otherwise, fallback to bitcast of same size
+    mlir::Value src = CGF.emitScalarExpr(E->getSrcExpr());
+    return createCastsForTypeOfSameSize(src, dstTy);
+  }
+
   mlir::Value VisitAtomicExpr(AtomicExpr *E) {
     return CGF.emitAtomicExpr(E).getScalarVal();
   }

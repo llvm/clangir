@@ -600,7 +600,9 @@ public:
 
   mlir::Value createPtrBitcast(mlir::Value src, mlir::Type newPointeeTy) {
     assert(mlir::isa<cir::PointerType>(src.getType()) && "expected ptr src");
-    return createBitcast(src, getPointerTo(newPointeeTy));
+    auto srcPtrTy = mlir::cast<cir::PointerType>(src.getType());
+    mlir::Type newPtrTy = getPointerTo(newPointeeTy, srcPtrTy.getAddrSpace());
+    return createBitcast(src, newPtrTy);
   }
 
   mlir::Value createAddrSpaceCast(mlir::Location loc, mlir::Value src,
@@ -610,6 +612,29 @@ public:
 
   mlir::Value createAddrSpaceCast(mlir::Value src, mlir::Type newTy) {
     return createAddrSpaceCast(src.getLoc(), src, newTy);
+  }
+
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Location loc,
+                                                  mlir::Value src,
+                                                  mlir::Type newPointerTy) {
+    assert(mlir::isa<cir::PointerType>(src.getType()) &&
+           "expected source pointer");
+    assert(mlir::isa<cir::PointerType>(newPointerTy) &&
+           "expected destination pointer type");
+
+    auto srcPtrTy = mlir::cast<cir::PointerType>(src.getType());
+    auto dstPtrTy = mlir::cast<cir::PointerType>(newPointerTy);
+
+    mlir::Value addrSpaceCasted = src;
+    if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
+      addrSpaceCasted = createAddrSpaceCast(loc, src, dstPtrTy);
+
+    return createPtrBitcast(addrSpaceCasted, dstPtrTy.getPointee());
+  }
+
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Value src,
+                                                  mlir::Type newPointerTy) {
+    return createPointerBitCastOrAddrSpaceCast(src.getLoc(), src, newPointerTy);
   }
 
   mlir::Value createPtrIsNull(mlir::Value ptr) {
