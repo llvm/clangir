@@ -1192,10 +1192,6 @@ def CIR_OptNoneAttr : CIR_UnitAttr<"OptNone", "optnone"> {
   let storageType = [{ OptNoneAttr }];
 }
 
-def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
-  let storageType = [{ NoThrowAttr }];
-}
-
 def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
   let storageType = [{ ConvergentAttr }];
 }

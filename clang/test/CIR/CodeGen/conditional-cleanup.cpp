@@ -81,7 +81,6 @@ namespace test7 {
 // CIR: }
 
 // CIR_EH-DAG: #[[$ATTR_0:.+]] = #cir.bool<false> : !cir.bool
-// CIR_EH-DAG: #[[$ATTR_1:.+]] = #cir<extra({nothrow = #cir.nothrow})>
 // CIR_EH-DAG: #[[$ATTR_2:.+]] = #cir<extra({inline = #cir.inline<no>, optnone = #cir.optnone})>
 // CIR_EH-DAG: #[[$ATTR_3:.+]] = #cir.bool<true> : !cir.bool
 

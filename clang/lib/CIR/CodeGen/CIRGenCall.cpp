@@ -162,8 +162,7 @@ static void AddAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
 
   if (!isUnresolvedExceptionSpec(FPT->getExceptionSpecType()) &&
       FPT->isNothrow()) {
-    auto nu = cir::NoThrowAttr::get(builder.getContext());
-    FuncAttrs.set(nu.getMnemonic(), nu);
+    FuncAttrs.set("nothrow", builder.getUnitAttr());
   }
 }
 
@@ -221,8 +220,8 @@ void CIRGenModule::constructAttributeList(
   if (TargetDecl) {
 
     if (TargetDecl->hasAttr<NoThrowAttr>()) {
-      auto nu = cir::NoThrowAttr::get(&getMLIRContext());
-      funcAttrs.set(nu.getMnemonic(), nu);
+      auto nu = mlir::UnitAttr::get(&getMLIRContext());
+      funcAttrs.set("nothrow", nu);
     }
 
     if (const FunctionDecl *Fn = dyn_cast<FunctionDecl>(TargetDecl)) {
@@ -324,7 +323,7 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
                cir::FuncOp directFuncOp,
                SmallVectorImpl<mlir::Value> &CIRCallArgs, bool isInvoke,
                cir::CallingConv callingConv, cir::SideEffect sideEffect,
-               cir::ExtraFuncAttributesAttr extraFnAttrs) {
+               cir::ExtraFuncAttributesAttr extraFnAttrs, bool cannotThrow) {
   auto &builder = CGF.getBuilder();
   auto getOrCreateSurroundingTryOp = [&]() {
     // In OG, we build the landing pad for this scope. In CIR, we emit a
@@ -383,6 +382,8 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
           callLoc, directFuncOp, CIRCallArgs, callingConv, sideEffect);
     }
     callOpWithExceptions->setAttr("extra_attrs", extraFnAttrs);
+    if (cannotThrow)
+      callOpWithExceptions->setAttr("nothrow", builder.getUnitAttr());
     CGF.mayThrow = true;
 
     CGF.callWithExceptionCtx = callOpWithExceptions;
@@ -398,15 +399,20 @@ emitCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
   }
 
   assert(builder.getInsertionBlock() && "expected valid basic block");
+  cir::CIRCallOpInterface callOp;
   if (indirectFuncTy) {
     // TODO(cir): Set calling convention for indirect calls.
     assert(callingConv == cir::CallingConv::C && "NYI");
-    return builder.createIndirectCallOp(
+    callOp = builder.createIndirectCallOp(
         callLoc, indirectFuncVal, indirectFuncTy, CIRCallArgs,
         cir::CallingConv::C, sideEffect, extraFnAttrs);
+  } else {
+    callOp = builder.createCallOp(callLoc, directFuncOp, CIRCallArgs, callingConv,
+                                   sideEffect, extraFnAttrs);
   }
-  return builder.createCallOp(callLoc, directFuncOp, CIRCallArgs, callingConv,
-                              sideEffect, extraFnAttrs);
+  if (cannotThrow)
+    callOp->setAttr("nothrow", builder.getUnitAttr());
+  return callOp;
 }
 
 static RValue getRValueThroughMemory(mlir::Location loc,
@@ -601,12 +607,10 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
     CannotThrow = true;
   } else {
     // Otherwise, nounwind call sites will never throw.
-    auto noThrowAttr = cir::NoThrowAttr::get(&getMLIRContext());
-    CannotThrow = Attrs.getNamed(noThrowAttr.getMnemonic()).has_value();
+    CannotThrow = Attrs.getNamed("nothrow").has_value();
 
     if (auto fptr = dyn_cast<cir::FuncOp>(CalleePtr))
-      if (fptr.getExtraAttrs().getElements().contains(
-              noThrowAttr.getMnemonic()))
+      if (fptr.getNothrow())
         CannotThrow = true;
   }
   bool isInvoke = CannotThrow ? false : isInvokeDest();
@@ -650,7 +654,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
     cir::CIRCallOpInterface callLikeOp = emitCallLikeOp(
         *this, callLoc, indirectFuncTy, indirectFuncVal, directFuncOp,
-        CIRCallArgs, isInvoke, callingConv, sideEffect, extraFnAttrs);
+        CIRCallArgs, isInvoke, callingConv, sideEffect, extraFnAttrs, CannotThrow);
 
     if (E)
       callLikeOp->setAttr("ast",
@@ -1462,8 +1466,8 @@ static void getTrivialDefaultFunctionAttributes(
     llvm_unreachable("NYI");
   if (langOpts.OpenCL ||
       ((langOpts.CUDA || langOpts.HIP) && langOpts.CUDAIsDevice)) {
-    auto noThrow = cir::NoThrowAttr::get(CGM.getBuilder().getContext());
-    funcAttrs.set(noThrow.getMnemonic(), noThrow);
+    auto noThrow = mlir::UnitAttr::get(CGM.getBuilder().getContext());
+    funcAttrs.set("nothrow", noThrow);
   }
 }
 

@@ -5,18 +5,16 @@
 
 // CIR-LABEL: #fn_attr =
 // CIR: cl.kernel = #cir.cl.kernel
-// CIR: nothrow = #cir.nothrow
 
 // CIR-LABEL: #fn_attr1 =
 // CIR-NOT: cl.kernel = #cir.cl.kernel
-// CIR: nothrow = #cir.nothrow
 
 kernel void ker() {};
-// CIR: cir.func @ker{{.*}} extra(#fn_attr) {
+// CIR: cir.func nothrow @ker{{.*}} extra(#fn_attr) {
 // LLVM: define{{.*}}@ker(){{.*}} #0
 
 void foo() {};
-// CIR: cir.func @foo{{.*}} extra(#fn_attr1) {
+// CIR: cir.func nothrow @foo{{.*}} extra(#fn_attr1) {
 // LLVM: define{{.*}}@foo(){{.*}} #1
 
 // LLVM-LABEL: attributes #0
