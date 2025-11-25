@@ -1,0 +1,25 @@
+// RUN: %clang -cc1 -triple spirv64-unknown-unknown -cl-std=CL2.0 -finclude-default-header -emit-cir -o - %s -fclangir | FileCheck %s --check-prefix=CIR
+// RUN: %clang -cc1 -triple spirv64-unknown-unknown -cl-std=CL2.0 -finclude-default-header -emit-llvm -o - %s -fclangir | FileCheck %s --check-prefix=LLVM
+// RUN: %clang -cc1 -triple spirv64-unknown-unknown -cl-std=CL2.0 -finclude-default-header -emit-llvm -o - %s | FileCheck %s --check-prefix=OG-LLVM
+
+// Simple kernel using async_work_group_copy + wait_group_events
+
+__kernel void test_async_copy(__global int *g_in, __local int *l_in, int size) {
+    // int gid = get_global_id(0);
+
+    // Trigger async copy: global to local
+    // event_t e_in = 
+    async_work_group_copy(
+        l_in,                          // local destination
+        g_in,// + gid * size,             // global source
+        size,                          // number of elements
+        (event_t)0                     // no dependency
+    );
+
+    // Wait for the async operation to complete
+    // wait_group_events(1, &e_in);
+}
+
+// CIR: cir.call @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (!cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!s32i, addrspace(offload_global)>, !u64i, !cir.ptr<!void>) -> !cir.ptr<!void>
+// LLVM: call spir_func ptr @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) %{{.*}}, ptr addrspace(1) %{{.*}}, i64 %{{.*}}, ptr null)
+// OG-LLVM: call spir_func target("spirv.Event") @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) noundef %{{.*}}, ptr addrspace(1) noundef %{{.*}}, i64 noundef %{{.*}}, target("spirv.Event") zeroinitializer
