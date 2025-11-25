@@ -1557,11 +1557,6 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
 
       if (divisor.getType() != CGF.PtrDiffTy)
         divisor = Builder.createIntCast(divisor, CGF.PtrDiffTy);
-
-      auto eltSizeVal =
-          cir::ConstantOp::create(Builder, loc, cirIntTy, eltSizeAttr)
-              .getResult();
-      divisor = Builder.createNUWAMul(eltSizeVal, divisor);
     }
   } else {
     // cir::ptrdiff correctly computes the ABI difference of 2 pointers. We
@@ -1839,8 +1834,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     assert(Qualifier && "member pointer without class qualifier");
     const Type *QualifierType = Qualifier.getAsType();
     assert(QualifierType && "member pointer qualifier is not a type");
-    const CXXRecordDecl *derivedClass =
-        QualifierType->getAsCXXRecordDecl();
+    const CXXRecordDecl *derivedClass = QualifierType->getAsCXXRecordDecl();
     CharUnits offset = CGF.CGM.computeNonVirtualBaseClassOffset(
         derivedClass, CE->path_begin(), CE->path_end());
 
