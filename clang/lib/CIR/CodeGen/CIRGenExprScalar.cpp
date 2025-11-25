@@ -1524,17 +1524,59 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   if (!mlir::isa<cir::PointerType>(Ops.RHS.getType()))
     return emitPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
-  // Otherwise, this is a pointer subtraction
-
   // Do the raw subtraction part.
-  //
-  // TODO(cir): note for LLVM lowering out of this; when expanding this into
-  // LLVM we shall take VLA's, division by element size, etc.
-  //
-  // See more in `EmitSub` in CGExprScalar.cpp.
+  mlir::Value lhs = Ops.LHS;
+  mlir::Value rhs = Ops.RHS;
+
+  cir::PointerType lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhs.getType());
+  cir::PointerType rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
+
+  if (lhsPtrTy && rhsPtrTy) {
+    cir::AddressSpace lhsAS = lhsPtrTy.getAddrSpace();
+    cir::AddressSpace rhsAS = rhsPtrTy.getAddrSpace();
+
+    if (lhsAS != rhsAS) {
+      // Different address spaces → use addrspacecast
+      rhs = Builder.createAddrSpaceCast(rhs, lhsPtrTy);
+    } else if (lhsPtrTy != rhsPtrTy) {
+      // Same addrspace but different pointee/type → bitcast is fine
+      rhs = Builder.createBitcast(rhs, lhsPtrTy);
+    }
+  }
+
   assert(!cir::MissingFeatures::llvmLoweringPtrDiffConsidersPointee());
-  return cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc), CGF.PtrDiffTy,
-                                Ops.LHS, Ops.RHS);
+  mlir::Value diff = cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc),
+                                            CGF.PtrDiffTy, lhs, rhs);
+
+  const BinaryOperator *expr = cast<BinaryOperator>(Ops.E);
+  QualType elementType = expr->getLHS()->getType()->getPointeeType();
+
+  mlir::Location loc = CGF.getLoc(Ops.Loc);
+  mlir::Value divisor;
+
+  // Check if this is a VLA pointee type.
+  if (const auto *vla = CGF.getContext().getAsVariableArrayType(elementType)) {
+    auto vlaSize = CGF.getVLASize(vla);
+    elementType = vlaSize.Type;
+    divisor = vlaSize.NumElts;
+
+    CharUnits eltSize = CGF.getContext().getTypeSizeInChars(elementType);
+    if (!eltSize.isOne()) {
+      cir::IntType cirIntTy = llvm::cast<cir::IntType>(CGF.PtrDiffTy);
+      cir::IntAttr eltSizeAttr =
+          cir::IntAttr::get(cirIntTy, eltSize.getQuantity());
+
+      if (divisor.getType() != CGF.PtrDiffTy)
+        divisor = Builder.createIntCast(divisor, CGF.PtrDiffTy);
+    }
+  } else {
+    // cir::ptrdiff correctly computes the ABI difference of 2 pointers. We
+    // do not need to compute anything else here. We just return it.
+    return diff;
+  }
+
+  return cir::BinOp::create(Builder, loc, CGF.PtrDiffTy, cir::BinOpKind::Div,
+                            diff, divisor);
 }
 
 // Helper to apply OpenCL-style shift masking. It handles both vector and scalar
