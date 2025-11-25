@@ -312,6 +312,14 @@ public:
       return true;
     }
 
+    if (const auto vecVal = mlir::dyn_cast<cir::ConstVectorAttr>(attr)) {
+      for (const auto elt : vecVal.getElts()) {
+        if (!isNullValue(elt))
+          return false;
+      }
+      return true;
+    }
+
     llvm_unreachable("NYI");
   }
 
