@@ -161,7 +161,7 @@ static void replace(Container &C, size_t BeginOff, size_t EndOff, Range Vals) {
 bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
                                    bool AllowOverwrite) {
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-  mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(A);
+  mlir::TypedAttr C = mlir::dyn_cast_or_null<mlir::TypedAttr>(A);
   assert(C && "expected typed attribute");
   // Common case: appending to a layout.
   if (Offset >= Size) {
@@ -327,7 +327,7 @@ std::optional<size_t> ConstantAggregateBuilder::splitAt(CharUnits Pos) {
     // We found an element starting before Pos. Check for overlap.
     // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
     mlir::TypedAttr C =
-        mlir::dyn_cast<mlir::TypedAttr>(Elems[LastAtOrBeforePosIndex]);
+        mlir::dyn_cast_or_null<mlir::TypedAttr>(Elems[LastAtOrBeforePosIndex]);
     assert(C && "expected typed attribute");
     if (Offsets[LastAtOrBeforePosIndex] + getSize(C) <= Pos)
       return LastAtOrBeforePosIndex + 1;
@@ -375,7 +375,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   CharUnits Align = CharUnits::One();
   for (auto e : Elems) {
     // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-    auto C = mlir::dyn_cast<mlir::TypedAttr>(e);
+    auto C = mlir::dyn_cast_or_null<mlir::TypedAttr>(e);
     assert(C && "expected typed attribute");
     Align = std::max(Align, Utils.getAlignment(C));
   }
@@ -406,7 +406,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   if (!NaturalLayout) {
     CharUnits SizeSoFar = CharUnits::Zero();
     for (size_t I = 0; I != Elems.size(); ++I) {
-      mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(Elems[I]);
+      mlir::TypedAttr C = mlir::dyn_cast_or_null<mlir::TypedAttr>(Elems[I]);
       assert(C && "expected typed attribute");
 
       CharUnits Align = Utils.getAlignment(C);
@@ -463,7 +463,7 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
     return;
 
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-  mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(Elems[First]);
+  mlir::TypedAttr C = mlir::dyn_cast_or_null<mlir::TypedAttr>(Elems[First]);
   assert(C && "expected typed attribute");
   if (Length == 1 && Offsets[First] == Offset && getSize(C) == Size) {
     // Re-wrap single element records if necessary. Otherwise, leave any single
@@ -1895,7 +1895,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   }
 
   // Zero-extend bool.
-  auto typed = mlir::dyn_cast<mlir::TypedAttr>(C);
+  auto typed = mlir::dyn_cast_or_null<mlir::TypedAttr>(C);
   if (typed && mlir::isa<cir::BoolType>(typed.getType())) {
     // Already taken care given that bool values coming from
     // integers only carry true/false.
