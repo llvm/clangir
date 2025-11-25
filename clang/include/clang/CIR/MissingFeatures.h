@@ -438,6 +438,10 @@ struct MissingFeatures {
   // do not yet support this yet.
   static bool inallocaArgs() { return false; }
 
+  // C++ typeid expression support (returns type_info object reference)
+  // Requires RTTI support including vtable lookups for polymorphic types.
+  static bool cxxTypeid() { return false; }
+
   // Parameters may have additional attributes (e.g. [[noescape]]) that affect
   // the compiler. This is not yet supported in CIR.
   static bool extParamInfo() { return false; }

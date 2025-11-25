@@ -2101,6 +2101,11 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   llvm_unreachable("Unhandled lvalue cast kind?");
 }
 
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  assert(!cir::MissingFeatures::cxxTypeid() && "NYI");
+  llvm_unreachable("NYI");
+}
+
 // TODO(cir): candidate for common helper between LLVM and CIR codegen.
 static DeclRefExpr *tryToConvertMemberExprToDeclRefExpr(CIRGenFunction &CGF,
                                                         const MemberExpr *ME) {
@@ -2725,6 +2730,9 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
 
   case Expr::MaterializeTemporaryExprClass:
     return emitMaterializeTemporaryExpr(cast<MaterializeTemporaryExpr>(E));
+
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
 
   case Expr::ObjCPropertyRefExprClass:
     llvm_unreachable("cannot emit a property reference directly");
