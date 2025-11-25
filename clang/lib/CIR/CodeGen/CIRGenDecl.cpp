@@ -552,6 +552,69 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   return GV;
 }
 
+Address CIRGenModule::createUnnamedGlobalFrom(const VarDecl &D,
+                                              mlir::Attribute Constant,
+                                              CharUnits Align) {
+  auto functionName = [&](const DeclContext *DC) -> std::string {
+    if (const auto *FD = dyn_cast<FunctionDecl>(DC)) {
+      if (const auto *CC = dyn_cast<CXXConstructorDecl>(FD))
+        return CC->getNameAsString();
+      if (const auto *CD = dyn_cast<CXXDestructorDecl>(FD))
+        return CD->getNameAsString();
+      return std::string(getMangledName(FD));
+    } else if (const auto *OM = dyn_cast<ObjCMethodDecl>(DC)) {
+      return OM->getNameAsString();
+    } else if (isa<BlockDecl>(DC)) {
+      return "<block>";
+    } else if (isa<CapturedDecl>(DC)) {
+      return "<captured>";
+    } else {
+      llvm_unreachable("expected a function or method");
+    }
+  };
+
+  // Form a simple per-variable cache of these values in case we find we
+  // want to reuse them.
+  cir::GlobalOp &cacheEntry = initializerConstants[&D];
+  if (!cacheEntry || cacheEntry.getInitialValue() != Constant) {
+    auto ty = mlir::cast<mlir::TypedAttr>(Constant).getType();
+    bool isConstant = true;
+    mlir::ptr::MemorySpaceAttrInterface addrSpace =
+        cir::toCIRLangAddressSpaceAttr(&getMLIRContext(),
+                                       getGlobalVarAddressSpace(&D));
+
+    std::string name;
+    if (D.hasGlobalStorage())
+      name = getMangledName(&D).str() + ".const";
+    else if (const DeclContext *DC = D.getParentFunctionOrMethod())
+      name = ("__const." + functionName(DC) + "." + D.getName()).str();
+    else
+      llvm_unreachable("local variable has no parent function or method");
+
+    cir::GlobalOp gv = builder.createVersionedGlobal(
+        getModule(), getLoc(D.getLocation()), name, ty, isConstant,
+        cir::GlobalLinkageKind::PrivateLinkage, addrSpace);
+    // TODO(cir): infer visibility from linkage in global op builder.
+    gv.setVisibility(getMLIRVisibilityFromCIRLinkage(
+        cir::GlobalLinkageKind::PrivateLinkage));
+    gv.setInitialValueAttr(Constant);
+    gv.setAlignment(Align.getAsAlign().value());
+    // TODO(cir): Set unnamed address attribute when available in CIR
+
+    cacheEntry = gv;
+  } else if (cacheEntry.getAlignment() < Align.getQuantity()) {
+    cacheEntry.setAlignment(Align.getAsAlign().value());
+  }
+
+  // Create a GetGlobalOp to get a pointer to the global
+  mlir::Type eltTy = mlir::cast<mlir::TypedAttr>(Constant).getType();
+  auto ptrTy = builder.getPointerTo(cacheEntry.getSymType(),
+                                    cacheEntry.getAddrSpaceAttr());
+  mlir::Value globalPtr = cir::GetGlobalOp::create(
+      builder, getLoc(D.getLocation()), ptrTy, cacheEntry.getSymName());
+  return Address(globalPtr, eltTy, Align);
+}
+
 /// Add the initializer for 'D' to the global variable that has already been
 /// created for it. If the initializer has a different type than GV does, this
 /// may free GV and return a different one. Otherwise it just returns GV.
