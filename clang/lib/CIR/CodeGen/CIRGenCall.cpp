@@ -670,7 +670,9 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   assert(!CGM.getLangOpts().ObjCAutoRefCount && "Not supported");
   assert((!TargetDecl || !TargetDecl->hasAttr<NotTailCalledAttr>()) && "NYI");
   assert(!getDebugInfo() && "No debug info yet");
-  assert((!TargetDecl || !TargetDecl->hasAttr<ErrorAttr>()) && "NYI");
+
+  // ErrorAttr is now handled via CIR DontCallAttr and will be lowered to
+  // LLVM IR dontcall-error/dontcall-warn attributes during CIR lowering.
 
   // 4. Finish the call.
 

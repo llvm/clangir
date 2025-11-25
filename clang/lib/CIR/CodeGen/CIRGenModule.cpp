@@ -3013,6 +3013,12 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
       auto attr = cir::HotAttr::get(&getMLIRContext());
       attrs.set(attr.getMnemonic(), attr);
     }
+    if (const auto *EA = decl->getAttr<ErrorAttr>()) {
+      auto attr = cir::DontCallAttr::get(
+          mlir::StringAttr::get(&getMLIRContext(), EA->getUserDiagnostic()),
+          EA->isError());
+      attrs.set(attr.getMnemonic(), attr);
+    }
     if (decl->hasAttr<MinSizeAttr>())
       assert(!MissingFeatures::minSize());
   }
