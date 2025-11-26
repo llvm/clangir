@@ -1156,7 +1156,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
 
   mlir::ptr::MemorySpaceAttrInterface declCIRAS =
       cir::toCIRLangAddressSpaceAttr(&getMLIRContext(),
-                                      getGlobalVarAddressSpace(d));
+                                     getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(d->getSourceRange());
@@ -1767,7 +1767,7 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
                       StringRef globalName, CharUnits alignment) {
   mlir::ptr::MemorySpaceAttrInterface addrSpace =
       cir::toCIRLangAddressSpaceAttr(&cgm.getMLIRContext(),
-                                      cgm.getGlobalConstantAddressSpace());
+                                     cgm.getGlobalConstantAddressSpace());
 
   // Create a global variable for this string
   // FIXME(cir): check for insertion point in module level.

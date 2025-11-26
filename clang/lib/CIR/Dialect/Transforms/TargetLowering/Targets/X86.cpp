@@ -110,8 +110,8 @@ public:
   }
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-        cir::LangAddressSpace addrSpace) const override {
-      switch (addrSpace) {
+      cir::LangAddressSpace addrSpace) const override {
+    switch (addrSpace) {
     case cir::LangAddressSpace::OffloadPrivate:
     case cir::LangAddressSpace::OffloadLocal:
     case cir::LangAddressSpace::OffloadGlobal:

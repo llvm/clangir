@@ -5014,9 +5014,8 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   return cir::createLowerModule(module, rewriter);
 }
 
-static unsigned
-convertCIRAddrSpaceToTarget(cir::LangAddressSpaceAttr addrSpace,
-                            cir::LowerModule *lowerModule) {
+static unsigned convertCIRAddrSpaceToTarget(cir::LangAddressSpaceAttr addrSpace,
+                                            cir::LowerModule *lowerModule) {
   assert(lowerModule && "CIR AS map is not available");
   return lowerModule->getTargetLoweringInfo()
       .getTargetAddrSpaceFromCIRAddrSpace(addrSpace.getValue());
