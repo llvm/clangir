@@ -64,7 +64,7 @@ public:
 // CHECK: }
 
 // Vtable definition for A
-// CHECK: cir.global "private" external @_ZTV1A : ![[VPtrTypeA]] {alignment = 8 : i64}
+// CHECK: cir.global "private" constant external @_ZTV1A : ![[VPtrTypeA]] {alignment = 8 : i64}
 
 // A ctor => @A::A()
 // Calls @A::A() and initialize __vptr with address of A's vtable
@@ -80,15 +80,15 @@ public:
 // CHECK:  }
 
 // vtable for B
-// CHECK:   cir.global linkonce_odr @_ZTV1B = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI1B> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD2Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 5>}> : ![[VPtrTypeA]]
-// RTTI_DISABLED:   cir.global linkonce_odr @_ZTV1B = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD2Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 5>}> : ![[VPtrTypeA]]
+// CHECK:   cir.global constant linkonce_odr @_ZTV1B = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI1B> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD2Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 5>}> : ![[VPtrTypeA]]
+// RTTI_DISABLED:   cir.global constant linkonce_odr @_ZTV1B = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD2Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<!u8i>, #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 5>}> : ![[VPtrTypeA]]
 
 // vtable for __cxxabiv1::__si_class_type_info
 // CHECK:   cir.global "private" external @_ZTVN10__cxxabiv120__si_class_type_infoE : !cir.ptr<!cir.ptr<!u8i>>
 // RTTI_DISABLED-NOT:   cir.global "private" external @_ZTVN10__cxxabiv120__si_class_type_infoE : !cir.ptr<!cir.ptr<!u8i>>
 
 // typeinfo name for B
-// CHECK:   cir.global linkonce_odr comdat @_ZTS1B = #cir.const_array<"1B" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2> {alignment = 1 : i64}
+// CHECK:   cir.global constant linkonce_odr comdat @_ZTS1B = #cir.const_array<"1B" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2> {alignment = 1 : i64}
 // RTTI_DISABLED-NOT: cir.global linkonce_odr @_ZTS1B
 
 // typeinfo for A

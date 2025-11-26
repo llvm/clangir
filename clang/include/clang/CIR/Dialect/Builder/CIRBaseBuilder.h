@@ -330,15 +330,17 @@ public:
   }
 
   mlir::Value createComplexReal(mlir::Location loc, mlir::Value operand) {
-    auto operandTy = mlir::cast<cir::ComplexType>(operand.getType());
-    return cir::ComplexRealOp::create(*this, loc, operandTy.getElementType(),
-                                      operand);
+    auto resultType = operand.getType();
+    if (auto complexResultType = mlir::dyn_cast<cir::ComplexType>(resultType))
+      resultType = complexResultType.getElementType();
+    return cir::ComplexRealOp::create(*this, loc, resultType, operand);
   }
 
   mlir::Value createComplexImag(mlir::Location loc, mlir::Value operand) {
-    auto operandTy = mlir::cast<cir::ComplexType>(operand.getType());
-    return cir::ComplexImagOp::create(*this, loc, operandTy.getElementType(),
-                                      operand);
+    auto resultType = operand.getType();
+    if (auto complexResultType = mlir::dyn_cast<cir::ComplexType>(resultType))
+      resultType = complexResultType.getElementType();
+    return cir::ComplexImagOp::create(*this, loc, resultType, operand);
   }
 
   mlir::Value createComplexBinOp(mlir::Location loc, mlir::Value lhs,
@@ -383,6 +385,7 @@ public:
                                 align, order,
                                 /*tbaa=*/cir::TBAAAttr{});
   }
+
 
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
                            mlir::Type type, llvm::StringRef name,
@@ -543,9 +546,10 @@ public:
     return createCast(cir::CastKind::ptr_to_bool, v, getBoolTy());
   }
 
-  // TODO(cir): the following function was introduced to keep in sync with LLVM
-  // codegen. CIR does not have "zext" operations. It should eventually be
-  // renamed or removed. For now, we just add whatever cast is required here.
+  // TODO(cir): the following function was introduced to keep in sync with
+  // LLVM codegen. CIR does not have "zext" operations. It should eventually
+  // be renamed or removed. For now, we just add whatever cast is required
+  // here.
   mlir::Value createZExtOrBitCast(mlir::Location loc, mlir::Value src,
                                   mlir::Type newTy) {
     auto srcTy = src.getType();
@@ -574,7 +578,9 @@ public:
 
   mlir::Value createPtrBitcast(mlir::Value src, mlir::Type newPointeeTy) {
     assert(mlir::isa<cir::PointerType>(src.getType()) && "expected ptr src");
-    return createBitcast(src, getPointerTo(newPointeeTy));
+    auto srcPtrTy = mlir::cast<cir::PointerType>(src.getType());
+    mlir::Type newPtrTy = getPointerTo(newPointeeTy, srcPtrTy.getAddrSpace());
+    return createBitcast(src, newPtrTy);
   }
 
   mlir::Value createAddrSpaceCast(mlir::Location loc, mlir::Value src,
@@ -584,6 +590,29 @@ public:
 
   mlir::Value createAddrSpaceCast(mlir::Value src, mlir::Type newTy) {
     return createAddrSpaceCast(src.getLoc(), src, newTy);
+  }
+
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Location loc,
+                                                  mlir::Value src,
+                                                  mlir::Type newPointerTy) {
+    assert(mlir::isa<cir::PointerType>(src.getType()) &&
+           "expected source pointer");
+    assert(mlir::isa<cir::PointerType>(newPointerTy) &&
+           "expected destination pointer type");
+
+    auto srcPtrTy = mlir::cast<cir::PointerType>(src.getType());
+    auto dstPtrTy = mlir::cast<cir::PointerType>(newPointerTy);
+
+    mlir::Value addrSpaceCasted = src;
+    if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
+      addrSpaceCasted = createAddrSpaceCast(loc, src, dstPtrTy);
+
+    return createPtrBitcast(addrSpaceCasted, dstPtrTy.getPointee());
+  }
+
+  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Value src,
+                                                  mlir::Type newPointerTy) {
+    return createPointerBitCastOrAddrSpaceCast(src.getLoc(), src, newPointerTy);
   }
 
   mlir::Value createPtrIsNull(mlir::Value ptr) {
@@ -609,8 +638,9 @@ public:
   // Alignment and size helpers
   //
 
-  // Note that mlir::IntegerType is used instead of cir::IntType here because we
-  // don't need sign information for these to be useful, so keep it simple.
+  // Note that mlir::IntegerType is used instead of cir::IntType here
+  // because we don't need sign information for these to be useful, so keep
+  // it simple.
 
   // For 0 alignment, any overload of `getAlignmentAttr` returns an empty
   // attribute.

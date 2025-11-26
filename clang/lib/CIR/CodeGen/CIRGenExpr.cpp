@@ -2101,6 +2101,11 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   llvm_unreachable("Unhandled lvalue cast kind?");
 }
 
+LValue CIRGenFunction::emitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  assert(!cir::MissingFeatures::cxxTypeid() && "NYI");
+  llvm_unreachable("NYI");
+}
+
 // TODO(cir): candidate for common helper between LLVM and CIR codegen.
 static DeclRefExpr *tryToConvertMemberExprToDeclRefExpr(CIRGenFunction &CGF,
                                                         const MemberExpr *ME) {
@@ -2710,24 +2715,24 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitCompoundLiteralLValue(cast<CompoundLiteralExpr>(E));
   case Expr::PredefinedExprClass:
     return emitPredefinedLValue(cast<PredefinedExpr>(E));
+  case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
+  case Expr::CXXStaticCastExprClass:
+  case Expr::CXXDynamicCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
   case Expr::CXXAddrspaceCastExprClass:
-  case Expr::ObjCBridgedCastExprClass:
-    emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
-        << E->getStmtClassName() << "'";
-    assert(0 && "Use emitCastLValue below, remove me when adding testcase");
-  case Expr::CStyleCastExprClass:
-  case Expr::CXXStaticCastExprClass:
-  case Expr::CXXDynamicCastExprClass:
   case Expr::ImplicitCastExprClass:
+  case Expr::ObjCBridgedCastExprClass:
     return emitCastLValue(cast<CastExpr>(E));
   case Expr::OpaqueValueExprClass:
     return emitOpaqueValueLValue(cast<OpaqueValueExpr>(E));
 
   case Expr::MaterializeTemporaryExprClass:
     return emitMaterializeTemporaryExpr(cast<MaterializeTemporaryExpr>(E));
+
+  case Expr::CXXTypeidExprClass:
+    return emitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
 
   case Expr::ObjCPropertyRefExprClass:
     llvm_unreachable("cannot emit a property reference directly");

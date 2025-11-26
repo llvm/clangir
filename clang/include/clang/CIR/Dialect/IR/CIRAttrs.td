@@ -1274,6 +1274,37 @@ def CIR_GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor"> {
   }];
 }
 
+//===----------------------------------------------------------------------===//
+// DontCallAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_DontCallAttr : CIR_Attr<"DontCall", "dontcall"> {
+  let summary = "Indicates a function should not be called";
+  let description = [{
+    Marks a function as one that should not be called, emitting either an
+    error or warning with a custom diagnostic message. This corresponds to
+    __attribute__((error("msg"))) and __attribute__((warning("msg"))).
+  }];
+
+  let parameters = (ins "mlir::StringAttr":$message, "bool":$is_error);
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    AttrBuilder<(ins
+        "llvm::StringRef":$message,
+        "bool":$is_error), [{
+      return $_get($_ctxt, mlir::StringAttr::get($_ctxt, message), is_error);
+    }]>,
+    AttrBuilderWithInferredContext<(ins
+        "mlir::StringAttr":$message,
+        "bool":$is_error), [{
+      return $_get(message.getContext(), message, is_error);
+    }]>
+  ];
+
+  let assemblyFormat = "`<` $message `,` $is_error `>`";
+}
+
 def CIR_CtorKind : CIR_I32EnumAttr<"CtorKind", "CXX Constructor Kind", [
   I32EnumAttrCase<"Custom", 0, "custom">,
   I32EnumAttrCase<"Default", 1, "default">,

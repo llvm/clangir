@@ -1914,6 +1914,7 @@ public:
                                              cir::CaseOpKind kind,
                                              bool buildingTopLevelCase);
   LValue emitCastLValue(const CastExpr *E);
+  LValue emitCXXTypeidLValue(const CXXTypeidExpr *E);
 
   mlir::LogicalResult emitCaseStmt(const clang::CaseStmt &S,
                                    mlir::Type condType,

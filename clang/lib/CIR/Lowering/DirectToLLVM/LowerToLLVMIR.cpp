@@ -118,6 +118,12 @@ private:
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
         } else if (mlir::isa<cir::HotAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Hot);
+        } else if (auto dontCallAttr =
+                       mlir::dyn_cast<cir::DontCallAttr>(attr.getValue())) {
+          const char *attrName =
+              dontCallAttr.getIsError() ? "dontcall-error" : "dontcall-warn";
+          llvmFunc->addFnAttr(attrName,
+                              dontCallAttr.getMessage().getValue().str());
         } else if (mlir::dyn_cast<cir::OpenCLKernelAttr>(attr.getValue())) {
           const auto uniformAttrName =
               cir::OpenCLKernelUniformWorkGroupSizeAttr::getMnemonic();
