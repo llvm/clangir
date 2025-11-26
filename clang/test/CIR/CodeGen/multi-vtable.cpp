@@ -83,16 +83,16 @@ int main() {
 // CIR: }
 
 //   vtable for Mother
-// CIR: cir.global linkonce_odr @_ZTV6Mother = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI6Mother> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother9MotherFooEv> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother10MotherFoo2Ev> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 4>}> : ![[VPtrTypeMother]] {alignment = 8 : i64}
-// LLVM-DAG: @_ZTV6Mother = linkonce_odr global { [4 x ptr] } { [4 x ptr] [ptr null, ptr @_ZTI6Mother, ptr @_ZN6Mother9MotherFooEv, ptr @_ZN6Mother10MotherFoo2Ev] }
+// CIR: cir.global constant linkonce_odr @_ZTV6Mother = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI6Mother> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother9MotherFooEv> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother10MotherFoo2Ev> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 4>}> : ![[VPtrTypeMother]] {alignment = 8 : i64}
+// LLVM-DAG: @_ZTV6Mother = linkonce_odr constant { [4 x ptr] } { [4 x ptr] [ptr null, ptr @_ZTI6Mother, ptr @_ZN6Mother9MotherFooEv, ptr @_ZN6Mother10MotherFoo2Ev] }
 
 //   vtable for __cxxabiv1::__class_type_info
 // CIR: cir.global "private" external @_ZTVN10__cxxabiv117__class_type_infoE : !cir.ptr<!cir.ptr<!u8i>>
 // LLVM-DAG: @_ZTVN10__cxxabiv117__class_type_infoE = external global ptr
 
 //   typeinfo name for Mother
-// CIR: cir.global linkonce_odr comdat @_ZTS6Mother = #cir.const_array<"6Mother" : !cir.array<!s8i x 7>> : !cir.array<!s8i x 7> {alignment = 1 : i64}
-// LLVM-DAG: @_ZTS6Mother = linkonce_odr global [7 x i8] c"6Mother", comdat
+// CIR: cir.global constant linkonce_odr comdat @_ZTS6Mother = #cir.const_array<"6Mother" : !cir.array<!s8i x 7>> : !cir.array<!s8i x 7> {alignment = 1 : i64}
+// LLVM-DAG: @_ZTS6Mother = linkonce_odr constant [7 x i8] c"6Mother", comdat
 
 //   typeinfo for Mother
 // Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
@@ -100,24 +100,24 @@ int main() {
 // LLVM-DAG: @_ZTI6Mother = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS6Mother }
 
 //   vtable for Father
-// CIR: cir.global linkonce_odr @_ZTV6Father = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI6Father> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Father9FatherFooEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : ![[VPtrTypeFather]] {alignment = 8 : i64}
-// LLVM-DAG: @_ZTV6Father = linkonce_odr global { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTI6Father, ptr @_ZN6Father9FatherFooEv] }
+// CIR: cir.global constant linkonce_odr @_ZTV6Father = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI6Father> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Father9FatherFooEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : ![[VPtrTypeFather]] {alignment = 8 : i64}
+// LLVM-DAG: @_ZTV6Father = linkonce_odr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTI6Father, ptr @_ZN6Father9FatherFooEv] }
 
 //   vtable for Child
-// CIR: cir.global linkonce_odr @_ZTV5Child = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI5Child> : !cir.ptr<!u8i>, #cir.global_view<@_ZN5Child9MotherFooEv> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother10MotherFoo2Ev> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 4>, #cir.const_array<[#cir.ptr<-8 : i64> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI5Child> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Father9FatherFooEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : ![[VPtrTypeChild]] {alignment = 8 : i64}
-// LLVM-DAG: @_ZTV5Child = linkonce_odr global { [4 x ptr], [3 x ptr] } { [4 x ptr] [ptr null, ptr @_ZTI5Child, ptr @_ZN5Child9MotherFooEv, ptr @_ZN6Mother10MotherFoo2Ev], [3 x ptr] [ptr inttoptr (i64 -8 to ptr), ptr @_ZTI5Child, ptr @_ZN6Father9FatherFooEv] }
+// CIR: cir.global constant linkonce_odr @_ZTV5Child = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI5Child> : !cir.ptr<!u8i>, #cir.global_view<@_ZN5Child9MotherFooEv> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Mother10MotherFoo2Ev> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 4>, #cir.const_array<[#cir.ptr<-8 : i64> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI5Child> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Father9FatherFooEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : ![[VPtrTypeChild]] {alignment = 8 : i64}
+// LLVM-DAG: @_ZTV5Child = linkonce_odr constant { [4 x ptr], [3 x ptr] } { [4 x ptr] [ptr null, ptr @_ZTI5Child, ptr @_ZN5Child9MotherFooEv, ptr @_ZN6Mother10MotherFoo2Ev], [3 x ptr] [ptr inttoptr (i64 -8 to ptr), ptr @_ZTI5Child, ptr @_ZN6Father9FatherFooEv] }
 
 //   vtable for __cxxabiv1::__vmi_class_type_info
 // CIR: cir.global "private" external @_ZTVN10__cxxabiv121__vmi_class_type_infoE : !cir.ptr<!cir.ptr<!u8i>>
 // LLVM-DAG: @_ZTVN10__cxxabiv121__vmi_class_type_infoE = external global ptr
 
 //   typeinfo name for Child
-// CIR: cir.global linkonce_odr comdat @_ZTS5Child = #cir.const_array<"5Child" : !cir.array<!s8i x 6>> : !cir.array<!s8i x 6> {alignment = 1 : i64}
-// LLVM-DAG: @_ZTS5Child = linkonce_odr global [6 x i8] c"5Child", comdat
+// CIR: cir.global constant linkonce_odr comdat @_ZTS5Child = #cir.const_array<"5Child" : !cir.array<!s8i x 6>> : !cir.array<!s8i x 6> {alignment = 1 : i64}
+// LLVM-DAG: @_ZTS5Child = linkonce_odr constant [6 x i8] c"5Child", comdat
 
 //   typeinfo name for Father
-// CIR: cir.global linkonce_odr comdat @_ZTS6Father = #cir.const_array<"6Father" : !cir.array<!s8i x 7>> : !cir.array<!s8i x 7> {alignment = 1 : i64}
-// LLVM-DAG: @_ZTS6Father = linkonce_odr global [7 x i8] c"6Father", comdat
+// CIR: cir.global constant linkonce_odr comdat @_ZTS6Father = #cir.const_array<"6Father" : !cir.array<!s8i x 7>> : !cir.array<!s8i x 7> {alignment = 1 : i64}
+// LLVM-DAG: @_ZTS6Father = linkonce_odr constant [7 x i8] c"6Father", comdat
 
 //   typeinfo for Father
 // Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
