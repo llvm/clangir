@@ -680,8 +680,9 @@ public:
   void setDSOLocal(mlir::Operation *Op) const;
   /// Set visibility, dllimport/dllexport and dso_local.
   /// This must be called after dllimport/dllexport is set.
-  void setGVProperties(mlir::Operation *Op, const NamedDecl *D) const;
-  void setGVPropertiesAux(mlir::Operation *Op, const NamedDecl *D) const;
+  void setGVProperties(mlir::Operation *op, GlobalDecl gd) const;
+  void setGVProperties(mlir::Operation *op, const NamedDecl *d) const;
+  void setGVPropertiesAux(mlir::Operation *op, const NamedDecl *d) const;
 
   /// Set the TLS mode for the given global Op for the thread-local
   /// variable declaration D.
@@ -760,8 +761,8 @@ public:
   void UpdateCompletedType(const clang::TagDecl *TD);
 
   /// Set function attributes for a function declaration.
-  void setFunctionAttributes(GlobalDecl GD, cir::FuncOp F,
-                             bool IsIncompleteFunction, bool IsThunk);
+  void setFunctionAttributes(GlobalDecl globalDecl, cir::FuncOp func,
+                             bool isIncompleteFunction, bool isThunk);
 
   /// Set the CIR function attributes (sext, zext, etc).
   void setCIRFunctionAttributes(GlobalDecl GD, const CIRGenFunctionInfo &info,
