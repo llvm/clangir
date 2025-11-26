@@ -112,8 +112,6 @@ private:
             llvm_unreachable("Unknown inline kind");
         } else if (mlir::dyn_cast<cir::OptNoneAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
-        } else if (mlir::dyn_cast<cir::NoThrowAttr>(attr.getValue())) {
-          llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         } else if (mlir::dyn_cast<cir::ConvergentAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
         } else if (mlir::isa<cir::HotAttr>(attr.getValue())) {

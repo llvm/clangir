@@ -21,7 +21,7 @@ module @"/Users/henrichlauko/src/clangir/clang/test/CIR/CodeGen/dynamic-cast.cpp
   cir.global constant external @_ZTI7Derived = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv120__si_class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS7Derived> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>}> : !rec_anon_struct {alignment = 8 : i64} loc(#loc28)
   cir.func private @__dynamic_cast(!cir.ptr<!void>, !cir.ptr<!u8i>, !cir.ptr<!u8i>, !s64i) -> !cir.ptr<!void> loc(#loc)
   cir.func private @__cxa_bad_cast() loc(#loc)
-  cir.func dso_local @_Z8ptr_castP4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc5, #loc6])) -> !cir.ptr<!rec_Derived> {inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone} {
+  cir.func dso_local nothrow @_Z8ptr_castP4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc5, #loc6])) -> !cir.ptr<!rec_Derived> {inline = #cir.inline<no>, optnone = #cir.optnone} {
     %0 = cir.alloca !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>>, ["b", init] {alignment = 8 : i64} loc(#loc30)
     %1 = cir.alloca !cir.ptr<!rec_Derived>, !cir.ptr<!cir.ptr<!rec_Derived>>, ["__retval"] {alignment = 8 : i64} loc(#loc4)
     cir.store %arg0, %0 : !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>> loc(#loc7)
@@ -43,7 +43,7 @@ module @"/Users/henrichlauko/src/clangir/clang/test/CIR/CodeGen/dynamic-cast.cpp
     %5 = cir.load %1 : !cir.ptr<!cir.ptr<!rec_Derived>>, !cir.ptr<!rec_Derived> loc(#loc31)
     cir.return %5 : !cir.ptr<!rec_Derived> loc(#loc31)
   } loc(#loc29)
-  cir.func dso_local @_Z8ref_castR4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc12, #loc13])) -> !cir.ptr<!rec_Derived> {inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone} {
+  cir.func {{.*}} @_Z8ref_castR4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc12, #loc13])) -> !cir.ptr<!rec_Derived> {inline = #cir.inline<no>, optnone = #cir.optnone} {
     %0 = cir.alloca !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>>, ["b", init, const] {alignment = 8 : i64} loc(#loc33)
     %1 = cir.alloca !cir.ptr<!rec_Derived>, !cir.ptr<!cir.ptr<!rec_Derived>>, ["__retval"] {alignment = 8 : i64} loc(#loc11)
     cir.store %arg0, %0 : !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>> loc(#loc14)
@@ -64,7 +64,7 @@ module @"/Users/henrichlauko/src/clangir/clang/test/CIR/CodeGen/dynamic-cast.cpp
     %11 = cir.load %1 : !cir.ptr<!cir.ptr<!rec_Derived>>, !cir.ptr<!rec_Derived> loc(#loc35)
     cir.return %11 : !cir.ptr<!rec_Derived> loc(#loc35)
   } loc(#loc32)
-  cir.func dso_local @_Z20ptr_cast_to_completeP4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc21, #loc22])) -> !cir.ptr<!void> {inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone} {
+  cir.func {{.*}} @_Z20ptr_cast_to_completeP4Base(%arg0: !cir.ptr<!rec_Base> loc(fused[#loc21, #loc22])) -> !cir.ptr<!void> {inline = #cir.inline<no>, optnone = #cir.optnone} {
     %0 = cir.alloca !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>>, ["ptr", init] {alignment = 8 : i64} loc(#loc37)
     %1 = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["__retval"] {alignment = 8 : i64} loc(#loc20)
     cir.store %arg0, %0 : !cir.ptr<!rec_Base>, !cir.ptr<!cir.ptr<!rec_Base>> loc(#loc23)

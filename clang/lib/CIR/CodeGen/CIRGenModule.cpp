@@ -2873,8 +2873,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     llvm_unreachable("NYI");
 
   if (!hasUnwindExceptions(getLangOpts())) {
-    auto attr = cir::NoThrowAttr::get(&getMLIRContext());
-    attrs.set(attr.getMnemonic(), attr);
+    f.setNothrow(true);
   }
 
   assert(!MissingFeatures::stackProtector());
@@ -3051,6 +3050,21 @@ void CIRGenModule::setCIRFunctionAttributes(GlobalDecl gd,
                          /*AttrOnCallSite=*/false, isThunk);
   func.setExtraAttrsAttr(
       cir::ExtraFuncAttributesAttr::get(pal.getDictionary(&getMLIRContext())));
+
+  // Set nothrow as a direct attribute if the function declaration has it or
+  // if the function type is nothrow.
+  const Decl *TargetDecl = gd.getDecl();
+  if (TargetDecl && TargetDecl->hasAttr<NoThrowAttr>()) {
+    func.setNothrow(true);
+  } else if (const FunctionDecl *Fn = dyn_cast<FunctionDecl>(TargetDecl)) {
+    if (const FunctionProtoType *FPT =
+            Fn->getType()->getAs<FunctionProtoType>()) {
+      if (!isUnresolvedExceptionSpec(FPT->getExceptionSpecType()) &&
+          FPT->isNothrow()) {
+        func.setNothrow(true);
+      }
+    }
+  }
 
   // TODO(cir): Check X86_VectorCall incompatibility with WinARM64EC
 

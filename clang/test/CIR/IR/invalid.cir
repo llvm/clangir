@@ -1626,7 +1626,7 @@ cir.func @invalidConditionTerminator (%arg0 : !cir.bool) -> !cir.void {
 
 !s16i = !cir.int<s, 16>
 !s32i = !cir.int<s, 32>
-#fn_attr = #cir<extra({nothrow = #cir.nothrow, uwtable = #cir.uwtable<async>})>
+#fn_attr = #cir<extra({uwtable = #cir.uwtable<async>})>
 !rec_S = !cir.record<struct "S" {!s16i} #cir.record.decl.ast>
 #tbaa_scalar = #cir.tbaa_scalar<id = "short", type = !s16i>
 // expected-error @below {{invalid kind of attribute specified}}
@@ -1634,7 +1634,7 @@ cir.func @invalidConditionTerminator (%arg0 : !cir.bool) -> !cir.void {
 #tbaa_struct = #cir.tbaa_struct<id = "S", members = {#cir.uwtable<async>}>
 #tbaa_tag = #cir.tbaa_tag<base = #tbaa_struct, access = #tbaa_scalar, offset = 0>
 cir.global external dso_local @glob = #cir.zero : !rec_S {alignment = 2 : i64}
-cir.func dso_local @main() -> !s32i extra(#fn_attr) {
+cir.func dso_local nothrow @main() -> !s32i extra(#fn_attr) {
   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
   %1 = cir.const #cir.int<0> : !s32i
   %2 = cir.cast integral %1 : !s32i -> !s16i

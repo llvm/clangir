@@ -2493,6 +2493,10 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
                                            llvmFnTy, linkage, isDsoLocal, cconv,
                                            mlir::SymbolRefAttr(), attributes);
 
+  if (op.getNothrow()) {
+    fn.setNoUnwind(true);
+  }
+
   // Lower CIR attributes for arguments.
   for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
     mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);
