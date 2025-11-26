@@ -386,29 +386,6 @@ public:
                                 /*tbaa=*/cir::TBAAAttr{});
   }
 
-  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Value src,
-                                                  mlir::Type dstTy) {
-    auto srcTy = src.getType();
-
-    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy))
-      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy))
-        if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
-          return createAddrSpaceCast(src, dstTy);
-
-    return createBitcast(src, dstTy);
-  }
-
-  mlir::Value createPointerBitCastOrAddrSpaceCast(mlir::Location loc,
-                                                  mlir::Value src,
-                                                  mlir::Type dstTy) {
-    auto srcTy = src.getType();
-    if (auto srcPtrTy = mlir::dyn_cast<cir::PointerType>(srcTy))
-      if (auto dstPtrTy = mlir::dyn_cast<cir::PointerType>(dstTy))
-        if (srcPtrTy.getAddrSpace() != dstPtrTy.getAddrSpace())
-          return createAddrSpaceCast(loc, src, dstTy);
-
-    return createBitcast(loc, src, dstTy);
-  }
 
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
                            mlir::Type type, llvm::StringRef name,
