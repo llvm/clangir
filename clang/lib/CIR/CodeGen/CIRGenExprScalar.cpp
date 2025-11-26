@@ -28,6 +28,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
@@ -1607,8 +1608,8 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   cir::PointerType rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
 
   if (lhsPtrTy && rhsPtrTy) {
-    cir::AddressSpace lhsAS = lhsPtrTy.getAddrSpace();
-    cir::AddressSpace rhsAS = rhsPtrTy.getAddrSpace();
+    mlir::ptr::MemorySpaceAttrInterface lhsAS = lhsPtrTy.getAddrSpace();
+    mlir::ptr::MemorySpaceAttrInterface rhsAS = rhsPtrTy.getAddrSpace();
 
     if (lhsAS != rhsAS) {
       // Different address spaces → use addrspacecast

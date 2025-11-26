@@ -10,7 +10,7 @@
 typedef __attribute__(( ext_vector_type(4) )) char char4;
 
 // CIR: cir.func @f4(%{{.*}}: !s32i loc({{.*}})) -> !cir.vector<!s8i x 4>
-// CIR: %[[x:.*]] = cir.load align(4) %{{.*}} : !cir.ptr<!s32i, addrspace(offload_private)>
+// CIR: %[[x:.*]] = cir.load align(4) %{{.*}} : !cir.ptr<!s32i, lang_address_space(offload_private)>
 // CIR: cir.cast bitcast %[[x]] : !s32i -> !cir.vector<!s8i x 4>
 // LLVM: define spir_func <4 x i8> @f4(i32 %[[x:.*]])
 // LLVM: %[[astype:.*]] = bitcast i32 %[[x]]  to <4 x i8>
@@ -25,7 +25,7 @@ char4 f4(int x) {
 }
 
 // CIR: cir.func @f6(%{{.*}}: !cir.vector<!s8i x 4> loc({{.*}})) -> !s32i
-// CIR: %[[x:.*]] = cir.load align(4) %{{.*}} : !cir.ptr<!cir.vector<!s8i x 4>, addrspace(offload_private)>, !cir.vector<!s8i x 4>
+// CIR: %[[x:.*]] = cir.load align(4) %{{.*}} : !cir.ptr<!cir.vector<!s8i x 4>, lang_address_space(offload_private)>, !cir.vector<!s8i x 4>
 // CIR: cir.cast bitcast %[[x]] : !cir.vector<!s8i x 4> -> !s32i
 // LLVM: define{{.*}} spir_func i32 @f6(<4 x i8> %[[x:.*]])
 // LLVM: %[[astype:.*]] = bitcast <4 x i8> %[[x]] to i32
@@ -39,9 +39,9 @@ int f6(char4 x) {
   return __builtin_astype(x, int);
 }
 
-// CIR: cir.func @f4_ptr(%{{.*}}: !cir.ptr<!s32i, addrspace(offload_global)> loc({{.*}})) -> !cir.ptr<!cir.vector<!s8i x 4>, addrspace(offload_local)>
-// CIR: %[[x:.*]] = cir.load align(8) %{{.*}} : !cir.ptr<!cir.ptr<!s32i, addrspace(offload_global)>, addrspace(offload_private)>, !cir.ptr<!s32i, addrspace(offload_global)>
-// CIR: cir.cast address_space %[[x]] : !cir.ptr<!s32i, addrspace(offload_global)> -> !cir.ptr<!cir.vector<!s8i x 4>, addrspace(offload_local)>
+// CIR: cir.func @f4_ptr(%{{.*}}: !cir.ptr<!s32i, lang_address_space(offload_global)> loc({{.*}})) -> !cir.ptr<!cir.vector<!s8i x 4>, lang_address_space(offload_local)>
+// CIR: %[[x:.*]] = cir.load align(8) %{{.*}} : !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_global)>, lang_address_space(offload_private)>, !cir.ptr<!s32i, lang_address_space(offload_global)>
+// CIR: cir.cast address_space %[[x]] : !cir.ptr<!s32i, lang_address_space(offload_global)> -> !cir.ptr<!cir.vector<!s8i x 4>, lang_address_space(offload_local)>
 // LLVM: define spir_func ptr addrspace(3) @f4_ptr(ptr addrspace(1) readnone captures(ret: address, provenance) %[[x:.*]])
 // LLVM: %[[astype:.*]] = addrspacecast ptr addrspace(1) %[[x]] to ptr addrspace(3)
 // LLVM-NOT: shufflevector
