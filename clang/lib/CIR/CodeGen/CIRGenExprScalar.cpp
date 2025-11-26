@@ -1882,10 +1882,10 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     }
     // Since target may map different address spaces in AST to the same address
     // space, an address space conversion may end up as a bitcast.
-    mlir::Attribute SrcAS = cir::toCIRClangAddressSpaceAttr(
+    mlir::Attribute SrcAS = cir::toCIRLanguageAddressSpaceAttr(
         &CGF.getMLIRContext(),
         E->getType()->getPointeeType().getAddressSpace());
-    mlir::Attribute DestAS = cir::toCIRClangAddressSpaceAttr(
+    mlir::Attribute DestAS = cir::toCIRLanguageAddressSpaceAttr(
         &CGF.getMLIRContext(), DestTy->getPointeeType().getAddressSpace());
 
     return CGF.CGM.getTargetCIRGenInfo().performAddrSpaceCast(

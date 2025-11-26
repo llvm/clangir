@@ -41,8 +41,8 @@ class CIR_DefaultValuedEnumParameter<EnumAttrInfo info, string value = "">
   let defaultValue = value;
 }
 
-def CIR_ClangAddressSpace : CIR_I32EnumAttr<
-  "ClangAddressSpace", "clang address space kind", [
+def CIR_LanguageAddressSpace : CIR_I32EnumAttr<
+  "LanguageAddressSpace", "language address space kind", [
   I32EnumAttrCase<"Default", 0, "default">,
   I32EnumAttrCase<"OffloadPrivate", 1, "offload_private">,
   I32EnumAttrCase<"OffloadLocal", 2, "offload_local">,
@@ -57,7 +57,7 @@ def CIR_ClangAddressSpace : CIR_I32EnumAttr<
 
     The `value` parameter is an extensible enum, which encodes target address
     space as an offset to the last language address space. For that reason, the
-    attribute is implemented as custom AddressSpaceAttr, which provides custom
+    attribute is implemented as custom LanguageAddressSpaceAttr, which provides custom
     printer and parser for the `value` parameter.
   }];
 

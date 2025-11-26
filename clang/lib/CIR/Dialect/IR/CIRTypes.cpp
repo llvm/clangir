@@ -926,31 +926,31 @@ MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
 
 bool cir::isSupportedCIRMemorySpaceAttr(
     mlir::ptr::MemorySpaceAttrInterface memorySpace) {
-  return mlir::isa<cir::ClangAddressSpaceAttr, cir::TargetAddressSpaceAttr>(
+  return mlir::isa<cir::LanguageAddressSpaceAttr, cir::TargetAddressSpaceAttr>(
       memorySpace);
 }
 
-cir::ClangAddressSpace cir::toCIRClangAddressSpace(clang::LangAS langAS) {
+cir::LanguageAddressSpace cir::toCIRLanguageAddressSpace(clang::LangAS langAS) {
   using clang::LangAS;
   switch (langAS) {
   case LangAS::Default:
-    return ClangAddressSpace::Default;
+    return LanguageAddressSpace::Default;
   case LangAS::opencl_global:
-    return ClangAddressSpace::OffloadGlobal;
+    return LanguageAddressSpace::OffloadGlobal;
   case LangAS::opencl_local:
   case LangAS::cuda_shared:
     // Local means local among the work-group (OpenCL) or block (CUDA).
     // All threads inside the kernel can access local memory.
-    return ClangAddressSpace::OffloadLocal;
+    return LanguageAddressSpace::OffloadLocal;
   case LangAS::cuda_device:
-    return ClangAddressSpace::OffloadGlobal;
+    return LanguageAddressSpace::OffloadGlobal;
   case LangAS::opencl_constant:
   case LangAS::cuda_constant:
-    return ClangAddressSpace::OffloadConstant;
+    return LanguageAddressSpace::OffloadConstant;
   case LangAS::opencl_private:
-    return ClangAddressSpace::OffloadPrivate;
+    return LanguageAddressSpace::OffloadPrivate;
   case LangAS::opencl_generic:
-    return ClangAddressSpace::OffloadGeneric;
+    return LanguageAddressSpace::OffloadGeneric;
   case LangAS::opencl_global_device:
   case LangAS::opencl_global_host:
   case LangAS::sycl_global:
@@ -993,13 +993,13 @@ parseAddressSpaceValue(mlir::AsmParser &p,
   if (p.parseOptionalKeyword("clang_address_space").succeeded()) {
     if (p.parseLParen())
       return p.emitError(loc, "expected '(' after clang address space");
-    mlir::FailureOr<cir::ClangAddressSpace> result =
-        mlir::FieldParser<cir::ClangAddressSpace>::parse(p);
+    mlir::FailureOr<cir::LanguageAddressSpace> result =
+        mlir::FieldParser<cir::LanguageAddressSpace>::parse(p);
 
     if (mlir::failed(result) || p.parseRParen())
       return p.emitError(loc, "expected clang address space keyword");
 
-    attr = cir::ClangAddressSpaceAttr::get(p.getContext(), result.value());
+    attr = cir::LanguageAddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
   }
 
@@ -1011,9 +1011,9 @@ void printAddressSpaceValue(mlir::AsmPrinter &p,
   if (!attr)
     return;
 
-  if (auto logical = dyn_cast<cir::ClangAddressSpaceAttr>(attr)) {
+  if (auto logical = dyn_cast<cir::LanguageAddressSpaceAttr>(attr)) {
     p << "clang_address_space("
-      << cir::stringifyClangAddressSpace(logical.getValue()) << ')';
+      << cir::stringifyLanguageAddressSpace(logical.getValue()) << ')';
 
     return;
   }
@@ -1042,7 +1042,7 @@ void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
 }
 
 mlir::ptr::MemorySpaceAttrInterface
-cir::toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
+cir::toCIRLanguageAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
   using clang::LangAS;
 
   if (langAS == LangAS::Default)
@@ -1053,7 +1053,7 @@ cir::toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
     return cir::TargetAddressSpaceAttr::get(ctx, targetAS);
   }
 
-  return cir::ClangAddressSpaceAttr::get(ctx, toCIRClangAddressSpace(langAS));
+  return cir::LanguageAddressSpaceAttr::get(ctx, toCIRLanguageAddressSpace(langAS));
 }
 
 //===----------------------------------------------------------------------===//

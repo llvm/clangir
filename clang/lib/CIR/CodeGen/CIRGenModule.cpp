@@ -1098,7 +1098,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   }
 
   mlir::Attribute cirAS =
-      cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), langAS);
+      cir::toCIRLanguageAddressSpaceAttr(&getMLIRContext(), langAS);
   if (entry) {
     mlir::ptr::MemorySpaceAttrInterface entryCIRAS = entry.getAddrSpaceAttr();
     if (WeakRefReferences.erase(entry)) {
@@ -1155,7 +1155,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   }
 
   mlir::ptr::MemorySpaceAttrInterface declCIRAS =
-      cir::toCIRClangAddressSpaceAttr(&getMLIRContext(),
+      cir::toCIRLanguageAddressSpaceAttr(&getMLIRContext(),
                                       getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
@@ -1766,7 +1766,7 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
                       cir::GlobalLinkageKind lt, CIRGenModule &cgm,
                       StringRef globalName, CharUnits alignment) {
   mlir::ptr::MemorySpaceAttrInterface addrSpace =
-      cir::toCIRClangAddressSpaceAttr(&cgm.getMLIRContext(),
+      cir::toCIRLanguageAddressSpaceAttr(&cgm.getMLIRContext(),
                                       cgm.getGlobalConstantAddressSpace());
 
   // Create a global variable for this string
@@ -1984,7 +1984,7 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
     }
   }
   mlir::ptr::MemorySpaceAttrInterface targetAS =
-      cir::toCIRClangAddressSpaceAttr(&getMLIRContext(), addrSpace);
+      cir::toCIRLanguageAddressSpaceAttr(&getMLIRContext(), addrSpace);
 
   auto loc = getLoc(expr->getSourceRange());
   auto gv = createGlobalOp(*this, loc, name, type, isConstant, targetAS,
