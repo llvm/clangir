@@ -15,8 +15,8 @@ void S::key() {}
 // CHECK-DAG: !rec_anon_struct2 = !cir.record<struct  {!cir.ptr<!rec_anon_struct1>}>
 
 // The definition of the key function should result in the vtable being emitted.
-// CHECK: cir.global external @_ZTV1S = #cir.vtable
-// LLVM: @_ZTV1S = global { [4 x ptr] } { [4 x ptr]
+// CHECK: cir.global constant external @_ZTV1S = #cir.vtable
+// LLVM: @_ZTV1S = constant { [4 x ptr] } { [4 x ptr]
 // LLVM-SAME: [ptr null, ptr @_ZTI1S, ptr @_ZN1S3keyEv, ptr @_ZN1S6nonKeyEv] }, align 8
 
 // Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.

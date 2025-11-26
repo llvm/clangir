@@ -4054,7 +4054,9 @@ cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
   }
 
   // Create a new variable.
-  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty);
+  // VTables and other C++ runtime variables should be constant.
+  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty,
+                                    /*isConstant=*/true);
 
   // Set up extra information and add to the module
   gv.setLinkageAttr(
