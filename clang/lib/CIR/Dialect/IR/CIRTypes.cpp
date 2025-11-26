@@ -926,31 +926,31 @@ MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
 
 bool cir::isSupportedCIRMemorySpaceAttr(
     mlir::ptr::MemorySpaceAttrInterface memorySpace) {
-  return mlir::isa<cir::LanguageAddressSpaceAttr, cir::TargetAddressSpaceAttr>(
+  return mlir::isa<cir::LangAddressSpaceAttr, cir::TargetAddressSpaceAttr>(
       memorySpace);
 }
 
-cir::LanguageAddressSpace cir::toCIRLanguageAddressSpace(clang::LangAS langAS) {
+cir::LangAddressSpace cir::toCIRLangAddressSpace(clang::LangAS langAS) {
   using clang::LangAS;
   switch (langAS) {
   case LangAS::Default:
-    return LanguageAddressSpace::Default;
+    return LangAddressSpace::Default;
   case LangAS::opencl_global:
-    return LanguageAddressSpace::OffloadGlobal;
+    return LangAddressSpace::OffloadGlobal;
   case LangAS::opencl_local:
   case LangAS::cuda_shared:
     // Local means local among the work-group (OpenCL) or block (CUDA).
     // All threads inside the kernel can access local memory.
-    return LanguageAddressSpace::OffloadLocal;
+    return LangAddressSpace::OffloadLocal;
   case LangAS::cuda_device:
-    return LanguageAddressSpace::OffloadGlobal;
+    return LangAddressSpace::OffloadGlobal;
   case LangAS::opencl_constant:
   case LangAS::cuda_constant:
-    return LanguageAddressSpace::OffloadConstant;
+    return LangAddressSpace::OffloadConstant;
   case LangAS::opencl_private:
-    return LanguageAddressSpace::OffloadPrivate;
+    return LangAddressSpace::OffloadPrivate;
   case LangAS::opencl_generic:
-    return LanguageAddressSpace::OffloadGeneric;
+    return LangAddressSpace::OffloadGeneric;
   case LangAS::opencl_global_device:
   case LangAS::opencl_global_host:
   case LangAS::sycl_global:
@@ -990,16 +990,16 @@ parseAddressSpaceValue(mlir::AsmParser &p,
   }
 
   // Try to parse language specific address space.
-  if (p.parseOptionalKeyword("language_address_space").succeeded()) {
+  if (p.parseOptionalKeyword("lang_address_space").succeeded()) {
     if (p.parseLParen())
       return p.emitError(loc, "expected '(' after clang address space");
-    mlir::FailureOr<cir::LanguageAddressSpace> result =
-        mlir::FieldParser<cir::LanguageAddressSpace>::parse(p);
+    mlir::FailureOr<cir::LangAddressSpace> result =
+        mlir::FieldParser<cir::LangAddressSpace>::parse(p);
 
     if (mlir::failed(result) || p.parseRParen())
       return p.emitError(loc, "expected language address space keyword");
 
-    attr = cir::LanguageAddressSpaceAttr::get(p.getContext(), result.value());
+    attr = cir::LangAddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
   }
 
@@ -1011,9 +1011,9 @@ void printAddressSpaceValue(mlir::AsmPrinter &p,
   if (!attr)
     return;
 
-  if (auto logical = dyn_cast<cir::LanguageAddressSpaceAttr>(attr)) {
-    p << "language_address_space("
-      << cir::stringifyLanguageAddressSpace(logical.getValue()) << ')';
+  if (auto logical = dyn_cast<cir::LangAddressSpaceAttr>(attr)) {
+    p << "lang_address_space("
+      << cir::stringifyLangAddressSpace(logical.getValue()) << ')';
 
     return;
   }
@@ -1042,7 +1042,7 @@ void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp,
 }
 
 mlir::ptr::MemorySpaceAttrInterface
-cir::toCIRLanguageAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
+cir::toCIRLangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
   using clang::LangAS;
 
   if (langAS == LangAS::Default)
@@ -1053,7 +1053,7 @@ cir::toCIRLanguageAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS)
     return cir::TargetAddressSpaceAttr::get(ctx, targetAS);
   }
 
-  return cir::LanguageAddressSpaceAttr::get(ctx, toCIRLanguageAddressSpace(langAS));
+  return cir::LangAddressSpaceAttr::get(ctx, toCIRLangAddressSpace(langAS));
 }
 
 //===----------------------------------------------------------------------===//
@@ -1066,7 +1066,7 @@ mlir::LogicalResult cir::PointerType::verify(
   if (addrSpace) {
     if (!isSupportedCIRMemorySpaceAttr(addrSpace)) {
       return emitError() << "CIR Address spaces must be either target_address "
-                            "space or language_address_space";
+                            "space or lang_address_space";
     }
   }
 

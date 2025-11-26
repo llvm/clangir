@@ -4,23 +4,23 @@
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=LLVM
 
 global int a = 13;
-// CIR-DAG: cir.global external language_address_space(offload_global) @a = #cir.int<13> : !s32i
+// CIR-DAG: cir.global external lang_address_space(offload_global) @a = #cir.int<13> : !s32i
 // LLVM-DAG: @a = addrspace(1) global i32 13
 
 global int b = 15;
-// CIR-DAG: cir.global external language_address_space(offload_global) @b = #cir.int<15> : !s32i
+// CIR-DAG: cir.global external lang_address_space(offload_global) @b = #cir.int<15> : !s32i
 // LLVM-DAG: @b = addrspace(1) global i32 15
 
 constant int c[2] = {18, 21};
-// CIR-DAG: cir.global constant {{.*}}language_address_space(offload_constant) {{.*}}@c
+// CIR-DAG: cir.global constant {{.*}}lang_address_space(offload_constant) {{.*}}@c
 // LLVM-DAG: @c = addrspace(2) constant
 
 kernel void test_get_global() {
   a = b;
-  // CIR:      %[[#ADDRB:]] = cir.get_global @b : !cir.ptr<!s32i, language_address_space(offload_global)>
-  // CIR-NEXT: %[[#LOADB:]] = cir.load{{.*}} %[[#ADDRB]] : !cir.ptr<!s32i, language_address_space(offload_global)>, !s32i
-  // CIR-NEXT: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, language_address_space(offload_global)>
-  // CIR-NEXT: cir.store{{.*}} %[[#LOADB]], %[[#ADDRA]] : !s32i, !cir.ptr<!s32i, language_address_space(offload_global)>
+  // CIR:      %[[#ADDRB:]] = cir.get_global @b : !cir.ptr<!s32i, lang_address_space(offload_global)>
+  // CIR-NEXT: %[[#LOADB:]] = cir.load{{.*}} %[[#ADDRB]] : !cir.ptr<!s32i, lang_address_space(offload_global)>, !s32i
+  // CIR-NEXT: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, lang_address_space(offload_global)>
+  // CIR-NEXT: cir.store{{.*}} %[[#LOADB]], %[[#ADDRA]] : !s32i, !cir.ptr<!s32i, lang_address_space(offload_global)>
 
   // LLVM:      %[[#LOADB:]] = load i32, ptr addrspace(1) @b, align 4
   // LLVM-NEXT: store i32 %[[#LOADB]], ptr addrspace(1) @a, align 4

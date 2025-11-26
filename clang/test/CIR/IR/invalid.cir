@@ -1234,7 +1234,7 @@ cir.func @bad_goto() -> () {
 !u64i = !cir.int<u, 64>
 // expected-error@below {{expected language address space keyword}}
 // expected-error@below {{expected keyword for language address space kind}}
-cir.func @address_space1(%p : !cir.ptr<!u64i, language_address_space()>) {
+cir.func @address_space1(%p : !cir.ptr<!u64i, lang_address_space()>) {
   cir.return
 }
 
@@ -1253,7 +1253,7 @@ cir.func @address_space2(%p : !cir.ptr<!u64i, target_address_space()>) {
 !u64i = !cir.int<u, 64>
 // expected-error@below {{expected one of [default, offload_private, offload_local, offload_global, offload_constant, offload_generic] for language address space kind, got: foobar}}
 // expected-error@below {{expected language address space keyword}}
-cir.func @address_space4(%p : !cir.ptr<!u64i, language_address_space(foobar)>) {
+cir.func @address_space4(%p : !cir.ptr<!u64i, lang_address_space(foobar)>) {
   cir.return
 }
 
@@ -1362,7 +1362,7 @@ module {
 !s32i = !cir.int<s, 32>
 
 module {
-  cir.global external language_address_space(offload_global) @gv = #cir.int<0> : !s32i
+  cir.global external lang_address_space(offload_global) @gv = #cir.int<0> : !s32i
 
   cir.func @test_get_global() {
     // expected-error@+1 {{'cir.get_global' op result type address space does not match the address space of the global @gv}}
@@ -1377,9 +1377,9 @@ module {
 
 module {
   cir.func @array_to_ptrdecay_addrspace() {
-    %0 = cir.alloca !cir.array<!s32i x 32>, !cir.ptr<!cir.array<!s32i x 32>, language_address_space(offload_private)>, ["x", init]
+    %0 = cir.alloca !cir.array<!s32i x 32>, !cir.ptr<!cir.array<!s32i x 32>, lang_address_space(offload_private)>, ["x", init]
     // expected-error@+1 {{requires same address space for source and result}}
-    %1 = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<!s32i x 32>, language_address_space(offload_private)> -> !cir.ptr<!s32i>
+    %1 = cir.cast array_to_ptrdecay %0 : !cir.ptr<!cir.array<!s32i x 32>, lang_address_space(offload_private)> -> !cir.ptr<!s32i>
     cir.return
   }
 }
@@ -1408,7 +1408,7 @@ module {
   cir.func @test_bitcast_addrspace() {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["tmp"] {alignment = 4 : i64}
     // expected-error@+1 {{'cir.cast' op result type address space does not match the address space of the operand}}
-    %1 = cir.cast bitcast %0 : !cir.ptr<!s32i> -> !cir.ptr<!s32i, language_address_space(offload_local)>
+    %1 = cir.cast bitcast %0 : !cir.ptr<!s32i> -> !cir.ptr<!s32i, lang_address_space(offload_local)>
   }
 }
 

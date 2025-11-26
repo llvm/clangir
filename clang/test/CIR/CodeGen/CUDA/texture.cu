@@ -21,4 +21,4 @@ struct __attribute__((device_builtin_texture_type)) texture : public textureRefe
 texture<float, 2, NormalizedFloat> tex;
 
 // DEVICE-LLVM: @tex = addrspace(1) externally_initialized global i64 undef, align 4
-// DEVICE-CIR: cir.global external language_address_space(offload_global) @tex = #cir.undef : !s64i {alignment = 4 : i64, cu.externally_initialized = #cir.cu.externally_initialized}
+// DEVICE-CIR: cir.global external lang_address_space(offload_global) @tex = #cir.undef : !s64i {alignment = 4 : i64, cu.externally_initialized = #cir.cu.externally_initialized}

@@ -4,10 +4,10 @@
 !s32i = !cir.int<s, 32>
 
 module {
-  cir.global external language_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
+  cir.global external lang_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
   // LLVM: @addrspace1 = addrspace(1) global i32
 
-  cir.global "private" internal language_address_space(offload_local) @addrspace2 : !s32i
+  cir.global "private" internal lang_address_space(offload_local) @addrspace2 : !s32i
   // LLVM: @addrspace2 = internal addrspace(3) global i32 undef
 
   cir.global external target_address_space(7) @addrspace3 = #cir.int<3> : !s32i
@@ -36,15 +36,15 @@ module {
 
   // LLVM: define void @test_lower_offload_as()
   cir.func @test_lower_offload_as() {
-    %0 = cir.alloca !cir.ptr<!s32i, language_address_space(offload_private)>, !cir.ptr<!cir.ptr<!s32i, language_address_space(offload_private)>>, ["arg0", init] {alignment = 8 : i64}
+    %0 = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_private)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_private)>>, ["arg0", init] {alignment = 8 : i64}
     // LLVM-NEXT: alloca ptr,
-    %1 = cir.alloca !cir.ptr<!s32i, language_address_space(offload_global)>, !cir.ptr<!cir.ptr<!s32i, language_address_space(offload_global)>>, ["arg1", init] {alignment = 8 : i64}
+    %1 = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_global)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_global)>>, ["arg1", init] {alignment = 8 : i64}
     // LLVM-NEXT: alloca ptr addrspace(1),
-    %2 = cir.alloca !cir.ptr<!s32i, language_address_space(offload_constant)>, !cir.ptr<!cir.ptr<!s32i, language_address_space(offload_constant)>>, ["arg2", init] {alignment = 8 : i64}
+    %2 = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_constant)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_constant)>>, ["arg2", init] {alignment = 8 : i64}
     // LLVM-NEXT: alloca ptr addrspace(2),
-    %3 = cir.alloca !cir.ptr<!s32i, language_address_space(offload_local)>, !cir.ptr<!cir.ptr<!s32i, language_address_space(offload_local)>>, ["arg3", init] {alignment = 8 : i64}
+    %3 = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_local)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_local)>>, ["arg3", init] {alignment = 8 : i64}
     // LLVM-NEXT: alloca ptr addrspace(3),
-    %4 = cir.alloca !cir.ptr<!s32i, language_address_space(offload_generic)>, !cir.ptr<!cir.ptr<!s32i, language_address_space(offload_generic)>>, ["arg4", init] {alignment = 8 : i64}
+    %4 = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_generic)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_generic)>>, ["arg4", init] {alignment = 8 : i64}
     // LLVM-NEXT: alloca ptr addrspace(4),
     cir.return
   }

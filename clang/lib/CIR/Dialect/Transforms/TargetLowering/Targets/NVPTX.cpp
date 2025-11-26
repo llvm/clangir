@@ -46,17 +46,17 @@ public:
       : TargetLoweringInfo(std::make_unique<NVPTXABIInfo>(lt)) {}
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      cir::LanguageAddressSpace addrSpace) const override {
+      cir::LangAddressSpace addrSpace) const override {
     switch (addrSpace) {
-    case cir::LanguageAddressSpace::OffloadPrivate:
+    case cir::LangAddressSpace::OffloadPrivate:
       return 0;
-    case cir::LanguageAddressSpace::OffloadLocal:
+    case cir::LangAddressSpace::OffloadLocal:
       return 3;
-    case cir::LanguageAddressSpace::OffloadGlobal:
+    case cir::LangAddressSpace::OffloadGlobal:
       return 1;
-    case cir::LanguageAddressSpace::OffloadConstant:
+    case cir::LangAddressSpace::OffloadConstant:
       return 4;
-    case cir::LanguageAddressSpace::OffloadGeneric:
+    case cir::LangAddressSpace::OffloadGeneric:
       return 0;
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");

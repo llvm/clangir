@@ -964,7 +964,8 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_LanguageAddressSpaceAttr :  CIR_EnumAttr<CIR_LanguageAddressSpace, "language_address_space", [
+def CIR_LangAddressSpaceAttr :
+              CIR_EnumAttr<CIR_LangAddressSpace, "lang_address_space", [
     DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>
   ]> {
 
@@ -972,20 +973,20 @@ def CIR_LanguageAddressSpaceAttr :  CIR_EnumAttr<CIR_LanguageAddressSpace, "lang
   let description = [{
     Encodes the semantic address spaces defined by the front-end language
     (e.g. `__shared__`, `__constant__`, `__local__`). Values are stored using the
-    `cir::LanguageAddressSpace` enum, keeping the representation compact while and
+    `cir::LangAddressSpace` enum, keeping the representation compact while and
      preserves the qualifier until it is mapped onto target/LLVM address-space numbers.
 
      Example: 
      ``` mlir
-     !cir.ptr<!s32i, language_address_space(offload_local)>
-     cir.global constant external language_address_space(offload_constant)
+     !cir.ptr<!s32i, lang_address_space(offload_local)>
+     cir.global constant external lang_address_space(offload_constant)
 
      ```
   }];
   
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
-      return $_get($_ctxt, cir::toCIRLanguageAddressSpace(langAS));
+      return $_get($_ctxt, cir::toCIRLangAddressSpace(langAS));
     }]>
   ];
 
@@ -993,7 +994,7 @@ def CIR_LanguageAddressSpaceAttr :  CIR_EnumAttr<CIR_LanguageAddressSpace, "lang
     `(` custom<AddressSpaceValue>($value) `)`
   }];
 
-  let defaultValue = "cir::LanguageAddressSpace::Default";
+  let defaultValue = "cir::LangAddressSpace::Default";
 
   let extraClassDeclaration = [{
     unsigned getAsUnsignedValue() const;

@@ -69,8 +69,8 @@ module {
     cir.return
   }
 
-  cir.global external language_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
-  cir.global "private" internal language_address_space(offload_local) @addrspace2 : !s32i
+  cir.global external lang_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
+  cir.global "private" internal lang_address_space(offload_local) @addrspace2 : !s32i
   cir.global external target_address_space(1) @addrspace3 = #cir.int<3> : !s32i
 }
 
@@ -108,6 +108,6 @@ module {
 // CHECK:   cir.return
 // CHECK: }
 
-// CHECK: cir.global external language_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
-// CHECK: cir.global "private" internal language_address_space(offload_local) @addrspace2 : !s32i
+// CHECK: cir.global external lang_address_space(offload_global) @addrspace1 = #cir.int<1> : !s32i
+// CHECK: cir.global "private" internal lang_address_space(offload_local) @addrspace2 : !s32i
 // CHECK: cir.global external target_address_space(1) @addrspace3 = #cir.int<3> : !s32i

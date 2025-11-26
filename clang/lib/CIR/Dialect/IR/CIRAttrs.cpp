@@ -78,10 +78,10 @@ static void printConstPtr(mlir::AsmPrinter &p, mlir::IntegerAttr value);
 //===----------------------------------------------------------------------===//
 
 mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
-                                         cir::LanguageAddressSpace &addrSpace) {
+                                         cir::LangAddressSpace &addrSpace) {
   llvm::SMLoc loc = p.getCurrentLocation();
-  mlir::FailureOr<cir::LanguageAddressSpace> result =
-      mlir::FieldParser<cir::LanguageAddressSpace>::parse(p);
+  mlir::FailureOr<cir::LangAddressSpace> result =
+      mlir::FieldParser<cir::LangAddressSpace>::parse(p);
   if (mlir::failed(result))
     return p.emitError(loc, "expected address space keyword");
   addrSpace = result.value();
@@ -89,7 +89,7 @@ mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
 }
 
 void printAddressSpaceValue(mlir::AsmPrinter &p,
-                            cir::LanguageAddressSpace addrSpace) {
+                            cir::LangAddressSpace addrSpace) {
   p << cir::stringifyEnum(addrSpace);
 }
 
@@ -109,7 +109,7 @@ using namespace cir;
 //===----------------------------------------------------------------------===//
 namespace cir {
 
-bool LanguageAddressSpaceAttr::isValidLoad(
+bool LangAddressSpaceAttr::isValidLoad(
     mlir::Type type, mlir::ptr::AtomicOrdering ordering,
     std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
@@ -117,7 +117,7 @@ bool LanguageAddressSpaceAttr::isValidLoad(
   return false;
 }
 
-bool LanguageAddressSpaceAttr::isValidStore(
+bool LangAddressSpaceAttr::isValidStore(
     mlir::Type type, mlir::ptr::AtomicOrdering ordering,
     std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
@@ -125,7 +125,7 @@ bool LanguageAddressSpaceAttr::isValidStore(
   return false;
 }
 
-bool LanguageAddressSpaceAttr::isValidAtomicOp(
+bool LangAddressSpaceAttr::isValidAtomicOp(
     mlir::ptr::AtomicBinOp op, mlir::Type type,
     mlir::ptr::AtomicOrdering ordering, std::optional<int64_t> alignment,
     const mlir::DataLayout *dataLayout,
@@ -134,7 +134,7 @@ bool LanguageAddressSpaceAttr::isValidAtomicOp(
   return false;
 }
 
-bool LanguageAddressSpaceAttr::isValidAtomicXchg(
+bool LangAddressSpaceAttr::isValidAtomicXchg(
     mlir::Type type, mlir::ptr::AtomicOrdering successOrdering,
     mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
     const mlir::DataLayout *dataLayout,
@@ -143,14 +143,14 @@ bool LanguageAddressSpaceAttr::isValidAtomicXchg(
   return false;
 }
 
-bool LanguageAddressSpaceAttr::isValidAddrSpaceCast(
+bool LangAddressSpaceAttr::isValidAddrSpaceCast(
     mlir::Type tgt, mlir::Type src,
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
   assert(false && "NYI");
   return false;
 }
 
-bool LanguageAddressSpaceAttr::isValidPtrIntCast(
+bool LangAddressSpaceAttr::isValidPtrIntCast(
     mlir::Type intLikeTy, mlir::Type ptrLikeTy,
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
   assert(false && "NYI");

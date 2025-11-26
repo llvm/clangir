@@ -269,9 +269,9 @@ public:
 
   mlir::ptr::MemorySpaceAttrInterface
   getCIRAllocaAddressSpace() const override {
-    return cir::LanguageAddressSpaceAttr::get(
+    return cir::LangAddressSpaceAttr::get(
         &getABIInfo().CGT.getMLIRContext(),
-        cir::LanguageAddressSpace::OffloadPrivate);
+        cir::LangAddressSpace::OffloadPrivate);
   }
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {

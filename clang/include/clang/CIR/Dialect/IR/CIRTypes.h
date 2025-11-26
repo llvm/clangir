@@ -35,17 +35,17 @@ bool isSized(mlir::Type ty);
 // AddressSpace helpers
 //===----------------------------------------------------------------------===//
 
-cir::LanguageAddressSpace toCIRLanguageAddressSpace(clang::LangAS langAS);
+cir::LangAddressSpace toCIRLangAddressSpace(clang::LangAS langAS);
 
 /// Convert a LangAS to the appropriate address space attribute interface.
 /// Returns a MemorySpaceAttrInterface.
 mlir::ptr::MemorySpaceAttrInterface
-toCIRLanguageAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS);
+toCIRLangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS);
 
 bool isSupportedCIRMemorySpaceAttr(
     mlir::ptr::MemorySpaceAttrInterface memorySpace);
 
-constexpr unsigned getAsUnsignedValue(cir::LanguageAddressSpace as) {
+constexpr unsigned getAsUnsignedValue(cir::LangAddressSpace as) {
   return static_cast<unsigned>(as);
 }
 
