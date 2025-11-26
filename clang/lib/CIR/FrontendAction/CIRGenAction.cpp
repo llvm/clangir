@@ -40,6 +40,7 @@
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LLVMRemarkStreamer.h"
@@ -48,6 +49,7 @@
 #include "llvm/LTO/LTOBackend.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
@@ -126,6 +128,27 @@ class CIRGenConsumer : public clang::ASTConsumer {
   ASTContext *AstContext{nullptr};
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS;
   std::unique_ptr<CIRGenerator> Gen;
+
+  /// NOTE: LinkModule is taken from clang/include/clang/CodeGen/CodeGenAction.h
+  /// This is clearly suboptimal and we should reuse their functionality.
+  /// Info about module to link into a module we're generating.
+  struct LinkModule {
+    /// The module to link in.
+    std::unique_ptr<llvm::Module> Module;
+
+    /// If true, we set attributes on Module's functions according to our
+    /// CodeGenOptions and LangOptions, as though we were generating the
+    /// function ourselves.
+    bool PropagateAttrs;
+
+    /// If true, we use LLVM module internalizer.
+    bool Internalize;
+
+    /// Bitwise combination of llvm::LinkerFlags used when we link the module.
+    unsigned LinkFlags;
+  };
+  /// Bitcode modules to link in to our module.
+  SmallVector<LinkModule, 4> LinkModules;
 
 public:
   CIRGenConsumer(CIRGenAction::OutputType Action, class CompilerInstance &CI,
@@ -344,13 +367,26 @@ public:
     case CIRGenAction::OutputType::EmitBC:
     case CIRGenAction::OutputType::EmitObj:
     case CIRGenAction::OutputType::EmitAssembly: {
+      auto &CGOpts = CI.getCodeGenOpts();
+
       llvm::LLVMContext LlvmCtx;
+      LlvmCtx.setDefaultTargetCPU(TargetOpts.CPU);
+      LlvmCtx.setDefaultTargetFeatures(llvm::join(TargetOpts.Features, ","));
+
       bool DisableDebugInfo =
           CodeGenOpts.getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
+
+      LoadLinkModules(LlvmCtx);
+
       auto LlvmModule = lowerFromCIRToLLVMIR(
           FeOptions, MlirMod, std::move(MlirCtx), LlvmCtx,
           FeOptions.ClangIRDisableCIRVerifier,
           !FeOptions.ClangIRCallConvLowering, DisableDebugInfo);
+
+      LlvmModule->setTargetTriple(llvm::Triple(CI.getTargetOpts().Triple));
+      LlvmModule->setDataLayout(C.getTargetInfo().getDataLayoutString());
+
+      LinkInModules(*LlvmModule);
 
       BackendAction BackendAction = getBackendActionFromOutputType(Action);
 
@@ -361,6 +397,47 @@ public:
     }
     case CIRGenAction::OutputType::None:
       break;
+    }
+  }
+
+  void LoadLinkModules(llvm::LLVMContext &LlvmCtx) {
+    for (const CodeGenOptions::BitcodeFileToLink &F :
+         CI.getCodeGenOpts().LinkBitcodeFiles) {
+      auto BCBuf = CI.getFileManager().getBufferForFile(F.Filename);
+      if (!BCBuf) {
+        CI.getDiagnostics().Report(diag::err_cannot_open_file)
+            << F.Filename << BCBuf.getError().message();
+        LinkModules.clear();
+        return;
+      }
+
+      Expected<std::unique_ptr<llvm::Module>> ModuleOrErr =
+          getOwningLazyBitcodeModule(std::move(*BCBuf), LlvmCtx);
+      if (!ModuleOrErr) {
+        handleAllErrors(ModuleOrErr.takeError(), [&](llvm::ErrorInfoBase &EIB) {
+          CI.getDiagnostics().Report(diag::err_cannot_open_file)
+              << F.Filename << EIB.message();
+        });
+        LinkModules.clear();
+        return;
+      }
+      LinkModules.push_back({std::move(ModuleOrErr.get()), F.PropagateAttrs,
+                             F.Internalize, F.LinkFlags});
+    }
+    return;
+  }
+
+  // Links each entry in LinkModules into our module. Returns true on error.
+  void LinkInModules(llvm::Module &M) {
+    llvm::Linker L(M);
+
+    for (auto &LM : LinkModules) {
+      // Link the module using LLVM's linker
+      if (llvm::Linker::linkModules(M, std::move(LM.Module), LM.LinkFlags)) {
+        CI.getDiagnostics().Report(diag::err_fe_linking_module)
+            << M.getModuleIdentifier() << LM.Module->getModuleIdentifier();
+        return;
+      }
     }
   }
 
