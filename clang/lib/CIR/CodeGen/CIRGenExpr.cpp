@@ -40,6 +40,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Support/LLVM.h"
 
 #include <numeric>
 

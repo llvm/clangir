@@ -13,6 +13,7 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRTYPES_H
 #define CLANG_CIR_DIALECT_IR_CIRTYPES_H
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -36,11 +37,13 @@ bool isSized(mlir::Type ty);
 
 cir::ClangAddressSpace toCIRClangAddressSpace(clang::LangAS langAS);
 
-/// Convert a LangAS to the appropriate address space attribute.
-/// Returns ClangAddressSpaceAttr for clang/language-specific address spaces,
-/// or TargetAddressSpaceAttr for target-specific address spaces.
-mlir::Attribute toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx,
-                                           clang::LangAS langAS);
+/// Convert a LangAS to the appropriate address space attribute interface.
+/// Returns a MemorySpaceAttrInterface.
+mlir::ptr::MemorySpaceAttrInterface
+toCIRClangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS);
+
+bool isSupportedCIRMemorySpaceAttr(
+    mlir::ptr::MemorySpaceAttrInterface memorySpace);
 
 constexpr unsigned getAsUnsignedValue(cir::ClangAddressSpace as) {
   return static_cast<unsigned>(as);

@@ -89,24 +89,4 @@ def CIR_AnyTBAAAttr : AnyAttrOf<[
   string cppType = "::mlir::Attribute";
 }
 
-//===----------------------------------------------------------------------===//
-// AddressSpaceAttr constraints
-//===----------------------------------------------------------------------===//
-
-// NOTE: We might end up using this only for GlobalOps, as we cannot apply constraints
-// to types.
-def CIR_AddressSpaceAttrConstraint
-  : CIR_AttrConstraint<"::cir::ClangAddressSpaceAttr", "clang address space attribute">;
-
-def CIR_TargetAddressSpaceAttrConstraint
-  : CIR_AttrConstraint<"::cir::TargetAddressSpaceAttr", "target address space attribute">;
-
-def CIR_AnyAddressSpaceAttr : AnyAttrOf<[
-  CIR_AddressSpaceAttrConstraint,
-  CIR_TargetAddressSpaceAttrConstraint
-]> {
-  string cppType = "::mlir::Attribute";
-  let constBuilderCall = "nullptr";
-}
-
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRCONSTRAINTS_TD

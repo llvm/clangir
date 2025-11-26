@@ -28,6 +28,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -307,11 +308,12 @@ static void printOmittedTerminatorRegion(mlir::OpAsmPrinter &printer,
   }
 }
 
-mlir::OptionalParseResult parseGlobalAddressSpaceValue(mlir::AsmParser &p,
-                                                       mlir::Attribute &attr);
+mlir::OptionalParseResult
+parseGlobalAddressSpaceValue(mlir::AsmParser &p,
+                             mlir::ptr::MemorySpaceAttrInterface &attr);
 
 void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp op,
-                                  mlir::Attribute attr);
+                                  mlir::ptr::MemorySpaceAttrInterface attr);
 
 //===----------------------------------------------------------------------===//
 // AllocaOp
@@ -2423,7 +2425,7 @@ LogicalResult cir::GlobalOp::verify() {
 void cir::GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, llvm::StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    mlir::Attribute addrSpace,
+    mlir::ptr::MemorySpaceAttrInterface addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -2503,10 +2505,10 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
            << "' does not reference a valid cir.global or cir.func";
 
   mlir::Type symTy;
-  mlir::Attribute symAddrSpaceAttr{};
+  mlir::ptr::MemorySpaceAttrInterface symAddrSpaceAttr{};
   if (auto g = dyn_cast<GlobalOp>(op)) {
     symTy = g.getSymType();
-    symAddrSpaceAttr = g.getAddrSpace();
+    symAddrSpaceAttr = g.getAddrSpaceAttr();
     // Verify that for thread local global access, the global needs to
     // be marked with tls bits.
     if (getTls() && !g.getTlsModel())

@@ -2618,10 +2618,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
     OptionalAttr<StrAttr>:$sym_visibility,
     TypeAttr:$sym_type,
     CIR_GlobalLinkageKind:$linkage,
-    DefaultValuedAttr<
-      CIR_AnyAddressSpaceAttr,
-      "{}"
-    >:$addr_space,
+    OptionalAttr<MemorySpaceAttrInterface>:$addr_space,
     OptionalAttr<CIR_TLSModel>:$tls_model,
     // Note this can also be a FlatSymbolRefAttr
     OptionalAttr<AnyAttr>:$initial_value,
@@ -2668,7 +2665,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
-      CArg<"mlir::Attribute", "{}">:$addrSpace,
+      CArg<"mlir::ptr::MemorySpaceAttrInterface", "{}">:$addrSpace,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$ctorBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",

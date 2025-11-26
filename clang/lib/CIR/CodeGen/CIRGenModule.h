@@ -281,7 +281,8 @@ public:
 
   static cir::GlobalOp createGlobalOp(
       CIRGenModule &cgm, mlir::Location loc, llvm::StringRef name, mlir::Type t,
-      bool isConstant = false, mlir::Attribute addrSpace = {},
+      bool isConstant = false,
+      mlir::ptr::MemorySpaceAttrInterface addrSpace = {},
       mlir::Operation *insertPoint = nullptr,
       cir::GlobalLinkageKind linkage = cir::GlobalLinkageKind::ExternalLinkage);
 

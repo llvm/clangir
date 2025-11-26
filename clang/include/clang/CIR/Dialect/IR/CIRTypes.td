@@ -237,19 +237,19 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
 
   let parameters = (ins
     "mlir::Type":$pointee,
-    OptionalParameter<"mlir::Attribute">:$addrSpace
+    OptionalParameter<"mlir::ptr::MemorySpaceAttrInterface">:$addrSpace
   );
 
   let skipDefaultBuilders = 1;
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      CArg<"mlir::ptr::MemorySpaceAttrInterface", "{}">:$addrSpace), [{
         return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      CArg<"mlir::ptr::MemorySpaceAttrInterface", "{}">:$addrSpace), [{
         return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];

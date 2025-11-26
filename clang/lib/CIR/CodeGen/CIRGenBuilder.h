@@ -25,6 +25,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/FPEnv.h"
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -749,7 +750,7 @@ public:
   [[nodiscard]] cir::GlobalOp
   createGlobal(mlir::ModuleOp module, mlir::Location loc, mlir::StringRef name,
                mlir::Type type, bool isConst, cir::GlobalLinkageKind linkage,
-               mlir::Attribute addrSpace = {}) {
+               mlir::ptr::MemorySpaceAttrInterface addrSpace = {}) {
     mlir::OpBuilder::InsertionGuard guard(*this);
     setInsertionPointToStart(module.getBody());
     return cir::GlobalOp::create(*this, loc, name, type, isConst, linkage,
@@ -763,7 +764,7 @@ public:
   createVersionedGlobal(mlir::ModuleOp module, mlir::Location loc,
                         mlir::StringRef name, mlir::Type type, bool isConst,
                         cir::GlobalLinkageKind linkage,
-                        mlir::Attribute addrSpace = {}) {
+                        mlir::ptr::MemorySpaceAttrInterface addrSpace = {}) {
     // Create a unique name if the given name is already taken.
     std::string uniqueName;
     if (unsigned version = GlobalsVersioning[name.str()]++)

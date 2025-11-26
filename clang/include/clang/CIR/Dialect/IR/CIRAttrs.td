@@ -14,6 +14,7 @@
 #define CLANG_CIR_DIALECT_IR_CIRATTRS_TD
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.td"
 include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
@@ -963,7 +964,9 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "clang_address_space"> {
+def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "clang_address_space", [
+    DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>
+  ]> {
 
   let summary = "Represents a language/Clang-level address space";
   let description = [{
@@ -1008,7 +1011,9 @@ def CIR_ClangAddressSpaceAttr :  CIR_EnumAttr<CIR_ClangAddressSpace, "clang_addr
 //===----------------------------------------------------------------------===//
 
 def CIR_TargetAddressSpaceAttr : CIR_Attr< "TargetAddressSpace",
-                                         "target_address_space"> {
+                                         "target_address_space", [
+    DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>
+  ]> {
   let summary = "Represents a target-specific numeric address space";
   let description = [{
     The TargetAddressSpaceAttr represents a target-specific numeric address space,

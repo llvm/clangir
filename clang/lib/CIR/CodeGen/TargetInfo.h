@@ -16,6 +16,7 @@
 
 #include "ABIInfo.h"
 #include "CIRGenValue.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Types.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
@@ -102,7 +103,7 @@ public:
                                                  const clang::VarDecl *D) const;
 
   /// Get the CIR address space for alloca.
-  virtual mlir::Attribute getCIRAllocaAddressSpace() const {
+  virtual mlir::ptr::MemorySpaceAttrInterface getCIRAllocaAddressSpace() const {
     return {}; // Empty attribute represents the Default address space
   }
 

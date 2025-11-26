@@ -4,6 +4,7 @@
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunctionInfo.h"
 #include "CIRGenTypes.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/ABIArgInfo.h"
@@ -266,7 +267,8 @@ public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  mlir::Attribute getCIRAllocaAddressSpace() const override {
+  mlir::ptr::MemorySpaceAttrInterface
+  getCIRAllocaAddressSpace() const override {
     return cir::ClangAddressSpaceAttr::get(
         &getABIInfo().CGT.getMLIRContext(),
         cir::ClangAddressSpace::OffloadPrivate);

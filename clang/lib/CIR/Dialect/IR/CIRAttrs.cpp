@@ -16,6 +16,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -101,6 +102,110 @@ void printAddressSpaceValue(mlir::AsmPrinter &p,
 
 using namespace mlir;
 using namespace cir;
+
+//===----------------------------------------------------------------------===//
+// MemorySpaceAttrInterface implementations for Clang and Target address space
+// attributes
+//===----------------------------------------------------------------------===//
+namespace cir {
+
+bool ClangAddressSpaceAttr::isValidLoad(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool ClangAddressSpaceAttr::isValidStore(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool ClangAddressSpaceAttr::isValidAtomicOp(
+    mlir::ptr::AtomicBinOp op, mlir::Type type,
+    mlir::ptr::AtomicOrdering ordering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool ClangAddressSpaceAttr::isValidAtomicXchg(
+    mlir::Type type, mlir::ptr::AtomicOrdering successOrdering,
+    mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool ClangAddressSpaceAttr::isValidAddrSpaceCast(
+    mlir::Type tgt, mlir::Type src,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool ClangAddressSpaceAttr::isValidPtrIntCast(
+    mlir::Type intLikeTy, mlir::Type ptrLikeTy,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidLoad(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidStore(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAtomicOp(
+    mlir::ptr::AtomicBinOp op, mlir::Type type,
+    mlir::ptr::AtomicOrdering ordering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAtomicXchg(
+    mlir::Type type, mlir::ptr::AtomicOrdering successOrdering,
+    mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAddrSpaceCast(
+    mlir::Type tgt, mlir::Type src,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidPtrIntCast(
+    mlir::Type intLikeTy, mlir::Type ptrLikeTy,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+} // namespace cir
 
 //===----------------------------------------------------------------------===//
 // CIR AST Attr helpers
