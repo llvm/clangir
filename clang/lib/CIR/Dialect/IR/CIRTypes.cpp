@@ -990,14 +990,14 @@ parseAddressSpaceValue(mlir::AsmParser &p,
   }
 
   // Try to parse language specific address space.
-  if (p.parseOptionalKeyword("clang_address_space").succeeded()) {
+  if (p.parseOptionalKeyword("language_address_space").succeeded()) {
     if (p.parseLParen())
       return p.emitError(loc, "expected '(' after clang address space");
     mlir::FailureOr<cir::LanguageAddressSpace> result =
         mlir::FieldParser<cir::LanguageAddressSpace>::parse(p);
 
     if (mlir::failed(result) || p.parseRParen())
-      return p.emitError(loc, "expected clang address space keyword");
+      return p.emitError(loc, "expected language address space keyword");
 
     attr = cir::LanguageAddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
@@ -1012,7 +1012,7 @@ void printAddressSpaceValue(mlir::AsmPrinter &p,
     return;
 
   if (auto logical = dyn_cast<cir::LanguageAddressSpaceAttr>(attr)) {
-    p << "clang_address_space("
+    p << "language_address_space("
       << cir::stringifyLanguageAddressSpace(logical.getValue()) << ')';
 
     return;
