@@ -3034,6 +3034,12 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
       auto attr = cir::HotAttr::get(&getMLIRContext());
       attrs.set(attr.getMnemonic(), attr);
     }
+    if (const auto *EA = decl->getAttr<ErrorAttr>()) {
+      auto attr = cir::DontCallAttr::get(
+          mlir::StringAttr::get(&getMLIRContext(), EA->getUserDiagnostic()),
+          EA->isError());
+      attrs.set(attr.getMnemonic(), attr);
+    }
     if (decl->hasAttr<MinSizeAttr>())
       assert(!MissingFeatures::minSize());
   }
@@ -4072,7 +4078,9 @@ cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
   }
 
   // Create a new variable.
-  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty);
+  // VTables and other C++ runtime variables should be constant.
+  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty,
+                                    /*isConstant=*/true);
 
   // Set up extra information and add to the module
   gv.setLinkageAttr(
@@ -4369,7 +4377,15 @@ TBAAAccessInfo CIRGenModule::getTBAAAccessInfo(QualType accessType) {
     return TBAAAccessInfo();
   }
   if (getLangOpts().CUDAIsDevice) {
-    llvm_unreachable("NYI");
+    if (getLangOpts().CUDAIsDevice) {
+      // As CUDA builtin surface/texture types are replaced, skip generating
+      // TBAA access info.
+      if (accessType->isCUDADeviceBuiltinSurfaceType()) {
+        llvm_unreachable("NYI");
+      } else if (accessType->isCUDADeviceBuiltinTextureType()) {
+        llvm_unreachable("NYI");
+      }
+    }
   }
   return tbaa->getAccessInfo(accessType);
 }

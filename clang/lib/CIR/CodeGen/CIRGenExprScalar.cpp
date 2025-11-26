@@ -831,7 +831,81 @@ public:
   mlir::Value VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) { llvm_unreachable("NYI"); }
+
+  // Create cast instructions for converting LLVM value Src to MLIR type  DstTy.
+  // Src has the same size as DstTy. Both are single value types
+  // but could be scalar or vectors of different lengths, and either can be
+  // pointer.
+  mlir::Value createCastsForTypeOfSameSize(mlir::Value Src, mlir::Type DstTy) {
+    auto SrcTy = Src.getType();
+
+    // Case 1.
+    if (!isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy))
+      return Builder.createBitcast(Src, DstTy);
+
+    // Case 2.
+    if (isa<cir::PointerType>(SrcTy) && isa<cir::PointerType>(DstTy))
+      return Builder.createPointerBitCastOrAddrSpaceCast(Src, DstTy);
+
+    // Case 3.
+    if (isa<cir::PointerType>(SrcTy) && !isa<cir::PointerType>(DstTy)) {
+      // Case 3b.
+      if (!Builder.isInt(DstTy))
+        llvm_unreachable("NYI");
+      // Cases 3a and 3b.
+      llvm_unreachable("NYI");
+    }
+
+    // Case 4b.
+    if (!Builder.isInt(SrcTy))
+      llvm_unreachable("NYI");
+
+    // Cases 4a and 4b.
+    llvm_unreachable("NYI");
+  }
+
+  mlir::Value VisitAsTypeExpr(AsTypeExpr *E) {
+    unsigned numSrcElems = 0;
+    QualType qualSrcTy = E->getSrcExpr()->getType();
+    mlir::Type srcTy = CGF.convertType(qualSrcTy);
+    if (auto v = dyn_cast<cir::VectorType>(srcTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector src");
+      numSrcElems = v.getSize();
+    }
+
+    unsigned numDstElems = 0;
+    QualType qualDstTy = E->getType();
+    mlir::Type dstTy = CGF.convertType(qualDstTy);
+    if (auto v = dyn_cast<cir::VectorType>(dstTy)) {
+      assert(!cir::MissingFeatures::scalableVectors() &&
+             "NYI: non-fixed (scalable) vector dst");
+      numDstElems = v.getSize();
+    }
+
+    // Use bit vector expansion for ext_vector_type boolean vectors.
+    if (qualDstTy->isExtVectorBoolType()) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from vec3 to non-vec3 is a special case and requires a shuffle
+    // vector to get a vec4, then a bitcast if the target type is different.
+    if (numSrcElems == 3 && numDstElems != 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // Going from non-vec3 to vec3 is a special case and requires a bitcast
+    // to vec4 if the original type is not vec4, then a shuffle vector to
+    // get a vec3.
+    if (numSrcElems != 3 && numDstElems == 3) {
+      llvm_unreachable("NYI");
+    }
+
+    // Otherwise, fallback to bitcast of same size
+    mlir::Value src = CGF.emitScalarExpr(E->getSrcExpr());
+    return createCastsForTypeOfSameSize(src, dstTy);
+  }
+
   mlir::Value VisitAtomicExpr(AtomicExpr *E) {
     return CGF.emitAtomicExpr(E).getScalarVal();
   }
@@ -1524,19 +1598,108 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
   if (!mlir::isa<cir::PointerType>(Ops.RHS.getType()))
     return emitPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
-  // Otherwise, this is a pointer subtraction
-
   // Do the raw subtraction part.
-  //
-  // TODO(cir): note for LLVM lowering out of this; when expanding this into
-  // LLVM we shall take VLA's, division by element size, etc.
-  //
-  // See more in `EmitSub` in CGExprScalar.cpp.
+  mlir::Value lhs = Ops.LHS;
+  mlir::Value rhs = Ops.RHS;
+
+  cir::PointerType lhsPtrTy = mlir::dyn_cast<cir::PointerType>(lhs.getType());
+  cir::PointerType rhsPtrTy = mlir::dyn_cast<cir::PointerType>(rhs.getType());
+
+  if (lhsPtrTy && rhsPtrTy) {
+    cir::AddressSpace lhsAS = lhsPtrTy.getAddrSpace();
+    cir::AddressSpace rhsAS = rhsPtrTy.getAddrSpace();
+
+    if (lhsAS != rhsAS) {
+      // Different address spaces → use addrspacecast
+      rhs = Builder.createAddrSpaceCast(rhs, lhsPtrTy);
+    } else if (lhsPtrTy != rhsPtrTy) {
+      // Same addrspace but different pointee/type → bitcast is fine
+      rhs = Builder.createBitcast(rhs, lhsPtrTy);
+    }
+  }
+
   assert(!cir::MissingFeatures::llvmLoweringPtrDiffConsidersPointee());
-  return cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc), CGF.PtrDiffTy,
-                                Ops.LHS, Ops.RHS);
+  mlir::Value diff = cir::PtrDiffOp::create(Builder, CGF.getLoc(Ops.Loc),
+                                            CGF.PtrDiffTy, lhs, rhs);
+
+  const BinaryOperator *expr = cast<BinaryOperator>(Ops.E);
+  QualType elementType = expr->getLHS()->getType()->getPointeeType();
+
+  mlir::Location loc = CGF.getLoc(Ops.Loc);
+  mlir::Value divisor;
+
+  // Check if this is a VLA pointee type.
+  if (const auto *vla = CGF.getContext().getAsVariableArrayType(elementType)) {
+    auto vlaSize = CGF.getVLASize(vla);
+    elementType = vlaSize.Type;
+    divisor = vlaSize.NumElts;
+
+    CharUnits eltSize = CGF.getContext().getTypeSizeInChars(elementType);
+    if (!eltSize.isOne()) {
+      cir::IntType cirIntTy = llvm::cast<cir::IntType>(CGF.PtrDiffTy);
+      cir::IntAttr eltSizeAttr =
+          cir::IntAttr::get(cirIntTy, eltSize.getQuantity());
+
+      if (divisor.getType() != CGF.PtrDiffTy)
+        divisor = Builder.createIntCast(divisor, CGF.PtrDiffTy);
+    }
+  } else {
+    // cir::ptrdiff correctly computes the ABI difference of 2 pointers. We
+    // do not need to compute anything else here. We just return it.
+    return diff;
+  }
+
+  return cir::BinOp::create(Builder, loc, CGF.PtrDiffTy, cir::BinOpKind::Div,
+                            diff, divisor);
 }
 
+// Helper to apply OpenCL-style shift masking. It handles both vector and scalar
+// RHS. According to OpenCL 6.3j, shift values are effectively modulo word size
+// of LHS.
+static mlir::Value maskShiftAmount(CIRGenFunction &CGF,
+                                   CIRGenBuilderTy &Builder,
+                                   const BinOpInfo &Ops) {
+  // LHS determines bit width
+  unsigned bitWidth = [&]() {
+    if (auto vecTy = mlir::dyn_cast<cir::VectorType>(Ops.LHS.getType())) {
+      auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
+      return elemTy.getWidth();
+    }
+    auto lhsTy = mlir::cast<cir::IntType>(Ops.LHS.getType());
+    return lhsTy.getWidth();
+  }();
+
+  mlir::Location loc = Ops.RHS.getLoc();
+
+  // Vector RHS: perform element-wise masking
+  if (auto vecTy = mlir::dyn_cast<cir::VectorType>(Ops.RHS.getType())) {
+    // Create scalar bit-width constant of element integer type
+    auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
+    mlir::Value bitMaskConstElem =
+        Builder.getConstInt(loc, elemTy, bitWidth - 1);
+
+    // Splat bit-width constant to a vector with same shape as RHS
+    mlir::Value bitWidthConstVec =
+        cir::VecSplatOp::create(Builder, loc, vecTy, bitMaskConstElem);
+
+    // Make RHS a vector if it isn't one already (splat scalar to vector)
+    mlir::Value rhsVec = Ops.RHS;
+    if (!mlir::isa<cir::VectorType>(rhsVec.getType()))
+      rhsVec = cir::VecSplatOp::create(Builder, loc, vecTy, rhsVec);
+
+    // Compute element-wise: rhs % bitWidth ==> rhs & (bitWidth - 1)
+    return cir::BinOp::create(Builder, loc, vecTy, cir::BinOpKind::And, rhsVec,
+                              bitWidthConstVec);
+  }
+
+  // Scalar RHS: simple integer mask
+  auto rhsTy = mlir::cast<cir::IntType>(Ops.RHS.getType());
+  mlir::Value mask = Builder.getConstInt(loc, rhsTy, bitWidth - 1);
+  return cir::BinOp::create(Builder, loc, rhsTy, cir::BinOpKind::And, Ops.RHS,
+                            mask);
+}
+
+// Emit bitwise left-shift
 mlir::Value ScalarExprEmitter::emitShl(const BinOpInfo &Ops) {
   // TODO: This misses out on the sanitizer check below.
   if (Ops.isFixedPointOp())
@@ -1557,18 +1720,27 @@ mlir::Value ScalarExprEmitter::emitShl(const BinOpInfo &Ops) {
   bool SanitizeExponent = CGF.SanOpts.has(SanitizerKind::ShiftExponent);
 
   // OpenCL 6.3j: shift values are effectively % word size of LHS.
-  if (CGF.getLangOpts().OpenCL)
-    llvm_unreachable("NYI");
-  else if ((SanitizeBase || SanitizeExponent) &&
-           mlir::isa<cir::IntType>(Ops.LHS.getType())) {
-    llvm_unreachable("NYI");
+  if (CGF.getLangOpts().OpenCL) {
+    // Mask RHS according to OpenCL rule
+    mlir::Value rhsMasked = maskShiftAmount(CGF, Builder, Ops);
+
+    return cir::ShiftOp::create(Builder, CGF.getLoc(Ops.Loc),
+                                CGF.convertType(Ops.FullType), Ops.LHS,
+                                rhsMasked, CGF.getBuilder().getUnitAttr());
   }
 
+  // Sanitizer handling NYI (signed base, unsigned base, or exponent).
+  if ((SanitizeBase || SanitizeExponent) &&
+      mlir::isa<cir::IntType>(Ops.LHS.getType()))
+    llvm_unreachable("NYI");
+
+  // Default case: emit simple shift
   return cir::ShiftOp::create(Builder, CGF.getLoc(Ops.Loc),
                               CGF.convertType(Ops.FullType), Ops.LHS, Ops.RHS,
                               CGF.getBuilder().getUnitAttr());
 }
 
+// Emit bitwise right-shift
 mlir::Value ScalarExprEmitter::emitShr(const BinOpInfo &Ops) {
   // TODO: This misses out on the sanitizer check below.
   if (Ops.isFixedPointOp())
@@ -1579,15 +1751,22 @@ mlir::Value ScalarExprEmitter::emitShr(const BinOpInfo &Ops) {
   // promote or truncate the RHS to the same size as the LHS.
 
   // OpenCL 6.3j: shift values are effectively % word size of LHS.
-  if (CGF.getLangOpts().OpenCL)
-    llvm_unreachable("NYI");
-  else if (CGF.SanOpts.has(SanitizerKind::ShiftExponent) &&
-           mlir::isa<cir::IntType>(Ops.LHS.getType())) {
-    llvm_unreachable("NYI");
+  if (CGF.getLangOpts().OpenCL) {
+    // Mask RHS as per OpenCL shift rule
+    mlir::Value rhsMasked = maskShiftAmount(CGF, Builder, Ops);
+
+    return cir::ShiftOp::create(Builder, CGF.getLoc(Ops.Loc),
+                                CGF.convertType(Ops.FullType), Ops.LHS,
+                                rhsMasked);
   }
 
-  // Note that we don't need to distinguish unsigned treatment at this
-  // point since it will be handled later by LLVM lowering.
+  // Sanitizer handling placeholder for right-shift.
+  if (CGF.SanOpts.has(SanitizerKind::ShiftExponent) &&
+      mlir::isa<cir::IntType>(Ops.LHS.getType()))
+    llvm_unreachable("NYI");
+
+  // No special handling needed for signed/unsigned distinction at CIR level.
+  // LLVM lowering will take care of semantics differences.
   return cir::ShiftOp::create(Builder, CGF.getLoc(Ops.Loc),
                               CGF.convertType(Ops.FullType), Ops.LHS, Ops.RHS);
 }
@@ -2105,8 +2284,8 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
   // TODO(cir): handle scalar promotion.
 
   Expr *Op = E->getSubExpr();
+  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
   if (Op->getType()->isAnyComplexType()) {
-    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
 
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
@@ -2120,15 +2299,15 @@ mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
     return Builder.createComplexReal(Loc, CGF.emitComplexExpr(Op));
   }
 
-  return Visit(Op);
+  return Builder.createComplexReal(Loc, Visit(Op));
 }
 
 mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
   // TODO(cir): handle scalar promotion.
 
   Expr *Op = E->getSubExpr();
+  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
   if (Op->getType()->isAnyComplexType()) {
-    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
 
     // If it's an l-value, load through the appropriate subobject l-value.
     // Note that we have to ask E because Op might be an l-value that
@@ -2142,7 +2321,7 @@ mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
     return Builder.createComplexImag(Loc, CGF.emitComplexExpr(Op));
   }
 
-  return Visit(Op);
+  return Builder.createComplexImag(Loc, Visit(Op));
 }
 
 // Conversion from bool, integral, or floating-point to integral or

@@ -491,7 +491,8 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       // can happen due to trivial type mismatches.
       if (ArgNo < CIRFuncTy.getNumInputs() &&
           V.getType() != CIRFuncTy.getInput(ArgNo))
-        V = builder.createBitcast(V, CIRFuncTy.getInput(ArgNo));
+        V = builder.createPointerBitCastOrAddrSpaceCast(
+            V, CIRFuncTy.getInput(ArgNo));
 
       CIRCallArgs.push_back(V);
     } else {
@@ -670,7 +671,9 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   assert(!CGM.getLangOpts().ObjCAutoRefCount && "Not supported");
   assert((!TargetDecl || !TargetDecl->hasAttr<NotTailCalledAttr>()) && "NYI");
   assert(!getDebugInfo() && "No debug info yet");
-  assert((!TargetDecl || !TargetDecl->hasAttr<ErrorAttr>()) && "NYI");
+
+  // ErrorAttr is now handled via CIR DontCallAttr and will be lowered to
+  // LLVM IR dontcall-error/dontcall-warn attributes during CIR lowering.
 
   // 4. Finish the call.
 

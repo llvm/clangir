@@ -350,7 +350,7 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
   }
 
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-  auto typedConstant = mlir::dyn_cast<mlir::TypedAttr>(constant);
+  auto typedConstant = mlir::dyn_cast_or_null<mlir::TypedAttr>(constant);
   assert(typedConstant && "expected typed attribute");
   if (!emission.IsConstantAggregate) {
     // For simple scalar/complex initialization, store the value directly.
@@ -556,8 +556,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     const VarDecl &D, cir::GlobalOp GV, cir::GetGlobalOp GVAddr) {
   ConstantEmitter emitter(*this);
   mlir::TypedAttr Init =
-      mlir::dyn_cast<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
-  assert(Init && "Expected typed attribute");
+      mlir::dyn_cast_or_null<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
 
   // If constant emission failed, then this should be a C++ static
   // initializer.
