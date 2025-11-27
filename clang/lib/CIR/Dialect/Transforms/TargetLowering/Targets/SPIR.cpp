@@ -12,6 +12,7 @@
 #include "TargetInfo.h"
 #include "TargetLoweringInfo.h"
 #include "clang/CIR/ABIArgInfo.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -42,17 +43,17 @@ public:
       : TargetLoweringInfo(std::make_unique<SPIRVABIInfo>(LT)) {}
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      cir::AddressSpace addrSpace) const override {
+      cir::LangAddressSpace addrSpace) const override {
     switch (addrSpace) {
-    case cir::AddressSpace::OffloadPrivate:
+    case cir::LangAddressSpace::OffloadPrivate:
       return 0;
-    case cir::AddressSpace::OffloadLocal:
+    case cir::LangAddressSpace::OffloadLocal:
       return 3;
-    case cir::AddressSpace::OffloadGlobal:
+    case cir::LangAddressSpace::OffloadGlobal:
       return 1;
-    case cir::AddressSpace::OffloadConstant:
+    case cir::LangAddressSpace::OffloadConstant:
       return 2;
-    case cir::AddressSpace::OffloadGeneric:
+    case cir::LangAddressSpace::OffloadGeneric:
       return 4;
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");

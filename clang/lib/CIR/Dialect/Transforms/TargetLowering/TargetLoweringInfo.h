@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
 namespace cir {
 
@@ -33,7 +34,7 @@ public:
   const ABIInfo &getABIInfo() const { return *Info; }
 
   virtual unsigned
-  getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace) const = 0;
+  getTargetAddrSpaceFromCIRAddrSpace(cir::LangAddressSpace addrSpace) const = 0;
 };
 
 } // namespace cir

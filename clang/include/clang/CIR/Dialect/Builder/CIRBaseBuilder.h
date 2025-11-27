@@ -11,6 +11,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/AddressSpaces.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
@@ -18,6 +19,7 @@
 #include "clang/CIR/Dialect/IR/FPEnv.h"
 #include "clang/CIR/MissingFeatures.h"
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -25,6 +27,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/Types.h"
+#include "mlir/Support/LLVM.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FloatingPointMode.h"
@@ -105,20 +108,30 @@ public:
     return cir::PointerType::get(ty);
   }
 
-  cir::PointerType getPointerTo(mlir::Type ty, cir::AddressSpace as) {
-    return cir::PointerType::get(ty, as);
+  /// Create a pointer type with an address space attribute.
+  cir::PointerType
+  getPointerTo(mlir::Type ty, mlir::ptr::MemorySpaceAttrInterface memorySpace) {
+    if (!memorySpace)
+      return cir::PointerType::get(ty);
+    return cir::PointerType::get(ty, memorySpace);
   }
 
   cir::PointerType getPointerTo(mlir::Type ty, clang::LangAS langAS) {
-    return getPointerTo(ty, cir::toCIRAddressSpace(langAS));
+    if (langAS == clang::LangAS::Default)
+      return getPointerTo(ty);
+
+    mlir::ptr::MemorySpaceAttrInterface addrSpaceAttr =
+        cir::toCIRLangAddressSpaceAttr(getContext(), langAS);
+    return getPointerTo(ty, addrSpaceAttr);
   }
 
   cir::PointerType getVoidPtrTy(clang::LangAS langAS = clang::LangAS::Default) {
     return getPointerTo(cir::VoidType::get(getContext()), langAS);
   }
 
-  cir::PointerType getVoidPtrTy(cir::AddressSpace as) {
-    return getPointerTo(cir::VoidType::get(getContext()), as);
+  cir::PointerType
+  getVoidPtrTy(mlir::ptr::MemorySpaceAttrInterface memorySpace) {
+    return getPointerTo(cir::VoidType::get(getContext()), memorySpace);
   }
 
   cir::MethodAttr getMethodAttr(cir::MethodType ty, cir::FuncOp methodFuncOp) {
@@ -419,7 +432,8 @@ public:
   mlir::Value createGetGlobal(mlir::Location loc, cir::GlobalOp global,
                               bool threadLocal = false) {
     return cir::GetGlobalOp::create(
-        *this, loc, getPointerTo(global.getSymType(), global.getAddrSpace()),
+        *this, loc,
+        getPointerTo(global.getSymType(), global.getAddrSpaceAttr()),
         global.getName(), threadLocal);
   }
 

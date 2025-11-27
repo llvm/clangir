@@ -4,6 +4,7 @@
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunctionInfo.h"
 #include "CIRGenTypes.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/ABIArgInfo.h"
@@ -266,8 +267,11 @@ public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  cir::AddressSpace getCIRAllocaAddressSpace() const override {
-    return cir::AddressSpace::OffloadPrivate;
+  mlir::ptr::MemorySpaceAttrInterface
+  getCIRAllocaAddressSpace() const override {
+    return cir::LangAddressSpaceAttr::get(
+        &getABIInfo().CGT.getMLIRContext(),
+        cir::LangAddressSpace::OffloadPrivate);
   }
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {
@@ -662,8 +666,8 @@ TargetCIRGenInfo::getGlobalVarAddressSpace(CIRGenModule &CGM,
 }
 
 mlir::Value TargetCIRGenInfo::performAddrSpaceCast(
-    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpace SrcAddr,
-    cir::AddressSpace DestAddr, mlir::Type DestTy, bool IsNonNull) const {
+    CIRGenFunction &CGF, mlir::Value Src, mlir::Attribute SrcAddr,
+    mlir::Attribute DestAddr, mlir::Type DestTy, bool IsNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
   if (auto globalOp = Src.getDefiningOp<cir::GlobalOp>())

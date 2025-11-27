@@ -16,6 +16,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -77,9 +78,20 @@ static void printConstPtr(mlir::AsmPrinter &p, mlir::IntegerAttr value);
 //===----------------------------------------------------------------------===//
 
 mlir::ParseResult parseAddressSpaceValue(mlir::AsmParser &p,
-                                         cir::AddressSpace &addrSpace);
+                                         cir::LangAddressSpace &addrSpace) {
+  llvm::SMLoc loc = p.getCurrentLocation();
+  mlir::FailureOr<cir::LangAddressSpace> result =
+      mlir::FieldParser<cir::LangAddressSpace>::parse(p);
+  if (mlir::failed(result))
+    return p.emitError(loc, "expected address space keyword");
+  addrSpace = result.value();
+  return mlir::success();
+}
 
-void printAddressSpaceValue(mlir::AsmPrinter &p, cir::AddressSpace addrSpace);
+void printAddressSpaceValue(mlir::AsmPrinter &p,
+                            cir::LangAddressSpace addrSpace) {
+  p << cir::stringifyEnum(addrSpace);
+}
 
 //===----------------------------------------------------------------------===//
 // Tablegen defined attributes
@@ -90,6 +102,110 @@ void printAddressSpaceValue(mlir::AsmPrinter &p, cir::AddressSpace addrSpace);
 
 using namespace mlir;
 using namespace cir;
+
+//===----------------------------------------------------------------------===//
+// MemorySpaceAttrInterface implementations for Clang and Target address space
+// attributes
+//===----------------------------------------------------------------------===//
+namespace cir {
+
+bool LangAddressSpaceAttr::isValidLoad(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool LangAddressSpaceAttr::isValidStore(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool LangAddressSpaceAttr::isValidAtomicOp(
+    mlir::ptr::AtomicBinOp op, mlir::Type type,
+    mlir::ptr::AtomicOrdering ordering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool LangAddressSpaceAttr::isValidAtomicXchg(
+    mlir::Type type, mlir::ptr::AtomicOrdering successOrdering,
+    mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool LangAddressSpaceAttr::isValidAddrSpaceCast(
+    mlir::Type tgt, mlir::Type src,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool LangAddressSpaceAttr::isValidPtrIntCast(
+    mlir::Type intLikeTy, mlir::Type ptrLikeTy,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidLoad(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidStore(
+    mlir::Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAtomicOp(
+    mlir::ptr::AtomicBinOp op, mlir::Type type,
+    mlir::ptr::AtomicOrdering ordering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAtomicXchg(
+    mlir::Type type, mlir::ptr::AtomicOrdering successOrdering,
+    mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
+    const mlir::DataLayout *dataLayout,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidAddrSpaceCast(
+    mlir::Type tgt, mlir::Type src,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+bool TargetAddressSpaceAttr::isValidPtrIntCast(
+    mlir::Type intLikeTy, mlir::Type ptrLikeTy,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
+  assert(false && "NYI");
+  return false;
+}
+
+} // namespace cir
 
 //===----------------------------------------------------------------------===//
 // CIR AST Attr helpers

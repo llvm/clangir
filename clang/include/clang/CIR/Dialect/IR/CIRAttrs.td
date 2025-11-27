@@ -14,6 +14,7 @@
 #define CLANG_CIR_DIALECT_IR_CIRATTRS_TD
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.td"
 include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
@@ -963,10 +964,29 @@ def CIR_DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
 // AddressSpaceAttr
 //===----------------------------------------------------------------------===//
 
-def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
+def CIR_LangAddressSpaceAttr :
+              CIR_EnumAttr<CIR_LangAddressSpace, "lang_address_space", [
+    DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>
+  ]> {
+
+  let summary = "Represents a language address space";
+  let description = [{
+    Encodes the semantic address spaces defined by the front-end language
+    (e.g. `__shared__`, `__constant__`, `__local__`). Values are stored using the
+    `cir::LangAddressSpace` enum, keeping the representation compact while and
+     preserves the qualifier until it is mapped onto target/LLVM address-space numbers.
+
+     Example: 
+     ``` mlir
+     !cir.ptr<!s32i, lang_address_space(offload_local)>
+     cir.global constant external lang_address_space(offload_constant)
+
+     ```
+  }];
+  
   let builders = [
     AttrBuilder<(ins "clang::LangAS":$langAS), [{
-      return $_get($_ctxt, cir::toCIRAddressSpace(langAS));
+      return $_get($_ctxt, cir::toCIRLangAddressSpace(langAS));
     }]>
   ];
 
@@ -974,12 +994,9 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
     `(` custom<AddressSpaceValue>($value) `)`
   }];
 
-  let defaultValue = "cir::AddressSpace::Default";
+  let defaultValue = "cir::LangAddressSpace::Default";
 
   let extraClassDeclaration = [{
-    bool isLang() const;
-    bool isTarget() const;
-    unsigned getTargetValue() const;
     unsigned getAsUnsignedValue() const;
   }];
 
@@ -987,19 +1004,36 @@ def CIR_AddressSpaceAttr :  CIR_EnumAttr<CIR_AddressSpace, "address_space"> {
     unsigned $cppClass::getAsUnsignedValue() const {
       return static_cast<unsigned>(getValue());
     }
-
-    bool $cppClass::isLang() const {
-      return cir::isLangAddressSpace(getValue());
-    }
-
-    bool $cppClass::isTarget() const {
-      return cir::isTargetAddressSpace(getValue());
-    }
-
-    unsigned $cppClass::getTargetValue() const {
-      return cir::getTargetAddressSpaceValue(getValue());
-    }
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// TargetAddressSpaceAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TargetAddressSpaceAttr : CIR_Attr< "TargetAddressSpace",
+                                         "target_address_space", [
+    DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>
+  ]> {
+  let summary = "Represents a target-specific numeric address space";
+  let description = [{
+    The TargetAddressSpaceAttr represents a target-specific numeric address space,
+    corresponding to the LLVM IR `addressspace` qualifier and the clang
+     `address_space` attribute.
+    
+    A value of zero represents the default address space. The semantics of non-zero
+    address spaces are target-specific.
+
+    Example:
+    ```mlir
+    // Target-specific numeric address spaces
+    !cir.ptr<!s32i, target_address_space(1)>
+    !cir.ptr<!s32i, target_address_space(1)>
+    ```
+  }];
+
+  let parameters = (ins "unsigned":$value);
+  let assemblyFormat = "`<` `target` `<` $value `>` `>`";
 }
 
 //===----------------------------------------------------------------------===//

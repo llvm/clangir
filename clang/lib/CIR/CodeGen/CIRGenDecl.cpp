@@ -15,10 +15,12 @@
 #include "CIRGenFunction.h"
 #include "CIRGenOpenMPRuntime.h"
 #include "EHScopeStack.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/SymbolTable.h"
+#include "mlir/Support/LLVM.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/ExprCXX.h"
@@ -481,7 +483,8 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  cir::AddressSpace AS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(&D));
+  mlir::ptr::MemorySpaceAttrInterface AS = cir::toCIRLangAddressSpaceAttr(
+      &getMLIRContext(), getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
@@ -595,7 +598,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
     GVAddr.getAddr().setType(
-        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpace()));
+        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpaceAttr()));
   }
 
   bool NeedsDtor =
