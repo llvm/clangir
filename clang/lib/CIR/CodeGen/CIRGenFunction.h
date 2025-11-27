@@ -2321,6 +2321,9 @@ public:
 
   mlir::Value emitNVPTXDevicePrintfCallExpr(const CallExpr *expr);
 
+  /// Emit a call to an AMDGPU builtin function.
+  mlir::Value emitAMDGPUBuiltinExpr(unsigned builtinID, const CallExpr *expr);
+
   // OpenMP gen functions:
   mlir::LogicalResult emitOMPBarrierDirective(const OMPBarrierDirective &S);
   mlir::LogicalResult emitOMPParallelDirective(const OMPParallelDirective &S);
