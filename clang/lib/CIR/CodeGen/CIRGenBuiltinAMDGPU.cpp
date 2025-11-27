@@ -13,9 +13,9 @@
 
 #include "CIRGenFunction.h"
 
+#include "mlir/IR/Value.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "mlir/IR/Value.h"
 
 using namespace clang;
 using namespace clang::CIRGen;
