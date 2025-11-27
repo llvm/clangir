@@ -472,6 +472,18 @@ public:
     llvm_unreachable("unknown visibility!");
   }
 
+  static cir::VisibilityKind getCIRVisibilityKind(Visibility V) {
+    switch (V) {
+    case DefaultVisibility:
+      return cir::VisibilityKind::Default;
+    case HiddenVisibility:
+      return cir::VisibilityKind::Hidden;
+    case ProtectedVisibility:
+      return cir::VisibilityKind::Protected;
+    }
+    llvm_unreachable("unknown visibility!");
+  }
+
   llvm::DenseMap<mlir::Attribute, cir::GlobalOp> ConstantStringMap;
 
   /// Return a constant array for the given string.
@@ -520,7 +532,7 @@ public:
   /// Objective-C method, function, global variable).
   ///
   /// NOTE: This should only be called for definitions.
-  void setCommonAttributes(GlobalDecl GD, mlir::Operation *GV);
+  void setCommonAttributes(GlobalDecl gd, cir::CIRGlobalValueInterface gv);
 
   const TargetCIRGenInfo &getTargetCIRGenInfo();
   const ABIInfo &getABIInfo();
@@ -681,12 +693,16 @@ public:
   mlir::Type convertType(clang::QualType type);
 
   /// Set the visibility for the given global.
-  void setGlobalVisibility(mlir::Operation *Op, const NamedDecl *D) const;
+  void setGlobalVisibility(cir::CIRGlobalValueInterface gv,
+                           const NamedDecl *d) const;
   void setDSOLocal(mlir::Operation *Op) const;
   /// Set visibility, dllimport/dllexport and dso_local.
   /// This must be called after dllimport/dllexport is set.
-  void setGVProperties(mlir::Operation *Op, const NamedDecl *D) const;
-  void setGVPropertiesAux(mlir::Operation *Op, const NamedDecl *D) const;
+  void setGVProperties(cir::CIRGlobalValueInterface gv, GlobalDecl gd) const;
+  void setGVProperties(cir::CIRGlobalValueInterface gv,
+                       const NamedDecl *d) const;
+  void setGVPropertiesAux(cir::CIRGlobalValueInterface gv,
+                          const NamedDecl *d) const;
 
   /// Set the TLS mode for the given global Op for the thread-local
   /// variable declaration D.
@@ -765,8 +781,8 @@ public:
   void UpdateCompletedType(const clang::TagDecl *TD);
 
   /// Set function attributes for a function declaration.
-  void setFunctionAttributes(GlobalDecl GD, cir::FuncOp F,
-                             bool IsIncompleteFunction, bool IsThunk);
+  void setFunctionAttributes(GlobalDecl globalDecl, cir::FuncOp func,
+                             bool isIncompleteFunction, bool isThunk);
 
   /// Set the CIR function attributes (sext, zext, etc).
   void setCIRFunctionAttributes(GlobalDecl GD, const CIRGenFunctionInfo &info,
@@ -776,6 +792,17 @@ public:
   /// definition.
   void setCIRFunctionAttributesForDefinition(const Decl *decl,
                                              cir::FuncOp func);
+
+  /// Create and attach type metadata to the given function.
+  void createFunctionTypeMetadataForIcall(const FunctionDecl *fd,
+                                          cir::FuncOp func);
+
+  /// Create and attach type metadata if the function is a potential indirect
+  /// call target to support call graph section.
+  void createIndirectFunctionTypeMD(const FunctionDecl *fd, cir::FuncOp func);
+
+  /// Set type metadata to the given function.
+  void setKCFIType(const FunctionDecl *fd, cir::FuncOp func);
 
   void emitGlobalDefinition(clang::GlobalDecl D, mlir::Operation *Op = nullptr);
   void emitGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
@@ -982,7 +1009,7 @@ private:
   /// pipeline since LLVM has opaque pointers but CIR not.
   void replacePointerTypeArgs(cir::FuncOp OldF, cir::FuncOp NewF);
 
-  void setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GV);
+  void setNonAliasAttributes(GlobalDecl gd, cir::CIRGlobalValueInterface gv);
   /// Map source language used to a CIR attribute.
   cir::SourceLanguage getCIRSourceLanguage();
 

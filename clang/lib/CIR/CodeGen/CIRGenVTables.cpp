@@ -44,7 +44,256 @@ cir::FuncOp CIRGenModule::getAddrOfThunk(StringRef name, mlir::Type fnTy,
 static void setThunkProperties(CIRGenModule &cgm, const ThunkInfo &thunk,
                                cir::FuncOp thunkFn, bool forVTable,
                                GlobalDecl gd) {
-  llvm_unreachable("NYI");
+  cgm.setFunctionLinkage(gd, thunkFn);
+  cgm.getCXXABI().setThunkLinkage(thunkFn, forVTable, gd,
+                                  !thunk.Return.isEmpty());
+
+  // Set the right visibility.
+  cgm.setGVProperties(thunkFn, gd);
+
+  if (!cgm.getCXXABI().exportThunk()) {
+    assert(!cir::MissingFeatures::setDLLStorageClass());
+    cgm.setDSOLocal(static_cast<mlir::Operation *>(thunkFn));
+  }
+
+  if (cgm.supportsCOMDAT() && thunkFn.isWeakForLinker())
+    thunkFn.setComdat(true);
+}
+
+static RValue performReturnAdjustment(CIRGenFunction &cgf, QualType resultType,
+                                      RValue rv, const ThunkInfo &thunk) {
+  // Emit the return adjustment.
+  bool nullCheckValue = !resultType->isReferenceType();
+
+  mlir::Value returnValue = rv.getScalarVal();
+
+  if (nullCheckValue)
+    llvm_unreachable(
+        "NYI: return adjustment with null check for non-reference types");
+
+  CXXRecordDecl *classDecl = resultType->getPointeeType()->getAsCXXRecordDecl();
+  clang::CharUnits classAlign = cgf.CGM.getClassPointerAlignment(classDecl);
+  mlir::Type pointeeType = cgf.convertTypeForMem(resultType->getPointeeType());
+  returnValue = cgf.CGM.getCXXABI().performReturnAdjustment(
+      cgf, Address(returnValue, pointeeType, classAlign), classDecl,
+      thunk.Return);
+
+  if (nullCheckValue)
+    llvm_unreachable(
+        "NYI: return adjustment with null check for non-reference types");
+
+  return RValue::get(returnValue);
+}
+
+void CIRGenFunction::startThunk(cir::FuncOp fn, GlobalDecl gd,
+                                const CIRGenFunctionInfo &fnInfo,
+                                bool isUnprototyped) {
+  assert(!CurGD.getDecl() && "CurGD was already set!");
+  CurGD = gd;
+  CurFuncIsThunk = true;
+
+  // Build FunctionArgs.
+  const CXXMethodDecl *md = cast<CXXMethodDecl>(gd.getDecl());
+  QualType thisType = md->getThisType();
+  QualType resultType;
+  if (isUnprototyped)
+    resultType = CGM.getASTContext().VoidTy;
+  else if (CGM.getCXXABI().HasThisReturn(gd))
+    resultType = thisType;
+  else if (CGM.getCXXABI().hasMostDerivedReturn(gd))
+    resultType = CGM.getASTContext().VoidPtrTy;
+  else
+    resultType = md->getType()->castAs<FunctionProtoType>()->getReturnType();
+  FunctionArgList functionArgs;
+
+  // Create the implicit 'this' parameter declaration.
+  CGM.getCXXABI().buildThisParam(*this, functionArgs);
+
+  // Add the rest of the parameters, if we have a prototype to work with.
+  if (!isUnprototyped) {
+    functionArgs.append(md->param_begin(), md->param_end());
+
+    if (isa<CXXDestructorDecl>(md))
+      CGM.getCXXABI().addImplicitStructorParams(*this, resultType,
+                                                functionArgs);
+  }
+
+  assert(!cir::MissingFeatures::generateDebugInfo());
+  // auto nl = ApplyDebugLocation::createEmpty(*this);
+  // Start defining the function.
+  StartFunction(GlobalDecl(), resultType, fn, fnInfo, functionArgs,
+                md->getLocation(), md->getLocation());
+  assert(!cir::MissingFeatures::generateDebugInfo());
+  // auto al = ApplyDebugLocation::createArtificial(*this);
+
+  // Since we didn't pass a GlobalDecl to StartFunction, do this ourselves.
+  CGM.getCXXABI().emitInstanceFunctionProlog(md->getLocation(), *this);
+  CXXThisValue = CXXABIThisValue;
+  CurCodeDecl = md;
+  CurFuncDecl = md;
+}
+
+void CIRGenFunction::finishThunk() {
+  // Clear these to restore the invariants expected by
+  // StartFunction/FinishFunction.
+  CurCodeDecl = nullptr;
+  CurFuncDecl = nullptr;
+
+  finishFunction(SourceLocation());
+}
+
+void CIRGenFunction::emitCallAndReturnForThunk(cir::FuncOp callee,
+                                               const ThunkInfo *thunk,
+                                               bool isUnprototyped) {
+  assert(isa<CXXMethodDecl>(CurGD.getDecl()) &&
+         "Please use a new CGF for this thunk");
+  const CXXMethodDecl *md = cast<CXXMethodDecl>(CurGD.getDecl());
+
+  // Determine the this pointer class (may differ from MD's class for thunks)
+  const CXXRecordDecl *thisValueClass =
+      md->getThisType()->getPointeeCXXRecordDecl();
+  if (thunk)
+    thisValueClass = thunk->ThisType->getPointeeCXXRecordDecl();
+
+  mlir::Value adjustedThisPtr =
+      thunk ? CGM.getCXXABI().performThisAdjustment(*this, LoadCXXThisAddress(),
+                                                    thisValueClass, *thunk)
+            : LoadCXXThis();
+
+  // If perfect forwarding is required a variadic method, a method using
+  // inalloca, or an unprototyped thunk, use musttail. Emit an error if this
+  // thunk requires a return adjustment, since that is impossible with musttail.
+  if (CurFnInfo->usesInAlloca() || CurFnInfo->isVariadic() || isUnprototyped) {
+    // Error if return adjustment is needed (can't do with musttail)
+    if (thunk && !thunk->Return.isEmpty()) {
+      if (isUnprototyped)
+        CGM.ErrorUnsupported(
+            md, "return-adjusting thunk with incomplete parameter type");
+      else if (CurFnInfo->isVariadic())
+        llvm_unreachable("shouldn't try to emit musttail return-adjusting "
+                         "thunks for variadic functions");
+      else
+        CGM.ErrorUnsupported(
+            md, "non-trivial argument copy for return-adjusting thunk");
+    }
+    emitMustTailThunk(CurGD, adjustedThisPtr, callee);
+    return;
+  }
+
+  // Build the call argument list
+  CallArgList callArgs;
+  QualType thisType = md->getThisType();
+  callArgs.add(RValue::get(adjustedThisPtr), thisType);
+
+  if (isa<CXXDestructorDecl>(md))
+    CGM.getCXXABI().adjustCallArgsForDestructorThunk(*this, CurGD, callArgs);
+
+#ifndef NDEBUG
+  unsigned prefixArgs = callArgs.size() - 1;
+#endif
+
+  // Add the rest of the method parameters
+  for (const ParmVarDecl *pd : md->parameters())
+    emitDelegateCallArg(callArgs, pd, SourceLocation());
+
+  const FunctionProtoType *fpt = md->getType()->castAs<FunctionProtoType>();
+
+#ifndef NDEBUG
+  assert(!cir::MissingFeatures::ABIArgInfo());
+  const CIRGenFunctionInfo &callFnInfo = CGM.getTypes().arrangeCXXMethodCall(
+      callArgs, fpt, RequiredArgs::forPrototypePlus(fpt, 1), prefixArgs);
+  // assert(callFnInfo.getRegParm() == CurFnInfo->getRegParm() &&
+  //        callFnInfo.isNoReturn() == CurFnInfo->isNoReturn() &&
+  //        callFnInfo.getCallingConvention() ==
+  //        CurFnInfo->getCallingConvention());
+  // assert(isa<CXXDestructorDecl>(md) || // ignore dtor return types
+  //        similar(callFnInfo.getReturnInfo(), callFnInfo.getReturnType(),
+  //                CurFnInfo->getReturnInfo(), CurFnInfo->getReturnType()));
+  assert(callFnInfo.arg_size() == CurFnInfo->arg_size());
+  // for (unsigned i = 0, e = CurFnInfo->arg_size(); i != e; ++i)
+  //   assert(similar(callFnInfo.arg_begin()[i].info,
+  //                  callFnInfo.arg_begin()[i].type,
+  //                  CurFnInfo->arg_begin()[i].info,
+  //                  CurFnInfo->arg_begin()[i].type));
+#endif
+
+  // Determine whether we have a return value slot to use.
+  QualType resultType = CGM.getCXXABI().HasThisReturn(CurGD) ? thisType
+                        : CGM.getCXXABI().hasMostDerivedReturn(CurGD)
+                            ? CGM.getASTContext().VoidPtrTy
+                            : fpt->getReturnType();
+
+  ReturnValueSlot slot;
+  if (!resultType->isVoidType() && hasAggregateEvaluationKind(resultType))
+    slot = ReturnValueSlot(ReturnValue, resultType.isVolatileQualified(),
+                           /*IsUnused=*/false,
+                           /*IsExternallyDestructed=*/true);
+
+  // Now emit our call.
+  CIRGenCallee cirCallee = CIRGenCallee::forDirect(callee, CurGD);
+  auto loc = builder.getUnknownLoc();
+  RValue rv = emitCall(*CurFnInfo, cirCallee, slot, callArgs,
+                       /*callOrTryCall=*/nullptr, /*IsMustTail=*/false, loc);
+
+  // Consider return adjustment if we have ThunkInfo.
+  if (thunk && !thunk->Return.isEmpty())
+    rv = performReturnAdjustment(*this, resultType, rv, *thunk);
+  else
+    assert(!cir::MissingFeatures::tailCall());
+
+  // Emit return.
+  if (!resultType->isVoidType() && slot.isNull())
+    CGM.getCXXABI().emitReturnFromThunk(*this, rv, resultType);
+
+  // Disable final ARC autorelease.
+  assert(!cir::MissingFeatures::ARC());
+
+  finishThunk();
+}
+
+void CIRGenFunction::emitMustTailThunk(GlobalDecl gd,
+                                       mlir::Value adjustedThisPtr,
+                                       cir::FuncOp callee) {
+  llvm_unreachable("emitMustTailThunk NYI - requires musttail call generation");
+}
+
+void CIRGenFunction::generateThunk(cir::FuncOp fn,
+                                   const CIRGenFunctionInfo &fnInfo,
+                                   GlobalDecl gd, const ThunkInfo &thunk,
+                                   bool isUnprototyped) {
+  // Create entry block and set up the builder's insertion point
+  // This must be done before calling startThunk() which calls StartFunction()
+  assert(fn.isDeclaration() && "Function already has body?");
+  mlir::Block *entryBb = fn.addEntryBlock();
+  builder.setInsertionPointToStart(entryBb);
+
+  // Create a scope in the symbol table to hold variable declarations.
+  // This is required before StartFunction processes parameters, as it will
+  // insert them into the symbolTable (ScopedHashTable) which requires an
+  // active scope.
+  SymTableScopeTy varScope(symbolTable);
+
+  // Create lexical scope - must stay alive for entire thunk generation
+  // StartFunction() requires currLexScope to be set
+  auto unknownLoc = builder.getUnknownLoc();
+  LexicalScope lexScope{*this, unknownLoc, entryBb};
+
+  startThunk(fn, gd, fnInfo, isUnprototyped);
+  assert(!cir::MissingFeatures::generateDebugInfo());
+  // auto al = ApplyDebugLocation::createArtificial(*this);
+
+  // Get our callee. Use a placeholder type if this method is unprototyped so
+  // that CIRGenModule doesn't try to set attributes.
+  mlir::Type ty;
+  if (isUnprototyped)
+    llvm_unreachable("NYI: unprototyped thunk placeholder type");
+  else
+    ty = CGM.getTypes().GetFunctionType(fnInfo);
+
+  cir::FuncOp callee = CGM.GetAddrOfFunction(gd, ty, /*ForVTable=*/true);
+
+  // Make the call and return the result.
+  emitCallAndReturnForThunk(callee, &thunk, isUnprototyped);
 }
 
 static bool UseRelativeLayout(const CIRGenModule &CGM) {
@@ -232,6 +481,10 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
   case VTableComponent::CK_DeletingDtorPointer: {
     GlobalDecl GD = component.getGlobalDecl();
 
+    const bool isThunk =
+        nextVTableThunkIndex < layout.vtable_thunks().size() &&
+        layout.vtable_thunks()[nextVTableThunkIndex].first == componentIndex;
+
     if (CGM.getLangOpts().CUDA) {
       llvm_unreachable("NYI");
     }
@@ -262,38 +515,42 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
     };
 
     cir::FuncOp fnPtr;
+
+    // Pure virtual member functions.
     if (cast<CXXMethodDecl>(GD.getDecl())->isPureVirtual()) {
-      // Pure virtual member functions.
       if (!PureVirtualFn)
         PureVirtualFn =
             getSpecialVirtualFn(CGM.getCXXABI().getPureVirtualCallName());
       fnPtr = PureVirtualFn;
 
-    } else if (cast<CXXMethodDecl>(GD.getDecl())->isDeleted()) {
       // Deleted virtual member functions.
+    } else if (cast<CXXMethodDecl>(GD.getDecl())->isDeleted()) {
       if (!DeletedVirtualFn)
         DeletedVirtualFn =
             getSpecialVirtualFn(CGM.getCXXABI().getDeletedVirtualCallName());
       fnPtr = DeletedVirtualFn;
 
-    } else if (nextVTableThunkIndex < layout.vtable_thunks().size() &&
-               layout.vtable_thunks()[nextVTableThunkIndex].first ==
-                   componentIndex) {
       // Thunks.
-      llvm_unreachable("NYI");
-      // auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
+    } else if (isThunk) {
+      auto &thunkInfo = layout.vtable_thunks()[nextVTableThunkIndex].second;
 
-      // nextVTableThunkIndex++;
-      // fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
+      nextVTableThunkIndex++;
+      fnPtr = maybeEmitThunk(GD, thunkInfo, /*ForVTable=*/true);
+      if (CGM.getCodeGenOpts().PointerAuth.CXXVirtualFunctionPointers) {
+        assert(thunkInfo.Method && "Method not set");
+        GD = GD.getWithDecl(thunkInfo.Method);
+      }
 
-    } else {
       // Otherwise we can use the method definition directly.
+    } else {
       auto fnTy = CGM.getTypes().GetFunctionTypeForVTable(GD);
       fnPtr = CGM.GetAddrOfFunction(GD, fnTy, /*ForVTable=*/true);
+      if (CGM.getCodeGenOpts().PointerAuth.CXXVirtualFunctionPointers)
+        llvm_unreachable("NYI");
     }
 
     if (useRelativeLayout()) {
-      llvm_unreachable("NYI");
+      llvm_unreachable("relative layout vtable components");
     } else {
       return builder.add(cir::GlobalViewAttr::get(
           CGM.getBuilder().getUInt8PtrTy(),
@@ -756,27 +1013,30 @@ cir::FuncOp CIRGenVTables::maybeEmitThunk(GlobalDecl GD,
   // implements such thunks by cloning the original function body. However, for
   // thunks with no return adjustment on targets that support musttail, we can
   // use musttail to perfectly forward the variadic arguments.
-  bool ShouldCloneVarArgs = false;
+  bool shouldCloneVarArgs = false;
   if (!IsUnprototyped && ThunkFn.getFunctionType().isVarArg()) {
-    ShouldCloneVarArgs = true;
+    shouldCloneVarArgs = true;
     if (ThunkAdjustments.Return.isEmpty()) {
       switch (CGM.getTriple().getArch()) {
       case llvm::Triple::x86_64:
       case llvm::Triple::x86:
       case llvm::Triple::aarch64:
-        ShouldCloneVarArgs = false;
+        shouldCloneVarArgs = false;
         break;
       default:
         break;
       }
     }
   }
-  if (ShouldCloneVarArgs) {
+
+  if (shouldCloneVarArgs) {
     if (UseAvailableExternallyLinkage)
       return ThunkFn;
-    llvm_unreachable("NYI method, see OG GenerateVarArgsThunk");
+    llvm_unreachable("NYI");
   } else {
-    llvm_unreachable("NYI method, see OG generateThunk");
+    // Normal thunk body generation.
+    CIRGenFunction cgf(CGM, CGM.getBuilder());
+    cgf.generateThunk(ThunkFn, FnInfo, GD, ThunkAdjustments, IsUnprototyped);
   }
 
   setThunkProperties(CGM, ThunkAdjustments, ThunkFn, ForVTable, GD);
