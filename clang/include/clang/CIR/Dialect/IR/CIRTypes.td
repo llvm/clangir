@@ -16,11 +16,13 @@
 include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIREnumAttr.td"
 include "clang/CIR/Dialect/IR/CIRTypeConstraints.td"
+include "clang/CIR/Dialect/IR/CIRAttrConstraints.td"
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 include "clang/CIR/Interfaces/CIRTypeInterfaces.td"
 include "mlir/Interfaces/DataLayoutInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/EnumAttr.td"
+include "mlir/IR/CommonAttrConstraints.td"
 
 //===----------------------------------------------------------------------===//
 // CIR Types
@@ -231,24 +233,23 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
     ```
   }];
 
+  let genVerifyDecl = 1;
+
   let parameters = (ins
     "mlir::Type":$pointee,
-    CIR_DefaultValuedEnumParameter<
-      CIR_AddressSpace,
-      "cir::AddressSpace::Default"
-    >:$addrSpace
+    OptionalParameter<"mlir::ptr::MemorySpaceAttrInterface">:$addrSpace
   );
 
   let skipDefaultBuilders = 1;
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+      CArg<"mlir::ptr::MemorySpaceAttrInterface", "{}">:$addrSpace), [{
         return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      CArg<"cir::AddressSpace", "cir::AddressSpace::Default">:$addrSpace), [{
+      CArg<"mlir::ptr::MemorySpaceAttrInterface", "{}">:$addrSpace), [{
         return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
@@ -256,7 +257,7 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr", [
   let assemblyFormat = [{
     `<`
       $pointee
-      ( `,` `addrspace` `(` `` custom<AddressSpaceValue>($addrSpace)^ `)` )?
+      ( `,` ` ` custom<AddressSpaceValue>($addrSpace)^ )?
     `>`
   }];
 

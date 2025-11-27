@@ -40,6 +40,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Support/LLVM.h"
 
 #include <numeric>
 
@@ -1027,6 +1028,56 @@ static LValue emitFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
                             AlignmentSource::Decl);
 }
 
+// TODO: can be a shared AST helper with traditional codegen
+static bool canEmitSpuriousReferenceToVariable(CIRGenFunction &CGF,
+                                               const DeclRefExpr *E,
+                                               const VarDecl *VD) {
+  // For a variable declared in an enclosing scope, do not emit a spurious
+  // reference even if we have a capture, as that will emit an unwarranted
+  // reference to our capture state, and will likely generate worse code than
+  // emitting a local copy.
+  if (E->refersToEnclosingVariableOrCapture())
+    return false;
+
+  // For a local declaration declared in this function, we can always reference
+  // it even if we don't have an odr-use.
+  if (VD->hasLocalStorage()) {
+    return VD->getDeclContext() ==
+           dyn_cast_or_null<DeclContext>(CGF.CurCodeDecl);
+  }
+
+  // For a global declaration, we can emit a reference to it if we know
+  // for sure that we are able to emit a definition of it.
+  VD = VD->getDefinition(CGF.getContext());
+  if (!VD)
+    return false;
+
+  // Don't emit a spurious reference if it might be to a variable that only
+  // exists on a different device / target.
+  // FIXME: This is unnecessarily broad. Check whether this would actually be a
+  // cross-target reference.
+  if (CGF.getLangOpts().OpenMP || CGF.getLangOpts().CUDA ||
+      CGF.getLangOpts().OpenCL) {
+    return false;
+  }
+
+  // We can emit a spurious reference only if the linkage implies that we'll
+  // be emitting a non-interposable symbol that will be retained until link
+  // time.
+  switch (CGF.CGM.getCIRLinkageVarDefinition(
+      VD, /*IsConstant=*/VD->getType().isConstantStorage(
+          CGF.getContext(), /*ExcludeCtor=*/false, /*ExcludeDtor=*/false))) {
+  case cir::GlobalLinkageKind::ExternalLinkage:
+  case cir::GlobalLinkageKind::LinkOnceODRLinkage:
+  case cir::GlobalLinkageKind::WeakODRLinkage:
+  case cir::GlobalLinkageKind::InternalLinkage:
+  case cir::GlobalLinkageKind::PrivateLinkage:
+    return true;
+  default:
+    return false;
+  }
+}
+
 LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
   const NamedDecl *ND = E->getDecl();
   QualType T = E->getType();
@@ -1040,7 +1091,43 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
         !VD->isLocalVarDecl())
       llvm_unreachable("NYI");
 
-    assert(E->isNonOdrUse() != NOUR_Constant && "not implemented");
+    // If this DeclRefExpr does not constitute an odr-use of the variable,
+    // we're not permitted to emit a reference to it in general, and it might
+    // not be captured if capture would be necessary for a use. Emit the
+    // constant value directly instead.
+    if (E->isNonOdrUse() == NOUR_Constant &&
+        (VD->getType()->isReferenceType() ||
+         !canEmitSpuriousReferenceToVariable(*this, E, VD))) {
+      VD->getAnyInitializer(VD);
+      mlir::Attribute val = ConstantEmitter(*this).emitAbstract(
+          E->getLocation(), *VD->evaluateValue(), VD->getType());
+      assert(val && "failed to emit constant expression");
+
+      Address addr = Address::invalid();
+      if (!VD->getType()->isReferenceType()) {
+        // Spill the constant value to a global.
+        addr = CGM.createUnnamedGlobalFrom(*VD, val,
+                                           getContext().getDeclAlign(VD));
+        mlir::Type varTy = getTypes().convertTypeForMem(VD->getType());
+        auto ptrTy = mlir::cast<cir::PointerType>(addr.getPointer().getType());
+        if (ptrTy.getPointee() != varTy) {
+          addr = addr.withElementType(getBuilder(), varTy);
+        }
+      } else {
+        // Should we be using the alignment of the constant pointer we emitted?
+        CharUnits alignment =
+            CGM.getNaturalTypeAlignment(E->getType(),
+                                        /* BaseInfo= */ nullptr,
+                                        /* TBAAInfo= */ nullptr,
+                                        /* forPointeeType= */ true);
+        mlir::Value ptrVal = getBuilder().getConstant(
+            getLoc(E->getExprLoc()), mlir::cast<mlir::TypedAttr>(val));
+        addr = makeNaturalAddressForPointer(ptrVal, T, alignment);
+      }
+      return makeAddrLValue(addr, T, AlignmentSource::Decl);
+    }
+
+    // FIXME(ogcg): Handle other kinds of non-odr-use DeclRefExprs.
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
@@ -2081,10 +2168,10 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = emitLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    cir::AddressSpace SrcAS =
-        cir::toCIRAddressSpace(E->getSubExpr()->getType().getAddressSpace());
-    cir::AddressSpace DestAS =
-        cir::toCIRAddressSpace(E->getType().getAddressSpace());
+    mlir::Attribute SrcAS = cir::toCIRLangAddressSpaceAttr(
+        &getMLIRContext(), E->getSubExpr()->getType().getAddressSpace());
+    mlir::Attribute DestAS = cir::toCIRLangAddressSpaceAttr(
+        &getMLIRContext(), E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, convertType(DestTy));
     return makeAddrLValue(Address(V, convertTypeForMem(E->getType()),
@@ -3144,7 +3231,8 @@ Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
   // be different from the type defined by the language. For example,
   // in C++ the auto variables are in the default address space. Therefore
   // cast alloca to the default address space when necessary.
-  if (auto ASTAS = cir::toCIRAddressSpace(CGM.getLangTempAllocaAddressSpace());
+  if (auto ASTAS = cir::toCIRLangAddressSpaceAttr(
+          &getMLIRContext(), CGM.getLangTempAllocaAddressSpace());
       getCIRAllocaAddressSpace() != ASTAS) {
     llvm_unreachable("Requires address space cast which is NYI");
   }

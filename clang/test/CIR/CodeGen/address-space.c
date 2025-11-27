@@ -3,13 +3,13 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
-// CIR: cir.func dso_local {{@.*foo.*}}(%arg0: !cir.ptr<!s32i, addrspace(target<1>)>
+// CIR: cir.func dso_local {{@.*foo.*}}(%arg0: !cir.ptr<!s32i, target_address_space(1)>
 // LLVM: define dso_local void @foo(ptr addrspace(1) %0)
 void foo(int __attribute__((address_space(1))) *arg) {
   return;
 }
 
-// CIR: cir.func dso_local {{@.*bar.*}}(%arg0: !cir.ptr<!s32i, addrspace(target<0>)>
+// CIR: cir.func dso_local {{@.*bar.*}}(%arg0: !cir.ptr<!s32i, target_address_space(0)>
 // LLVM: define dso_local void @bar(ptr %0)
 void bar(int __attribute__((address_space(0))) *arg) {
   return;

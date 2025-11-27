@@ -13,6 +13,7 @@
 #ifndef CLANG_CIR_DIALECT_IR_CIRTYPES_H
 #define CLANG_CIR_DIALECT_IR_CIRTYPES_H
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -34,37 +35,18 @@ bool isSized(mlir::Type ty);
 // AddressSpace helpers
 //===----------------------------------------------------------------------===//
 
-cir::AddressSpace toCIRAddressSpace(clang::LangAS langAS);
+cir::LangAddressSpace toCIRLangAddressSpace(clang::LangAS langAS);
 
-constexpr unsigned getAsUnsignedValue(cir::AddressSpace as) {
+/// Convert a LangAS to the appropriate address space attribute interface.
+/// Returns a MemorySpaceAttrInterface.
+mlir::ptr::MemorySpaceAttrInterface
+toCIRLangAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS);
+
+bool isSupportedCIRMemorySpaceAttr(
+    mlir::ptr::MemorySpaceAttrInterface memorySpace);
+
+constexpr unsigned getAsUnsignedValue(cir::LangAddressSpace as) {
   return static_cast<unsigned>(as);
-}
-
-inline constexpr unsigned TargetAddressSpaceOffset =
-    cir::getMaxEnumValForAddressSpace();
-
-// Target address space is used for target-specific address spaces that are not
-// part of the enum. Its value is represented as an offset from the maximum
-// value of the enum. Make sure that it is always the last enum value.
-static_assert(getAsUnsignedValue(cir::AddressSpace::Target) ==
-                  cir::getMaxEnumValForAddressSpace(),
-              "Target address space must be the last enum value");
-
-constexpr bool isTargetAddressSpace(cir::AddressSpace as) {
-  return getAsUnsignedValue(as) >= cir::getMaxEnumValForAddressSpace();
-}
-
-constexpr bool isLangAddressSpace(cir::AddressSpace as) {
-  return !isTargetAddressSpace(as);
-}
-
-constexpr unsigned getTargetAddressSpaceValue(cir::AddressSpace as) {
-  assert(isTargetAddressSpace(as) && "expected target address space");
-  return getAsUnsignedValue(as) - TargetAddressSpaceOffset;
-}
-
-constexpr cir::AddressSpace computeTargetAddressSpace(unsigned v) {
-  return static_cast<cir::AddressSpace>(v + TargetAddressSpaceOffset);
 }
 
 } // namespace cir

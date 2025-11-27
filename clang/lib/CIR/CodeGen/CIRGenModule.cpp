@@ -21,6 +21,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -812,12 +813,10 @@ mlir::Value CIRGenModule::getGlobalValue(const Decl *d) {
   return CurCGF->symbolTable.lookup(d);
 }
 
-cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
-                                           mlir::Location loc, StringRef name,
-                                           mlir::Type t, bool isConstant,
-                                           cir::AddressSpace addrSpace,
-                                           mlir::Operation *insertPoint,
-                                           cir::GlobalLinkageKind linkage) {
+cir::GlobalOp CIRGenModule::createGlobalOp(
+    CIRGenModule &cgm, mlir::Location loc, StringRef name, mlir::Type t,
+    bool isConstant, mlir::ptr::MemorySpaceAttrInterface addrSpace,
+    mlir::Operation *insertPoint, cir::GlobalLinkageKind linkage) {
   cir::GlobalOp g;
   auto &builder = cgm.getBuilder();
   {
@@ -1098,9 +1097,10 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     entry = dyn_cast_or_null<cir::GlobalOp>(v);
   }
 
-  cir::AddressSpace cirAS = cir::toCIRAddressSpace(langAS);
+  mlir::Attribute cirAS =
+      cir::toCIRLangAddressSpaceAttr(&getMLIRContext(), langAS);
   if (entry) {
-    cir::AddressSpace entryCIRAS = entry.getAddrSpace();
+    mlir::ptr::MemorySpaceAttrInterface entryCIRAS = entry.getAddrSpaceAttr();
     if (WeakRefReferences.erase(entry)) {
       if (d && !d->hasAttr<WeakAttr>()) {
         auto lt = cir::GlobalLinkageKind::ExternalLinkage;
@@ -1154,7 +1154,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       return entry;
   }
 
-  auto declCIRAS = cir::toCIRAddressSpace(getGlobalVarAddressSpace(d));
+  mlir::ptr::MemorySpaceAttrInterface declCIRAS =
+      cir::toCIRLangAddressSpaceAttr(&getMLIRContext(),
+                                     getGlobalVarAddressSpace(d));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(d->getSourceRange());
@@ -1275,7 +1277,7 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *d, mlir::Type ty,
 
   bool tlsAccess = d->getTLSKind() != VarDecl::TLS_None;
   auto g = getOrCreateCIRGlobal(d, ty, isForDefinition);
-  auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpace());
+  auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
   return cir::GetGlobalOp::create(builder, getLoc(d->getSourceRange()), ptrTy,
                                   g.getSymName(), tlsAccess);
 }
@@ -1290,7 +1292,7 @@ CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *d, mlir::Type ty,
 
   auto globalOp = getOrCreateCIRGlobal(d, ty, isForDefinition);
   auto ptrTy =
-      builder.getPointerTo(globalOp.getSymType(), globalOp.getAddrSpace());
+      builder.getPointerTo(globalOp.getSymType(), globalOp.getAddrSpaceAttr());
   return builder.getGlobalViewAttr(ptrTy, globalOp);
 }
 
@@ -1763,8 +1765,9 @@ static cir::GlobalOp
 generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
                       cir::GlobalLinkageKind lt, CIRGenModule &cgm,
                       StringRef globalName, CharUnits alignment) {
-  cir::AddressSpace addrSpace =
-      cir::toCIRAddressSpace(cgm.getGlobalConstantAddressSpace());
+  mlir::ptr::MemorySpaceAttrInterface addrSpace =
+      cir::toCIRLangAddressSpaceAttr(&cgm.getMLIRContext(),
+                                     cgm.getGlobalConstantAddressSpace());
 
   // Create a global variable for this string
   // FIXME(cir): check for insertion point in module level.
@@ -1869,8 +1872,8 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
   auto gv = getGlobalForStringLiteral(s, name);
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(gv.getSymType());
   assert(arrayTy && "String literal must be array");
-  auto ptrTy =
-      getBuilder().getPointerTo(arrayTy.getElementType(), gv.getAddrSpace());
+  auto ptrTy = getBuilder().getPointerTo(arrayTy.getElementType(),
+                                         gv.getAddrSpaceAttr());
 
   return builder.getGlobalViewAttr(ptrTy, gv);
 }
@@ -1980,7 +1983,8 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
       linkage = cir::GlobalLinkageKind::InternalLinkage;
     }
   }
-  cir::AddressSpace targetAS = cir::toCIRAddressSpace(addrSpace);
+  mlir::ptr::MemorySpaceAttrInterface targetAS =
+      cir::toCIRLangAddressSpaceAttr(&getMLIRContext(), addrSpace);
 
   auto loc = getLoc(expr->getSourceRange());
   auto gv = createGlobalOp(*this, loc, name, type, isConstant, targetAS,
@@ -4050,7 +4054,9 @@ cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
   }
 
   // Create a new variable.
-  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty);
+  // VTables and other C++ runtime variables should be constant.
+  gv = CIRGenModule::createGlobalOp(*this, loc, name, ty,
+                                    /*isConstant=*/true);
 
   // Set up extra information and add to the module
   gv.setLinkageAttr(

@@ -34,6 +34,8 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Support/LLVM.h"
@@ -1727,9 +1729,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // the AST level this is handled within CreateTempAlloca et al., but for the
     // builtin / dynamic alloca we have to handle it here.
     assert(!cir::MissingFeatures::addressSpace());
-    cir::AddressSpace AAS = getCIRAllocaAddressSpace();
-    cir::AddressSpace EAS = cir::toCIRAddressSpace(
-        E->getType()->getPointeeType().getAddressSpace());
+    mlir::ptr::MemorySpaceAttrInterface AAS = getCIRAllocaAddressSpace();
+    mlir::ptr::MemorySpaceAttrInterface EAS = cir::toCIRLangAddressSpaceAttr(
+        &getMLIRContext(), E->getType()->getPointeeType().getAddressSpace());
     if (EAS != AAS) {
       assert(false && "Non-default address space for alloca NYI");
     }

@@ -480,6 +480,8 @@ struct MissingFeatures {
   static bool mustProgress() { return false; }
 
   static bool skipTempCopy() { return false; }
+
+  static bool dataLayoutPtrHandlingBasedOnLangAS() { return false; }
 };
 
 } // namespace cir

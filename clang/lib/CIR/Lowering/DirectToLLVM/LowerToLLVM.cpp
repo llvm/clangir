@@ -387,7 +387,7 @@ unsigned getGlobalOpTargetAddrSpace(mlir::ConversionPatternRewriter &rewriter,
                                     const mlir::TypeConverter *converter,
                                     cir::GlobalOp op) {
   auto tempPtrTy = cir::PointerType::get(rewriter.getContext(), op.getSymType(),
-                                         op.getAddrSpace());
+                                         op.getAddrSpaceAttr());
   return cast<mlir::LLVM::LLVMPointerType>(converter->convertType(tempPtrTy))
       .getAddressSpace();
 }
@@ -5014,18 +5014,25 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   return cir::createLowerModule(module, rewriter);
 }
 
-static unsigned
-getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace,
-                                   cir::LowerModule *lowerModule) {
-  if (addrSpace == cir::AddressSpace::Default)
-    return 0; // Default address space is always 0 in LLVM.
-
-  if (cir::isTargetAddressSpace(addrSpace))
-    return cir::getTargetAddressSpaceValue(addrSpace);
-
+static unsigned convertCIRAddrSpaceToTarget(cir::LangAddressSpaceAttr addrSpace,
+                                            cir::LowerModule *lowerModule) {
   assert(lowerModule && "CIR AS map is not available");
   return lowerModule->getTargetLoweringInfo()
-      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace.getValue());
+}
+
+static unsigned getTargetAddrSpaceFromASAttr(mlir::Attribute attr,
+                                             cir::LowerModule *lowerModule) {
+  assert(mlir::isa_and_nonnull<cir::LangAddressSpaceAttr>(attr) ||
+         mlir::isa_and_nonnull<cir::TargetAddressSpaceAttr>(attr));
+
+  if (auto targetAddrSpaceAttr =
+          mlir::dyn_cast<cir::TargetAddressSpaceAttr>(attr))
+    return targetAddrSpaceAttr.getValue();
+
+  cir::LangAddressSpaceAttr addrSpaceAttr =
+      mlir::dyn_cast<cir::LangAddressSpaceAttr>(attr);
+  return convertCIRAddrSpaceToTarget(addrSpaceAttr, lowerModule);
 }
 
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
@@ -5035,8 +5042,10 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           cir::LowerModule *lowerModule) {
   converter.addConversion([&,
                            lowerModule](cir::PointerType type) -> mlir::Type {
+    mlir::Attribute addrSpaceAttr = type.getAddrSpace();
     unsigned addrSpace =
-        getTargetAddrSpaceFromCIRAddrSpace(type.getAddrSpace(), lowerModule);
+        addrSpaceAttr ? getTargetAddrSpaceFromASAttr(addrSpaceAttr, lowerModule)
+                      : 0; // Default address space
     return mlir::LLVM::LLVMPointerType::get(type.getContext(), addrSpace);
   });
   converter.addConversion([&](cir::VPtrType type) -> mlir::Type {
