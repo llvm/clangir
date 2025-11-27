@@ -193,6 +193,7 @@ struct MissingFeatures {
   // ABIInfo queries.
   static bool useTargetLoweringABIInfo() { return false; }
   static bool isEmptyFieldForLayout() { return false; }
+  static bool ABIArgInfo() { return false; }
 
   // Misc
   static bool cacheRecordLayouts() { return false; }
@@ -482,6 +483,8 @@ struct MissingFeatures {
   static bool skipTempCopy() { return false; }
 
   static bool dataLayoutPtrHandlingBasedOnLangAS() { return false; }
+
+  static bool tailCall() { return false; }
 };
 
 } // namespace cir
