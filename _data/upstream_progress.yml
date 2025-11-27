@@ -32,7 +32,7 @@ Ops:
   - name: "cir.atomic.clear (::cir::AtomicClear)"
     completed: true
   - name: "cir.await (::cir::AwaitOp)"
-    completed: false
+    completed: true
   - name: "cir.base_class_addr (::cir::BaseClassAddrOp)"
     completed: true
   - name: "cir.base_data_member (::cir::BaseDataMemberOp)"
@@ -110,7 +110,7 @@ Ops:
   - name: "cir.delete.array (::cir::DeleteArrayOp)"
     completed: false
   - name: "cir.derived_class_addr (::cir::DerivedClassAddrOp)"
-    completed: false
+    completed: true
   - name: "cir.derived_data_member (::cir::DerivedDataMemberOp)"
     completed: false
   - name: "cir.derived_method (::cir::DerivedMethodOp)"
@@ -120,11 +120,11 @@ Ops:
   - name: "cir.dyn_cast (::cir::DynamicCastOp)"
     completed: true
   - name: "cir.eh.inflight_exception (::cir::EhInflightOp)"
-    completed: false
+    completed: true
   - name: "cir.eh.typeid (::cir::EhTypeIdOp)"
     completed: false
   - name: "cir.exp2 (::cir::Exp2Op)"
-    completed: false
+    completed: true
   - name: "cir.exp (::cir::ExpOp)"
     completed: true
   - name: "cir.expect (::cir::ExpectOp)"
@@ -176,13 +176,13 @@ Ops:
   - name: "cir.is_constant (::cir::IsConstantOp)"
     completed: false
   - name: "cir.is_fp_class (::cir::IsFPClassOp)"
-    completed: false
+    completed: true
   - name: "cir.std.begin (::cir::IterBeginOp)"
     completed: false
   - name: "cir.std.end (::cir::IterEndOp)"
     completed: false
   - name: "cir.llvm.intrinsic (::cir::LLVMIntrinsicCallOp)"
-    completed: false
+    completed: true
   - name: "cir.llrint (::cir::LLrintOp)"
     completed: false
   - name: "cir.llround (::cir::LLroundOp)"
@@ -222,9 +222,9 @@ Ops:
   - name: "cir.pow (::cir::PowOp)"
     completed: false
   - name: "cir.prefetch (::cir::PrefetchOp)"
-    completed: false
+    completed: true
   - name: "cir.ptr_diff (::cir::PtrDiffOp)"
-    completed: false
+    completed: true
   - name: "cir.ptr_mask (::cir::PtrMaskOp)"
     completed: false
   - name: "cir.ptr_stride (::cir::PtrStrideOp)"
@@ -294,7 +294,7 @@ Ops:
   - name: "cir.va.start (::cir::VAStartOp)"
     completed: true
   - name: "cir.vtt.address_point (::cir::VTTAddrPointOp)"
-    completed: false
+    completed: true
   - name: "cir.vtable.address_point (::cir::VTableAddrPointOp)"
     completed: true
   - name: "cir.vec.cmp (::cir::VecCmpOp)"
