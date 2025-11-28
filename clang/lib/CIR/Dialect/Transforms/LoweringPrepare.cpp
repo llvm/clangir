@@ -1393,14 +1393,14 @@ std::optional<FuncOp> LoweringPreparePass::buildHIPModuleDtor() {
   auto handlePtrTy = llvm::cast<cir::PointerType>(handle.getType());
   mlir::Value nullPtr = builder.getNullPtr(handlePtrTy, loc);
   auto isNull = builder.createCompare(loc, cir::CmpOpKind::ne, handle, nullPtr);
-  builder.create<cir::BrCondOp>(loc, isNull, ifBlock, exitBlock);
+  cir::BrCondOp::create(builder, loc, isNull, ifBlock, exitBlock);
   {
     // When handle is not null we need to unregister it and store null to handle
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(ifBlock);
     builder.createCallOp(loc, unregisterFunc, handle);
     builder.createStore(loc, nullPtr, builder.createGetGlobal(gpuBinGlobal));
-    builder.create<cir::BrOp>(loc, exitBlock);
+    cir::BrOp::create(builder, loc, exitBlock);
   }
   {
     // Exit block
