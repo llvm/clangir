@@ -2932,8 +2932,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
   } else if ((shouldAddOptNone || decl->hasAttr<OptimizeNoneAttr>()) &&
              !isAlwaysInline) {
     // Add optnone, but do so only if the function isn't always_inline.
-    auto optNoneAttr = cir::OptNoneAttr::get(&getMLIRContext());
-    attrs.set(optNoneAttr.getMnemonic(), optNoneAttr);
+    f.setOptNone(true);
 
     // OptimizeNone implies noinline; we should not be inlining such functions.
     f.setInlineKind(cir::InlineKind::NoInline);

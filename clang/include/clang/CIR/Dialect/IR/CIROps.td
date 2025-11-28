@@ -4104,6 +4104,7 @@ def FuncOp : CIR_Op<"func", [
     OptionalAttr<CIR_InlineKind>:$inline_kind,
     UnitAttr:$lambda,
     UnitAttr:$no_proto,
+    UnitAttr:$opt_none,
     UnitAttr:$dso_local,
     DefaultValuedAttr<
       CIR_GlobalLinkageKind, "GlobalLinkageKind::ExternalLinkage"

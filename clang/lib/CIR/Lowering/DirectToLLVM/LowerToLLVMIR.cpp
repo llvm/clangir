@@ -100,9 +100,7 @@ private:
     if (auto extraAttr = mlir::dyn_cast<cir::ExtraFuncAttributesAttr>(
             attribute.getValue())) {
       for (auto attr : extraAttr.getElements()) {
-        if (mlir::dyn_cast<cir::OptNoneAttr>(attr.getValue())) {
-          llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
-        } else if (mlir::dyn_cast<cir::NoThrowAttr>(attr.getValue())) {
+        if (mlir::dyn_cast<cir::NoThrowAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         } else if (mlir::dyn_cast<cir::ConvergentAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
