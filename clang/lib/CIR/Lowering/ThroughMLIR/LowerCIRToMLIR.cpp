@@ -961,14 +961,15 @@ public:
   }
 };
 
-class CIRBrOpLowering : public mlir::OpRewritePattern<cir::BrOp> {
+class CIRBrOpLowering : public mlir::OpConversionPattern<cir::BrOp> {
 public:
-  using OpRewritePattern<cir::BrOp>::OpRewritePattern;
+  using mlir::OpConversionPattern<cir::BrOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::BrOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(op, op.getDest());
+  matchAndRewrite(cir::BrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(op, op.getDest(),
+                                                    adaptor.getDestOperands());
     return mlir::LogicalResult::success();
   }
 };
