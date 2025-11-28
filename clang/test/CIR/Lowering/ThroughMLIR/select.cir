@@ -1,0 +1,30 @@
+// RUN: cir-opt %s -cir-to-mlir -o - | FileCheck %s -check-prefix=MLIR
+
+!u32i = !cir.int<u, 32>
+module {
+  cir.func @foo(%arg0: !u32i) -> !u32i {
+    %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init] {alignment = 4 : i64}
+    cir.store %arg0, %0 : !u32i, !cir.ptr<!u32i>
+    %1 = cir.const #cir.int<100> : !u32i
+    %2 = cir.const #cir.int<10> : !u32i
+    %3 = cir.const #cir.int<20> : !u32i
+    %4 = cir.load %0 : !cir.ptr<!u32i>, !u32i
+    %5 = cir.cmp(gt, %4, %1) : !u32i, !cir.bool
+    %6 = cir.select if %5 then %1 else %2 : (!cir.bool, !u32i, !u32i) -> !u32i
+    cir.return %6 : !u32i
+  }
+}
+
+// MLIR: module {
+// MLIR-NEXT:  func.func @foo(%arg0: i32) -> i32 {
+// MLIR-NEXT:    %alloca = memref.alloca() {alignment = 4 : i64} : memref<i32>
+// MLIR-NEXT:    memref.store %arg0, %alloca[] : memref<i32>
+// MLIR-NEXT:    %c100_i32 = arith.constant 100 : i32
+// MLIR-NEXT:    %c10_i32 = arith.constant 10 : i32
+// MLIR-NEXT:    %c20_i32 = arith.constant 20 : i32
+// MLIR-NEXT:    %0 = memref.load %alloca[] : memref<i32>
+// MLIR-NEXT:    %1 = arith.cmpi ugt, %0, %c100_i32 : i32
+// MLIR-NEXT:    %2 = arith.select %1, %c100_i32, %c10_i32 : i32
+// MLIR-NEXT:    return %2 : i32
+// MLIR-NEXT:  }
+// MLIR-NEXT:}
