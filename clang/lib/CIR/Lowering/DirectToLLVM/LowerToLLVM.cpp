@@ -2370,6 +2370,7 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
         name == getLinkageAttrNameString() ||
         name == func.getCallingConvAttrName() ||
         name == func.getDsoLocalAttrName() ||
+        name == func.getInlineKindAttrName() ||
         (filterArgAndResAttrs && (name == func.getArgAttrsAttrName() ||
                                   name == func.getResAttrsAttrName())))
       continue;
@@ -2492,6 +2493,21 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
                                            llvmFnTy, linkage, isDsoLocal, cconv,
                                            mlir::SymbolRefAttr(), attributes);
 
+  if (std::optional<cir::InlineKind> inlineKind = op.getInlineKind()) {
+    switch (*inlineKind) {
+    case cir::InlineKind::NoInline:
+      fn.setNoInline(true);
+      break;
+    case cir::InlineKind::AlwaysInline:
+      fn.setAlwaysInline(true);
+      break;
+    case cir::InlineKind::InlineHint:
+      fn.setInlineHint(true);
+      break;
+    default:
+      llvm_unreachable("Unknown inline kind");
+    }
+  }
   // Lower CIR attributes for arguments.
   for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
     mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);

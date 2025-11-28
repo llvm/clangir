@@ -4099,6 +4099,7 @@ def FuncOp : CIR_Op<"func", [
     TypeAttrOf<CIR_FuncType>:$function_type,
     UnitAttr:$builtin,
     UnitAttr:$coroutine,
+    OptionalAttr<CIR_InlineKind>:$inline_kind,
     UnitAttr:$lambda,
     UnitAttr:$no_proto,
     UnitAttr:$dso_local,

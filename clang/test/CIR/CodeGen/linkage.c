@@ -14,11 +14,12 @@ int foo(void) {
   return bar(5);
 }
 
-// CIR:   cir.func internal private {{.*}} @bar(
-// CIR:   cir.func {{.*}} @foo(
+// CIR-O0:   cir.func no_inline internal private {{.*}} @bar
+// CIR-O1:   cir.func internal private {{.*}} @bar
+// CIR:      cir.func {{.*}} @foo
 
-// LLVM: define internal i32 @bar(
-// LLVM: define dso_local i32 @foo(
+// LLVM: define internal i32 @bar
+// LLVM: define dso_local i32 @foo
 
 static int var = 0;
 // CIR: cir.global "private" internal dso_local @var = #cir.int<0> : !s32i
@@ -30,4 +31,4 @@ int get_var(void) {
 inline int availableExternallyMethod(void) { return 0; }
 void callAvailableExternallyMethod(void) { availableExternallyMethod(); }
 // CIR-O0-NOT: cir.func available_externally{{.*}} @availableExternallyMethod
-// CIR-O1:     cir.func available_externally{{.*}} @availableExternallyMethod
+// CIR-O1:     cir.func inline_hint available_externally{{.*}} @availableExternallyMethod

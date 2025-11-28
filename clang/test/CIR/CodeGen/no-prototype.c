@@ -7,7 +7,7 @@
 
 // No-proto definition followed by a correct call.
 int noProto0(x) int x; { return x; }
-// CHECK: cir.func no_proto {{.*}} @noProto0(%arg0: !s32i {{.+}}) -> !s32i
+// CHECK: cir.func {{.*}} no_proto {{.*}} @noProto0(%arg0: !s32i loc({{.*}})) -> !s32i
 int test0(int x) {
   // CHECK: cir.func {{.*}} @test0
   return noProto0(x); // We know the definition. Should be a direct call.
@@ -39,7 +39,7 @@ int test2(int x) {
   // CHECK:  {{.*}} = cir.call [[GGO]](%{{[0-9]+}}) : (!cir.ptr<!cir.func<(!s32i) -> !s32i>>, !s32i) -> !s32i
 }
 int noProto2(int x) { return x; }
-// CHECK: cir.func no_proto {{.*}} @noProto2(%arg0: !s32i {{.+}}) -> !s32i
+// CHECK: cir.func {{.*}} no_proto {{.*}} @noProto2(%arg0: !s32i loc({{.*}})) -> !s32i
 
 // No-proto declaration without definition (any call here is "correct").
 //
@@ -81,4 +81,4 @@ int test5(int x) {
   // CHECK:  {{%.*}} = cir.call [[CAST]]() : (!cir.ptr<!cir.func<() -> !s32i>>) -> !s32i
 }
 int noProto5(int x) { return x; }
-// CHECK: cir.func no_proto {{.*}} @noProto5(%arg0: !s32i {{.+}}) -> !s32i
+// CHECK: cir.func {{.*}} no_proto {{.*}} @noProto5(%arg0: !s32i loc({{.*}})) -> !s32i

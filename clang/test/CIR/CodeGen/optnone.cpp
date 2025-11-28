@@ -17,7 +17,7 @@ int s0(int a, int b) {
   return x;
 }
 
-// CIR-O0: #fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone})>
+// CIR-O0: #fn_attr = #cir<extra({nothrow = #cir.nothrow, optnone = #cir.optnone})>
 // CIR-O0:   cir.func {{.*}} @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
 
 // CIR-O2-NOT: #fn_attr ={{.*}} optnone

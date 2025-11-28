@@ -106,7 +106,7 @@ long f10(int n) {
     int (*q)[n];
     return q - p;
 }
-// CHECK-LABEL: cir.func dso_local @f10
+// CHECK-LABEL: cir.func {{.*}} @f10
 // CHECK: %[[Q_VAL:[0-9]+]] = cir.load {{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[P_VAL:[0-9]+]] = cir.load {{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[PTRDIFF:[0-9]+]] = cir.ptr_diff %[[Q_VAL]], %[[P_VAL]] : !cir.ptr<!s32i> -> !s64i
@@ -132,7 +132,7 @@ long f11(int n, int m) {
     int (*q)[n][m];
     return q - p;
 }
-// CHECK-LABEL: cir.func dso_local @f11
+// CHECK-LABEL: cir.func {{.*}} @f11
 
 // # allocas
 // CHECK: %[[N_ADDR:[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i>
