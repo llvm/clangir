@@ -1822,7 +1822,6 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
                            rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
   auto elementTy =
       convertTypeForMemory(*getTypeConverter(), dataLayout, op.getAllocaType());
-  auto resultTy = getTypeConverter()->convertType(op.getType());
   // Verification between the CIR alloca AS and the one from data layout.
   auto allocaAS = [&]() {
     auto dlAllocaASAttr = mlir::cast_if_present<mlir::IntegerAttr>(

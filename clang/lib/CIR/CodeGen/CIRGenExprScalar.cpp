@@ -1637,14 +1637,9 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
     divisor = vlaSize.NumElts;
 
     CharUnits eltSize = CGF.getContext().getTypeSizeInChars(elementType);
-    if (!eltSize.isOne()) {
-      cir::IntType cirIntTy = llvm::cast<cir::IntType>(CGF.PtrDiffTy);
-      cir::IntAttr eltSizeAttr =
-          cir::IntAttr::get(cirIntTy, eltSize.getQuantity());
-
+    if (!eltSize.isOne())
       if (divisor.getType() != CGF.PtrDiffTy)
         divisor = Builder.createIntCast(divisor, CGF.PtrDiffTy);
-    }
   } else {
     // cir::ptrdiff correctly computes the ABI difference of 2 pointers. We
     // do not need to compute anything else here. We just return it.
