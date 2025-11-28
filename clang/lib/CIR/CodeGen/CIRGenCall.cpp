@@ -1178,8 +1178,10 @@ bool CIRGenModule::MayDropFunctionReturn(const ASTContext &astContext,
                                          QualType ReturnType) {
   // We can't just disard the return value for a record type with a complex
   // destructor or a non-trivially copyable type.
-  if (ReturnType.getCanonicalType()->getAs<RecordType>()) {
-    llvm_unreachable("NYI");
+  if (const RecordType *RT =
+          ReturnType.getCanonicalType()->getAs<RecordType>()) {
+    if (const auto *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getDecl()))
+      return ClassDecl->hasTrivialDestructor();
   }
 
   return ReturnType.isTriviallyCopyableType(astContext);
