@@ -19,6 +19,16 @@ module {
     cir.store %6, %1 : !s32i, !cir.ptr<!s32i>
     cir.return
   }
+  
+  cir.func @floatingPoints(%arg0: !cir.double) {
+    %0 = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["X", init] {alignment = 8 : i64}
+    cir.store %arg0, %0 : !cir.double, !cir.ptr<!cir.double>
+    %1 = cir.load %0 : !cir.ptr<!cir.double>, !cir.double
+    %2 = cir.unary(plus, %1) : !cir.double, !cir.double
+    %3 = cir.load %0 : !cir.ptr<!cir.double>, !cir.double
+    %4 = cir.unary(minus, %3) : !cir.double, !cir.double
+    cir.return
+  }
 }
 
 // MLIR: %[[#INPUT_PLUS:]] = memref.load

@@ -802,6 +802,36 @@ class CIRUnaryOpLowering : public mlir::OpConversionPattern<cir::UnaryOp> {
 public:
   using OpConversionPattern<cir::UnaryOp>::OpConversionPattern;
 
+  mlir::Operation *
+  addImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
+               mlir::ConversionPatternRewriter &rewriter) const {
+    if (type.isFloat()) {
+      auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
+                                                 mlir::FloatAttr::get(type, n));
+      return rewriter.replaceOpWithNewOp<mlir::arith::AddFOp>(op, type, input,
+                                                              imm);
+    }
+    auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
+                                               mlir::IntegerAttr::get(type, n));
+    return rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input,
+                                                            imm);
+  }
+
+  mlir::Operation *
+  subByImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
+                 mlir::ConversionPatternRewriter &rewriter) const {
+    if (type.isFloat()) {
+      auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
+                                                 mlir::FloatAttr::get(type, n));
+      return rewriter.replaceOpWithNewOp<mlir::arith::SubFOp>(op, type, imm,
+                                                              input);
+    }
+    auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
+                                               mlir::IntegerAttr::get(type, n));
+    return rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, imm,
+                                                            input);
+  }
+
   mlir::LogicalResult
   matchAndRewrite(cir::UnaryOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -810,15 +840,11 @@ public:
 
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
-      auto One = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, One);
+      addImmediate(op, type, input, 1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Dec: {
-      auto One = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, One);
+      addImmediate(op, type, input, -1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Plus: {
@@ -826,20 +852,16 @@ public:
       break;
     }
     case cir::UnaryOpKind::Minus: {
-      auto Zero = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 0));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, Zero, input);
+      subByImmediate(op, type, input, 0, rewriter);
       break;
     }
     case cir::UnaryOpKind::Not: {
-      auto MinusOne = mlir::arith::ConstantOp::create(
+      auto o = mlir::arith::ConstantOp::create(
           rewriter, op.getLoc(), mlir::IntegerAttr::get(type, -1));
-      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, MinusOne,
-                                                       input);
+      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, o, input);
       break;
     }
     }
-
     return mlir::LogicalResult::success();
   }
 };
