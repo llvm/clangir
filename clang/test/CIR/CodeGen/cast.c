@@ -8,7 +8,7 @@ int cstyle_cast_lvalue(A a) {
   return ((A)(a)).x;
 }
 
-// CHECK:  cir.func dso_local @cstyle_cast_lvalue(%arg0: !rec_A loc({{.*}}))
+// CHECK:  cir.func {{.*}} @cstyle_cast_lvalue(%arg0: !rec_A loc({{.*}}))
 // CHECK:    [[ALLOC_A:%.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
 // CHECK:    [[ALLOC_RET:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK:    [[REF_TMP:%.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["ref.tmp0"] {alignment = 4 : i64}

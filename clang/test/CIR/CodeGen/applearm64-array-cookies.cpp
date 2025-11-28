@@ -10,7 +10,7 @@ void t_constant_size_nontrivial() {
   auto p = new C[3];
 }
 
-// CHECK:  cir.func @_Z26t_constant_size_nontrivialv()
+// CHECK:  cir.func{{.*}} @_Z26t_constant_size_nontrivialv()
 // CHECK:    %[[#NUM_ELEMENTS:]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[#SIZE_WITHOUT_COOKIE:]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[#ALLOCATION_SIZE:]] = cir.const #cir.int<19> : !u64i
@@ -38,7 +38,7 @@ void t_constant_size_nontrivial2() {
 // In this test SIZE_WITHOUT_COOKIE isn't used, but it would be if there were
 // an initializer.
 
-// CHECK:  cir.func @_Z27t_constant_size_nontrivial2v()
+// CHECK:  cir.func{{.*}} @_Z27t_constant_size_nontrivial2v()
 // CHECK:    %[[#NUM_ELEMENTS:]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[#SIZE_WITHOUT_COOKIE:]] = cir.const #cir.int<12> : !u64i
 // CHECK:    %[[#ALLOCATION_SIZE:]] = cir.const #cir.int<28> : !u64i

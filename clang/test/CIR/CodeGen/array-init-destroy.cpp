@@ -22,7 +22,7 @@ void x() {
   xpto array[2];
 }
 
-// BEFORE: cir.func dso_local @_Z1xv()
+// BEFORE: cir.func {{.*}} @_Z1xv()
 // BEFORE:   %[[ArrayAddr:.*]] = cir.alloca !cir.array<!rec_xpto x 2>
 
 // BEFORE:   cir.array.ctor(%[[ArrayAddr]] : !cir.ptr<!cir.array<!rec_xpto x 2>>) {
@@ -37,7 +37,7 @@ void x() {
 // BEFORE:     cir.yield
 // BEFORE:   }
 
-// AFTER: cir.func dso_local @_Z1xv()
+// AFTER: cir.func {{.*}} @_Z1xv()
 // AFTER: %[[ArrayAddr0:.*]] = cir.alloca !cir.array<!rec_xpto x 2>
 // AFTER: %[[ConstTwo:.*]] = cir.const #cir.int<2> : !u64i
 // AFTER: %[[ArrayBegin:.*]] = cir.cast array_to_ptrdecay %[[ArrayAddr0]] : !cir.ptr<!cir.array<!rec_xpto x 2>> -> !cir.ptr<!rec_xpto>

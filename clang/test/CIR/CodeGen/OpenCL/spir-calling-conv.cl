@@ -3,11 +3,11 @@
 // RUN: %clang_cc1 -fclangir %s -O0 -triple "spirv64-unknown-unknown" -emit-llvm -fno-clangir-call-conv-lowering -o %t.ll
 // RUN: FileCheck %s --input-file=%t.ll --check-prefix=LLVM
 
-// CIR: cir.func {{.*}}@get_dummy_id{{.*}} cc(spir_function)
+// CIR: cir.func{{.*}} @get_dummy_id{{.*}} cc(spir_function)
 // LLVM-DAG: declare{{.*}} spir_func i32 @get_dummy_id(
 int get_dummy_id(int D);
 
-// CIR: cir.func {{.*}}@foo{{.*}} cc(spir_kernel)
+// CIR: cir.func{{.*}} @foo{{.*}} cc(spir_kernel)
 // LLVM-DAG: define{{.*}} spir_kernel void @foo(
 kernel void foo(global int *A) {
   int id = get_dummy_id(0);

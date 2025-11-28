@@ -15,21 +15,21 @@ void dtor1() {
   printf("Done\n");
 }
 
-// CHECK: cir.func dso_local @_Z5dtor1v()
+// CHECK: cir.func {{.*}} @_Z5dtor1v()
 // CHECK:   cir.scope {
 // CHECK:     %4 = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["c", init] {alignment = 1 : i64}
 // CHECK:     cir.call @_ZN1CC2Ev(%4) : (!cir.ptr<!rec_C>) -> ()
 // CHECK:     cir.call @_ZN1CD2Ev(%4) : (!cir.ptr<!rec_C>) -> ()
 // CHECK:   }
 
-// DTOR_BODY: cir.func linkonce_odr @_ZN1CD2Ev{{.*}}{
+// DTOR_BODY: cir.func {{.*}} @_ZN1CD2Ev{{.*}}{
 // DTOR_BODY:   %2 = cir.get_global @printf
 // DTOR_BODY:   %3 = cir.get_global @".str.2"
 // DTOR_BODY:   %4 = cir.cast array_to_ptrdecay %3
 // DTOR_BODY:   %5 = cir.call @printf(%4)
 // DTOR_BODY:   cir.return
 
-// DTOR_BODY: cir.func linkonce_odr @_ZN1CD1Ev(%arg0: !cir.ptr<!rec_C>
+// DTOR_BODY: cir.func {{.*}} @_ZN1CD1Ev(%arg0: !cir.ptr<!rec_C>
 
 // DTOR_BODY:   cir.call @_ZN1CD2Ev
 // DTOR_BODY:   cir.return

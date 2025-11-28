@@ -19,76 +19,76 @@ void kernel(int *out) {
   int i = 0;
 
   out[i++] = threadIdx.x;
-  // CIR:  cir.func linkonce_odr @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_xEv()
+  // CIR:  cir.func {{.*}} @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_xEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.tid.x"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.x()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.x()
 
   out[i++] = threadIdx.y;
-  // CIR:  cir.func linkonce_odr @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_yEv()
+  // CIR:  cir.func {{.*}} @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_yEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.tid.y"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.y()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.y()
 
   out[i++] = threadIdx.z;
-  // CIR:  cir.func linkonce_odr @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_zEv()
+  // CIR:  cir.func {{.*}} @_ZN26__cuda_builtin_threadIdx_t17__fetch_builtin_zEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.tid.z"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.z()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.tid.z()
 
 
   out[i++] = blockIdx.x;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_xEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_xEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ctaid.x"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
 
   out[i++] = blockIdx.y;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_yEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_yEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ctaid.y"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
 
   out[i++] = blockIdx.z;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_zEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockIdx_t17__fetch_builtin_zEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ctaid.z"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
 
 
   out[i++] = blockDim.x;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_xEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_xEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ntid.x"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
 
   out[i++] = blockDim.y;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_yEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_yEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ntid.y"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
 
   out[i++] = blockDim.z;
-  // CIR:  cir.func linkonce_odr @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_zEv()
+  // CIR:  cir.func {{.*}} @_ZN25__cuda_builtin_blockDim_t17__fetch_builtin_zEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.ntid.z"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
 
 
   out[i++] = gridDim.x;
-  // CIR:  cir.func linkonce_odr @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_xEv()
+  // CIR:  cir.func {{.*}} @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_xEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.nctaid.x"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
 
   out[i++] = gridDim.y;
-  // CIR:  cir.func linkonce_odr @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_yEv()
+  // CIR:  cir.func {{.*}} @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_yEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.nctaid.y"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
 
   out[i++] = gridDim.z;
-  // CIR:  cir.func linkonce_odr @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_zEv()
+  // CIR:  cir.func {{.*}} @_ZN24__cuda_builtin_gridDim_t17__fetch_builtin_zEv()
   // CIR:  cir.llvm.intrinsic "nvvm.read.ptx.sreg.nctaid.z"
   // LLVM: call{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
   // OGCG: call noundef{{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()

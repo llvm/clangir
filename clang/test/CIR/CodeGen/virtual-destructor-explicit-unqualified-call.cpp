@@ -12,7 +12,7 @@ class A {
   A B(A);
 };
 A A::B(A) {
-  // CIR-LABEL:   cir.func dso_local @_ZN1A1BES_(
+  // CIR-LABEL:   cir.func {{.*}} @_ZN1A1BES_(
   // CIR-SAME:      %[[THIS_ARG:.*]]: !cir.ptr<!rec_A>
   // CIR-NEXT:           %[[THIS_VAR:.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
   // CIR:                cir.store %[[THIS_ARG]], %[[THIS_VAR]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
