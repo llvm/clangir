@@ -1242,7 +1242,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
         d->hasExternalStorage())
-      llvm_unreachable("NYI");
+      getCUDARuntime().handleVarRegistration(d, gv);
   }
 
   // TODO(cir): address space cast when needed for DAddrSpace.
@@ -1515,16 +1515,21 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
   // the device. [...]"
   // CUDA B.2.2 "The __constant__ qualifier, optionally used together with
   // __device__, declares a variable that: [...]
-  if (langOpts.CUDA && langOpts.CUDAIsDevice) {
-    // __shared__ variables is not marked as externally initialized,
-    // because they must not be initialized.
-    if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
-        (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
-         d->getType()->isCUDADeviceBuiltinSurfaceType() ||
-         d->getType()->isCUDADeviceBuiltinTextureType())) {
-      gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
-                  CUDAExternallyInitializedAttr::get(&getMLIRContext()));
-    }
+  if (langOpts.CUDA) {
+    if (langOpts.CUDAIsDevice) {
+      // __shared__ variables is not marked as externally initialized,
+      // because they must not be initialized.
+      if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
+          (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
+           d->getType()->isCUDADeviceBuiltinSurfaceType() ||
+           d->getType()->isCUDADeviceBuiltinTextureType())) {
+        gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
+                    CUDAExternallyInitializedAttr::get(&getMLIRContext()));
+      }
+    } else
+      getCUDARuntime().internalizeDeviceSideVar(d, linkage);
+
+    getCUDARuntime().handleVarRegistration(d, gv);
   }
 
   // Decorate CUDA shadow variables with the cu.shadow_name attribute so we know
