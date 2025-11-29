@@ -84,8 +84,7 @@ public:
 
   void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
                       FunctionArgList &args) override;
-  void handleVarRegistration(const VarDecl *vd,
-                                     cir::GlobalOp var) override;
+  void handleVarRegistration(const VarDecl *vd, cir::GlobalOp var) override;
 
   mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) override;
 
