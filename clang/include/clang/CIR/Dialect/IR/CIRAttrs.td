@@ -1196,27 +1196,10 @@ def CIR_ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
 //===----------------------------------------------------------------------===//
 
 def CIR_InlineKind : CIR_I32EnumAttr<"InlineKind", "inlineKind", [
-  I32EnumAttrCase<"NoInline", 1, "no">,
-  I32EnumAttrCase<"AlwaysInline", 2, "always">,
-  I32EnumAttrCase<"InlineHint", 3, "hint">
-]> {
-  let genSpecializedAttr = 0;
-}
-
-def CIR_InlineAttr : CIR_EnumAttr<CIR_InlineKind, "inline"> {
-  let summary = "Inline attribute";
-  let description = [{
-    Inline attributes represents user directives.
-  }];
-
-  let cppClassName = "InlineAttr";
-
-  let extraClassDeclaration = [{
-    bool isNoInline() const { return getValue() == InlineKind::NoInline; };
-    bool isAlwaysInline() const { return getValue() == InlineKind::AlwaysInline; };
-    bool isInlineHint() const { return getValue() == InlineKind::InlineHint; };
-  }];
-}
+  I32EnumAttrCase<"NoInline", 1, "no_inline">,
+  I32EnumAttrCase<"AlwaysInline", 2, "always_inline">,
+  I32EnumAttrCase<"InlineHint", 3, "inline_hint">
+]>;
 
 //===----------------------------------------------------------------------===//
 // Unit Function Attributes

@@ -3,12 +3,12 @@
 !s32i = !cir.int<s, 32>
 !fnptr = !cir.ptr<!cir.func<(!s32i) -> !s32i>>
 
-#fn_attr = #cir<extra({inline = #cir.inline<no>, optnone = #cir.optnone})>
+#fn_attr = #cir<extra({ptnone = #cir.optnone})>
 #fn_attr1 = #cir<extra({nothrow = #cir.nothrow})>
 
 module {
   // Excerpt of std::array<int, 8192ul>::operator[](unsigned long)
-  cir.func linkonce_odr @_ZNSt5arrayIiLm8192EEixEm(%arg0: !s32i) -> !s32i extra(#fn_attr) {
+  cir.func no_inline linkonce_odr @_ZNSt5arrayIiLm8192EEixEm(%arg0: !s32i) -> !s32i extra(#fn_attr) {
     cir.return %arg0 : !s32i
   }
 

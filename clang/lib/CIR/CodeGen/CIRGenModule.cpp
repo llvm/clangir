@@ -2883,26 +2883,22 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
 
   assert(!MissingFeatures::stackProtector());
 
-  auto existingInlineAttr = dyn_cast_if_present<cir::InlineAttr>(
-      attrs.get(cir::InlineAttr::getMnemonic()));
-  bool isNoInline = existingInlineAttr && existingInlineAttr.isNoInline();
-  bool isAlwaysInline =
-      existingInlineAttr && existingInlineAttr.isAlwaysInline();
+  std::optional<cir::InlineKind> existingInlineKind = f.getInlineKind();
+  bool isNoInline =
+      existingInlineKind && *existingInlineKind == cir::InlineKind::NoInline;
+  bool isAlwaysInline = existingInlineKind &&
+                        *existingInlineKind == cir::InlineKind::AlwaysInline;
 
   if (!decl) {
     // Non-entry HLSL functions must always be inlined.
     if (getLangOpts().HLSL && !isNoInline) {
-      auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                       cir::InlineKind::AlwaysInline);
-      attrs.set(attr.getMnemonic(), attr);
+      f.setInlineKind(cir::InlineKind::AlwaysInline);
     } else if (!isAlwaysInline && codeGenOpts.getInlining() ==
                                       CodeGenOptions::OnlyAlwaysInlining) {
       // If we don't have a declaration to control inlining, the function isn't
       // explicitly marked as alwaysinline for semantic reasons, and inlining is
       // disabled, mark the function as noinline.
-      auto attr =
-          cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
-      attrs.set(attr.getMnemonic(), attr);
+      f.setInlineKind(cir::InlineKind::NoInline);
     }
 
     f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
@@ -2932,9 +2928,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
 
   // Non-entry HLSL functions must always be inlined.
   if (getLangOpts().HLSL && !isNoInline && !decl->hasAttr<NoInlineAttr>()) {
-    auto attr =
-        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::AlwaysInline);
-    attrs.set(attr.getMnemonic(), attr);
+    f.setInlineKind(cir::InlineKind::AlwaysInline);
   } else if ((shouldAddOptNone || decl->hasAttr<OptimizeNoneAttr>()) &&
              !isAlwaysInline) {
     // Add optnone, but do so only if the function isn't always_inline.
@@ -2942,9 +2936,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     attrs.set(optNoneAttr.getMnemonic(), optNoneAttr);
 
     // OptimizeNone implies noinline; we should not be inlining such functions.
-    auto noInlineAttr =
-        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
-    attrs.set(noInlineAttr.getMnemonic(), noInlineAttr);
+    f.setInlineKind(cir::InlineKind::NoInline);
 
     // We still need to handle naked functions even though optnone subsumes
     // much of their semantics.
@@ -2961,21 +2953,15 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     llvm_unreachable("NYI");
   } else if (decl->hasAttr<NoInlineAttr>() && !isAlwaysInline) {
     // Add noinline if the function isn't always_inline.
-    auto attr =
-        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
-    attrs.set(attr.getMnemonic(), attr);
+    f.setInlineKind(cir::InlineKind::NoInline);
   } else if (decl->hasAttr<AlwaysInlineAttr>() && !isNoInline) {
     // (noinline wins over always_inline, and we can't specify both in IR)
-    auto attr =
-        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::AlwaysInline);
-    attrs.set(attr.getMnemonic(), attr);
+    f.setInlineKind(cir::InlineKind::AlwaysInline);
   } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyAlwaysInlining) {
     // If we're not inlining, then force everything that isn't always_inline
     // to carry an explicit noinline attribute.
     if (!isAlwaysInline) {
-      auto attr =
-          cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
-      attrs.set(attr.getMnemonic(), attr);
+      f.setInlineKind(cir::InlineKind::NoInline);
     }
   } else {
     // Otherwise, propagate the inline hint attribute and potentially use its
@@ -2994,15 +2980,11 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
         return any_of(pattern->redecls(), checkRedeclForInline);
       };
       if (checkForInline(fd)) {
-        auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                         cir::InlineKind::InlineHint);
-        attrs.set(attr.getMnemonic(), attr);
+        f.setInlineKind(cir::InlineKind::InlineHint);
       } else if (codeGenOpts.getInlining() ==
                      CodeGenOptions::OnlyHintInlining &&
                  !fd->isInlined() && !isAlwaysInline) {
-        auto attr =
-            cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
-        attrs.set(attr.getMnemonic(), attr);
+        f.setInlineKind(cir::InlineKind::NoInline);
       }
     }
   }

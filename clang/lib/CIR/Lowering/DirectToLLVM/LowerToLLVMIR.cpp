@@ -100,17 +100,7 @@ private:
     if (auto extraAttr = mlir::dyn_cast<cir::ExtraFuncAttributesAttr>(
             attribute.getValue())) {
       for (auto attr : extraAttr.getElements()) {
-        if (auto inlineAttr =
-                mlir::dyn_cast<cir::InlineAttr>(attr.getValue())) {
-          if (inlineAttr.isNoInline())
-            llvmFunc->addFnAttr(llvm::Attribute::NoInline);
-          else if (inlineAttr.isAlwaysInline())
-            llvmFunc->addFnAttr(llvm::Attribute::AlwaysInline);
-          else if (inlineAttr.isInlineHint())
-            llvmFunc->addFnAttr(llvm::Attribute::InlineHint);
-          else
-            llvm_unreachable("Unknown inline kind");
-        } else if (mlir::dyn_cast<cir::OptNoneAttr>(attr.getValue())) {
+        if (mlir::dyn_cast<cir::OptNoneAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
         } else if (mlir::dyn_cast<cir::NoThrowAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
