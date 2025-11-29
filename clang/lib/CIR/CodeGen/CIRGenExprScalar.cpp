@@ -3027,28 +3027,44 @@ mlir::Value ScalarExprEmitter::VisitVAArgExpr(VAArgExpr *VE) {
 mlir::Value ScalarExprEmitter::VisitUnaryExprOrTypeTraitExpr(
     const UnaryExprOrTypeTraitExpr *E) {
   QualType TypeToSize = E->getTypeOfArgument();
-  if (E->getKind() == UETT_SizeOf) {
+  if (auto kind = E->getKind();
+      kind == UETT_SizeOf || kind == UETT_DataSizeOf | kind == UETT_CountOf) {
     if (const VariableArrayType *VAT =
             CGF.getContext().getAsVariableArrayType(TypeToSize)) {
 
-      if (E->isArgumentType()) {
-        // sizeof(type) - make sure to emit the VLA size.
-        CGF.emitVariablyModifiedType(TypeToSize);
-      } else {
-        // C99 6.5.3.4p2: If the argument is an expression of type
-        // VLA, it is evaluated.
-        CGF.emitIgnoredExpr(E->getArgumentExpr());
+      // For _Countof, we only want to evaluate if the extent is actually
+      // variable as opposed to a multi-dimensional array whose extent is
+      // constant but whose element type is variable.
+      bool evaluateExtent = true;
+      if (kind == UETT_CountOf && VAT->getElementType()->isArrayType()) {
+        evaluateExtent =
+            !VAT->getSizeExpr()->isIntegerConstantExpr(CGF.getContext());
       }
 
-      auto VlaSize = CGF.getVLASize(VAT);
-      mlir::Value size = VlaSize.NumElts;
+      if (evaluateExtent) {
+        if (E->isArgumentType()) {
+          // sizeof(type) - make sure to emit the VLA size.
+          CGF.emitVariablyModifiedType(TypeToSize);
+        } else {
+          // C99 6.5.3.4p2: If the argument is an expression of type
+          // VLA, it is evaluated.
+          CGF.emitIgnoredExpr(E->getArgumentExpr());
+        }
 
-      // Scale the number of non-VLA elements by the non-VLA element size.
-      CharUnits eltSize = CGF.getContext().getTypeSizeInChars(VlaSize.Type);
-      if (!eltSize.isOne())
-        size = Builder.createMul(size, CGF.CGM.getSize(eltSize).getValue());
+        // For _Countof, we just want to return the size of a single dimension.
+        if (kind == UETT_CountOf)
+          return CGF.getVLAElements1D(VAT).NumElts;
 
-      return size;
+        auto VlaSize = CGF.getVLASize(VAT);
+        mlir::Value size = VlaSize.NumElts;
+
+        // Scale the number of non-VLA elements by the non-VLA element size.
+        CharUnits eltSize = CGF.getContext().getTypeSizeInChars(VlaSize.Type);
+        if (!eltSize.isOne())
+          size = Builder.createMul(size, CGF.CGM.getSize(eltSize).getValue());
+
+        return size;
+      }
     }
   } else if (E->getKind() == UETT_OpenMPRequiredSimdAlign) {
     llvm_unreachable("NYI");
