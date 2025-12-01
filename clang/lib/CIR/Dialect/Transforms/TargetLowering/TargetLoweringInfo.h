@@ -34,6 +34,10 @@ public:
 
   virtual unsigned
   getTargetAddrSpaceFromCIRAddrSpace(cir::AddressSpace addrSpace) const = 0;
+
+  virtual mlir::Type getOpaqueType(cir::OpaqueType type) const {
+    llvm_unreachable("NYI");
+  }
 };
 
 } // namespace cir
