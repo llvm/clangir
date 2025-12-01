@@ -2123,18 +2123,11 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     return emitComplexToScalarConversion(CGF.getLoc(CE->getExprLoc()), V, Kind,
                                          DestTy);
   }
-  case CK_ZeroToOCLOpaqueType: {
+  case CK_ZeroToOCLOpaqueType:
     // OpenCL: event_t e = async_work_group_copy(..., 0);
     // The source is an integer constant zero; the destination is an OpenCL
     // opaque type
-    mlir::Type destTy = CGF.convertType(DestTy);
-    auto PtrTy =
-        cir::PointerType::get(destTy, cir::AddressSpace::OffloadPrivate);
-    auto constNullPtrAttr = Builder.getConstNullPtrAttr(PtrTy);
-    auto nullVal =
-        Builder.getConstant(CGF.getLoc(E->getExprLoc()), constNullPtrAttr);
-    return nullVal;
-  }
+    return emitNullValue(DestTy, CGF.getLoc(E->getExprLoc()));
   case CK_IntToOCLSampler:
     llvm_unreachable("NYI");
 

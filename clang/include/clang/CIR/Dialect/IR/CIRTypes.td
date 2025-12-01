@@ -753,6 +753,48 @@ def CIRRecordType : Type<
   CPred<"::mlir::isa<::cir::RecordType>($_self)">, "CIR record type">;
 
 //===----------------------------------------------------------------------===//
+// Minimal opaque type (used for OpenCL opaque builtin types)
+//===----------------------------------------------------------------------===//
+
+def CIR_OCLOpaqueType : CIR_Type<"Opaque", "opaque"> {
+  let summary = "Named opaque type for OpenCL-style builtin opaque objects";
+
+  let description = [{
+    Represents a target-independent opaque type used for OpenCL opaque
+    builtin types such as `event_t`, `sampler_t`, `clk_event_t` and `queue_t`.
+
+    The type has no defined size or layout. CIR carries it through
+    lowering and delegates the final representation to the target codegen
+    (e.g. SPIR/SPIR-V lowering), which maps the logical opaque kind to
+    the correct LLVM type.
+
+    The `tag` attribute identifies the opaque category (e.g. `"event"`).
+    Values of this type typically appear only through pointer types.
+
+    Example:
+      !cir.ptr<!cir.opaque<"event">, addrspace(1)>
+  }];
+
+  let parameters = (ins "mlir::StringAttr":$tag);
+
+  let builders = [
+    TypeBuilder<(ins "mlir::StringAttr":$tag), [{
+      return $_get($_ctxt, tag);
+    }]>
+  ];
+
+  let extraClassDeclaration = [{
+    static llvm::StringRef getEventTag() { return "event"; }
+  }];
+
+  let assemblyFormat = [{
+    `<` $tag `>`
+  }];
+
+  let skipDefaultBuilders = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // Global type constraints
 //===----------------------------------------------------------------------===//
 
@@ -760,7 +802,7 @@ def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
   CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType,
-  CIR_VPtrType
+  CIR_VPtrType, CIR_OCLOpaqueType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
