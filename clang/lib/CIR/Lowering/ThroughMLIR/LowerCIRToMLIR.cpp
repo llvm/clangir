@@ -806,30 +806,44 @@ public:
   addImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
                mlir::ConversionPatternRewriter &rewriter) const {
     if (type.isFloat()) {
-      auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
-                                                 mlir::FloatAttr::get(type, n));
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(),
+          mlir::FloatAttr::get(type, static_cast<double>(n)));
       return rewriter.replaceOpWithNewOp<mlir::arith::AddFOp>(op, type, input,
                                                               imm);
     }
-    auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
-                                               mlir::IntegerAttr::get(type, n));
-    return rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input,
-                                                            imm);
+    if (type.isInteger()) {
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, n));
+      return rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input,
+                                                              imm);
+    }
+    op->emitError("Unsupported type in addImmediate: ")
+        << type << " at " << op->getLoc();
+    llvm_unreachable("addImmediate called with unsupported type");
+    return nullptr;
   }
 
   mlir::Operation *
   subByImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
                  mlir::ConversionPatternRewriter &rewriter) const {
     if (type.isFloat()) {
-      auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
-                                                 mlir::FloatAttr::get(type, n));
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(),
+          mlir::FloatAttr::get(type, static_cast<double>(n)));
       return rewriter.replaceOpWithNewOp<mlir::arith::SubFOp>(op, type, imm,
                                                               input);
     }
-    auto imm = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
-                                               mlir::IntegerAttr::get(type, n));
-    return rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, imm,
-                                                            input);
+    if (type.isInteger()) {
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, n));
+      return rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, imm,
+                                                              input);
+    }
+    op->emitError("Unsupported type in subByImmediate: ")
+        << type << " at " << op->getLoc();
+    llvm_unreachable("subByImmediate called with unsupported type");
+    return nullptr;
   }
 
   mlir::LogicalResult
