@@ -168,9 +168,10 @@ public:
       return cir::ZeroAttr::get(RecordTy);
     if (auto methodTy = mlir::dyn_cast<cir::MethodType>(ty))
       return getNullMethodAttr(methodTy);
-    if (mlir::isa<cir::BoolType>(ty)) {
+    if (mlir::isa<cir::BoolType>(ty))
       return getFalseAttr();
-    }
+    if (mlir::isa<cir::OpaqueType>(ty))
+      return cir::ZeroAttr::get(ty);
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 

@@ -11,6 +11,7 @@
 #include "LowerTypes.h"
 #include "TargetInfo.h"
 #include "TargetLoweringInfo.h"
+#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -60,6 +61,11 @@ public:
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");
     }
+  }
+
+  mlir::Type getOpaqueType(cir::OpaqueType type) const override {
+    assert(!cir::MissingFeatures::addressSpace());
+    return mlir::LLVM::LLVMPointerType::get(type.getContext());
   }
 };
 

@@ -439,7 +439,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
 
   if (isa<cir::ZeroAttr>(attrType)) {
     if (::mlir::isa<cir::RecordType, cir::ArrayType, cir::ComplexType,
-                    cir::VectorType>(opType))
+                    cir::VectorType, cir::OpaqueType>(opType))
       return success();
     return op->emitOpError("zero expects record or array type");
   }

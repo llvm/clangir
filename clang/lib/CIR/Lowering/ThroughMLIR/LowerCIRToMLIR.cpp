@@ -1879,6 +1879,8 @@ static mlir::TypeConverter prepareTypeConverter() {
       return nullptr;
     return mlir::VectorType::get(2, elemTy);
   });
+  converter.addConversion(
+      [&](cir::OpaqueType type) -> mlir::Type { llvm_unreachable("NYI"); });
   return converter;
 }
 

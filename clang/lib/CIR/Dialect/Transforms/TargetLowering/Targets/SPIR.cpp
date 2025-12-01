@@ -11,8 +11,10 @@
 #include "LowerTypes.h"
 #include "TargetInfo.h"
 #include "TargetLoweringInfo.h"
+#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -58,6 +60,16 @@ public:
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");
     }
+  }
+
+  mlir::Type getOpaqueType(cir::OpaqueType type) const override {
+    if (type.getTag() != cir::OpaqueType::getEventTag())
+      llvm_unreachable("NYI");
+
+    return mlir::LLVM::LLVMTargetExtType::get(type.getContext(),
+                                              /*extTypeName=*/"spirv.Event",
+                                              /*typeParams=*/{},
+                                              /*intParams=*/{});
   }
 };
 
