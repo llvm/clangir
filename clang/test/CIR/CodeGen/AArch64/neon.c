@@ -9,6 +9,11 @@
 // RUN: | opt -S -passes=mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +neon \
+// RUN:  -flax-vector-conversions=none -emit-llvm -o - %s \
+// RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t-og.ll
+// RUN: FileCheck --check-prefix=OGCG --input-file=%t-og.ll %s
+
 // REQUIRES: aarch64-registered-target || arm-registered-target
 
 // This test mimics clang/test/CodeGen/AArch64/neon-intrinsics.c, which eventually
@@ -18637,6 +18642,23 @@ uint32_t test_vmaxv_u32(uint32x2_t a) {
   // LLVM:  [[VMAXV_U32_I:%.*]] = call i32 @llvm.aarch64.neon.umaxv.i32.v2i32(<2 x i32> {{.*}})
   // LLVM:  ret i32 [[VMAXV_U32_I]]
 }
+
+uint16_t test_vmaxvq_u16(uint16x8_t a) {
+  return vmaxvq_u16(a);
+
+  // CIR-LABEL: vmaxvq_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umax" {{%.*}} : (!cir.vector<!u16i x 8>) -> !u16i
+
+  // LLVM-LABEL: @test_vmaxvq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMAXVQ_U16_I:%.*]] = call i16 @llvm.vector.reduce.umax.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMAXVQ_U16_I]]
+
+  // OGCG-LABEL: @test_vmaxvq_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umax.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);
