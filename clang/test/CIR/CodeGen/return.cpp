@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o - | FileCheck %s
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fno-strict-return -fclangir -emit-llvm %s -o - | FileCheck %s --check-prefix=CHECK-NOSTRICT
+// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fno-strict-return -emit-llvm %s -o - | FileCheck %s --check-prefix=OGCG-CHECK-NOSTRICT
 
 int &ret0(int &x) {
   return x;
@@ -40,9 +41,12 @@ struct NonTrivialDefaultConstructor {
 };
 
 // CHECK-NOSTRICT-LABEL: @_Z28nonTrivialDefaultConstructorv
+// OGCG-CHECK-NOSTRICT-LABEL: @_Z28nonTrivialDefaultConstructorv
 NonTrivialDefaultConstructor nonTrivialDefaultConstructor() {
   // CHECK-NOSTRICT-NOT: call void @llvm.trap
   // CHECK-NOSTRICT-NOT: unreachable
+  // OGCG-CHECK-NOSTRICT-NOT: call void @llvm.trap
+  // OGCG-CHECK-NOSTRICT-NOT: unreachable
 }
 
 // Functions that return records with non-trivial destructors should always use
@@ -53,7 +57,10 @@ struct NonTrivialDestructor {
 };
 
 // CHECK-NOSTRICT-LABEL: @_Z20nonTrivialDestructorv
+// OGCG-CHECK-NOSTRICT-LABEL: @_Z20nonTrivialDestructorv
 NonTrivialDestructor nonTrivialDestructor() {
   // CHECK-NOSTRICT: call void @llvm.trap
   // CHECK-NOSTRICT-NEXT: unreachable
+  // OGCG-CHECK-NOSTRICT: call void @llvm.trap
+  // OGCG-CHECK-NOSTRICT-NEXT: unreachable
 }
