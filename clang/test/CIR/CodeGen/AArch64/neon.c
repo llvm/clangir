@@ -18707,6 +18707,102 @@ int16_t test_vminvq_s16(int16x8_t a) {
   // OGCG: ret i16
 }
 
+uint8_t test_vminv_u8(uint8x8_t a) {
+  return vminv_u8(a);
+
+  // CIR-LABEL: vminv_u8
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u8i x 8>) -> !u8i
+
+  // LLVM-LABEL: @test_vminv_u8
+  // LLVM-SAME: (<8 x i8> [[a:%.*]])
+  // LLVM: [[VMINV_U8_I:%.*]] = call i8 @llvm.vector.reduce.umin.v8i8(<8 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINV_U8_I]]
+
+  // OGCG-LABEL: @test_vminv_u8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.umin.v8i8(<8 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+uint16_t test_vminv_u16(uint16x4_t a) {
+  return vminv_u16(a);
+
+  // CIR-LABEL: vminv_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u16i x 4>) -> !u16i
+
+  // LLVM-LABEL: @test_vminv_u16
+  // LLVM-SAME: (<4 x i16> [[a:%.*]])
+  // LLVM: [[VMINV_U16_I:%.*]] = call i16 @llvm.vector.reduce.umin.v4i16(<4 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINV_U16_I]]
+
+  // OGCG-LABEL: @test_vminv_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umin.v4i16(<4 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+uint16_t test_vminvq_u16(uint16x8_t a) {
+  return vminvq_u16(a);
+
+  // CIR-LABEL: vminvq_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u16i x 8>) -> !u16i
+
+  // LLVM-LABEL: @test_vminvq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMINVQ_U16_I:%.*]] = call i16 @llvm.vector.reduce.umin.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINVQ_U16_I]]
+
+  // OGCG-LABEL: @test_vminvq_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umin.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int8_t test_vminv_s8(int8x8_t a) {
+  return vminv_s8(a);
+
+  // CIR-LABEL: vminv_s8
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s8i x 8>) -> !s8i
+
+  // LLVM-LABEL: @test_vminv_s8
+  // LLVM-SAME: (<8 x i8> [[a:%.*]])
+  // LLVM: [[VMINV_S8_I:%.*]] = call i8 @llvm.vector.reduce.smin.v8i8(<8 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINV_S8_I]]
+
+  // OGCG-LABEL: @test_vminv_s8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.smin.v8i8(<8 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+int16_t test_vminv_s16(int16x4_t a) {
+  return vminv_s16(a);
+
+  // CIR-LABEL: vminv_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s16i x 4>) -> !s16i
+
+  // LLVM-LABEL: @test_vminv_s16
+  // LLVM-SAME: (<4 x i16> [[a:%.*]])
+  // LLVM: [[VMINV_S16_I:%.*]] = call i16 @llvm.vector.reduce.smin.v4i16(<4 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINV_S16_I]]
+
+  // OGCG-LABEL: @test_vminv_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smin.v4i16(<4 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int8_t test_vminvq_s8(int8x16_t a) {
+  return vminvq_s8(a);
+
+  // CIR-LABEL: vminvq_s8
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s8i x 16>) -> !s8i
+
+  // LLVM-LABEL: @test_vminvq_s8
+  // LLVM-SAME: (<16 x i8> [[a:%.*]])
+  // LLVM: [[VMINVQ_S8_I:%.*]] = call i8 @llvm.vector.reduce.smin.v16i8(<16 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINVQ_S8_I]]
+
+  // OGCG-LABEL: @test_vminvq_s8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.smin.v16i8(<16 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);

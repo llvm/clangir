@@ -4357,26 +4357,32 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vmaxvq_f16 NYI");
   }
   case NEON::BI__builtin_neon_vminv_u8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminv_u8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.umin", UInt8Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminv_u16: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminv_u16 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.umin", UInt16Ty, 4,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminvq_u8: {
     return emitCommonNeonVecAcrossCall(*this, "vector.reduce.umin", UInt8Ty, 16,
                                        E);
   }
   case NEON::BI__builtin_neon_vminvq_u16: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminvq_u16 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.umin", UInt16Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminv_s8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminv_s8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.smin", SInt8Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminv_s16: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminv_s16 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.smin", SInt16Ty, 4,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminvq_s8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminvq_s8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.smin", SInt8Ty, 16,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminvq_s16: {
     return emitCommonNeonVecAcrossCall(*this, "vector.reduce.smin", SInt16Ty, 8,
