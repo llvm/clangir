@@ -21,6 +21,7 @@ for extra context about the project.
 
 # Talks and posts
 
+- Dec 2025: [GSoC 2025: ClangIR upstreaming](https://blog.llvm.org/posts/2025-gsoc-clangir-upstreaming/)
 - Oct 2025: US LLVM Developers Meeting (keynote). *ClangIR: Upstreaming an Incubator Project*. [video](https://www.youtube.com/watch?v=mQXE_y1T6H0), [pdf](Files/2025_ClangIR_UpstreamingIncubator.pdf)
 - Oct 2025: [A High-Level Overview of Address Spaces: Their Place in ClangIR and LLVM](https://dev.to/david_rivera_8d845b35931e/a-high-level-overview-of-address-spaces-their-place-in-clangir-5e0k)
 - Jun 2025: Asia LLVM. *ClangIR’s Footprint: A quick compile-time impact report*. [video](https://www.youtube.com/watch?v=Dh_RObp5SUE), [pdf](Files/asiallvm-brunolopes-25-cir-compile-time.pdf)
