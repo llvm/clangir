@@ -18691,6 +18691,22 @@ uint8_t test_vminvq_u8(uint8x16_t a) {
   // OGCG: ret i8
 }
 
+int16_t test_vminvq_s16(int16x8_t a) {
+  return vminvq_s16(a);
+
+  // CIR-LABEL: vminvq_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s16i x 8>) -> !s16i
+
+  // LLVM-LABEL: @test_vminvq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMINVQ_S16_I:%.*]] = call i16 @llvm.vector.reduce.smin.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINVQ_S16_I]]
+
+  // OGCG-LABEL: @test_vminvq_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smin.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);

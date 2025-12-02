@@ -4379,7 +4379,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vminvq_s8 NYI");
   }
   case NEON::BI__builtin_neon_vminvq_s16: {
-    llvm_unreachable("NEON::BI__builtin_neon_vminvq_s16 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "vector.reduce.smin", SInt16Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vminv_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vminv_f16 NYI");
