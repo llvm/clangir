@@ -1205,10 +1205,6 @@ def CIR_InlineKind : CIR_I32EnumAttr<"InlineKind", "inlineKind", [
 // Unit Function Attributes
 //===----------------------------------------------------------------------===//
 
-def CIR_OptNoneAttr : CIR_UnitAttr<"OptNone", "optnone"> {
-  let storageType = [{ OptNoneAttr }];
-}
-
 def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
   let storageType = [{ NoThrowAttr }];
 }

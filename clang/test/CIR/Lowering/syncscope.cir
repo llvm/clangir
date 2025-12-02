@@ -1,9 +1,9 @@
 // RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering -o -  | FileCheck %s -check-prefix=LLVM
 
 !s32i = !cir.int<s, 32>
-#fn_attr = #cir<extra({nothrow = #cir.nothrow, optnone = #cir.optnone})>
+#fn_attr = #cir<extra({nothrow = #cir.nothrow})>
 module {
-  cir.func no_inline @test(%ptr: !cir.ptr<!s32i>, %expected: !s32i, %desired: !s32i) -> !cir.bool extra(#fn_attr) {
+  cir.func no_inline optnone @test(%ptr: !cir.ptr<!s32i>, %expected: !s32i, %desired: !s32i) -> !cir.bool extra(#fn_attr) {
     %old, %cmp = cir.atomic.cmp_xchg(%ptr : !cir.ptr<!s32i>, %expected : !s32i, %desired : !s32i, success = acquire, failure = acquire) syncscope(single_thread) align(4) : (!s32i, !cir.bool)
     cir.return %cmp: !cir.bool
   }

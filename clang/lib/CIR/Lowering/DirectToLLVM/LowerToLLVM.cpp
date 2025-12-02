@@ -2369,6 +2369,7 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
         name == func.getFunctionTypeAttrName() ||
         name == getLinkageAttrNameString() ||
         name == func.getCallingConvAttrName() ||
+        name == func.getOptNoneAttrName() ||
         name == func.getDsoLocalAttrName() ||
         name == func.getInlineKindAttrName() ||
         (filterArgAndResAttrs && (name == func.getArgAttrsAttrName() ||
@@ -2494,20 +2495,13 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
                                            mlir::SymbolRefAttr(), attributes);
 
   if (std::optional<cir::InlineKind> inlineKind = op.getInlineKind()) {
-    switch (*inlineKind) {
-    case cir::InlineKind::NoInline:
-      fn.setNoInline(true);
-      break;
-    case cir::InlineKind::AlwaysInline:
-      fn.setAlwaysInline(true);
-      break;
-    case cir::InlineKind::InlineHint:
-      fn.setInlineHint(true);
-      break;
-    default:
-      llvm_unreachable("Unknown inline kind");
-    }
+    fn.setNoInline(*inlineKind == cir::InlineKind::NoInline);
+    fn.setInlineHint(*inlineKind == cir::InlineKind::InlineHint);
+    fn.setAlwaysInline(*inlineKind == cir::InlineKind::AlwaysInline);
   }
+
+  fn.setOptimizeNone(op.getOptNone());
+
   // Lower CIR attributes for arguments.
   for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
     mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);
@@ -2539,6 +2533,9 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
   fn.setVisibility_Attr(mlir::LLVM::VisibilityAttr::get(
       getContext(), lowerCIRVisibilityToLLVMVisibility(
                         op.getGlobalVisibilityAttr().getValue())));
+
+  // Handle optnone attribute
+  fn.setOptimizeNone(op.getOptNone());
 
   rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
   if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,

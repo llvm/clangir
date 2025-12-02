@@ -14,7 +14,7 @@ int foo(void) {
   return bar(5);
 }
 
-// CIR-O0:   cir.func no_inline internal private {{.*}} @bar
+// CIR-O0:   cir.func no_inline optnone internal private {{.*}} @bar
 // CIR-O1:   cir.func internal private {{.*}} @bar
 // CIR:      cir.func {{.*}} @foo
 
