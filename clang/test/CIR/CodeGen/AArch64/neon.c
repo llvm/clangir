@@ -18659,6 +18659,22 @@ uint16_t test_vmaxvq_u16(uint16x8_t a) {
   // OGCG: ret i16
 }
 
+int16_t test_vmaxvq_s16(int16x8_t a) {
+  return vmaxvq_s16(a);
+
+  // CIR-LABEL: vmaxvq_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smax" {{%.*}} : (!cir.vector<!s16i x 8>) -> !s16i
+
+  // LLVM-LABEL: @test_vmaxvq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMAXVQ_S16_I:%.*]] = call i16 @llvm.vector.reduce.smax.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMAXVQ_S16_I]]
+
+  // OGCG-LABEL: @test_vmaxvq_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smax.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);
