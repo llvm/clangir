@@ -2930,7 +2930,7 @@ static mlir::Value emitTargetArchBuiltinExpr(CIRGenFunction *CGF,
     llvm_unreachable("NYI");
   case llvm::Triple::r600:
   case llvm::Triple::amdgcn:
-    llvm_unreachable("NYI");
+    return CGF->emitAMDGPUBuiltinExpr(BuiltinID, E);
   case llvm::Triple::systemz:
     llvm_unreachable("NYI");
   case llvm::Triple::nvptx:
