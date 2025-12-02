@@ -1514,18 +1514,20 @@ def CIR_ComplexCreateOp : CIR_Op<"complex.create", [Pure, SameTypeOperands]> {
 def CIR_ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
   let summary = "Extract the real part of a complex value";
   let description = [{
-    `cir.complex.real` operation takes an operand of `!cir.complex` type and
-    yields the real part of it.
+    `cir.complex.real` operation takes an operand of `!cir.complex`, `cir.int`, 
+    `!cir.bool` or `!cir.float`. If the operand is `!cir.complex`, the real 
+    part of it will be returned, otherwise the value returned unmodified.  
 
     Example:
 
     ```mlir
-    %1 = cir.complex.real %0 : !cir.complex<!cir.float> -> !cir.float
+    %real = cir.complex.real %complex : !cir.complex<!cir.float> -> !cir.float
+    %real = cir.complex.real %scalar  : !cir.float -> !cir.float
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrFloatType:$result);
-  let arguments = (ins CIR_AnyComplexOrIntOrFloatType:$operand);
+  let results = (outs CIR_AnyIntOrBoolOrFloatType:$result);
+  let arguments = (ins CIR_AnyComplexOrIntOrBoolOrFloatType:$operand);
 
   let assemblyFormat = [{
     $operand `:` qualified(type($operand)) `->` qualified(type($result))
@@ -1540,8 +1542,8 @@ def CIR_ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
   let summary = "Extract the imaginary part of a complex value";
   let description = [{
     `cir.complex.imag` operation takes an operand of `!cir.complex`, `!cir.int`
-    or `!cir.float`. If the operand is `!cir.complex`, the imag part of it will
-    be returned, otherwise a zero value will be returned.
+    `!cir.bool` or `!cir.float`. If the operand is `!cir.complex`, the imag 
+    part of it will be returned, otherwise a zero value will be returned.   
 
     Example:
 
@@ -1551,8 +1553,8 @@ def CIR_ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrFloatType:$result);
-  let arguments = (ins CIR_AnyComplexOrIntOrFloatType:$operand);
+  let results = (outs CIR_AnyIntOrBoolOrFloatType:$result);
+  let arguments = (ins CIR_AnyComplexOrIntOrBoolOrFloatType:$operand);
 
   let assemblyFormat = [{
     $operand `:` qualified(type($operand)) `->` qualified(type($result))
