@@ -18819,6 +18819,102 @@ int16_t test_vaddvq_s16(int16x8_t a) {
   // OGCG: ret i16
 }
 
+int16x8_t test_vpminq_s16(int16x8_t a, int16x8_t b) {
+  return vpminq_s16(a, b);
+
+  // CIR-LABEL: vpminq_s16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.sminp" {{%.*}} : (!cir.vector<!s16i x 8>, !cir.vector<!s16i x 8>) -> !cir.vector<!s16i x 8>
+
+  // LLVM-LABEL: @test_vpminq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.sminp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpminq_s16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.sminp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+uint16x8_t test_vpminq_u16(uint16x8_t a, uint16x8_t b) {
+  return vpminq_u16(a, b);
+
+  // CIR-LABEL: vpminq_u16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uminp" {{%.*}} : (!cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM-LABEL: @test_vpminq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.uminp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpminq_u16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.uminp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+uint16x8_t test_vpmaxq_u16(uint16x8_t a, uint16x8_t b) {
+  return vpmaxq_u16(a, b);
+
+  // CIR-LABEL: vpmaxq_u16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.umaxp" {{%.*}} : (!cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM-LABEL: @test_vpmaxq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.umaxp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpmaxq_u16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.umaxp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+int16x8_t test_vpmaxq_s16(int16x8_t a, int16x8_t b) {
+  return vpmaxq_s16(a, b);
+
+  // CIR-LABEL: vpmaxq_s16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.smaxp" {{%.*}} : (!cir.vector<!s16i x 8>, !cir.vector<!s16i x 8>) -> !cir.vector<!s16i x 8>
+
+  // LLVM-LABEL: @test_vpmaxq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.smaxp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpmaxq_s16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.smaxp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+float32x4_t test_vpminq_f32(float32x4_t a, float32x4_t b) {
+  return vpminq_f32(a, b);
+
+  // CIR-LABEL: vpminq_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fminp" {{%.*}} : (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_vpminq_f32
+  // LLVM-SAME: (<4 x float> [[a:%.*]], <4 x float> [[b:%.*]])
+  // LLVM: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fminp.v4f32(<4 x float> {{.*}}, <4 x float> {{.*}})
+  // LLVM: ret <4 x float>
+
+  // OGCG-LABEL: @test_vpminq_f32
+  // OGCG: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fminp.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}})
+  // OGCG: ret <4 x float>
+}
+
+float32x4_t test_vpmaxq_f32(float32x4_t a, float32x4_t b) {
+  return vpmaxq_f32(a, b);
+
+  // CIR-LABEL: vpmaxq_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fmaxp" {{%.*}} : (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_vpmaxq_f32
+  // LLVM-SAME: (<4 x float> [[a:%.*]], <4 x float> [[b:%.*]])
+  // LLVM: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fmaxp.v4f32(<4 x float> {{.*}}, <4 x float> {{.*}})
+  // LLVM: ret <4 x float>
+
+  // OGCG-LABEL: @test_vpmaxq_f32
+  // OGCG: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fmaxp.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}})
+  // OGCG: ret <4 x float>
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);

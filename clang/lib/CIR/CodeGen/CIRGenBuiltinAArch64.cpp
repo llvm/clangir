@@ -4056,11 +4056,31 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     return builder.createAdd(tmp, addEnd);
   }
   case NEON::BI__builtin_neon_vpmin_v:
-  case NEON::BI__builtin_neon_vpminq_v:
-    llvm_unreachable("NEON::BI__builtin_neon_vpminq_v NYI");
+  case NEON::BI__builtin_neon_vpminq_v: {
+    // Pairwise min: use uminp for unsigned, sminp for signed, fminp for float
+    llvm::StringRef intName;
+    if (mlir::isa<cir::IntType>(vTy.getElementType())) {
+      intName = usgn ? "aarch64.neon.uminp" : "aarch64.neon.sminp";
+    } else {
+      intName = "aarch64.neon.fminp";
+    }
+    llvm::SmallVector<mlir::Value, 2> args = {Ops[0], Ops[1]};
+    return emitNeonCall(builder, {vTy, vTy}, args, intName, vTy,
+                        getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vpmax_v:
-  case NEON::BI__builtin_neon_vpmaxq_v:
-    llvm_unreachable("NEON::BI__builtin_neon_vpmaxq_v NYI");
+  case NEON::BI__builtin_neon_vpmaxq_v: {
+    // Pairwise max: use umaxp for unsigned, smaxp for signed, fmaxp for float
+    llvm::StringRef intName;
+    if (mlir::isa<cir::IntType>(vTy.getElementType())) {
+      intName = usgn ? "aarch64.neon.umaxp" : "aarch64.neon.smaxp";
+    } else {
+      intName = "aarch64.neon.fmaxp";
+    }
+    llvm::SmallVector<mlir::Value, 2> args = {Ops[0], Ops[1]};
+    return emitNeonCall(builder, {vTy, vTy}, args, intName, vTy,
+                        getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vminnm_v:
   case NEON::BI__builtin_neon_vminnmq_v:
     llvm_unreachable("NEON::BI__builtin_neon_vminnmq_v NYI");
