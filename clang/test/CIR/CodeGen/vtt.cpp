@@ -37,7 +37,7 @@ int f() {
 // CIR: cir.global constant linkonce_odr @_ZTV1A = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI1A> : !cir.ptr<!u8i>, #cir.global_view<@_ZN1A1vEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : !rec_anon_struct3 {alignment = 8 : i64}
 
 // Class A constructor
-// CIR: cir.func linkonce_odr @_ZN1AC2Ev(%arg0: !cir.ptr<!rec_A>
+// CIR: cir.func {{.*}} @_ZN1AC2Ev(%arg0: !cir.ptr<!rec_A>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV1A, address_point = <index = 0, offset = 2>) : !cir.vptr
 // CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{.*}} : !cir.ptr<!rec_A> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
@@ -49,7 +49,7 @@ int f() {
 // CIR: cir.global constant linkonce_odr @_ZTT1D = #cir.const_array<[#cir.global_view<@_ZTV1D, [0 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTC1D0_1B, [0 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTC1D0_1B, [1 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTC1D16_1C, [0 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTC1D16_1C, [1 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTV1D, [2 : i32, 3 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTV1D, [1 : i32, 3 : i32]> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 7> {alignment = 8 : i64}
 
 // Class B constructor
-// CIR: cir.func linkonce_odr @_ZN1BC2Ev(%arg0: !cir.ptr<!rec_B>
+// CIR: cir.func {{.*}} @_ZN1BC2Ev(%arg0: !cir.ptr<!rec_B>
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 0 -> !cir.ptr<!cir.ptr<!void>>
 // CIR:   %{{[0-9]+}} = cir.cast bitcast %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!cir.vptr>
 // CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
@@ -83,7 +83,7 @@ int f() {
 // LLVM: }
 
 // Class C constructor
-// CIR: cir.func linkonce_odr @_ZN1CC2Ev(%arg0: !cir.ptr<!rec_C>
+// CIR: cir.func {{.*}} @_ZN1CC2Ev(%arg0: !cir.ptr<!rec_C>
 // CIR:   %{{[0-9]+}} = cir.vtt.address_point %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>>, offset = 0 -> !cir.ptr<!cir.ptr<!void>>
 // CIR:   %{{[0-9]+}} = cir.cast bitcast %{{[0-9]+}} : !cir.ptr<!cir.ptr<!void>> -> !cir.ptr<!cir.vptr>
 // CIR:   %{{[0-9]+}} = cir.load align(8) %{{[0-9]+}} : !cir.ptr<!cir.vptr>, !cir.vptr
@@ -107,7 +107,7 @@ int f() {
 // CIR: }
 
 // Class D constructor
-// CIR: cir.func linkonce_odr @_ZN1DC1Ev(%arg0: !cir.ptr<!rec_D>
+// CIR: cir.func {{.*}} @_ZN1DC1Ev(%arg0: !cir.ptr<!rec_D>
 // CIR:   %{{[0-9]+}} = cir.alloca !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>, ["this", init] {alignment = 8 : i64}
 // CIR:   cir.store{{.*}} %arg0, %{{[0-9]+}} : !cir.ptr<!rec_D>, !cir.ptr<!cir.ptr<!rec_D>>
 // CIR:   %[[D_PTR:.*]] = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_D>>, !cir.ptr<!rec_D>
@@ -172,7 +172,7 @@ namespace other {
   }
 }
 
-// CIR-LABEL:   cir.func dso_local @_ZN5other1BD1Ev(
+// CIR-LABEL:   cir.func {{.*}} @_ZN5other1BD1Ev(
 // CIR-SAME:                               %[[VAL_0:.*]]: !cir.ptr<!rec_other3A3AB>
 // CIR:           %[[VAL_1:.*]] = cir.alloca !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>, ["this", init] {alignment = 8 : i64}
 // CIR:           cir.store{{.*}} %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>

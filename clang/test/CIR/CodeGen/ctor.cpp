@@ -13,20 +13,20 @@ void baz() {
 
 // CHECK: !rec_Struk = !cir.record<struct "Struk" {!s32i}>
 
-// CHECK:   cir.func linkonce_odr @_ZN5StrukC2Ev(%arg0: !cir.ptr<!rec_Struk>
+// CHECK:   cir.func {{.*}} @_ZN5StrukC2Ev(%arg0: !cir.ptr<!rec_Struk>
 // CHECK-NEXT:     %0 = cir.alloca !cir.ptr<!rec_Struk>, !cir.ptr<!cir.ptr<!rec_Struk>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:     cir.store %arg0, %0 : !cir.ptr<!rec_Struk>, !cir.ptr<!cir.ptr<!rec_Struk>>
 // CHECK-NEXT:     %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_Struk>>, !cir.ptr<!rec_Struk>
 // CHECK-NEXT:     cir.return
 
-// CHECK:   cir.func linkonce_odr @_ZN5StrukC1Ev(%arg0: !cir.ptr<!rec_Struk>
+// CHECK:   cir.func {{.*}} @_ZN5StrukC1Ev(%arg0: !cir.ptr<!rec_Struk>
 // CHECK-NEXT:     %0 = cir.alloca !cir.ptr<!rec_Struk>, !cir.ptr<!cir.ptr<!rec_Struk>>, ["this", init] {alignment = 8 : i64}
 // CHECK-NEXT:     cir.store %arg0, %0 : !cir.ptr<!rec_Struk>, !cir.ptr<!cir.ptr<!rec_Struk>>
 // CHECK-NEXT:     %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_Struk>>, !cir.ptr<!rec_Struk>
 // CHECK-NEXT:     cir.call @_ZN5StrukC2Ev(%1) : (!cir.ptr<!rec_Struk>) -> ()
 // CHECK-NEXT:     cir.return
 
-// CHECK:   cir.func dso_local @_Z3bazv()
+// CHECK:   cir.func {{.*}} @_Z3bazv()
 // CHECK-NEXT:     %0 = cir.alloca !rec_Struk, !cir.ptr<!rec_Struk>, ["s", init] {alignment = 4 : i64}
 // CHECK-NEXT:     cir.call @_ZN5StrukC1Ev(%0) : (!cir.ptr<!rec_Struk>) -> ()
 // CHECK-NEXT:     cir.return

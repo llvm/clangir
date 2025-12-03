@@ -12,7 +12,7 @@ void f0() {
 };
 
 // CIR: !rec_EmptyUnion = !cir.record<union "EmptyUnion" padded {!u8i}>
-// CIR: cir.func dso_local @_Z2f0v()
+// CIR: cir.func {{.*}} @_Z2f0v()
 // CIR:   %0 = cir.alloca !rec_EmptyUnion, !cir.ptr<!rec_EmptyUnion>, ["e"] {alignment = 1 : i64}
 // CIR:   cir.return
 

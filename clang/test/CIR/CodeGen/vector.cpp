@@ -11,7 +11,7 @@ namespace std {
   }
 } // namespace std
 
-// CHECK: cir.func linkonce_odr @_ZNSt6vectorIyE6resizeEm(
+// CHECK: cir.func {{.*}} @_ZNSt6vectorIyE6resizeEm(
 // CHECK:   %0 = cir.alloca !cir.ptr<!rec_std3A3Avector3Cunsigned_long_long3E>, !cir.ptr<!cir.ptr<!rec_std3A3Avector3Cunsigned_long_long3E>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   %1 = cir.alloca !u64i, !cir.ptr<!u64i>, ["__sz", init] {alignment = 8 : i64}
 // CHECK:   %2 = cir.alloca !u64i, !cir.ptr<!u64i>, ["__cs", init] {alignment = 8 : i64}

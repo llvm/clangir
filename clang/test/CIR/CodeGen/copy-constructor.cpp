@@ -8,7 +8,7 @@ struct HasScalarArrayMember {
   HasScalarArrayMember(const HasScalarArrayMember &);
 };
 
-// CIR-LABEL: cir.func dso_local @_ZN20HasScalarArrayMemberC2ERKS_(
+// CIR-LABEL: cir.func {{.*}} @_ZN20HasScalarArrayMemberC2ERKS_(
 // CIR-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
 // CIR-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
 // CIR-NEXT:    cir.store %arg0, %[[#THIS]]
@@ -46,7 +46,7 @@ struct ManyMembers {
   int *p;
 };
 
-// CIR-LABEL: cir.func linkonce_odr @_ZN11ManyMembersC2ERKS_(
+// CIR-LABEL: cir.func {{.*}} @_ZN11ManyMembersC2ERKS_(
 // CIR:         %[[#THIS_LOAD:]] = cir.load{{.*}} %[[#]]
 // CIR-NEXT:    %[[#THIS_I:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "i"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER:]]
@@ -80,13 +80,13 @@ struct ManyMembers {
 // CIR-NEXT:    cir.return
 // CIR-NEXT:  }
 
-// CIR-LABEL: cir.func dso_local @_Z9forceCopyR11ManyMembers(
+// CIR-LABEL: cir.func {{.*}} @_Z9forceCopyR11ManyMembers(
 // CIR:         cir.copy
 void forceCopy(ManyMembers &m) {
   ManyMembers copy(m);
 }
 
-// CIR-LABEL: cir.func dso_local @_Z6doCopyR11ManyMembers(
+// CIR-LABEL: cir.func {{.*}} @_Z6doCopyR11ManyMembers(
 // CIR:         cir.copy
 ManyMembers doCopy(ManyMembers &src) {
   return src;

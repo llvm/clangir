@@ -19,8 +19,8 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   if (arrayTy) {
     cir::PointerType flatPtrTy =
         getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
-    return create<cir::CastOp>(loc, flatPtrTy, cir::CastKind::array_to_ptrdecay,
-                               arrayPtr);
+    return cir::CastOp::create(*this, loc, flatPtrTy,
+                               cir::CastKind::array_to_ptrdecay, arrayPtr);
   }
 
   assert(arrayPtrTy.getPointee() == eltTy &&
@@ -37,15 +37,15 @@ mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
 
   // If this is a boolean, zero-extend it to the array index type.
   if (auto boolTy = mlir::dyn_cast<cir::BoolType>(index.getType()))
-    return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::bool_to_int,
-                               index);
+    return cir::CastOp::create(*this, loc, arrayIndexType,
+                               cir::CastKind::bool_to_int, index);
 
   // If this an integer, ensure that it is at least as width as the array index
   // type.
   if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType())) {
     if (intTy.getWidth() < arrayIndexWidth)
-      return create<cir::CastOp>(loc, arrayIndexType, cir::CastKind::integral,
-                                 index);
+      return cir::CastOp::create(*this, loc, arrayIndexType,
+                                 cir::CastKind::integral, index);
   }
 
   return index;
@@ -65,7 +65,7 @@ mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
   if (shouldDecay && arrayTy && arrayTy == eltTy) {
     auto eltPtrTy =
         getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
-    return create<cir::GetElementOp>(arrayLocEnd, eltPtrTy, arrayPtr,
+    return cir::GetElementOp::create(*this, arrayLocEnd, eltPtrTy, arrayPtr,
                                      promoteArrayIndex(ti, arrayLocBegin, idx));
   }
 
@@ -74,7 +74,7 @@ mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
   if (shouldDecay)
     basePtr = maybeBuildArrayDecay(arrayLocBegin, arrayPtr, eltTy);
   mlir::Type flatPtrTy = basePtr.getType();
-  return create<cir::PtrStrideOp>(arrayLocEnd, flatPtrTy, basePtr, idx);
+  return cir::PtrStrideOp::create(*this, arrayLocEnd, flatPtrTy, basePtr, idx);
 }
 
 cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
@@ -96,7 +96,7 @@ cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
 cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc, mlir::Type t,
                                              uint64_t c) {
   assert(mlir::isa<cir::IntType>(t) && "expected cir::IntType");
-  return create<cir::ConstantOp>(loc, cir::IntAttr::get(t, c));
+  return cir::ConstantOp::create(*this, loc, cir::IntAttr::get(t, c));
 }
 
 void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(

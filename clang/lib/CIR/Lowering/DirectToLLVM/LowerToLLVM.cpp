@@ -1822,7 +1822,6 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
                            rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
   auto elementTy =
       convertTypeForMemory(*getTypeConverter(), dataLayout, op.getAllocaType());
-  auto resultTy = getTypeConverter()->convertType(op.getType());
   // Verification between the CIR alloca AS and the one from data layout.
   auto allocaAS = [&]() {
     auto dlAllocaASAttr = mlir::cast_if_present<mlir::IntegerAttr>(
@@ -2370,7 +2369,9 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
         name == func.getFunctionTypeAttrName() ||
         name == getLinkageAttrNameString() ||
         name == func.getCallingConvAttrName() ||
+        name == func.getOptNoneAttrName() ||
         name == func.getDsoLocalAttrName() ||
+        name == func.getInlineKindAttrName() ||
         (filterArgAndResAttrs && (name == func.getArgAttrsAttrName() ||
                                   name == func.getResAttrsAttrName())))
       continue;
@@ -2493,6 +2494,14 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
                                            llvmFnTy, linkage, isDsoLocal, cconv,
                                            mlir::SymbolRefAttr(), attributes);
 
+  if (std::optional<cir::InlineKind> inlineKind = op.getInlineKind()) {
+    fn.setNoInline(*inlineKind == cir::InlineKind::NoInline);
+    fn.setInlineHint(*inlineKind == cir::InlineKind::InlineHint);
+    fn.setAlwaysInline(*inlineKind == cir::InlineKind::AlwaysInline);
+  }
+
+  fn.setOptimizeNone(op.getOptNone());
+
   // Lower CIR attributes for arguments.
   for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
     mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);
@@ -2524,6 +2533,9 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
   fn.setVisibility_Attr(mlir::LLVM::VisibilityAttr::get(
       getContext(), lowerCIRVisibilityToLLVMVisibility(
                         op.getGlobalVisibilityAttr().getValue())));
+
+  // Handle optnone attribute
+  fn.setOptimizeNone(op.getOptNone());
 
   rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
   if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,

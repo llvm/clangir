@@ -268,6 +268,42 @@ void parseVisibilityAttr(OpAsmParser &parser, cir::VisibilityAttr &visibility) {
 }
 
 //===----------------------------------------------------------------------===//
+// InlineKindAttr (FIXME: remove once FuncOp uses assembly format)
+//===----------------------------------------------------------------------===//
+
+ParseResult parseInlineKindAttr(OpAsmParser &parser,
+                                cir::InlineKindAttr &inlineKindAttr) {
+  // Static list of possible inline kind keywords
+  static constexpr llvm::StringRef keywords[] = {"no_inline", "always_inline",
+                                                 "inline_hint"};
+
+  // Parse the inline kind keyword (optional)
+  llvm::StringRef keyword;
+  if (parser.parseOptionalKeyword(&keyword, keywords).failed()) {
+    // Not an inline kind keyword, leave inlineKindAttr empty
+    return success();
+  }
+
+  // Parse the enum value from the keyword
+  auto inlineKindResult = ::cir::symbolizeEnum<::cir::InlineKind>(keyword);
+  if (!inlineKindResult) {
+    return parser.emitError(parser.getCurrentLocation(), "expected one of [")
+           << llvm::join(llvm::ArrayRef(keywords), ", ")
+           << "] for inlineKind, got: " << keyword;
+  }
+
+  inlineKindAttr =
+      ::cir::InlineKindAttr::get(parser.getContext(), *inlineKindResult);
+  return success();
+}
+
+void printInlineKindAttr(OpAsmPrinter &p, cir::InlineKindAttr inlineKindAttr) {
+  if (inlineKindAttr) {
+    p << " " << stringifyInlineKind(inlineKindAttr.getValue());
+  }
+}
+
+//===----------------------------------------------------------------------===//
 // CIR Custom Parsers/Printers
 //===----------------------------------------------------------------------===//
 
@@ -2646,9 +2682,11 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   auto builtinNameAttr = getBuiltinAttrName(state.name);
   auto coroutineNameAttr = getCoroutineAttrName(state.name);
+  auto inlineKindNameAttr = getInlineKindAttrName(state.name);
   auto lambdaNameAttr = getLambdaAttrName(state.name);
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
+  auto optNoneNameAttr = getOptNoneAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
@@ -2658,10 +2696,20 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (::mlir::succeeded(
           parser.parseOptionalKeyword(coroutineNameAttr.strref())))
     state.addAttribute(coroutineNameAttr, parser.getBuilder().getUnitAttr());
+
+  // Parse optional inline kind attribute
+  cir::InlineKindAttr inlineKindAttr;
+  if (failed(parseInlineKindAttr(parser, inlineKindAttr)))
+    return failure();
+  if (inlineKindAttr)
+    state.addAttribute(inlineKindNameAttr, inlineKindAttr);
+
   if (::mlir::succeeded(parser.parseOptionalKeyword(lambdaNameAttr.strref())))
     state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword("optnone").succeeded())
+    state.addAttribute(optNoneNameAttr, parser.getBuilder().getUnitAttr());
 
   // TODO: Missing comdat
   assert(!cir::MissingFeatures::setComdat());
@@ -2892,11 +2940,16 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getCoroutine())
     p << " coroutine";
 
+  printInlineKindAttr(p, getInlineKindAttr());
+
   if (getLambda())
     p << " lambda";
 
   if (getNoProto())
     p << " no_proto";
+
+  if (getOptNone())
+    p << " optnone";
 
   if (getComdat())
     p << " comdat";
@@ -2941,14 +2994,27 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
-      {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsoLocalAttrName(), getExtraAttrsAttrName(),
-       getFunctionTypeAttrName(), getGlobalCtorPriorityAttrName(),
-       getGlobalDtorPriorityAttrName(), getLambdaAttrName(),
-       getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
-       getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName(),
-       getAnnotationsAttrName(), getCxxSpecialMemberAttrName()});
+      {getAliaseeAttrName(),
+       getBuiltinAttrName(),
+       getCoroutineAttrName(),
+       getDsoLocalAttrName(),
+       getExtraAttrsAttrName(),
+       getFunctionTypeAttrName(),
+       getGlobalCtorPriorityAttrName(),
+       getGlobalDtorPriorityAttrName(),
+       getInlineKindAttrName(),
+       getLambdaAttrName(),
+       getLinkageAttrName(),
+       getCallingConvAttrName(),
+       getNoProtoAttrName(),
+       getOptNoneAttrName(),
+       getSymVisibilityAttrName(),
+       getArgAttrsAttrName(),
+       getResAttrsAttrName(),
+       getComdatAttrName(),
+       getGlobalVisibilityAttrName(),
+       getAnnotationsAttrName(),
+       getCxxSpecialMemberAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

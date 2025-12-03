@@ -11,7 +11,7 @@ void A(void) {
 A:
   return;
 }
-// CIR:  cir.func dso_local @A
+// CIR:  cir.func {{.*}} @A
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
 // CIR:    [[BLOCK:%.*]] = cir.blockaddress <@A, "A"> -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
@@ -53,7 +53,7 @@ B:
   goto *ptr;
 }
 
-// CIR:  cir.func dso_local @B()
+// CIR:  cir.func {{.*}} @B()
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
 // CIR:    cir.br ^bb1
 // CIR:   ^bb1: // 2 preds: ^bb0, ^bb2
@@ -98,7 +98,7 @@ B:
     return;
 }
 
-// CIR:  cir.func dso_local @C
+// CIR:  cir.func {{.*}} @C
 // CIR:    [[BLOCK1:%.*]] = cir.blockaddress <@C, "A"> -> !cir.ptr<!void>
 // CIR:    [[BLOCK2:%.*]] = cir.blockaddress <@C, "B"> -> !cir.ptr<!void>
 // CIR:    [[COND:%.*]] = cir.select if [[CMP:%.*]] then [[BLOCK1]] else [[BLOCK2]] : (!cir.bool, !cir.ptr<!void>, !cir.ptr<!void>) -> !cir.ptr<!void>
@@ -158,7 +158,7 @@ A:
   return;
 }
 
-// CIR:  cir.func dso_local @D
+// CIR:  cir.func {{.*}} @D
 // CIR:    %[[PTR:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init]
 // CIR:    %[[PTR2:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr2", init]
 // CIR:    %[[PTR3:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr3", init]
@@ -224,7 +224,7 @@ D:
   return;
 }
 
-//CIR:  cir.func dso_local @E()
+//CIR:  cir.func {{.*}} @E()
 //CIR:  ^bb1({{.*}}: !cir.ptr<!void> {{.*}}):  // no predecessors
 //CIR:    cir.indirectbr {{.*}} poison : <!void>, [
 //CIR-NEXT:    ^bb5,
