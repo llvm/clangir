@@ -2243,6 +2243,19 @@ public:
 
   void emitInvariantStart(CharUnits Size);
 
+  /// Emit code in this function to perform a guarded variable
+  /// initialization.  Guarded initializations are used when it's not
+  /// possible to prove that an initialization will be done exactly
+  /// once, e.g. with a static local variable or a static data member
+  /// of a class template.
+  void emitCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                          bool performInit);
+
+  /// EmitCXXGlobalVarDeclInit - Create the initializer for a C++
+  /// variable with global storage.
+  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                                bool performInit);
+
   mlir::LogicalResult emitLabel(const clang::LabelDecl *D);
   mlir::LogicalResult emitLabelStmt(const clang::LabelStmt &S);
 

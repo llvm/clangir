@@ -223,6 +223,18 @@ public:
     return createCompare(loc, cir::CmpOpKind::ne, operand, operand);
   }
 
+  /// Return a boolean value testing if \p arg == 0.
+  mlir::Value createIsNull(mlir::Location loc, mlir::Value arg) {
+    return createCompare(loc, cir::CmpOpKind::eq, arg,
+                         getNullValue(arg.getType(), loc));
+  }
+
+  /// Return a boolean value testing if \p arg != 0.
+  mlir::Value createIsNotNull(mlir::Location loc, mlir::Value arg) {
+    return createCompare(loc, cir::CmpOpKind::ne, arg,
+                         getNullValue(arg.getType(), loc));
+  }
+
   mlir::Value createUnaryOp(mlir::Location loc, cir::UnaryOpKind kind,
                             mlir::Value operand) {
     return cir::UnaryOp::create(*this, loc, kind, operand);
@@ -398,7 +410,6 @@ public:
                                 align, order,
                                 /*tbaa=*/cir::TBAAAttr{});
   }
-
 
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
                            mlir::Type type, llvm::StringRef name,
