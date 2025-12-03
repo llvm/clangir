@@ -2374,6 +2374,34 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     }
     return cir::AbsOp::create(builder, loc, ops[0]);
   }
+  case NEON::BI__builtin_neon_vaddhn_v: {
+    // vaddhn_v: Add and narrow high - adds two wide vectors and returns
+    // narrow result with high bits (add vectors, shift right, truncate)
+    mlir::Location loc = getLoc(e->getExprLoc());
+    bool isSigned = mlir::cast<cir::IntType>(vTy.getElementType()).isSigned();
+
+    // Get extended element vector type (e.g., <8 x i16> from <8 x i8> result)
+    cir::VectorType srcTy =
+        builder.getExtendedOrTruncatedElementVectorType(vTy, true, isSigned);
+
+    // Bitcast operands to extended type
+    ops[0] = builder.createBitcast(ops[0], srcTy);
+    ops[1] = builder.createBitcast(ops[1], srcTy);
+
+    // Add the vectors: %sum = add <N x iWIDE> %lhs, %rhs
+    ops[0] = builder.createBinop(ops[0], cir::BinOpKind::Add, ops[1]);
+
+    // Shift right by half element width: %high = lshr <N x iWIDE> %sum, WIDE/2
+    auto srcElemTy = mlir::cast<cir::IntType>(srcTy.getElementType());
+    unsigned shiftAmt = srcElemTy.getWidth() / 2;
+    mlir::Value shiftVal = builder.getConstInt(loc, srcElemTy, shiftAmt);
+    mlir::Value shiftVec =
+        emitNeonShiftVector(builder, shiftVal, srcTy, loc, false);
+    ops[0] = builder.createLShr(loc, ops[0], shiftVec);
+
+    // Truncate to result type: %res = trunc <N x iWIDE> %high to <N x iNARROW>
+    return builder.createIntCast(ops[0], vTy);
+  }
   case NEON::BI__builtin_neon_vmovl_v: {
     cir::VectorType dTy = builder.getExtendedOrTruncatedElementVectorType(
         vTy, false /* truncate */,
@@ -4433,8 +4461,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vaddlvq_u8: {
     cir::VectorType vTy = cir::VectorType::get(UInt8Ty, 16);
     Ops.push_back(emitScalarExpr(E->getArg(0)));
-    Ops[0] = emitNeonCall(builder, {vTy}, Ops, "aarch64.neon.uaddlv",
-                          UInt32Ty, getLoc(E->getExprLoc()));
+    Ops[0] = emitNeonCall(builder, {vTy}, Ops, "aarch64.neon.uaddlv", UInt32Ty,
+                          getLoc(E->getExprLoc()));
     return builder.createIntCast(Ops[0], UInt16Ty);
   }
   case NEON::BI__builtin_neon_vaddlvq_u16:

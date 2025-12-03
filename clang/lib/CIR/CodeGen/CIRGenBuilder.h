@@ -418,6 +418,48 @@ public:
                                 vt.getSize());
   }
 
+  /// Create a logical shift right (lshr) operation.
+  /// For scalar or vector integer types, this ensures logical (not arithmetic)
+  /// shift by using unsigned types internally if needed.
+  /// For vectors, shiftAmt can be either a constant or a vector of shift
+  /// amounts.
+  mlir::Value createLShr(mlir::Location loc, mlir::Value value,
+                         mlir::Value shiftAmt) {
+    mlir::Type valueTy = value.getType();
+
+    // Check if we have a vector type
+    if (auto vecTy = mlir::dyn_cast<cir::VectorType>(valueTy)) {
+      auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
+
+      // If already unsigned, just shift
+      if (!elemTy.isSigned()) {
+        return cir::ShiftOp::create(*this, loc, valueTy, value, shiftAmt,
+                                    false);
+      }
+
+      // Convert to unsigned for logical shift
+      auto unsignedElemTy = getUIntNTy(elemTy.getWidth());
+      auto unsignedVecTy =
+          cir::VectorType::get(unsignedElemTy, vecTy.getSize());
+
+      value = createBitcast(value, unsignedVecTy);
+      auto result = cir::ShiftOp::create(*this, loc, unsignedVecTy, value,
+                                         shiftAmt, false);
+
+      // Convert back to original signedness
+      return createBitcast(result, valueTy);
+    }
+
+    // Scalar case
+    if (auto intTy = mlir::dyn_cast<cir::IntType>(valueTy)) {
+      // TODO: Grab implementation from existing CIRGen and refactor it
+      // out here.
+      llvm_unreachable("NYI");
+    }
+
+    llvm_unreachable("createLShr expects integer or vector of integer type");
+  }
+
   cir::LongDoubleType getLongDoubleTy(const llvm::fltSemantics &format) const {
     if (&format == &llvm::APFloat::IEEEdouble())
       return cir::LongDoubleType::get(getContext(), typeCache.DoubleTy);

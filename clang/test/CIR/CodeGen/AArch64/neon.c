@@ -19250,3 +19250,26 @@ uint16_t test_vaddlvq_u8(uint8x16_t a) {
   // OGCG: {{%.*}} = trunc i32 {{%.*}} to i16
   // OGCG: ret i16
 }
+
+int8x8_t test_vaddhn_s16(int16x8_t a, int16x8_t b) {
+  return vaddhn_s16(a, b);
+
+  // CIR-LABEL: vaddhn_s16
+  // CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !cir.vector<!s16i x 8>
+  // CIR: {{%.*}} = cir.cast bitcast {{%.*}} : !cir.vector<!s16i x 8> -> !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.shift(right, {{%.*}} : !cir.vector<!u16i x 8>, {{%.*}}) -> !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.cast bitcast {{%.*}} : !cir.vector<!u16i x 8> -> !cir.vector<!s16i x 8>
+  // CIR: {{%.*}} = cir.cast integral {{%.*}} : !cir.vector<!s16i x 8> -> !cir.vector<!s8i x 8>
+
+  // LLVM-LABEL: @test_vaddhn_s16
+  // LLVM: {{%.*}} = add <8 x i16> {{%.*}}, {{%.*}}
+  // LLVM: {{%.*}} = lshr <8 x i16> {{%.*}}, splat (i16 8)
+  // LLVM: {{%.*}} = trunc <8 x i16> {{%.*}} to <8 x i8>
+  // LLVM: ret <8 x i8>
+
+  // OGCG-LABEL: @test_vaddhn_s16
+  // OGCG: {{%.*}} = add <8 x i16> {{%.*}}, {{%.*}}
+  // OGCG: {{%.*}} = lshr <8 x i16> {{%.*}}, splat (i16 8)
+  // OGCG: {{%.*}} = trunc <8 x i16> {{%.*}} to <8 x i8>
+  // OGCG: ret <8 x i8>
+}
