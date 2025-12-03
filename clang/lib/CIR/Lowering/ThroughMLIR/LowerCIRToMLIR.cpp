@@ -802,47 +802,30 @@ class CIRUnaryOpLowering : public mlir::OpConversionPattern<cir::UnaryOp> {
 public:
   using OpConversionPattern<cir::UnaryOp>::OpConversionPattern;
 
+  template <typename OpFloat, typename OpInt, bool rev>
   mlir::Operation *
-  addImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
-               mlir::ConversionPatternRewriter &rewriter) const {
+  replaceImmediateOp(cir::UnaryOp op, mlir::Type type, mlir::Value input,
+                     int64_t n,
+                     mlir::ConversionPatternRewriter &rewriter) const {
     if (type.isFloat()) {
       auto imm = mlir::arith::ConstantOp::create(
           rewriter, op.getLoc(),
           mlir::FloatAttr::get(type, static_cast<double>(n)));
-      return rewriter.replaceOpWithNewOp<mlir::arith::AddFOp>(op, type, input,
-                                                              imm);
+      if constexpr (rev)
+        return rewriter.replaceOpWithNewOp<OpFloat>(op, type, imm, input);
+      else
+        return rewriter.replaceOpWithNewOp<OpFloat>(op, type, input, imm);
     }
     if (type.isInteger()) {
       auto imm = mlir::arith::ConstantOp::create(
           rewriter, op.getLoc(), mlir::IntegerAttr::get(type, n));
-      return rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input,
-                                                              imm);
+      if constexpr (rev)
+        return rewriter.replaceOpWithNewOp<OpInt>(op, type, imm, input);
+      else
+        return rewriter.replaceOpWithNewOp<OpInt>(op, type, input, imm);
     }
-    op->emitError("Unsupported type in addImmediate: ")
-        << type << " at " << op->getLoc();
-    llvm_unreachable("addImmediate called with unsupported type");
-    return nullptr;
-  }
-
-  mlir::Operation *
-  subByImmediate(cir::UnaryOp op, mlir::Type type, mlir::Value input, int64_t n,
-                 mlir::ConversionPatternRewriter &rewriter) const {
-    if (type.isFloat()) {
-      auto imm = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(),
-          mlir::FloatAttr::get(type, static_cast<double>(n)));
-      return rewriter.replaceOpWithNewOp<mlir::arith::SubFOp>(op, type, imm,
-                                                              input);
-    }
-    if (type.isInteger()) {
-      auto imm = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, n));
-      return rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, imm,
-                                                              input);
-    }
-    op->emitError("Unsupported type in subByImmediate: ")
-        << type << " at " << op->getLoc();
-    llvm_unreachable("subByImmediate called with unsupported type");
+    op->emitError("Unsupported type: ") << type << " at " << op->getLoc();
+    llvm_unreachable("CIRUnaryOpLowering met unsupported type");
     return nullptr;
   }
 
@@ -854,11 +837,13 @@ public:
 
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
-      addImmediate(op, type, input, 1, rewriter);
+      replaceImmediateOp<mlir::arith::AddFOp, mlir::arith::AddIOp, false>(
+          op, type, input, 1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Dec: {
-      addImmediate(op, type, input, -1, rewriter);
+      replaceImmediateOp<mlir::arith::AddFOp, mlir::arith::AddIOp, false>(
+          op, type, input, -1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Plus: {
@@ -866,7 +851,8 @@ public:
       break;
     }
     case cir::UnaryOpKind::Minus: {
-      subByImmediate(op, type, input, 0, rewriter);
+      replaceImmediateOp<mlir::arith::SubFOp, mlir::arith::SubIOp, true>(
+          op, type, input, 0, rewriter);
       break;
     }
     case cir::UnaryOpKind::Not: {
