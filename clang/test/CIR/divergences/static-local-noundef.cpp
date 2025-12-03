@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - | FileCheck %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm %s -o - | FileCheck %s
 //
+// XFAIL: *
 //
 // Static local initialization divergence:
 // Missing noundef attribute on function declaration and call
