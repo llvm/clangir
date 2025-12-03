@@ -635,7 +635,8 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
       // Since we have a static initializer, this global variable can't
       // be constant.
       GV.setConstant(false);
-      llvm_unreachable("C++ guarded init it NYI");
+
+      emitCXXGuardedInit(D, GV, /*PerformInit=*/true);
     }
     return GV;
   }
@@ -678,7 +679,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // We have a constant initializer, but a nontrivial destructor. We still
     // need to perform a guarded "initialization" in order to register the
     // destructor.
-    llvm_unreachable("C++ guarded init is NYI");
+    emitCXXGuardedInit(D, GV, /*PerformInit=*/false);
   }
 
   return GV;

@@ -2428,6 +2428,14 @@ public:
 
   void emitStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
 
+  void emitCXXGuardedInit(const VarDecl &D, cir::GlobalOp DeclPtr,
+                          bool PerformInit);
+
+  /// Emit code to perform initialization/destruction for a static local
+  /// variable from within a function. This is used by guarded init.
+  void emitCXXGlobalVarDeclInit(const VarDecl &D, Address DeclAddr,
+                                bool PerformInit);
+
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.
   mlir::LogicalResult emitStmt(const clang::Stmt *S, bool useCurrentScope,
