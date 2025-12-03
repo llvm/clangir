@@ -44,7 +44,7 @@ void test() {
 // - comdat attribute (for deduplication across TUs)
 // - linkonce_odr linkage (one definition rule, discardable)
 // - correct mangling (_ZThn<offset>_<original_name>)
-// CIR: cir.func comdat linkonce_odr @_ZThn16_N7Derived3barEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn16_N7Derived3barEv
 
 // ============================================================================
 // CIR Thunk Implementation - This Pointer Adjustment
@@ -105,7 +105,7 @@ void test_multi() {
 
 // Different thunks for different offsets
 // Offset to B should be 16 (A's vptr + a)
-// CIR: cir.func comdat linkonce_odr @_ZThn16_N5Multi7methodBEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn16_N5Multi7methodBEv
 
 // Offset to C should be 32 (A's vptr + a + B's vptr + b)
-// CIR: cir.func comdat linkonce_odr @_ZThn32_N5Multi7methodCEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn32_N5Multi7methodCEv

@@ -6,7 +6,7 @@
 struct A { ~A(); };
 A &&a = dynamic_cast<A&&>(A{});
 
-//      CHECK: cir.func private @_ZN1AD1Ev(!cir.ptr<!rec_A>) special_member<#cir.cxx_dtor<!rec_A>> extra(#fn_attr)
+//      CHECK: cir.func {{.*}} @_ZN1AD1Ev(!cir.ptr<!rec_A>) special_member<#cir.cxx_dtor<!rec_A>>
 // CHECK-NEXT: cir.global external @a = #cir.ptr<null> : !cir.ptr<!rec_A> {alignment = 8 : i64, ast = #cir.var.decl.ast}
 // CHECK-NEXT: cir.func internal private @__cxx_global_var_init() {
 // CHECK-NEXT:   cir.scope {
@@ -16,7 +16,7 @@ A &&a = dynamic_cast<A&&>(A{});
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
-// CHECK-NEXT: cir.func private @_GLOBAL__sub_I_tempref.cpp() {
+// CHECK-NEXT: cir.func {{.*}} @_GLOBAL__sub_I_tempref.cpp() {
 // CHECK-NEXT:   cir.call @__cxx_global_var_init() : () -> ()
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }

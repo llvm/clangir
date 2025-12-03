@@ -38,7 +38,7 @@ void test() {
 // Derived::bar() needs a thunk when called through Base2* because
 // Base2 is at offset 8 in Derived (after Base1's vtable pointer)
 
-// CIR: cir.func comdat linkonce_odr @_ZThn8_N7Derived3barEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn8_N7Derived3barEv
 // CIR: cir.ptr_stride
 // CIR: cir.call @_ZN7Derived3barEv
 

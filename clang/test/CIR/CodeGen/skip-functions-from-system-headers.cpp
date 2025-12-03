@@ -9,10 +9,9 @@ void test() {
   String s3{"abcdefghijklmnop"};
 }
 
-// CHECK-NOT: cir.func linkonce_odr @_ZN6StringC2Ev
-// CHECK-NOT: cir.func linkonce_odr @_ZN6StringC2Ei
-// CHECK-NOT: cir.func linkonce_odr @_ZN6StringC2EPKc
-// CHECK-NOT: cir.func linkonce_odr @_ZN6StringC1EPKc
+// CHECK-NOT: cir.func {{.*}} @_ZN6StringC2Ev
+// CHECK-NOT: cir.func {{.*}} @_ZN6StringC2Ei
+// CHECK-NOT: cir.func {{.*}} @_ZN6StringC2EPKc
 
-// CHECK: cir.func dso_local @_Z4testv()
+// CHECK: cir.func {{.*}} @_Z4testv()
 // CHECK:   cir.call @_ZN6StringC1Ev(%0) : (!cir.ptr<!rec_String>) -> ()

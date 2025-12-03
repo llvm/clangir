@@ -13,7 +13,7 @@ void f1() {
   B v{};
 }
 
-// CIR: cir.func dso_local @_Z2f1v()
+// CIR: cir.func {{.*}} @_Z2f1v()
 // CIR:     %0 = cir.alloca !rec_B, !cir.ptr<!rec_B>, ["v", init]
 // CIR:     %1 = cir.base_class_addr %0 : !cir.ptr<!rec_B> nonnull [0] -> !cir.ptr<!rec_A1>
 // CIR:     cir.call @_ZN2A1C2Ev(%1) : (!cir.ptr<!rec_A1>) -> ()
@@ -32,7 +32,7 @@ void f2() {
   C v{};
 }
 
-// CIR: cir.func dso_local @_Z2f2v()
+// CIR: cir.func {{.*}} @_Z2f2v()
 // CIR:     %0 = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["v", init]
 // CIR:     %1 = cir.base_class_addr %0 : !cir.ptr<!rec_C> nonnull [0] -> !cir.ptr<!rec_A1>
 // CIR:     cir.call @_ZN2A1C2Ev(%1) : (!cir.ptr<!rec_A1>) -> ()
@@ -55,7 +55,7 @@ void f3() {
   D v{};
 }
 
-// CIR: cir.func dso_local @_Z2f3v()
+// CIR: cir.func {{.*}} @_Z2f3v()
 // CIR:     %0 = cir.alloca !rec_D, !cir.ptr<!rec_D>, ["v", init]
 // CIR:     %1 = cir.base_class_addr %0 : !cir.ptr<!rec_D> nonnull [0] -> !cir.ptr<!rec_A3>
 // CIR:     cir.call @_ZN2A3C2Ev(%1) : (!cir.ptr<!rec_A3>) -> ()

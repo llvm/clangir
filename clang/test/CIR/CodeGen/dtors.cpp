@@ -41,7 +41,7 @@ public:
 // Class B
 // CHECK: ![[ClassB:rec_.*]] = !cir.record<class "B" {![[ClassA]]}>
 
-// CHECK: cir.func dso_local @_Z4bluev()
+// CHECK: cir.func {{.*}} @_Z4bluev()
 // CHECK:   %0 = cir.alloca !rec_PSEvent, !cir.ptr<!rec_PSEvent>, ["p", init] {alignment = 8 : i64}
 // CHECK:   %1 = cir.const #cir.int<1> : !s32i
 // CHECK:   %2 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 5>>
@@ -59,7 +59,7 @@ struct X {
 bool foo(const X &) { return false; }
 bool bar() { return foo(1) || foo(2); }
 
-// CHECK: cir.func dso_local @_Z3barv()
+// CHECK: cir.func {{.*}} @_Z3barv()
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["__retval"] {alignment = 1 : i64}
 // CHECK:   cir.scope {
 // CHECK:     %[[V2:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp0"] {alignment = 4 : i64}
@@ -93,7 +93,7 @@ bool bar() { return foo(1) || foo(2); }
 
 bool bar2() { return foo(1) && foo(2); }
 
-// CHECK:  cir.func dso_local @_Z4bar2v()
+// CHECK:  cir.func {{.*}} @_Z4bar2v()
 // CHECK:     cir.alloca !rec_X, !cir.ptr<!rec_X>
 // CHECK:       {{.*}} = cir.ternary({{.*}}, true {
 // CHECK:         cir.alloca !rec_X, !cir.ptr<!rec_X>
@@ -110,30 +110,30 @@ void pseudo_dtor() {
   I x = 10;
   x.I::~I();
 }
-// CHECK: cir.func dso_local @_Z11pseudo_dtorv()
+// CHECK: cir.func {{.*}} @_Z11pseudo_dtorv()
 // CHECK:   %[[INT:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>
 // CHECK:   %[[TEN:.*]] = cir.const #cir.int<10> : !s32i
 // CHECK:   cir.store{{.*}} %[[TEN]], %[[INT]] : !s32i, !cir.ptr<!s32i>
 // CHECK:   cir.return
 
 // @B::~B() #1 definition call into base @A::~A()
-// CHECK:  cir.func linkonce_odr @_ZN1BD2Ev{{.*}}{
+// CHECK:  cir.func {{.*}} @_ZN1BD2Ev{{.*}}{
 // CHECK:    cir.call @_ZN1AD2Ev(
 
 // void foo()
-// CHECK: cir.func dso_local @_Z3foov()
+// CHECK: cir.func {{.*}} @_Z3foov()
 // CHECK:   cir.scope {
 // CHECK:     cir.call @_ZN1BC2Ev(%0) : (!cir.ptr<!rec_B>) -> ()
 // CHECK:     cir.call @_ZN1BD2Ev(%0) : (!cir.ptr<!rec_B>) -> ()
 
 // operator delete(void*) declaration
-// CHECK:   cir.func private @_ZdlPvm(!cir.ptr<!void>, !u64i)
+// CHECK:   cir.func {{.*}} @_ZdlPvm(!cir.ptr<!void>, !u64i)
 
 // B dtor => @B::~B() #2
 // Calls dtor #1
 // Calls operator delete
 //
-// CHECK:   cir.func linkonce_odr @_ZN1BD0Ev(%arg0: !cir.ptr<![[ClassB]]>
+// CHECK:   cir.func {{.*}} @_ZN1BD0Ev(%arg0: !cir.ptr<![[ClassB]]>
 // CHECK:     %0 = cir.alloca !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>, ["this", init] {alignment = 8 : i64}
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>
 // CHECK:     %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<![[ClassB]]>>, !cir.ptr<![[ClassB]]>
@@ -173,8 +173,8 @@ public:
 int j;
 void m() { G l(j); }
 
-// CHECK: cir.func private @_ZN1G1kE2A2(!cir.ptr<!rec_G>, !rec_A2) -> !s64i
-// CHECK: cir.func linkonce_odr @_ZN1G1iEv(%arg0: !cir.ptr<!rec_G>
+// CHECK: cir.func {{.*}} @_ZN1G1kE2A2(!cir.ptr<!rec_G>, !rec_A2) -> !s64i
+// CHECK: cir.func {{.*}} @_ZN1G1iEv(%arg0: !cir.ptr<!rec_G>
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   %[[V1:.*]] = cir.alloca !s64i, !cir.ptr<!s64i>, ["__retval"] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %[[V0]] : !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>

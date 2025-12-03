@@ -7,7 +7,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG --input-file=%t.ll %s
 
-// CHECK:  cir.func dso_local @f0(%arg0: !s32i
+// CHECK:  cir.func {{.*}} @f0(%arg0: !s32i
 // CHECK:    [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["len", init] {alignment = 4 : i64}
 // CHECK:    [[TMP1:%.*]] = cir.alloca !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !s32i, !cir.ptr<!s32i>
@@ -22,7 +22,7 @@ void f0(int len) {
     int a[len];
 }
 
-//     CHECK: cir.func dso_local @f1
+//     CHECK: cir.func {{.*}} @f1
 // CHECK-NOT:   cir.stack_save
 // CHECK-NOT:   cir.stack_restore
 //     CHECK:   cir.return
@@ -30,7 +30,7 @@ int f1(int n) {
   return sizeof(int[n]);
 }
 
-// CHECK: cir.func dso_local @f2
+// CHECK: cir.func {{.*}} @f2
 // CHECK:   cir.stack_save
 // DONT_CHECK:   cir.stack_restore
 // CHECK:   cir.return
@@ -39,7 +39,7 @@ int f2(int x) {
   return vla[x-1];
 }
 
-// CHECK: cir.func dso_local @f3
+// CHECK: cir.func {{.*}} @f3
 // CHECK:   cir.stack_save
 // CHECK:   cir.stack_restore
 // CHECK:   cir.return
@@ -51,7 +51,7 @@ void f3(int count) {
 }
 
 
-//     CHECK: cir.func dso_local @f4
+//     CHECK: cir.func {{.*}} @f4
 // CHECK-NOT:   cir.stack_save
 // CHECK-NOT:   cir.stack_restore
 //     CHECK:   cir.return
@@ -106,7 +106,7 @@ long f10(int n) {
     int (*q)[n];
     return q - p;
 }
-// CHECK-LABEL: cir.func dso_local @f10
+// CHECK-LABEL: cir.func {{.*}} @f10
 // CHECK: %[[Q_VAL:[0-9]+]] = cir.load {{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[P_VAL:[0-9]+]] = cir.load {{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[PTRDIFF:[0-9]+]] = cir.ptr_diff %[[Q_VAL]], %[[P_VAL]] : !cir.ptr<!s32i> -> !s64i
@@ -132,7 +132,7 @@ long f11(int n, int m) {
     int (*q)[n][m];
     return q - p;
 }
-// CHECK-LABEL: cir.func dso_local @f11
+// CHECK-LABEL: cir.func {{.*}} @f11
 
 // # allocas
 // CHECK: %[[N_ADDR:[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i>

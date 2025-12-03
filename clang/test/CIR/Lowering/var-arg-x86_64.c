@@ -41,7 +41,7 @@ double f1(int n, ...) {
 // CHECK: [[VA_LIST3:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
 // CHECK: call {{.*}}@llvm.va_end.p0(ptr [[VA_LIST3]])
 
-// CIR: cir.func dso_local @f1
+// CIR: cir.func {{.*}} @f1
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>,
 // CIR: [[RES:%.+]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res",
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
@@ -110,7 +110,7 @@ long double f2(int n, ...) {
 // CHECK: [[RETURN_VALUE:%.+]] = load x86_fp80, ptr [[RESULT]]
 // CHECK: ret x86_fp80 [[RETURN_VALUE]]
 
-// CIR: cir.func dso_local @f2
+// CIR: cir.func {{.*}} @f2
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>, !cir.ptr<!cir.array<!rec___va_list_tag x 1>>, ["valist"]
 // CIR: [[RES:%.+]] = cir.alloca !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>>, ["res"
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast array_to_ptrdecay [[VA_LIST_ALLOCA]]
@@ -160,7 +160,7 @@ const char *f3(va_list args) {
 // ...
 // CHECK: ret
 
-// CIR-LABEL:   cir.func dso_local @f3(
+// CIR-LABEL:   cir.func {{.*}} @f3(
 // CIR:           %[[VALIST_VAR:.*]] = cir.alloca !cir.ptr<!rec___va_list_tag>, !cir.ptr<!cir.ptr<!rec___va_list_tag>>, ["args", init] {alignment = 8 : i64}
 // CIR:           %[[VALIST:.*]] = cir.load align(8) %[[VALIST_VAR]] : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
 // CIR:           %[[GP_OFFSET_PTR:.*]] = cir.get_member %[[VALIST]][0] {name = "gp_offset"} : !cir.ptr<!rec___va_list_tag> -> !cir.ptr<!u32i>
@@ -192,7 +192,7 @@ const char *f3(va_list args) {
 void f4(va_list args) {
   for (; va_arg(args, int); );
 }
-// CIR-LABEL:   cir.func dso_local @f4
+// CIR-LABEL:   cir.func {{.*}} @f4
 // CIR:           cir.for : cond {
 // CIR:             %[[VALIST:.*]] = cir.load align(8) %[[VALIST_VAR]] : !cir.ptr<!cir.ptr<!rec___va_list_tag>>, !cir.ptr<!rec___va_list_tag>
 // CIR:             %[[VAARG_RESULT:.*]] = cir.scope {

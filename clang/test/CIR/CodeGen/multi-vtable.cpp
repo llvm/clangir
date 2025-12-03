@@ -38,7 +38,7 @@ int main() {
 // CIR-DAG: !rec_Mother = !cir.record<class "Mother" {!cir.vptr} #cir.record.decl.ast>
 // CIR-DAG: !rec_Child = !cir.record<class "Child" {!rec_Mother, !rec_Father} #cir.record.decl.ast>
 
-// CIR: cir.func linkonce_odr @_ZN6MotherC2Ev(%arg0: !cir.ptr<!rec_Mother>
+// CIR: cir.func {{.*}} @_ZN6MotherC2Ev(%arg0: !cir.ptr<!rec_Mother>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, address_point = <index = 0, offset = 2>) : !cir.vptr
 // CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %{{[0-9]+}} : !cir.ptr<!rec_Mother> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %2, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
@@ -51,7 +51,7 @@ int main() {
 // LLVM-DAG:   ret void
 // LLVM-DAG: }
 
-// CIR: cir.func linkonce_odr @_ZN5ChildC2Ev(%arg0: !cir.ptr<!rec_Child>
+// CIR: cir.func {{.*}} @_ZN5ChildC2Ev(%arg0: !cir.ptr<!rec_Child>
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 0, offset = 2>) : !cir.vptr
 // CIR:   %{{[0-9]+}} = cir.vtable.get_vptr %1 : !cir.ptr<!rec_Child> -> !cir.ptr<!cir.vptr>
 // CIR:   cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.vptr, !cir.ptr<!cir.vptr>
@@ -74,7 +74,7 @@ int main() {
 // LLVM-DAG:  ret void
 // }
 
-// CIR: cir.func dso_local @main() -> !s32i extra(#fn_attr) {
+// CIR: cir.func {{.*}} @main() -> !s32i extra(#fn_attr) {
 
 // CIR:   %{{[0-9]+}} = cir.vtable.get_virtual_fn_addr %{{[0-9]+}}[0] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
 

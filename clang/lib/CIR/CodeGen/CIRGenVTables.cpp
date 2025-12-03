@@ -202,6 +202,12 @@ void CIRGenFunction::emitCallAndReturnForThunk(cir::FuncOp callee,
   assert(!cir::MissingFeatures::ABIArgInfo());
   const CIRGenFunctionInfo &callFnInfo = CGM.getTypes().arrangeCXXMethodCall(
       callArgs, fpt, RequiredArgs::forPrototypePlus(fpt, 1), prefixArgs);
+  // TODO(cir): The following assertions are temporarily commented out because
+  // they require full ABIArgInfo support, which is not yet complete in CIR.
+  // These assertions verify that the thunk's calling convention matches the
+  // target function's convention. Once ABIArgInfo methods (getRegParm,
+  // isNoReturn, getCallingConvention) and the similar() comparison helper are
+  // implemented, these should be uncommented to ensure correctness.
   // assert(callFnInfo.getRegParm() == CurFnInfo->getRegParm() &&
   //        callFnInfo.isNoReturn() == CurFnInfo->isNoReturn() &&
   //        callFnInfo.getCallingConvention() ==

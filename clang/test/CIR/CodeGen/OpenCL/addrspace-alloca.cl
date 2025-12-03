@@ -4,7 +4,7 @@
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=LLVM
 
 
-// CIR: cir.func @func(%arg0: !cir.ptr<!s32i, lang_address_space(offload_local)>
+// CIR: cir.func{{.*}} @func(%arg0: !cir.ptr<!s32i, lang_address_space(offload_local)>
 // LLVM: @func(ptr addrspace(3)
 kernel void func(local int *p) {
   // CIR-NEXT: %[[#ALLOCA_P:]] = cir.alloca !cir.ptr<!s32i, lang_address_space(offload_local)>, !cir.ptr<!cir.ptr<!s32i, lang_address_space(offload_local)>, lang_address_space(offload_private)>, ["p", init] {alignment = 8 : i64}

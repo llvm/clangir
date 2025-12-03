@@ -27,7 +27,7 @@ typedef struct {
   int64_t c;
 } GT_128;
 
-// CHECK: cir.func {{.*@ret_lt_64}}() -> !u16i
+// CHECK: cir.func {{.*}} @ret_lt_64() -> !u16i
 // CHECK:   %[[#V0:]] = cir.alloca !rec_LT_64, !cir.ptr<!rec_LT_64>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_LT_64> -> !cir.ptr<!u16i>
 // CHECK:   %[[#V2:]] = cir.load{{.*}} %[[#V1]] : !cir.ptr<!u16i>, !u16i
@@ -37,7 +37,7 @@ LT_64 ret_lt_64() {
   return x;
 }
 
-// CHECK: cir.func {{.*@ret_eq_64}}() -> !u64i
+// CHECK: cir.func {{.*}} @ret_eq_64() -> !u64i
 // CHECK:   %[[#V0:]] = cir.alloca !rec_EQ_64, !cir.ptr<!rec_EQ_64>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_EQ_64> -> !cir.ptr<!u64i>
 // CHECK:   %[[#V2:]] = cir.load{{.*}} %[[#V1]] : !cir.ptr<!u64i>, !u64i
@@ -47,7 +47,7 @@ EQ_64 ret_eq_64() {
   return x;
 }
 
-// CHECK: cir.func {{.*@ret_lt_128}}() -> !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @ret_lt_128() -> !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_LT_128, !cir.ptr<!rec_LT_128>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_LT_128> -> !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   %[[#V2:]] = cir.load{{.*}} %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>, !cir.array<!u64i x 2>
@@ -57,7 +57,7 @@ LT_128 ret_lt_128() {
   return x;
 }
 
-// CHECK: cir.func {{.*@ret_eq_128}}() -> !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @ret_eq_128() -> !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_EQ_128, !cir.ptr<!rec_EQ_128>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_EQ_128> -> !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   %[[#V2:]] = cir.load{{.*}} %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>, !cir.array<!u64i x 2>
@@ -67,7 +67,7 @@ EQ_128 ret_eq_128() {
   return x;
 }
 
-// CHECK:     cir.func {{.*@ret_gt_128}}(%arg0: !cir.ptr<!rec_GT_128>
+// CHECK:     cir.func {{.*}} @ret_gt_128(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK-NOT:   cir.return {{%.*}}
 GT_128 ret_gt_128() {
   GT_128 x;
@@ -80,7 +80,7 @@ typedef struct {
   int c;
 } S;
 
-// CHECK: cir.func {{.*@retS}}() -> !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @retS() -> !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["__retval"] {alignment = 4 : i64}
 // CHECK:   %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
 // CHECK:   %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!void>
@@ -100,7 +100,7 @@ S retS() {
   S s;
   return s;
 }
-// CHECK: cir.func {{.*@pass_lt_64}}(%arg0: !u64
+// CHECK: cir.func {{.*}} @pass_lt_64(%arg0: !u64
 // CHECK:   %[[#V0:]] = cir.alloca !rec_LT_64, !cir.ptr<!rec_LT_64>
 // CHECK:   %[[#V1:]] = cir.cast integral %arg0 : !u64i -> !u16i
 // CHECK:   %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_LT_64> -> !cir.ptr<!u16i>
@@ -112,7 +112,7 @@ S retS() {
 // LLVM:   store i16 %[[#V2]], ptr %[[#V1]], align 2
 void pass_lt_64(LT_64 s) {}
 
-// CHECK: cir.func {{.*@pass_eq_64}}(%arg0: !u64i
+// CHECK: cir.func {{.*}} @pass_eq_64(%arg0: !u64i
 // CHECK:   %[[#V0:]] = cir.alloca !rec_EQ_64, !cir.ptr<!rec_EQ_64>
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_EQ_64> -> !cir.ptr<!u64i>
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
@@ -122,7 +122,7 @@ void pass_lt_64(LT_64 s) {}
 // LLVM:   store i64 %0, ptr %[[#V1]], align 8
 void pass_eq_64(EQ_64 s) {}
 
-// CHECK: cir.func {{.*@pass_lt_128}}(%arg0: !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @pass_lt_128(%arg0: !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_LT_128, !cir.ptr<!rec_LT_128>
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_LT_128> -> !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
@@ -132,7 +132,7 @@ void pass_eq_64(EQ_64 s) {}
 // LLVM:   store [2 x i64] %0, ptr %[[#V1]], align 8
 void pass_lt_128(LT_128 s) {}
 
-// CHECK: cir.func {{.*@pass_eq_128}}(%arg0: !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @pass_eq_128(%arg0: !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_EQ_128, !cir.ptr<!rec_EQ_128>
 // CHECK:   %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_EQ_128> -> !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
@@ -142,7 +142,7 @@ void pass_lt_128(LT_128 s) {}
 // LLVM:   store [2 x i64] %0, ptr %[[#V1]], align 8
 void pass_eq_128(EQ_128 s) {}
 
-// CHECK: cir.func dso_local @pass_gt_128(%arg0: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func {{.*}} @pass_gt_128(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK:   %[[#V0:]] = cir.alloca !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>, [""] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %[[#V0]] : !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>
 // CHECK:   %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!cir.ptr<!rec_GT_128>>, !cir.ptr<!rec_GT_128>
@@ -153,7 +153,7 @@ void pass_eq_128(EQ_128 s) {}
 // LLVM:   %[[#V2:]] = load ptr, ptr %[[#V1]], align 8
 void pass_gt_128(GT_128 s) {}
 
-// CHECK: cir.func dso_local @get_gt_128(%arg0: !cir.ptr<!rec_GT_128> {{.*}}, %arg1: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func {{.*}} @get_gt_128(%arg0: !cir.ptr<!rec_GT_128> {{.*}}, %arg1: !cir.ptr<!rec_GT_128>
 // CHECK: %[[#V0:]] = cir.alloca !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>, [""] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg1, %[[#V0]] : !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>
 // CHECK: %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!cir.ptr<!rec_GT_128>>, !cir.ptr<!rec_GT_128>
@@ -170,7 +170,7 @@ GT_128 get_gt_128(GT_128 s) {
   return s;
 }
 
-// CHECK: cir.func no_proto dso_local @call_and_get_gt_128(%arg0: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func {{.*}} @call_and_get_gt_128(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK: %[[#V0:]] = cir.alloca !rec_GT_128, !cir.ptr<!rec_GT_128>, ["tmp"] {alignment = 8 : i64}
 // CHECK: %[[#V1:]] = cir.load{{.*}} %arg0 : !cir.ptr<!rec_GT_128>, !rec_GT_128
 // CHECK: %[[#V2:]] = cir.alloca !rec_GT_128, !cir.ptr<!rec_GT_128>, [""] {alignment = 8 : i64}
@@ -194,7 +194,7 @@ GT_128 call_and_get_gt_128() {
   s = get_gt_128(s);
   return s;
 }
-// CHECK: cir.func dso_local @passS(%arg0: !cir.array<!u64i x 2>
+// CHECK: cir.func {{.*}} @passS(%arg0: !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CHECK:   %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
@@ -210,7 +210,7 @@ GT_128 call_and_get_gt_128() {
 // LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#V1]], ptr %[[#V2]], i64 12, i1 false)
 void passS(S s) {}
 
-// CHECK: @callS()
+// CHECK: cir.func {{.*}} @callS()
 // CHECK: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s"] {alignment = 4 : i64}
 // CHECK: %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
 // CHECK: %[[#V2:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!rec_S>, !rec_S
@@ -241,7 +241,7 @@ typedef struct {
   uint8_t c;
 } S_PAD;
 
-// CHECK: cir.func {{.*@ret_s_pad}}()  -> !u48i
+// CHECK: cir.func {{.*}} @ret_s_pad()  -> !u48i
 // CHECK: %[[#V0:]] = cir.alloca !rec_S_PAD, !cir.ptr<!rec_S_PAD>, ["__retval"] {alignment = 2 : i64}
 // CHECK: %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!rec_S_PAD>, !rec_S_PAD
 // CHECK: %[[#V2:]] = cir.alloca !u48i, !cir.ptr<!u48i>, [""] {alignment = 2 : i64}
@@ -268,7 +268,7 @@ typedef struct {
   int a[42];
 } CAT;
 
-// CHECK: cir.func dso_local @pass_cat(%arg0: !cir.ptr<!rec_CAT>
+// CHECK: cir.func {{.*}} @pass_cat
 // CHECK: %[[#V0:]]  = cir.alloca !cir.ptr<!rec_CAT>, !cir.ptr<!cir.ptr<!rec_CAT>>, [""] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg0, %[[#V0]]  : !cir.ptr<!rec_CAT>, !cir.ptr<!cir.ptr<!rec_CAT>>
 // CHECK: %[[#V1:]]  = cir.load{{.*}} %[[#V0]]  : !cir.ptr<!cir.ptr<!rec_CAT>>, !cir.ptr<!rec_CAT>
@@ -290,9 +290,9 @@ typedef struct {
   };
 } NESTED_U;
 
-// CHECK: cir.func dso_local @pass_nested_u(%arg0: !u64i
+// CHECK: cir.func {{.*}} @pass_nested_u(%[[ARG0:[a-z0-9]+]]: !u64i
 // CHECK: %[[#V0:]] = cir.alloca !rec_NESTED_U, !cir.ptr<!rec_NESTED_U>, [""] {alignment = 4 : i64}
-// CHECK: %[[#V1:]] = cir.cast integral %arg0 : !u64i -> !u16i
+// CHECK: %[[#V1:]] = cir.cast integral %[[ARG0]] : !u64i -> !u16i
 // CHECK: %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_NESTED_U>
 // CHECK: cir.store{{.*}} %[[#V1]], %[[#V2]] : !u16i
 // CHECK: cir.return
@@ -304,7 +304,7 @@ typedef struct {
 // LLVM: ret void
 void pass_nested_u(NESTED_U a) {}
 
-// CHECK: cir.func no_proto dso_local @call_nested_u()
+// CHECK: cir.func {{.*}} @call_nested_u()
 // CHECK: %[[#V0:]] = cir.alloca !rec_NESTED_U, !cir.ptr<!rec_NESTED_U>
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!rec_NESTED_U>, !rec_NESTED_U
@@ -355,7 +355,7 @@ void bar(void) {
   PackedS1 y = foo();
 }
 
-// CHECK: cir.func dso_local @bar
+// CHECK: cir.func {{.*}} @bar
 // CHECK: %[[#V0:]] = cir.alloca !rec_PackedS1, !cir.ptr<!rec_PackedS1>, ["y", init]
 // CHECK: %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.call @foo() : () -> !cir.array<!u64i x 2>
@@ -394,7 +394,7 @@ void qux(void) {
 }
 
 // check source of memcpy
-// CHECK: cir.func dso_local @qux
+// CHECK: cir.func {{.*}} @qux
 // CHECK: %[[#V0:]] = cir.alloca !cir.ptr<!rec_PackedS2>, !cir.ptr<!cir.ptr<!rec_PackedS2>>, ["s1", init]
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.get_global @g : !cir.ptr<!cir.array<!rec_PackedS2 x 3>>

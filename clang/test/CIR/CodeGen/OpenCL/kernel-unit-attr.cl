@@ -7,8 +7,8 @@
 // CIR-NOT: cl.kernel = #cir.cl.kernel
 
 kernel void kernel1() {}
-// CIR: cir.func @kernel1{{.+}} extra(#fn_attr[[KERNEL1]])
+// CIR: cir.func{{.*}} @kernel1{{.+}} extra(#fn_attr[[KERNEL1]])
 
 void func1() {}
 
-// CIR: cir.func @func1{{.+}} extra(#fn_attr[[FUNC1]])
+// CIR: cir.func{{.*}} @func1{{.+}} extra(#fn_attr[[FUNC1]])

@@ -6,7 +6,7 @@ void test_call_lvalue_cast() {
   (*(void (*)(int))f)(42);
 }
 
-// CHECK: cir.func {{.*}}@test_call_lvalue_cast()
+// CHECK: cir.func{{.*}} @test_call_lvalue_cast()
 // CHECK: [[F:%.+]] = cir.get_global @f
 // CHECK: [[CASTED:%.+]] = cir.cast bitcast [[F]]
 // CHECK: [[CONST:%.+]] = cir.const #cir.int<42>

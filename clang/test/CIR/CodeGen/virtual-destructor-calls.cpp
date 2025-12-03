@@ -29,7 +29,7 @@ struct B : A {
 // LLVM: @_ZN1CD1Ev = alias void (ptr), ptr @_ZN1CD2Ev
 
 // Base dtor: actually calls A's base dtor.
-// CIR: cir.func dso_local @_ZN1BD2Ev
+// CIR: cir.func {{.*}} @_ZN1BD2Ev
 // CIR:   cir.call @_ZN6MemberD1Ev
 // CIR:   cir.call @_ZN1AD2Ev
 // LLVM: define{{.*}} void @_ZN1BD2Ev(ptr
@@ -37,7 +37,7 @@ struct B : A {
 // LLVM: call void @_ZN1AD2Ev
 
 // Complete dtor: just an alias because there are no virtual bases.
-// CIR: cir.func private dso_local @_ZN1BD1Ev(!cir.ptr<!rec_B>) special_member<#cir.cxx_dtor<!rec_B>> alias(@_ZN1BD2Ev)
+// CIR: cir.func {{.*}} @_ZN1BD1Ev(!cir.ptr<!rec_B>) special_member<#cir.cxx_dtor<!rec_B>> alias(@_ZN1BD2Ev)
 
 // Deleting dtor: defers to the complete dtor.
 // LLVM: define{{.*}} void @_ZN1BD0Ev(ptr
@@ -45,10 +45,10 @@ struct B : A {
 // LLVM: call void @_ZdlPv
 
 // (aliases from C)
-// CIR: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
-// CIR: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1CD2Ev)
+// CIR: cir.func {{.*}} @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
+// CIR: cir.func {{.*}} @_ZN1CD1Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1CD2Ev)
 
-// CIR_O1-NOT: cir.func dso_local @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
+// CIR_O1-NOT: cir.func {{.*}} @_ZN1CD2Ev(%arg0: !cir.ptr<!rec_C>{{.*}})) {{.*}} {
 // CIR_O1: cir.func private dso_local @_ZN1CD2Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1BD2Ev)
 // CIR_O1: cir.func private dso_local @_ZN1CD1Ev(!cir.ptr<!rec_C>) special_member<#cir.cxx_dtor<!rec_C>> alias(@_ZN1CD2Ev)
 
@@ -69,7 +69,7 @@ C::~C() { }
 // Complete dtor: just an alias (checked above).
 
 // Deleting dtor: defers to the complete dtor.
-// CIR: cir.func dso_local @_ZN1CD0Ev
+// CIR: cir.func {{.*}} @_ZN1CD0Ev
 // CIR: cir.call @_ZN1CD1Ev
 // CIR: cir.call @_ZdlPvm
 // LLVM: define{{.*}} void @_ZN1CD0Ev(ptr
@@ -84,7 +84,7 @@ namespace PR12798 {
   struct A { virtual ~A(); };
   template<typename T> void f(T *p) { p->A::~A(); }
 
-  // CIR: cir.func weak_odr @_ZN7PR127981fINS_1AEEEvPT_
+  // CIR: cir.func {{.*}} @_ZN7PR127981fINS_1AEEEvPT_
   // CIR: cir.call @_ZN7PR127981AD1Ev
   // LLVM: define {{.*}} @_ZN7PR127981fINS_1AEEEvPT_(
   // LLVM: call void @_ZN7PR127981AD1Ev(

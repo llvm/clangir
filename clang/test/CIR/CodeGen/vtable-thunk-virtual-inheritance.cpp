@@ -45,7 +45,7 @@ void test() {
 
 // Diamond's rightMethod needs a thunk because Right is at offset 16
 // leftMethod doesn't need a thunk because Left is at offset 0
-// CIR: cir.func comdat linkonce_odr @_ZThn16_N7Diamond11rightMethodEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn16_N7Diamond11rightMethodEv
 // CIR: cir.ptr_stride
 // CIR: cir.call @_ZN7Diamond11rightMethodEv
 

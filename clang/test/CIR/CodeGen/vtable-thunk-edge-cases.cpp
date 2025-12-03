@@ -50,7 +50,7 @@ void testDeep() {
 }
 
 // Check thunk for deep hierarchy
-// CIR: cir.func comdat linkonce_odr @_ZThn{{[0-9]+}}_N11DeepDerived8method2bEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn{{[0-9]+}}_N11DeepDerived8method2bEv
 
 //      LLVM: @_ZTV11DeepDerived = linkonce_odr constant
 // LLVM-SAME: @_ZThn{{[0-9]+}}_N11DeepDerived8method2bEv
@@ -86,7 +86,7 @@ void testEmpty() {
 }
 
 // Check thunk with empty base
-// CIR: cir.func comdat linkonce_odr @_ZThn{{[0-9]+}}_N12EmptyDerived14nonEmptyMethodEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn{{[0-9]+}}_N12EmptyDerived14nonEmptyMethodEv
 
 //      LLVM: @_ZTV12EmptyDerived = linkonce_odr constant
 // LLVM-SAME: @_ZThn{{[0-9]+}}_N12EmptyDerived14nonEmptyMethodEv
@@ -125,8 +125,8 @@ void testMulti() {
 }
 
 // Check multiple thunks with same offset
-// CIR: cir.func comdat linkonce_odr @_ZThn{{[0-9]+}}_N12MultiDerived8method2aEv
-// CIR: cir.func comdat linkonce_odr @_ZThn{{[0-9]+}}_N12MultiDerived8method2bEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn{{[0-9]+}}_N12MultiDerived8method2aEv
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn{{[0-9]+}}_N12MultiDerived8method2bEv
 
 //     LLVM: @_ZTV12MultiDerived = linkonce_odr constant
 // LLVM-DAG: @_ZThn{{[0-9]+}}_N12MultiDerived8method2aEv

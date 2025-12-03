@@ -1,15 +1,12 @@
 // RUN: cir-opt %s --verify-roundtrip | FileCheck %s -check-prefix=CIR
 // RUN: cir-opt %s -cir-to-llvm -o - | FileCheck %s -check-prefix=MLIR
 
-#fn_attr = #cir<extra({inline = #cir.inline<no>})>
-
 module {
-  cir.func @l0() extra(#fn_attr)  {
+  cir.func no_inline @l0() {
     cir.return
   }
 }
 
-// CIR: #fn_attr = #cir<extra({inline = #cir.inline<no>})>
-// CIR: cir.func @l0() extra(#fn_attr) {
+// CIR: cir.func no_inline @l0()
 
-// MLIR: llvm.func @l0() attributes {cir.extra_attrs = #fn_attr, global_visibility = #cir<visibility default>}
+// MLIR: llvm.func @l0() attributes {cir.extra_attrs = #fn_attr, global_visibility = #cir<visibility default>, no_inline

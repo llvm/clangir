@@ -18,14 +18,13 @@ int s2(int a, int b) {
   return s1(a, b);
 }
 
-// CIR: #fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone})>
-// CIR: #fn_attr1 = #cir<extra({nothrow = #cir.nothrow})>
+// CIR: #fn_attr = #cir<extra({nothrow = #cir.nothrow})>
 
-// CIR: cir.func dso_local @_Z2s0ii(%{{.*}}, %{{.*}}) -> {{.*}} extra(#fn_attr)
-// CIR: cir.func dso_local @_Z2s1ii(%{{.*}}, %{{.*}}) -> {{.*}} extra(#fn_attr)
-// CIR: cir.call @_Z2s0ii(%{{.*}}, %{{.*}}) : ({{.*}}, {{.*}}) -> {{.*}} extra(#fn_attr1)
-// CIR: cir.func dso_local @_Z2s2ii(%{{.*}}, %{{.*}}) -> {{.*}} extra(#fn_attr)
-// CHECK-NOT: cir.call @_Z2s1ii(%{{.*}}, %{{.*}}) : ({{.*}}, {{.*}}) -> {{.*}} extra(#fn_attr{{.*}})
+// CIR: cir.func{{.*}} no_inline optnone {{.*}} @_Z2s0ii(%{{.*}}, %{{.*}}) -> {{.*}} extra(#fn_attr)
+// CIR: cir.func{{.*}} no_inline optnone {{.*}} @_Z2s1ii(%{{.*}}, %{{.*}}) -> {{.*}} extra(#fn_attr)
+// CIR: cir.call @_Z2s0ii(%{{.*}}, %{{.*}}) : ({{.*}}, {{.*}}) -> {{.*}} extra(#fn_attr)
+// CIR: cir.func {{.*}} optnone {{.*}} @_Z2s2ii(%{{.*}}, %{{.*}}) -> {{.*}}
+// CHECK-NOT: cir.call @_Z2s1ii(%{{.*}}, %{{.*}}) : ({{.*}}, {{.*}}) -> {{.*}} extra(#fn_attr)
 
 // LLVM: define dso_local i32 @_Z2s0ii(i32 %0, i32 %1) #[[#ATTR1:]]
 // LLVM: define dso_local i32 @_Z2s1ii(i32 %0, i32 %1) #[[#ATTR1:]]

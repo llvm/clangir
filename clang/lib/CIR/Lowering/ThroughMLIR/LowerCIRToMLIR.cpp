@@ -26,6 +26,10 @@
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Ptr/IR/PtrAttrs.h"
+#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
+#include "mlir/Dialect/Ptr/IR/PtrOps.h"
+#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -90,7 +94,8 @@ struct ConvertCIRToMLIRPass
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                     mlir::scf::SCFDialect, mlir::math::MathDialect,
-                    mlir::vector::VectorDialect, mlir::LLVM::LLVMDialect>();
+                    mlir::ptr::PtrDialect, mlir::vector::VectorDialect,
+                    mlir::LLVM::LLVMDialect>();
   }
   void runOnOperation() final;
 
@@ -961,14 +966,15 @@ public:
   }
 };
 
-class CIRBrOpLowering : public mlir::OpRewritePattern<cir::BrOp> {
+class CIRBrOpLowering : public mlir::OpConversionPattern<cir::BrOp> {
 public:
-  using OpRewritePattern<cir::BrOp>::OpRewritePattern;
+  using mlir::OpConversionPattern<cir::BrOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::BrOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(op, op.getDest());
+  matchAndRewrite(cir::BrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(op, op.getDest(),
+                                                    adaptor.getDestOperands());
     return mlir::LogicalResult::success();
   }
 };
@@ -1612,32 +1618,83 @@ public:
   // only been used to propogate %base and %stride to memref.load/store and
   // should be erased after the conversion.
   mlir::LogicalResult
-  matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!isCastArrayToPtrConsumer(op))
-      return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProduer(op))
-      return mlir::failure();
-    auto baseOp =
+  rewriteArrayDecay(cir::PtrStrideOp op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const {
+    auto baseDefiningOp =
         adaptor.getBase().getDefiningOp<mlir::memref::ReinterpretCastOp>();
-    if (!baseOp)
+    if (!baseDefiningOp)
       return mlir::failure();
-    auto base = baseOp->getOperand(0);
-    auto dstType = op.getType();
-    auto newDstType = llvm::cast<mlir::MemRefType>(convertTy(dstType));
+
+    auto base = baseDefiningOp->getOperand(0);
+    auto ptrType = op.getType();
+    auto memrefType = llvm::cast<mlir::MemRefType>(convertTy(ptrType));
     auto stride = adaptor.getStride();
     auto indexType = rewriter.getIndexType();
+
     // Generate casting if the stride is not index type.
     if (stride.getType() != indexType)
       stride = mlir::arith::IndexCastOp::create(rewriter, op.getLoc(),
                                                 indexType, stride);
-    llvm::SmallVector<mlir::OpFoldResult> sizes, strides;
-    if (mlir::failed(prepareReinterpretMetadata(newDstType, rewriter, sizes,
-                                                strides, op.getOperation())))
-      return mlir::failure();
+
     rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
-        op, newDstType, base, stride, sizes, strides);
-    rewriter.eraseOp(baseOp);
+        op, memrefType, base, stride, mlir::ValueRange{}, mlir::ValueRange{},
+        llvm::ArrayRef<mlir::NamedAttribute>{});
+
+    rewriter.eraseOp(baseDefiningOp);
+    return mlir::success();
+  }
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    if (isCastArrayToPtrConsumer(op) && isLoadStoreOrCastArrayToPtrProduer(op))
+      return rewriteArrayDecay(op, adaptor, rewriter);
+
+    auto base = adaptor.getBase();
+    auto stride = adaptor.getStride();
+
+    auto ptrType = op.getType();
+    auto elementType = convertTy(ptrType.getPointee());
+
+    auto ptrPtrType = mlir::ptr::PtrType::get(
+        rewriter.getContext(),
+        mlir::ptr::GenericSpaceAttr::get(op->getContext()));
+
+    mlir::Value elemSizeVal = mlir::ptr::TypeOffsetOp::create(
+        rewriter, op.getLoc(), rewriter.getIndexType(), elementType);
+
+    mlir::Value strideIndex = mlir::arith::IndexCastOp::create(
+        rewriter, op.getLoc(), rewriter.getIndexType(), stride);
+
+    mlir::Value offset = mlir::arith::MulIOp::create(rewriter, op.getLoc(),
+                                                     strideIndex, elemSizeVal);
+
+    auto t1 = mlir::cast<mlir::MemRefType>(base.getType());
+    auto t2 =
+        mlir::MemRefType::get(t1.getShape(), t1.getElementType(),
+                              t1.getLayout(), ptrPtrType.getMemorySpace());
+
+    auto ptrMetaType = mlir::ptr::PtrMetadataType::get(t2);
+
+    auto fixedBase = mlir::memref::MemorySpaceCastOp::create(
+        rewriter, op->getLoc(), t2, base);
+
+    auto getMetadataOp = mlir::ptr::GetMetadataOp::create(
+        rewriter, op->getLoc(), ptrMetaType, fixedBase);
+
+    auto toPtrOp = mlir::ptr::ToPtrOp::create(rewriter, op->getLoc(),
+                                              ptrPtrType, fixedBase);
+
+    auto ptrAddOp = mlir::ptr::PtrAddOp::create(rewriter, op.getLoc(),
+                                                ptrPtrType, toPtrOp, offset);
+
+    auto fromPtrOp = mlir::ptr::FromPtrOp::create(rewriter, op.getLoc(), t2,
+                                                  ptrAddOp, getMetadataOp);
+
+    auto memrefCastOp = mlir::memref::MemorySpaceCastOp::create(
+        rewriter, op.getLoc(), t1, fromPtrOp);
+
+    rewriter.replaceOp(op, memrefCastOp);
     return mlir::success();
   }
 };
@@ -1782,11 +1839,12 @@ void ConvertCIRToMLIRPass::runOnOperation() {
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
-  target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                         mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
-                         mlir::math::MathDialect, mlir::vector::VectorDialect,
-                         mlir::LLVM::LLVMDialect>();
+  target
+      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
+                       mlir::ptr::PtrDialect, mlir::math::MathDialect,
+                       mlir::vector::VectorDialect, mlir::LLVM::LLVMDialect>();
   auto *context = patterns.getContext();
 
   // We cannot mark cir dialect as illegal before conversion.

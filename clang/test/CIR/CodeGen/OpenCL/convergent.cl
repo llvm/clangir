@@ -6,24 +6,23 @@
 // In ClangIR for OpenCL, all functions should be marked convergent.
 // In LLVM IR, it is initially assumed convergent, but can be deduced to not require it.
 
-// CIR:      #fn_attr[[CONV_NOINLINE_ATTR:[0-9]*]] = #cir<extra({convergent = #cir.convergent, inline = #cir.inline<no>
-// CIR-NEXT: #fn_attr[[CONV_DECL_ATTR:[0-9]*]] = #cir<extra({convergent = #cir.convergent
+// CIR: #fn_attr = #cir<extra({convergent = #cir.convergent
 
 __attribute__((noinline))
 void non_convfun(void) {
   volatile int* p;
   *p = 0;
 }
-// CIR: cir.func @non_convfun(){{.*}} extra(#fn_attr[[CONV_NOINLINE_ATTR]])
+// CIR: cir.func no_inline @non_convfun(){{.*}} extra(#fn_attr)
 // LLVM: define{{.*}} spir_func void @non_convfun() local_unnamed_addr #[[NON_CONV_ATTR:[0-9]+]]
 // LLVM: ret void
 
 // External functions should be assumed convergent.
 void f(void);
-// CIR: cir.func{{.+}} @f(){{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.+}} @f(){{.*}} extra(#fn_attr)
 // LLVM: declare spir_func void @f() local_unnamed_addr #[[CONV_ATTR:[0-9]+]]
 void g(void);
-// CIR: cir.func{{.+}} @g(){{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.+}} @g(){{.*}} extra(#fn_attr)
 // LLVM: declare spir_func void @g() local_unnamed_addr #[[CONV_ATTR]]
 
 // Test two if's are merged and non_convfun duplicated.
@@ -36,7 +35,7 @@ void test_merge_if(int a) {
     g();
   }
 }
-// CIR: cir.func @test_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.*}} @test_merge_if{{.*}} extra(#fn_attr)
 
 // The LLVM IR below is equivalent to:
 //    if (a) {
@@ -67,7 +66,7 @@ void test_merge_if(int a) {
 
 
 void convfun(void) __attribute__((convergent));
-// CIR: cir.func{{.+}} @convfun(){{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.+}} @convfun(){{.*}} extra(#fn_attr)
 // LLVM: declare spir_func void @convfun() local_unnamed_addr #[[CONV_ATTR]]
 
 // Test two if's are not merged.
@@ -80,7 +79,7 @@ void test_no_merge_if(int a) {
     g();
   }
 }
-// CIR: cir.func @test_no_merge_if{{.*}} extra(#fn_attr[[CONV_DECL_ATTR]])
+// CIR: cir.func{{.*}} @test_no_merge_if{{.*}} extra(#fn_attr)
 
 // LLVM-LABEL: define{{.*}} spir_func void @test_no_merge_if
 // LLVM:         %[[tobool:.+]] = icmp eq i32 %[[ARG:.+]], 0

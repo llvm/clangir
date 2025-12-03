@@ -367,8 +367,6 @@ public:
     case CIRGenAction::OutputType::EmitBC:
     case CIRGenAction::OutputType::EmitObj:
     case CIRGenAction::OutputType::EmitAssembly: {
-      auto &CGOpts = CI.getCodeGenOpts();
-
       llvm::LLVMContext LlvmCtx;
       LlvmCtx.setDefaultTargetCPU(TargetOpts.CPU);
       LlvmCtx.setDefaultTargetFeatures(llvm::join(TargetOpts.Features, ","));

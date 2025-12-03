@@ -41,12 +41,12 @@ void test() {
 // - D0 (deleting destructor)
 
 // Check for complete destructor thunk (D1) - appears first in output
-// CIR: cir.func comdat linkonce_odr @_ZThn16_N7DerivedD1Ev
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn16_N7DerivedD1Ev
 // CIR: cir.ptr_stride
 // CIR: cir.call @_ZN7DerivedD1Ev
 
 // Check for deleting destructor thunk (D0) - appears second in output
-// CIR: cir.func comdat linkonce_odr @_ZThn16_N7DerivedD0Ev
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZThn16_N7DerivedD0Ev
 // CIR: cir.ptr_stride
 // CIR: cir.call @_ZN7DerivedD0Ev
 

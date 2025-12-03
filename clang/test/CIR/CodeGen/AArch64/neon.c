@@ -9,6 +9,11 @@
 // RUN: | opt -S -passes=mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +neon \
+// RUN:  -flax-vector-conversions=none -emit-llvm -o - %s \
+// RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t-og.ll
+// RUN: FileCheck --check-prefix=OGCG --input-file=%t-og.ll %s
+
 // REQUIRES: aarch64-registered-target || arm-registered-target
 
 // This test mimics clang/test/CodeGen/AArch64/neon-intrinsics.c, which eventually
@@ -18637,6 +18642,279 @@ uint32_t test_vmaxv_u32(uint32x2_t a) {
   // LLVM:  [[VMAXV_U32_I:%.*]] = call i32 @llvm.aarch64.neon.umaxv.i32.v2i32(<2 x i32> {{.*}})
   // LLVM:  ret i32 [[VMAXV_U32_I]]
 }
+
+uint16_t test_vmaxvq_u16(uint16x8_t a) {
+  return vmaxvq_u16(a);
+
+  // CIR-LABEL: vmaxvq_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umax" {{%.*}} : (!cir.vector<!u16i x 8>) -> !u16i
+
+  // LLVM-LABEL: @test_vmaxvq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMAXVQ_U16_I:%.*]] = call i16 @llvm.vector.reduce.umax.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMAXVQ_U16_I]]
+
+  // OGCG-LABEL: @test_vmaxvq_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umax.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int16_t test_vmaxvq_s16(int16x8_t a) {
+  return vmaxvq_s16(a);
+
+  // CIR-LABEL: vmaxvq_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smax" {{%.*}} : (!cir.vector<!s16i x 8>) -> !s16i
+
+  // LLVM-LABEL: @test_vmaxvq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMAXVQ_S16_I:%.*]] = call i16 @llvm.vector.reduce.smax.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMAXVQ_S16_I]]
+
+  // OGCG-LABEL: @test_vmaxvq_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smax.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+uint8_t test_vminvq_u8(uint8x16_t a) {
+  return vminvq_u8(a);
+
+  // CIR-LABEL: vminvq_u8
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u8i x 16>) -> !u8i
+
+  // LLVM-LABEL: @test_vminvq_u8
+  // LLVM-SAME: (<16 x i8> [[a:%.*]])
+  // LLVM: [[VMINVQ_U8_I:%.*]] = call i8 @llvm.vector.reduce.umin.v16i8(<16 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINVQ_U8_I]]
+
+  // OGCG-LABEL: @test_vminvq_u8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.umin.v16i8(<16 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+int16_t test_vminvq_s16(int16x8_t a) {
+  return vminvq_s16(a);
+
+  // CIR-LABEL: vminvq_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s16i x 8>) -> !s16i
+
+  // LLVM-LABEL: @test_vminvq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMINVQ_S16_I:%.*]] = call i16 @llvm.vector.reduce.smin.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINVQ_S16_I]]
+
+  // OGCG-LABEL: @test_vminvq_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smin.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+uint8_t test_vminv_u8(uint8x8_t a) {
+  return vminv_u8(a);
+
+  // CIR-LABEL: vminv_u8
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u8i x 8>) -> !u8i
+
+  // LLVM-LABEL: @test_vminv_u8
+  // LLVM-SAME: (<8 x i8> [[a:%.*]])
+  // LLVM: [[VMINV_U8_I:%.*]] = call i8 @llvm.vector.reduce.umin.v8i8(<8 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINV_U8_I]]
+
+  // OGCG-LABEL: @test_vminv_u8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.umin.v8i8(<8 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+uint16_t test_vminv_u16(uint16x4_t a) {
+  return vminv_u16(a);
+
+  // CIR-LABEL: vminv_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u16i x 4>) -> !u16i
+
+  // LLVM-LABEL: @test_vminv_u16
+  // LLVM-SAME: (<4 x i16> [[a:%.*]])
+  // LLVM: [[VMINV_U16_I:%.*]] = call i16 @llvm.vector.reduce.umin.v4i16(<4 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINV_U16_I]]
+
+  // OGCG-LABEL: @test_vminv_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umin.v4i16(<4 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+uint16_t test_vminvq_u16(uint16x8_t a) {
+  return vminvq_u16(a);
+
+  // CIR-LABEL: vminvq_u16
+  // CIR: cir.llvm.intrinsic "vector.reduce.umin" {{%.*}} : (!cir.vector<!u16i x 8>) -> !u16i
+
+  // LLVM-LABEL: @test_vminvq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VMINVQ_U16_I:%.*]] = call i16 @llvm.vector.reduce.umin.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINVQ_U16_I]]
+
+  // OGCG-LABEL: @test_vminvq_u16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.umin.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int8_t test_vminv_s8(int8x8_t a) {
+  return vminv_s8(a);
+
+  // CIR-LABEL: vminv_s8
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s8i x 8>) -> !s8i
+
+  // LLVM-LABEL: @test_vminv_s8
+  // LLVM-SAME: (<8 x i8> [[a:%.*]])
+  // LLVM: [[VMINV_S8_I:%.*]] = call i8 @llvm.vector.reduce.smin.v8i8(<8 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINV_S8_I]]
+
+  // OGCG-LABEL: @test_vminv_s8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.smin.v8i8(<8 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+int16_t test_vminv_s16(int16x4_t a) {
+  return vminv_s16(a);
+
+  // CIR-LABEL: vminv_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s16i x 4>) -> !s16i
+
+  // LLVM-LABEL: @test_vminv_s16
+  // LLVM-SAME: (<4 x i16> [[a:%.*]])
+  // LLVM: [[VMINV_S16_I:%.*]] = call i16 @llvm.vector.reduce.smin.v4i16(<4 x i16> {{.*}})
+  // LLVM: ret i16 [[VMINV_S16_I]]
+
+  // OGCG-LABEL: @test_vminv_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.smin.v4i16(<4 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int8_t test_vminvq_s8(int8x16_t a) {
+  return vminvq_s8(a);
+
+  // CIR-LABEL: vminvq_s8
+  // CIR: cir.llvm.intrinsic "vector.reduce.smin" {{%.*}} : (!cir.vector<!s8i x 16>) -> !s8i
+
+  // LLVM-LABEL: @test_vminvq_s8
+  // LLVM-SAME: (<16 x i8> [[a:%.*]])
+  // LLVM: [[VMINVQ_S8_I:%.*]] = call i8 @llvm.vector.reduce.smin.v16i8(<16 x i8> {{.*}})
+  // LLVM: ret i8 [[VMINVQ_S8_I]]
+
+  // OGCG-LABEL: @test_vminvq_s8
+  // OGCG: {{%.*}} = call i8 @llvm.vector.reduce.smin.v16i8(<16 x i8> {{%.*}})
+  // OGCG: ret i8
+}
+
+int16_t test_vaddvq_s16(int16x8_t a) {
+  return vaddvq_s16(a);
+
+  // CIR-LABEL: vaddvq_s16
+  // CIR: cir.llvm.intrinsic "vector.reduce.add" {{%.*}} : (!cir.vector<!s16i x 8>) -> !s16i
+
+  // LLVM-LABEL: @test_vaddvq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]])
+  // LLVM: [[VADDVQ_S16_I:%.*]] = call i16 @llvm.vector.reduce.add.v8i16(<8 x i16> {{.*}})
+  // LLVM: ret i16 [[VADDVQ_S16_I]]
+
+  // OGCG-LABEL: @test_vaddvq_s16
+  // OGCG: {{%.*}} = call i16 @llvm.vector.reduce.add.v8i16(<8 x i16> {{%.*}})
+  // OGCG: ret i16
+}
+
+int16x8_t test_vpminq_s16(int16x8_t a, int16x8_t b) {
+  return vpminq_s16(a, b);
+
+  // CIR-LABEL: vpminq_s16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.sminp" {{%.*}} : (!cir.vector<!s16i x 8>, !cir.vector<!s16i x 8>) -> !cir.vector<!s16i x 8>
+
+  // LLVM-LABEL: @test_vpminq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.sminp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpminq_s16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.sminp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+uint16x8_t test_vpminq_u16(uint16x8_t a, uint16x8_t b) {
+  return vpminq_u16(a, b);
+
+  // CIR-LABEL: vpminq_u16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uminp" {{%.*}} : (!cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM-LABEL: @test_vpminq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.uminp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpminq_u16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.uminp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+uint16x8_t test_vpmaxq_u16(uint16x8_t a, uint16x8_t b) {
+  return vpmaxq_u16(a, b);
+
+  // CIR-LABEL: vpmaxq_u16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.umaxp" {{%.*}} : (!cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM-LABEL: @test_vpmaxq_u16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.umaxp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpmaxq_u16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.umaxp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+int16x8_t test_vpmaxq_s16(int16x8_t a, int16x8_t b) {
+  return vpmaxq_s16(a, b);
+
+  // CIR-LABEL: vpmaxq_s16
+  // CIR: cir.llvm.intrinsic "aarch64.neon.smaxp" {{%.*}} : (!cir.vector<!s16i x 8>, !cir.vector<!s16i x 8>) -> !cir.vector<!s16i x 8>
+
+  // LLVM-LABEL: @test_vpmaxq_s16
+  // LLVM-SAME: (<8 x i16> [[a:%.*]], <8 x i16> [[b:%.*]])
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.smaxp.v8i16(<8 x i16> {{.*}}, <8 x i16> {{.*}})
+  // LLVM: ret <8 x i16>
+
+  // OGCG-LABEL: @test_vpmaxq_s16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.smaxp.v8i16(<8 x i16> {{%.*}}, <8 x i16> {{%.*}})
+  // OGCG: ret <8 x i16>
+}
+
+float32x4_t test_vpminq_f32(float32x4_t a, float32x4_t b) {
+  return vpminq_f32(a, b);
+
+  // CIR-LABEL: vpminq_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fminp" {{%.*}} : (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_vpminq_f32
+  // LLVM-SAME: (<4 x float> [[a:%.*]], <4 x float> [[b:%.*]])
+  // LLVM: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fminp.v4f32(<4 x float> {{.*}}, <4 x float> {{.*}})
+  // LLVM: ret <4 x float>
+
+  // OGCG-LABEL: @test_vpminq_f32
+  // OGCG: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fminp.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}})
+  // OGCG: ret <4 x float>
+}
+
+float32x4_t test_vpmaxq_f32(float32x4_t a, float32x4_t b) {
+  return vpmaxq_f32(a, b);
+
+  // CIR-LABEL: vpmaxq_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fmaxp" {{%.*}} : (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_vpmaxq_f32
+  // LLVM-SAME: (<4 x float> [[a:%.*]], <4 x float> [[b:%.*]])
+  // LLVM: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fmaxp.v4f32(<4 x float> {{.*}}, <4 x float> {{.*}})
+  // LLVM: ret <4 x float>
+
+  // OGCG-LABEL: @test_vpmaxq_f32
+  // OGCG: {{%.*}} = call <4 x float> @llvm.aarch64.neon.fmaxp.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}})
+  // OGCG: ret <4 x float>
+}
+
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);

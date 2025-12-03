@@ -765,6 +765,9 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
   // Create a scope in the symbol table to hold variable declarations.
   SymTableScopeTy varScope(symbolTable);
   // Compiler synthetized functions might have invalid slocs...
+  // Note: For synthetic functions like thunks, fd and/or fd->getBody() may be
+  // null. We need to guard all accesses to fd->getBody() throughout this
+  // function.
   auto bSrcLoc =
       (fd && fd->getBody()) ? fd->getBody()->getBeginLoc() : SourceLocation();
   auto eSrcLoc =
@@ -1160,6 +1163,8 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // Apply xray attributes to the function (as a string, for now)
+  // Note: 'd' can be null for synthetic functions like thunks, so we must
+  // check before accessing attributes to avoid dereferencing null.
   if (d && d->getAttr<XRayInstrumentAttr>()) {
     assert(!cir::MissingFeatures::xray());
   }
@@ -1374,8 +1379,9 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     }
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    auto fnEndLoc = (fd && fd->getBody()) ? getLoc(fd->getBody()->getEndLoc())
-                                          : getLoc(Loc);
+    auto fnEndLoc = (fd && fd->getBody())
+                        ? getLoc(fd->getBody()->getEndLoc())
+                        : getLoc(Loc);
 
     // When the current function is not void, create an address to store the
     // result value.
@@ -1811,6 +1817,14 @@ CIRGenFunction::getVLASize(const VariableArrayType *type) {
 
   assert(numElements && "Undefined elements number");
   return {numElements, elementType};
+}
+
+CIRGenFunction::VlaSizePair
+CIRGenFunction::getVLAElements1D(const VariableArrayType *vla) {
+  mlir::Value vlaSize = VLASizeMap[vla->getSizeExpr()];
+  assert(vlaSize && "no size for VLA!");
+  assert(vlaSize.getType() == SizeTy);
+  return {vlaSize, vla->getElementType()};
 }
 
 // TODO(cir): most part of this function can be shared between CIRGen
