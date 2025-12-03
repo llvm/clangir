@@ -918,6 +918,11 @@ public:
                                          isNontemporal, align, order);
   }
 
+  /// Emit a load from an boolean flag variable.
+  cir::LoadOp CreateFlagLoad(mlir::Location Loc, mlir::Value Addr) {
+    return createAlignedLoad(Loc, getBoolTy(), Addr, CharUnits::One());
+  }
+
   cir::StoreOp createFlagStore(mlir::Location loc, bool val, mlir::Value dst) {
     auto flag = getBool(val, loc);
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
