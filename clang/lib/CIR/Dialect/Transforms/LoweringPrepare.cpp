@@ -281,7 +281,7 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   FuncOp f = buildRuntimeFunction(builder, fnName, op.getLoc(), fnType,
                                   cir::GlobalLinkageKind::InternalLinkage);
 
-  // Move over the initialzation code of the ctor region.
+  // Move over the initialization code of the ctor region.
   mlir::Block *entryBB = f.addEntryBlock();
   if (!op.getCtorRegion().empty()) {
     auto &block = op.getCtorRegion().front();
@@ -919,7 +919,7 @@ void LoweringPreparePass::handleGlobalOpCtorDtor(GlobalOp globalOp) {
   auto &dtorRegion = globalOp.getDtorRegion();
 
   if (!ctorRegion.empty() || !dtorRegion.empty()) {
-    // Build a variable initialization function and move the initialzation code
+    // Build a variable initialization function and move the initialization code
     // in the ctor region over.
     auto f = buildCXXGlobalVarDeclInitFunc(globalOp);
 
@@ -1201,6 +1201,14 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   // simple test case with only the static local var decl and thus we only have
   // the return. For less trivial examples we'll have to handle shuffling the
   // contents of this block more carefully.
+  //
+  // Assert that we only have GetGlobalOp + terminator in the block for now.
+  // When we support more complex cases, we'll need proper block splitting.
+  {
+    size_t opCount =
+        std::distance(getGlobalOpBlock->begin(), getGlobalOpBlock->end());
+    assert(opCount == 2 && "NYI: static local in block with other operations");
+  }
   Operation *ret = getGlobalOpBlock->getTerminator();
   ret->remove();
   builder.setInsertionPointAfter(getGlobalOp);
@@ -1307,8 +1315,17 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   auto initBlock = [&]() {
     // CIR: Move the initializer from the globalOp's ctor region into the
     // current block.
-    // TODO(CIR): Once we support exceptions we'll need to walk the ctor region
-    // to change calls to invokes.
+    //
+    // NOTE: Exception handling is NYI. When we support exceptions, we'll need
+    // to:
+    // 1. Walk the ctor region to change calls to invokes
+    // 2. Push a CallGuardAbort cleanup to call __cxa_guard_abort on exception
+    // 3. Clear the cleanup after successful initialization
+    //
+    // Per Itanium ABI 3.3.2, if initialization throws, __cxa_guard_abort must
+    // be called to reset the guard, allowing retry on subsequent calls.
+    assert(!cir::MissingFeatures::guardAbortOnException());
+
     auto &ctorRegion = globalOp.getCtorRegion();
     assert(!ctorRegion.empty() && "This should never be empty here.");
     if (!ctorRegion.hasOneBlock())
@@ -1323,17 +1340,15 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     ctorRegion.getBlocks().clear();
 
     if (threadsafe) {
-      // NOTE(CIR): CodeGen clears the above pushed CallGuardAbort here and thus
-      // the __guard_abort gets inserted. We'll have to figure out how to
-      // properly handle this when supporting static locals with exceptions.
-
       // Call __cxa_guard_release. This cannot throw.
       emitNounwindRuntimeCall(builder, globalOp->getLoc(),
                               getGuardReleaseFn(*astCtx, getContext(),
                                                 theModule, builder, guardPtrTy),
                               guardPtr);
     } else if (varDecl.isLocalVarDecl()) {
-      llvm_unreachable("NYI");
+      // For non-threadsafe local variables, no guard release is needed
+      // as we use a simple byte guard that's already been set.
+      llvm_unreachable("NYI: non-threadsafe local static with exceptions");
     }
   };
 
@@ -1358,13 +1373,13 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     if (threadsafe) {
       auto loc = globalOp->getLoc();
       // Call __cxa_guard_acquire.
-      mlir::Value value = emitNounwindRuntimeCall(
+      mlir::Value acquireResult = emitNounwindRuntimeCall(
           builder, loc,
           getGuardAcquireFn(*astCtx, getContext(), theModule, builder,
                             guardPtrTy),
           guardPtr);
 
-      auto isNotNull = builder.createIsNotNull(loc, value);
+      auto isNotNull = builder.createIsNotNull(loc, acquireResult);
       builder.create<cir::IfOp>(globalOp.getLoc(), isNotNull,
                                 /*=withElseRegion*/ false,
                                 [&](mlir::OpBuilder &, mlir::Location) {
@@ -1372,12 +1387,11 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
                                   builder.createYield(getGlobalOp->getLoc());
                                 });
 
-      // NOTE(CIR): CodeGen pushes a CallGuardAbort cleanup here, but we are
-      // synthesizing the outcome via walking the CIR in the ctor region and
-      // changing calls to invokes.
-
     } else if (!varDecl.isLocalVarDecl()) {
-      llvm_unreachable("NYI");
+      // For non-local (namespace-scope) variables without thread-safety,
+      // we need to mark as initialized BEFORE running the initializer to
+      // handle recursive initialization correctly.
+      llvm_unreachable("NYI: non-local static without thread-safety");
     }
   };
 
@@ -1425,11 +1439,11 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     mlir::Value constOne = builder.getConstAPSInt(
         getGlobalOp->getLoc(), llvm::APSInt(llvm::APInt(8, 1),
                                             /*isUnsigned=*/false));
-    mlir::Value value =
+    mlir::Value guardValue =
         (!cir::MissingFeatures::useARMGuardVarABI() && !useInt8GuardVariable)
             ? builder.createAnd(load, constOne)
             : load;
-    mlir::Value needsInit = builder.createIsNull(globalOp.getLoc(), value);
+    mlir::Value needsInit = builder.createIsNull(globalOp.getLoc(), guardValue);
 
     builder.create<cir::IfOp>(globalOp.getLoc(), needsInit,
                               /*=withElseRegion*/ false,
@@ -1480,7 +1494,7 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
     return;
 
   for (auto &f : dynamicInitializers) {
-    // TODO: handle globals with a user-specified initialzation priority.
+    // TODO: handle globals with a user-specified initialization priority.
     // TODO: handle defaule priority more nicely.
     globalCtorList.emplace_back(
         f.getName(),

@@ -492,6 +492,9 @@ struct MissingFeatures {
   static bool addressSpaceInGlobalVar() { return false; }
 
   static bool useARMGuardVarABI() { return false; }
+
+  // Static local variable guard
+  static bool guardAbortOnException() { return false; }
 };
 
 } // namespace cir
