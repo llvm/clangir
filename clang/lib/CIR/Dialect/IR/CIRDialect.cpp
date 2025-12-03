@@ -2571,6 +2571,28 @@ cir::GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 }
 
 //===----------------------------------------------------------------------===//
+// GuardedInitOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::GuardedInitOp::verify() {
+  // Verify that the guard variable is a pointer type.
+  auto guardPtrTy = mlir::dyn_cast<PointerType>(getGuardVar().getType());
+  if (!guardPtrTy)
+    return emitOpError("guard_var must be a pointer type");
+
+  // Verify that the init region has exactly one block.
+  if (getInitRegion().getBlocks().size() != 1)
+    return emitOpError("init_region must have exactly one block");
+
+  // Verify that the init region terminates with a yield.
+  auto &block = getInitRegion().front();
+  if (block.empty() || !isa<YieldOp>(block.back()))
+    return emitOpError("init_region must terminate with cir.yield");
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // VTableAddrPointOp
 //===----------------------------------------------------------------------===//
 
