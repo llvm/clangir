@@ -19319,3 +19319,26 @@ uint8x16x3_t test_vld3q_u8(uint8_t const *a) {
   // OGCG: {{%.*}} = load %struct.uint8x16x3_t, ptr {{%.*}}, align 16
   // OGCG: ret %struct.uint8x16x3_t
 }
+
+// CHECK-LABEL: test_vld4q_u8
+uint8x16x4_t test_vld4q_u8(uint8_t const *a) {
+  return vld4q_u8(a);
+
+  // CIR-LABEL: vld4q_u8
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.ld4" {{%.*}} : (!cir.ptr<!void>) -> !rec_anon_struct{{.*}}
+  // CIR: cir.store align(16) {{%.*}}, {{%.*}} : !rec_anon_struct{{.*}}, !cir.ptr<!rec_anon_struct{{.*}}>
+
+  // LLVM-LABEL: @test_vld4q_u8
+  // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld4.v16i8.p0(ptr {{%.*}})
+  // LLVM: store { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
+  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i32 64, i1 false)
+  // LLVM: {{%.*}} = load %struct.uint8x16x4_t, ptr {{%.*}}, align 1
+  // LLVM: ret %struct.uint8x16x4_t
+
+  // OGCG-LABEL: @test_vld4q_u8
+  // OGCG: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld4.v16i8.p0(ptr {{%.*}})
+  // OGCG: store { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
+  // OGCG: call void @llvm.memcpy.{{.*}}(ptr{{.*}}, ptr{{.*}}, i64 64, i1 false)
+  // OGCG: {{%.*}} = load %struct.uint8x16x4_t, ptr {{%.*}}, align 16
+  // OGCG: ret %struct.uint8x16x4_t
+}

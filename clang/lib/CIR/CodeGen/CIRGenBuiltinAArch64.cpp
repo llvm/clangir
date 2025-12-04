@@ -3532,6 +3532,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
       case NEON::BI__builtin_neon_vld2q_v:
       case NEON::BI__builtin_neon_vld3_v:
       case NEON::BI__builtin_neon_vld3q_v:
+      case NEON::BI__builtin_neon_vld4_v:
+      case NEON::BI__builtin_neon_vld4q_v:
       case NEON::BI__builtin_neon_vst1_v:
       case NEON::BI__builtin_neon_vst1q_v:
       case NEON::BI__builtin_neon_vst1_lane_v:
@@ -4640,7 +4642,27 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld4_v:
   case NEON::BI__builtin_neon_vld4q_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vld4q_v NYI");
+    // vld4: Load 4-element structure with deinterleaving
+    // Loads interleaved data [a0,b0,c0,d0,a1,b1,c1,d1,...] into four vectors
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // Create struct type: { vec, vec, vec, vec }
+    llvm::SmallVector<mlir::Type, 4> members = {vTy, vTy, vTy, vTy};
+    auto structTy = cir::RecordType::get(builder.getContext(), members,
+                                         /*packed=*/false, /*padded=*/false,
+                                         cir::RecordType::Struct);
+
+    // Call intrinsic: @llvm.aarch64.neon.ld4.<vectype>(ptr)
+    llvm::SmallVector<mlir::Type> argTypes = {Ops[1].getType()};
+    llvm::SmallVector<mlir::Value> args = {Ops[1]};
+    mlir::Value result = emitNeonCall(builder, std::move(argTypes), args,
+                                      "aarch64.neon.ld4", structTy, loc);
+
+    // Store result to destination pointer (Ops[0]) with proper alignment
+    builder.createAlignedStore(loc, result, Ops[0], PtrOp0.getAlignment());
+
+    // Return the loaded struct
+    return result;
   }
   case NEON::BI__builtin_neon_vld2_dup_v:
   case NEON::BI__builtin_neon_vld2q_dup_v: {
