@@ -4507,7 +4507,18 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vsri_n_v:
   case NEON::BI__builtin_neon_vsriq_n_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vsriq_n_v NYI");
+    // vsri_n: Shift right and insert
+    // Intrinsic: @llvm.aarch64.neon.vsri(input_vec, source_vec, shift_imm)
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // Ops layout: [input_vector, source_vector, shift_immediate]
+    llvm::SmallVector<mlir::Type> argTypes(3);
+    argTypes[0] = Ops[0].getType();
+    argTypes[1] = Ops[1].getType();
+    argTypes[2] = Ops[2].getType();
+
+    return emitNeonCall(builder, std::move(argTypes), Ops, "aarch64.neon.vsri",
+                        vTy, loc);
   }
   case NEON::BI__builtin_neon_vsli_n_v:
   case NEON::BI__builtin_neon_vsliq_n_v: {
