@@ -19273,3 +19273,26 @@ int8x8_t test_vaddhn_s16(int16x8_t a, int16x8_t b) {
   // OGCG: {{%.*}} = trunc <8 x i16> {{%.*}} to <8 x i8>
   // OGCG: ret <8 x i8>
 }
+
+// CHECK-LABEL: test_vld2q_u8
+uint8x16x2_t test_vld2q_u8(uint8_t const *a) {
+  return vld2q_u8(a);
+
+  // CIR-LABEL: vld2q_u8
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.ld2" {{%.*}} : (!cir.ptr<!void>) -> !rec_anon_struct
+  // CIR: cir.store align(16) {{%.*}}, {{%.*}} : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
+
+  // LLVM-LABEL: @test_vld2q_u8
+  // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld2.v16i8.p0(ptr {{%.*}})
+  // LLVM: store { <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
+  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i32 32, i1 false)
+  // LLVM: {{%.*}} = load %struct.uint8x16x2_t, ptr {{%.*}}, align 1
+  // LLVM: ret %struct.uint8x16x2_t
+
+  // OGCG-LABEL: @test_vld2q_u8
+  // OGCG: {{%.*}} = call { <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld2.v16i8.p0(ptr {{%.*}})
+  // OGCG: store { <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
+  // OGCG: call void @llvm.memcpy.{{.*}}(ptr{{.*}}, ptr{{.*}}, i64 32, i1 false)
+  // OGCG: {{%.*}} = load %struct.uint8x16x2_t, ptr {{%.*}}, align 16
+  // OGCG: ret %struct.uint8x16x2_t
+}
