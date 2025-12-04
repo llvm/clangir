@@ -1534,8 +1534,32 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     return RValue::get(nullptr);
   }
-  case Builtin::BI__builtin_verbose_trap:
-    llvm_unreachable("BI__builtin_verbose_trap NYI");
+  case Builtin::BI__builtin_verbose_trap: {
+    // Get the compile-time string arguments (category and message)
+    // These are validated by Sema, so they should always be available
+    [[maybe_unused]] std::optional<std::string> category =
+        E->getArg(0)->tryEvaluateString(getContext());
+    [[maybe_unused]] std::optional<std::string> message =
+        E->getArg(1)->tryEvaluateString(getContext());
+
+    // Get current debug location
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // TODO(CIR): Enhance the location with trap message information by
+    // creating an artificial debug scope named
+    // "__clang_trap_msg$<category>$<message>" (see OG's
+    // CGDebugInfo::CreateTrapFailureMessageFor)
+    assert(!cir::MissingFeatures::generateDebugInfo());
+
+    // Create the trap operation (same as __builtin_trap)
+    cir::TrapOp::create(builder, loc);
+
+    // Note that cir.trap is a terminator so we need to start a new block to
+    // preserve the insertion point.
+    builder.createBlock(builder.getBlock()->getParent());
+
+    return RValue::get(nullptr);
+  }
   case Builtin::BI__debugbreak:
     llvm_unreachable("BI__debugbreak NYI");
   case Builtin::BI__builtin_unreachable: {
