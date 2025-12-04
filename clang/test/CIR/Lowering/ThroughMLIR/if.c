@@ -29,8 +29,8 @@ void foo() {
 //CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][] : memref<i32>
 //CHECK:     } else {
 //CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][] : memref<i32>
-//CHECK:       %[[C1_I32:.+]] = arith.constant 1 : i32
-//CHECK:       %[[SEVEN:.+]] = arith.subi %[[SIX]], %[[C1_I32]] : i32
+//CHECK:       %[[C1_I32:.+]] = arith.constant -1 : i32
+//CHECK:       %[[SEVEN:.+]] = arith.addi %[[SIX]], %[[C1_I32]] : i32
 //CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][] : memref<i32>
 //CHECK:     }
 //CHECK:   }
@@ -106,8 +106,8 @@ void foo3() {
 //CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][] : memref<i32>
 //CHECK:         } else {
 //CHECK:           %[[TWELVE:.+]] = memref.load %[[alloca_0]][] : memref<i32>
-//CHECK:           %[[C1_I32_5:.+]] = arith.constant 1 : i32
-//CHECK:           %[[THIRTEEN:.+]] = arith.subi %[[TWELVE]], %[[C1_I32_5]] : i32
+//CHECK:           %[[C1_I32_5:.+]] = arith.constant -1 : i32
+//CHECK:           %[[THIRTEEN:.+]] = arith.addi %[[TWELVE]], %[[C1_I32_5]] : i32
 //CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][] : memref<i32>
 //CHECK:         }
 //CHECK:       }
