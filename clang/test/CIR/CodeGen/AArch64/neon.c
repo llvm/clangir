@@ -19398,3 +19398,17 @@ uint8x16_t test_vsriq_n_u8(uint8x16_t a, uint8x16_t b) {
   // OGCG-LABEL: @test_vsriq_n_u8
   // OGCG: {{%.*}} = call <16 x i8> @llvm.aarch64.neon.vsri.v16i8(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, i32 3)
 }
+
+// CHECK-LABEL: test_vqshrun_n_s16
+uint8x8_t test_vqshrun_n_s16(int16x8_t a) {
+  return vqshrun_n_s16(a, 3);
+
+  // CIR-LABEL: vqshrun_n_s16
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.sqshrun" {{%.*}}, {{%.*}} : (!cir.vector<!s16i x 8>, !s32i) -> !cir.vector<!u8i x 8>
+
+  // LLVM-LABEL: @test_vqshrun_n_s16
+  // LLVM: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.sqshrun.v8i8(<8 x i16> {{%.*}}, i32 3)
+
+  // OGCG-LABEL: @test_vqshrun_n_s16
+  // OGCG: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.sqshrun.v8i8(<8 x i16> {{%.*}}, i32 3)
+}

@@ -4132,8 +4132,21 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vrecpsd_f64 NYI");
   case NEON::BI__builtin_neon_vrecpsh_f16:
     llvm_unreachable("NEON::BI__builtin_neon_vrecpsh_f16 NYI");
-  case NEON::BI__builtin_neon_vqshrun_n_v:
-    llvm_unreachable("NEON::BI__builtin_neon_vqshrun_n_v NYI");
+  case NEON::BI__builtin_neon_vqshrun_n_v: {
+    // vqshrun_n: Saturating shift right unsigned narrow
+    // Intrinsic: @llvm.aarch64.neon.sqshrun(input_vec, shift_imm)
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // This is a narrowing operation: wider input -> narrower output
+    // e.g., int16x8_t -> uint8x8_t
+    llvm::SmallVector<mlir::Type> argTypes(2);
+    argTypes[0] =
+        builder.getExtendedOrTruncatedElementVectorType(ty, true, true);
+    argTypes[1] = SInt32Ty;
+
+    return emitNeonCall(builder, std::move(argTypes), Ops,
+                        "aarch64.neon.sqshrun", vTy, loc);
+  }
   case NEON::BI__builtin_neon_vqrshrun_n_v:
     // The prototype of builtin_neon_vqrshrun_n can be found at
     // https://developer.arm.com/architectures/instruction-sets/intrinsics/
