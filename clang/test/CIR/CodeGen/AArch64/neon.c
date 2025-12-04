@@ -19370,3 +19370,17 @@ void test_vst2q_u8(uint8_t *a, uint8x16x2_t b) {
   // OGCG-LABEL: @test_vst2q_u8
   // OGCG: call void @llvm.aarch64.neon.st2.v16i8.p0(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, ptr {{%.*}})
 }
+
+// CHECK-LABEL: test_vst4q_lane_u8
+void test_vst4q_lane_u8(uint8_t *a, uint8x16x4_t b) {
+  vst4q_lane_u8(a, b, 15);
+
+  // CIR-LABEL: vst4q_lane_u8
+  // CIR: cir.llvm.intrinsic "aarch64.neon.st4lane" {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}} : (!cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !s64i, !cir.ptr<!void>)
+
+  // LLVM-LABEL: @test_vst4q_lane_u8
+  // LLVM: call void @llvm.aarch64.neon.st4lane.v16i8.p0(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, i64 15, ptr {{%.*}})
+
+  // OGCG-LABEL: @test_vst4q_lane_u8
+  // OGCG: call void @llvm.aarch64.neon.st4lane.v16i8.p0(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, i64 15, ptr {{%.*}})
+}
