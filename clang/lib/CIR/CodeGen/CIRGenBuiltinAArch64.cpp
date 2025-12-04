@@ -4664,6 +4664,50 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     // Return the loaded struct
     return result;
   }
+  case NEON::BI__builtin_neon_vld4_lane_v:
+  case NEON::BI__builtin_neon_vld4q_lane_v: {
+    // vld4_lane: Load 4 elements from memory and insert into specified lane
+    // Intrinsic: @llvm.aarch64.neon.ld4lane(vec0, vec1, vec2, vec3, lane, ptr)
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // Create struct type for return value: { vec, vec, vec, vec }
+    llvm::SmallVector<mlir::Type, 4> members = {vTy, vTy, vTy, vTy};
+    auto structTy = cir::RecordType::get(builder.getContext(), members,
+                                         /*packed=*/false, /*padded=*/false,
+                                         cir::RecordType::Struct);
+
+    // Ops layout: [dest_ptr, src_ptr, vec0, vec1, vec2, vec3, lane]
+    // Need to call: ld4lane(vec0, vec1, vec2, vec3, lane_i64, src_ptr)
+
+    // Bitcast the 4 input vectors to vTy
+    llvm::SmallVector<mlir::Value> args;
+    args.push_back(builder.createBitcast(Ops[2], vTy));
+    args.push_back(builder.createBitcast(Ops[3], vTy));
+    args.push_back(builder.createBitcast(Ops[4], vTy));
+    args.push_back(builder.createBitcast(Ops[5], vTy));
+
+    // Extend lane index to i64
+    auto i64Ty = builder.getSInt64Ty();
+    args.push_back(builder.createIntCast(Ops[6], i64Ty));
+
+    // Add source pointer
+    args.push_back(Ops[1]);
+
+    // Prepare argument types for intrinsic
+    llvm::SmallVector<mlir::Type> argTypes(args.size());
+    for (size_t i = 0; i < args.size(); ++i)
+      argTypes[i] = args[i].getType();
+
+    // Call intrinsic
+    mlir::Value result = emitNeonCall(builder, std::move(argTypes), args,
+                                      "aarch64.neon.ld4lane", structTy, loc);
+
+    // Store result to destination pointer (Ops[0])
+    builder.createAlignedStore(loc, result, Ops[0], PtrOp0.getAlignment());
+
+    // Return the result struct
+    return result;
+  }
   case NEON::BI__builtin_neon_vld2_dup_v:
   case NEON::BI__builtin_neon_vld2q_dup_v: {
     llvm_unreachable("NEON::BI__builtin_neon_vld2q_dup_v NYI");
@@ -4683,10 +4727,6 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vld3_lane_v:
   case NEON::BI__builtin_neon_vld3q_lane_v: {
     llvm_unreachable("NEON::BI__builtin_neon_vld3q_lane_v NYI");
-  }
-  case NEON::BI__builtin_neon_vld4_lane_v:
-  case NEON::BI__builtin_neon_vld4q_lane_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vld4q_lane_v NYI");
   }
   case NEON::BI__builtin_neon_vst2_v:
   case NEON::BI__builtin_neon_vst2q_v: {

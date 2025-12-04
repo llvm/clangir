@@ -19342,3 +19342,17 @@ uint8x16x4_t test_vld4q_u8(uint8_t const *a) {
   // OGCG: {{%.*}} = load %struct.uint8x16x4_t, ptr {{%.*}}, align 16
   // OGCG: ret %struct.uint8x16x4_t
 }
+
+// CHECK-LABEL: test_vld4q_lane_u8
+uint8x16x4_t test_vld4q_lane_u8(uint8_t *a, uint8x16x4_t b) {
+  return vld4q_lane_u8(a, b, 15);
+
+  // CIR-LABEL: vld4q_lane_u8
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.ld4lane" {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}} : (!cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>, !s64i, !cir.ptr<!void>) -> !rec_anon_struct{{.*}}
+
+  // LLVM-LABEL: @test_vld4q_lane_u8
+  // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld4lane.v16i8.p0(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, i64 15, ptr {{%.*}})
+
+  // OGCG-LABEL: @test_vld4q_lane_u8
+  // OGCG: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld4lane.v16i8.p0(<16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, <16 x i8> {{%.*}}, i64 15, ptr {{%.*}})
+}
