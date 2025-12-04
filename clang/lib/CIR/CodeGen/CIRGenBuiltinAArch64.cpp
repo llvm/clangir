@@ -4730,7 +4730,28 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vst2_v:
   case NEON::BI__builtin_neon_vst2q_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vst2q_v NYI");
+    // vst2: Store 2-element structure with interleaving
+    // Intrinsic: @llvm.aarch64.neon.st2(vec0, vec1, ptr)
+    mlir::Location loc = getLoc(E->getExprLoc());
+
+    // Ops layout after argument processing: [ptr, vec0, vec1]
+    // The struct has been unpacked into individual vectors
+    assert(Ops.size() >= 3 && "Expected at least 3 operands for vst2");
+
+    // Bitcast vectors to vTy
+    mlir::Value vec0 = builder.createBitcast(Ops[1], vTy);
+    mlir::Value vec1 = builder.createBitcast(Ops[2], vTy);
+
+    // Call intrinsic: st2(vec0, vec1, ptr)
+    llvm::SmallVector<mlir::Type> argTypes(3);
+    argTypes[0] = vec0.getType();
+    argTypes[1] = vec1.getType();
+    argTypes[2] = Ops[0].getType();
+
+    llvm::SmallVector<mlir::Value> args = {vec0, vec1, Ops[0]};
+
+    return emitNeonCall(builder, std::move(argTypes), args, "aarch64.neon.st2",
+                        builder.getVoidTy(), loc);
   }
   case NEON::BI__builtin_neon_vst2_lane_v:
   case NEON::BI__builtin_neon_vst2q_lane_v: {
