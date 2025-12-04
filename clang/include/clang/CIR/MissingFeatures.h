@@ -176,7 +176,6 @@ struct MissingFeatures {
   static bool cleanupBranchAfterSwitch() { return false; }
   static bool cleanupAlwaysBranchThrough() { return false; }
   static bool cleanupDestinationIndex() { return false; }
-  static bool cleanupDestroyNRVOVariable() { return false; }
   static bool cleanupAppendInsts() { return false; }
   static bool cleanupIndexAndBIAdjustment() { return false; }
 
