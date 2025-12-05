@@ -1966,7 +1966,26 @@ static mlir::Value emitAArch64TblBuiltinExpr(CIRGenFunction &CGF,
   // argument that specifies the vector type, need to handle each case.
   switch (BuiltinID) {
   case NEON::BI__builtin_neon_vtbl1_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vtbl1_v NYI");
+    // vtbl1: Table lookup from 1 table
+    // Takes 64-bit table and 64-bit indices, extends table to 128-bit
+    CIRGenBuilderTy &Builder = CGF.getBuilder();
+    mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+
+    // Extend 64-bit table to 128-bit by shuffling with zero
+    // Indices: [0, ..., 15]
+    // First 8 from table, last 8 from zero vector
+    mlir::Value ZeroVec = Builder.getZero(Loc, Ty);
+    llvm::SmallVector<int64_t, 16> Indices = {0, 1, 2,  3,  4,  5,  6,  7,
+                                              8, 9, 10, 11, 12, 13, 14, 15};
+
+    mlir::Value ExtTable =
+        Builder.createVecShuffle(Loc, Ops[0], ZeroVec, Indices);
+
+    // Call aarch64.neon.tbl1 intrinsic
+    llvm::SmallVector<mlir::Value, 2> Args = {ExtTable, Ops[1]};
+    cir::LLVMIntrinsicCallOp Op = cir::LLVMIntrinsicCallOp::create(
+        Builder, Loc, Builder.getStringAttr("aarch64.neon.tbl1"), Ty, Args);
+    return Op.getResult();
   }
   case NEON::BI__builtin_neon_vtbl2_v: {
     llvm_unreachable("NEON::BI__builtin_neon_vtbl2_v NYI");

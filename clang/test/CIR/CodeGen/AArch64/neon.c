@@ -19426,3 +19426,20 @@ float32x4_t test_vfmaq_f32(float32x4_t v1, float32x4_t v2, float32x4_t v3) {
   // OGCG-LABEL: @test_vfmaq_f32
   // OGCG: {{%.*}} = call <4 x float> @llvm.fma.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}}, <4 x float> {{%.*}})
 }
+
+// CHECK-LABEL: test_vtbl1_s8
+int8x8_t test_vtbl1_s8(int8x8_t a, int8x8_t b) {
+  return vtbl1_s8(a, b);
+
+  // CIR-LABEL: vtbl1_s8
+  // CIR: {{%.*}} = cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s8i x 8>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, #cir.int<11> : !s32i, #cir.int<12> : !s32i, #cir.int<13> : !s32i, #cir.int<14> : !s32i, #cir.int<15> : !s32i] : !cir.vector<!s8i x 16>
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.tbl1" {{%.*}}, {{%.*}} : (!cir.vector<!s8i x 16>, !cir.vector<!s8i x 8>) -> !cir.vector<!s8i x 8>
+
+  // LLVM-LABEL: @test_vtbl1_s8
+  // LLVM: {{%.*}} = shufflevector <8 x i8> {{%.*}}, <8 x i8> zeroinitializer, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+  // LLVM: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.tbl1.v8i8(<16 x i8> {{%.*}}, <8 x i8> {{%.*}})
+
+  // OGCG-LABEL: @test_vtbl1_s8
+  // OGCG: {{%.*}} = shufflevector <8 x i8> {{%.*}}, <8 x i8> zeroinitializer, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+  // OGCG: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.tbl1.v8i8(<16 x i8> {{%.*}}, <8 x i8> {{%.*}})
+}
