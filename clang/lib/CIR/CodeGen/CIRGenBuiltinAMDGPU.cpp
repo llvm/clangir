@@ -116,7 +116,16 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   }
   case AMDGPU::BI__builtin_amdgcn_div_fmas:
   case AMDGPU::BI__builtin_amdgcn_div_fmasf: {
-    llvm_unreachable("div_fmas_* NYI");
+    mlir::Value src0 = emitScalarExpr(expr->getArg(0));
+    mlir::Value src1 = emitScalarExpr(expr->getArg(1));
+    mlir::Value src2 = emitScalarExpr(expr->getArg(2));
+    mlir::Value src3 = emitScalarExpr(expr->getArg(3));
+    mlir::Value result =
+        LLVMIntrinsicCallOp::create(builder, getLoc(expr->getExprLoc()),
+                                    builder.getStringAttr("amdgcn.div.fmas"),
+                                    src0.getType(), {src0, src1, src2, src3})
+            .getResult();
+    return result;
   }
   case AMDGPU::BI__builtin_amdgcn_ds_swizzle:
   case AMDGPU::BI__builtin_amdgcn_mov_dpp8:

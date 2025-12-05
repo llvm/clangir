@@ -266,3 +266,25 @@ void test_div_scale_f32_generic_ptr(global float* out, global int* flagout, floa
 {
   *out = __builtin_amdgcn_div_scalef(a, b, true, flag);
 }
+
+// CIR-LABEL: @test_div_fmas_f32
+// CIR: cir.llvm.intrinsic "amdgcn.div.fmas" {{.*}} : (!cir.float, !cir.float, !cir.float, !cir.bool) -> !cir.float
+// LLVM: define{{.*}} void @test_div_fmas_f32
+// LLVM: call float @llvm.amdgcn.div.fmas.f32(float %{{.+}}, float %{{.+}}, float %{{.+}}, i1 %{{.*}})
+// OGCG: define{{.*}} void @test_div_fmas_f32
+// OGCG: call float @llvm.amdgcn.div.fmas.f32(float %{{.+}}, float %{{.+}}, float %{{.+}}, i1 %{{.*}})
+void test_div_fmas_f32(global float* out, float a, float b, float c, int d)
+{
+  *out = __builtin_amdgcn_div_fmasf(a, b, c, d);
+}
+
+// CIR-LABEL: @test_div_fmas_f64
+// CIR: cir.llvm.intrinsic "amdgcn.div.fmas" {{.*}} : (!cir.double, !cir.double, !cir.double, !cir.bool) -> !cir.double
+// LLVM: define{{.*}} void @test_div_fmas_f64
+// LLVM: call double @llvm.amdgcn.div.fmas.f64(double %{{.+}}, double %{{.+}}, double %{{.+}}, i1 %{{.*}})
+// OGCG: define{{.*}} void @test_div_fmas_f64
+// OGCG: call double @llvm.amdgcn.div.fmas.f64(double %{{.+}}, double %{{.+}}, double %{{.+}}, i1 %{{.*}})
+void test_div_fmas_f64(global double* out, double a, double b, double c, int d)
+{
+  *out = __builtin_amdgcn_div_fmas(a, b, c, d);
+}
