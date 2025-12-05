@@ -19412,3 +19412,17 @@ uint8x8_t test_vqshrun_n_s16(int16x8_t a) {
   // OGCG-LABEL: @test_vqshrun_n_s16
   // OGCG: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.sqshrun.v8i8(<8 x i16> {{%.*}}, i32 3)
 }
+
+// CHECK-LABEL: test_vfmaq_f32
+float32x4_t test_vfmaq_f32(float32x4_t v1, float32x4_t v2, float32x4_t v3) {
+  return vfmaq_f32(v1, v2, v3);
+
+  // CIR-LABEL: vfmaq_f32
+  // CIR: {{%.*}} = cir.llvm.intrinsic "fma" {{%.*}}, {{%.*}}, {{%.*}} : (!cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>, !cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+
+  // LLVM-LABEL: @test_vfmaq_f32
+  // LLVM: {{%.*}} = call <4 x float> @llvm.fma.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}}, <4 x float> {{%.*}})
+
+  // OGCG-LABEL: @test_vfmaq_f32
+  // OGCG: {{%.*}} = call <4 x float> @llvm.fma.v4f32(<4 x float> {{%.*}}, <4 x float> {{%.*}}, <4 x float> {{%.*}})
+}

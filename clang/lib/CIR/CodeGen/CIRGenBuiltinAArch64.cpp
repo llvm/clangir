@@ -2550,6 +2550,18 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
     llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vfmaq_v: {
+    // vfmaq: Fused multiply-accumulate
+    // NEON intrinsic: vfmaq(accumulator, multiplicand1, multiplicand2)
+    // LLVM intrinsic: fma(multiplicand1, multiplicand2, accumulator)
+    // Reorder arguments to match LLVM fma signature
+    std::swap(ops[0], ops[1]);
+    std::swap(ops[1], ops[2]);
+    intrincsName = "fma";
+    // FMA takes 3 arguments of the same type
+    argTypes = {vTy, vTy, vTy};
+    break;
+  }
   case NEON::BI__builtin_neon_vaesmcq_u8: {
     intrincsName = "aarch64.crypto.aesmc";
     argTypes.push_back(vTy);
