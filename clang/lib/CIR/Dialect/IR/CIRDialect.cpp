@@ -2687,6 +2687,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto optNoneNameAttr = getOptNoneAttrName(state.name);
+  auto coldNameAttr = getColdAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
@@ -2710,6 +2711,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
   if (parser.parseOptionalKeyword("optnone").succeeded())
     state.addAttribute(optNoneNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword("cold").succeeded())
+    state.addAttribute(coldNameAttr, parser.getBuilder().getUnitAttr());
 
   // TODO: Missing comdat
   assert(!cir::MissingFeatures::setComdat());
@@ -2951,6 +2954,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getOptNone())
     p << " optnone";
 
+  if (getCold())
+    p << " cold";
+
   if (getComdat())
     p << " comdat";
 
@@ -2996,6 +3002,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       // These are all omitted since they are custom printed already.
       {getAliaseeAttrName(),
        getBuiltinAttrName(),
+       getColdAttrName(),
        getCoroutineAttrName(),
        getDsoLocalAttrName(),
        getExtraAttrsAttrName(),
@@ -4112,7 +4119,7 @@ LogicalResult cir::GetMethodOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::GetElementOp::verify() {
-  auto arrayTy = mlir::cast<cir::ArrayType>(getBaseType().getPointee());
+  auto arrayTy = cast<ArrayType>(getBaseType().getPointee());
   if (getElementType() != arrayTy.getElementType())
     return emitError() << "element type mismatch";
 

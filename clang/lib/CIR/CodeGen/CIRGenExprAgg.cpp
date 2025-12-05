@@ -466,7 +466,18 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
   CIRGenFunction::CleanupDeactivationScope deactivation(CGF);
 
   if (dtorKind) {
-    llvm_unreachable("dtorKind NYI");
+    // Create alloca to track end of initialized region for exception safety
+    endOfInit = CGF.CreateTempAlloca(cirElementPtrType, CGF.getPointerAlign(),
+                                     loc, "arrayinit.endOfInit");
+
+    // Initialize with beginning of array
+    CGF.builder.createStore(loc, begin, endOfInit);
+
+    // Register cleanup handler for partial array destruction on exception
+    CGF.pushIrregularPartialArrayCleanup(begin,
+                                         endOfInit, // Tracks current position
+                                         elementType, elementAlign,
+                                         CGF.getDestroyer(dtorKind));
   }
 
   // The 'current element to initialize'.  The invariants on this
@@ -494,7 +505,8 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
       // Tell the cleanup that it needs to destroy up to this
       // element.  TODO: some of these stores can be trivially
       // observed to be unnecessary.
-      assert(!endOfInit.isValid() && "destructed types NIY");
+      if (endOfInit.isValid())
+        CGF.builder.createStore(loc, element, endOfInit);
     }
 
     LValue elementLV = CGF.makeAddrLValue(
@@ -524,7 +536,9 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
       element = cir::PtrStrideOp::create(builder, loc, cirElementPtrType,
                                          element, one);
 
-      assert(!endOfInit.isValid() && "destructed types NIY");
+      // Update endOfInit after advancing to rest of array
+      if (endOfInit.isValid())
+        CGF.builder.createStore(loc, element, endOfInit);
     }
 
     // Allocate the temporary variable
@@ -566,14 +580,16 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
           else
             emitNullInitializationToLValue(loc, elementLV);
 
-          // Tell the EH cleanup that we finished with the last element.
-          assert(!endOfInit.isValid() && "destructed types NIY");
-
           // Advance pointer and store them to temporary variable
           auto one = builder.getConstInt(
               loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
           auto nextElement = cir::PtrStrideOp::create(
               builder, loc, cirElementPtrType, currentElement, one);
+
+          // Update endOfInit after each filled element
+          if (endOfInit.isValid())
+            CGF.builder.createStore(loc, nextElement, endOfInit);
+
           CGF.emitStoreThroughLValue(RValue::get(nextElement), tmpLV);
 
           builder.createYield(loc);

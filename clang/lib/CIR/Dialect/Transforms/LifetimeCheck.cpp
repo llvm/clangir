@@ -1253,7 +1253,7 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
     return;
   }
 
-  if (auto getElemOp = mlir::dyn_cast<cir::GetElementOp>(dataSrcOp)) {
+  if (auto getElemOp = dyn_cast<GetElementOp>(dataSrcOp)) {
     getPmap()[addr].clear();
     getPmap()[addr].insert(State::getLocalValue(getElemOp.getBase()));
     return;
@@ -1960,7 +1960,7 @@ void LifetimeCheckPass::dumpPmap(PMapType &pmap) {
   int entry = 0;
   for (auto &mapEntry : pmap) {
     llvm::errs() << "  " << entry << ": " << getVarNameFromValue(mapEntry.first)
-                 << "  => ";
+                 << "  " << "=> ";
     printPset(mapEntry.second);
     llvm::errs() << "\n";
     entry++;
