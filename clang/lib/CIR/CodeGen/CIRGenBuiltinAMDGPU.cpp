@@ -128,6 +128,8 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
     return result;
   }
   case AMDGPU::BI__builtin_amdgcn_ds_swizzle:
+    return emitBuiltinWithOneOverloadedType<2>(expr, "amdgcn.ds.swizzle")
+        .getScalarVal();
   case AMDGPU::BI__builtin_amdgcn_mov_dpp8:
   case AMDGPU::BI__builtin_amdgcn_mov_dpp:
   case AMDGPU::BI__builtin_amdgcn_update_dpp: {

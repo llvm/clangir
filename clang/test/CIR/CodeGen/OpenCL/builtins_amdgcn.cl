@@ -288,3 +288,13 @@ void test_div_fmas_f64(global double* out, double a, double b, double c, int d)
 {
   *out = __builtin_amdgcn_div_fmas(a, b, c, d);
 }
+
+// CIR-LABEL: @test_ds_swizzle
+// CIR: cir.llvm.intrinsic "amdgcn.ds.swizzle" {{.*}} : (!s32i, !s32i) -> !s32i
+// LLVM: define{{.*}} void @test_ds_swizzle
+// LLVM: call i32 @llvm.amdgcn.ds.swizzle(i32 %{{.*}}, i32 32)
+// OGCG: define{{.*}} void @test_ds_swizzle
+// OGCG: call i32 @llvm.amdgcn.ds.swizzle(i32 %{{.*}}, i32 32)
+void test_ds_swizzle(global int* out, int a) {
+  *out = __builtin_amdgcn_ds_swizzle(a, 32);
+}
