@@ -127,6 +127,8 @@ struct MissingFeatures {
   static bool setFunctionAttributes() { return false; }
   static bool attributeBuiltin() { return false; }
   static bool attributeNoBuiltin() { return false; }
+  static bool functionIndexAttribute() { return false; }
+  static bool noUnwindAttribute() { return false; }
   static bool parameterAttributes() { return false; }
   static bool minLegalVectorWidthAttr() { return false; }
   static bool vscaleRangeAttr() { return false; }
@@ -160,6 +162,7 @@ struct MissingFeatures {
 
   // Folding methods.
   static bool foldBinOpFMF() { return false; }
+  static bool folder() { return false; }
 
   // Fast math.
   static bool fastMathGuard() { return false; }
@@ -484,6 +487,13 @@ struct MissingFeatures {
   static bool dataLayoutPtrHandlingBasedOnLangAS() { return false; }
 
   static bool tailCall() { return false; }
+
+  static bool addressSpaceInGlobalVar() { return false; }
+
+  static bool useARMGuardVarABI() { return false; }
+
+  // Static local variable guard
+  static bool guardAbortOnException() { return false; }
 };
 
 } // namespace cir

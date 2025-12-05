@@ -636,8 +636,9 @@ CIRGenFunction::addInitializerToStaticVarDecl(const VarDecl &varDecl,
     else {
       // Since we have a static initializer, this global variable can't
       // be constant.
-      llvm_unreachable("C++ guarded init it NYI");
       globalOp.setConstant(false);
+      emitCXXGuardedInit(varDecl, globalOp, /*performInit*/ true);
+      getGlobalOp.setStaticLocal(true);
     }
     return globalOp;
   }
@@ -660,6 +661,21 @@ CIRGenFunction::addInitializerToStaticVarDecl(const VarDecl &varDecl,
   if (globalOp.getSymType() != typedInit.getType()) {
     globalOp.setSymType(typedInit.getType());
 
+    cir::GlobalOp oldGlobalOp = globalOp;
+    globalOp =
+        builder.createGlobal(CGM.getModule(), getLoc(varDecl.getSourceRange()),
+                             oldGlobalOp.getName(), typedInit.getType(),
+                             oldGlobalOp.getConstant(), globalOp.getLinkage());
+    // FIXME(cir): OG codegen inserts new GV before old one, we probably don't
+    // need that?
+    globalOp.setVisibility(oldGlobalOp.getVisibility());
+    globalOp.setGlobalVisibilityAttr(oldGlobalOp.getGlobalVisibilityAttr());
+    globalOp.setInitialValueAttr(typedInit);
+    globalOp.setTlsModelAttr(oldGlobalOp.getTlsModelAttr());
+    globalOp.setDSOLocal(oldGlobalOp.getDsoLocal());
+    assert(!cir::MissingFeatures::setComdat());
+    assert(!cir::MissingFeatures::addressSpaceInGlobalVar());
+
     // Normally this should be done with a call to CGM.replaceGlobal(OldGV, GV),
     // but since at this point the current block hasn't been really attached,
     // there's no visibility into the GetGlobalOp corresponding to this Global.
@@ -667,6 +683,12 @@ CIRGenFunction::addInitializerToStaticVarDecl(const VarDecl &varDecl,
     // directly.
     getGlobalOp.getAddr().setType(getBuilder().getPointerTo(
         typedInit.getType(), globalOp.getAddrSpaceAttr()));
+
+    // Replace all uses of the old global with the new global
+    oldGlobalOp->replaceAllUsesWith(globalOp);
+
+    // Erase the old global, since it is no longer used.
+    oldGlobalOp->erase();
   }
 
   bool needsDtor =

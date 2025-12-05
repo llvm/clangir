@@ -63,20 +63,48 @@ let cppNamespace = "::cir" in {
 
   def ASTVarDeclInterface : AttrInterface<"ASTVarDeclInterface",
       [ASTDeclaratorDeclInterface]> {
-    let methods = [
-      InterfaceMethod<"", "void", "mangleDynamicInitializer", (ins "llvm::raw_ostream&":$Out), [{}],
-        /*defaultImplementation=*/ [{
+    let methods = [InterfaceMethod<"", "void", "mangleDynamicInitializer",
+                                   (ins "llvm::raw_ostream&":$Out), [{}],
+                                   /*defaultImplementation=*/[{
           std::unique_ptr<clang::MangleContext> MangleCtx(
             $_attr.getAst()->getASTContext().createMangleContext());
             MangleCtx->mangleDynamicInitializer($_attr.getAst(), Out);
-          }]
-      >,
-      InterfaceMethod<"", "clang::VarDecl::TLSKind", "getTLSKind", (ins), [{}],
-        /*defaultImplementation=*/ [{
+          }]>,
+                   InterfaceMethod<"", "void", "mangleStaticGuardVariable",
+                                   (ins "llvm::raw_ostream&":$Out), [{}],
+                                   /*defaultImplementation=*/[{
+          std::unique_ptr<clang::MangleContext> mangleCtx(
+            $_attr.getAst()->getASTContext().createMangleContext());
+            mangleCtx->mangleStaticGuardVariable($_attr.getAst(), Out);
+          }]>,
+                   InterfaceMethod<"", "clang::VarDecl::TLSKind", "getTLSKind",
+                                   (ins), [{}],
+                                   /*defaultImplementation=*/[{
           return $_attr.getAst()->getTLSKind();
-        }]
-      >
-    ];
+        }]>,
+                   InterfaceMethod<"", "bool", "isInline", (ins), [{}],
+                                   /*defaultImplementation=*/[{
+          return $_attr.getAst()->isInline();
+        }]>,
+                   InterfaceMethod<"", "clang::TemplateSpecializationKind",
+                                   "getTemplateSpecializationKind", (ins), [{}],
+                                   /*defaultImplementation=*/[{
+          return $_attr.getAst()->getTemplateSpecializationKind();
+        }]>,
+                   InterfaceMethod<"", "bool", "isLocalVarDecl", (ins), [{}],
+                                   /*defaultImplementation=*/[{
+          return $_attr.getAst()->isLocalVarDecl();
+        }]>,
+                   InterfaceMethod<"", "clang::SourceLocation", "getLocation",
+                                   (ins), [{}],
+                                   /*defaultImplementation=*/[{
+          return $_attr.getAst()->getLocation();
+        }]>,
+                   InterfaceMethod<"", "const clang::VarDecl *", "getRawDecl",
+                                   (ins), [{}],
+                                   /*defaultImplementation=*/[{
+          return $_attr.getAst();
+        }]>];
   }
 
   def ASTFunctionDeclInterface : AttrInterface<"ASTFunctionDeclInterface",
