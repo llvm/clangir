@@ -125,9 +125,17 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
     llvm_unreachable("mov_dpp_* NYI");
   }
   case AMDGPU::BI__builtin_amdgcn_permlane16:
-  case AMDGPU::BI__builtin_amdgcn_permlanex16:
+  case AMDGPU::BI__builtin_amdgcn_permlanex16: {
+    llvm::StringRef intrinsicName =
+        builtinId == AMDGPU::BI__builtin_amdgcn_permlane16
+            ? "amdgcn.permlane16"
+            : "amdgcn.permlanex16";
+    return emitBuiltinWithOneOverloadedType<6>(expr, intrinsicName)
+        .getScalarVal();
+  }
   case AMDGPU::BI__builtin_amdgcn_permlane64: {
-    llvm_unreachable("permlane_* NYI");
+    return emitBuiltinWithOneOverloadedType<1>(expr, "amdgcn.permlane64")
+        .getScalarVal();
   }
   case AMDGPU::BI__builtin_amdgcn_readlane:
   case AMDGPU::BI__builtin_amdgcn_readfirstlane: {
