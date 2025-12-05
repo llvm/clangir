@@ -4273,8 +4273,12 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vrndq_v NYI");
   }
   case NEON::BI__builtin_neon_vcvt_f64_v:
-  case NEON::BI__builtin_neon_vcvtq_f64_v:
-    llvm_unreachable("NEON::BI__builtin_neon_vcvtq_f64_v NYI");
+  case NEON::BI__builtin_neon_vcvtq_f64_v: {
+    Ops[0] = builder.createBitcast(Ops[0], ty);
+    ty = GetNeonType(
+        this, NeonTypeFlags(NeonTypeFlags::Float64, false, Type.isQuad()));
+    return builder.createCast(cir::CastKind::int_to_float, Ops[0], ty);
+  }
   case NEON::BI__builtin_neon_vcvt_f64_f32: {
     llvm_unreachable("NEON::BI__builtin_neon_vcvt_f64_f32 NYI");
   }

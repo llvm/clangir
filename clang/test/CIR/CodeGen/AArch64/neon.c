@@ -19443,3 +19443,17 @@ int8x8_t test_vtbl1_s8(int8x8_t a, int8x8_t b) {
   // OGCG: {{%.*}} = shufflevector <8 x i8> {{%.*}}, <8 x i8> zeroinitializer, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
   // OGCG: {{%.*}} = call <8 x i8> @llvm.aarch64.neon.tbl1.v8i8(<16 x i8> {{%.*}}, <8 x i8> {{%.*}})
 }
+
+// CHECK-LABEL: test_vcvtq_f64_s64
+float64x2_t test_vcvtq_f64_s64(int64x2_t a) {
+  return vcvtq_f64_s64(a);
+
+  // CIR-LABEL: vcvtq_f64_s64
+  // CIR: {{%.*}} = cir.cast int_to_float {{%.*}} : !cir.vector<!s64i x 2> -> !cir.vector<!cir.double x 2>
+
+  // LLVM-LABEL: @test_vcvtq_f64_s64
+  // LLVM: {{%.*}} = sitofp <2 x i64> {{%.*}} to <2 x double>
+
+  // OGCG-LABEL: @test_vcvtq_f64_s64
+  // OGCG: {{%.*}} = sitofp <2 x i64> {{%.*}} to <2 x double>
+}
