@@ -9,6 +9,11 @@
 // RUN: | opt -S -passes=mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +fullfp16 -target-feature +v8.2a \
+// RUN:  -flax-vector-conversions=none -emit-llvm -o - %s \
+// RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t-og.ll
+// RUN: FileCheck --check-prefix=OGCG --input-file=%t-og.ll %s
+
 // REQUIRES: aarch64-registered-target || arm-registered-target
 
 // This test mimics clang/test/CodeGen/AArch64/v8.2a-neon-intrinsics.c, which eventually
@@ -495,4 +500,30 @@ float16_t test_vduph_lane_f16(float16x4_t vec) {
   // LLVM-SAME: (<4 x half> [[VEC:%.*]])
   // LLVM: [[VGET_LANE:%.*]] = extractelement <4 x half> [[VEC]], i32 3
   // LLVM: ret half [[VGET_LANE]]
+}
+
+// LLVM-LABEL: test_vcvtq_u16_f16
+uint16x8_t test_vcvtq_u16_f16(float16x8_t a) {
+  return vcvtq_u16_f16(a);
+
+  // CIR-LABEL: vcvtq_u16_f16
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzu.v8i16.v8f16(<8 x half> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_u16_f16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzu.v8i16.v8f16(<8 x half> {{%.*}})
+}
+
+// LLVM-LABEL: test_vcvtq_s16_f16
+int16x8_t test_vcvtq_s16_f16(float16x8_t a) {
+  return vcvtq_s16_f16(a);
+
+  // CIR-LABEL: vcvtq_s16_f16
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!s16i x 8>
+
+  // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzs.v8i16.v8f16(<8 x half> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_s16_f16
+  // OGCG: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzs.v8i16.v8f16(<8 x half> {{%.*}})
 }

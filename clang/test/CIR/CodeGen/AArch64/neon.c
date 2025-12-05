@@ -19457,3 +19457,59 @@ float64x2_t test_vcvtq_f64_s64(int64x2_t a) {
   // OGCG-LABEL: @test_vcvtq_f64_s64
   // OGCG: {{%.*}} = sitofp <2 x i64> {{%.*}} to <2 x double>
 }
+
+// CHECK-LABEL: test_vcvtq_u32_f32
+uint32x4_t test_vcvtq_u32_f32(float32x4_t a) {
+  return vcvtq_u32_f32(a);
+
+  // CIR-LABEL: vcvtq_u32_f32
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!u32i x 4>
+
+  // LLVM-LABEL: @test_vcvtq_u32_f32
+  // LLVM: {{%.*}} = call <4 x i32> @llvm.aarch64.neon.fcvtzu.v4i32.v4f32(<4 x float> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_u32_f32
+  // OGCG: {{%.*}} = call <4 x i32> @llvm.aarch64.neon.fcvtzu.v4i32.v4f32(<4 x float> {{%.*}})
+}
+
+// CHECK-LABEL: test_vcvtq_s32_f32
+int32x4_t test_vcvtq_s32_f32(float32x4_t a) {
+  return vcvtq_s32_f32(a);
+
+  // CIR-LABEL: vcvtq_s32_f32
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.float x 4>) -> !cir.vector<!s32i x 4>
+
+  // LLVM-LABEL: @test_vcvtq_s32_f32
+  // LLVM: {{%.*}} = call <4 x i32> @llvm.aarch64.neon.fcvtzs.v4i32.v4f32(<4 x float> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_s32_f32
+  // OGCG: {{%.*}} = call <4 x i32> @llvm.aarch64.neon.fcvtzs.v4i32.v4f32(<4 x float> {{%.*}})
+}
+
+// CHECK-LABEL: test_vcvtq_u64_f64
+uint64x2_t test_vcvtq_u64_f64(float64x2_t a) {
+  return vcvtq_u64_f64(a);
+
+  // CIR-LABEL: vcvtq_u64_f64
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!u64i x 2>
+
+  // LLVM-LABEL: @test_vcvtq_u64_f64
+  // LLVM: {{%.*}} = call <2 x i64> @llvm.aarch64.neon.fcvtzu.v2i64.v2f64(<2 x double> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_u64_f64
+  // OGCG: {{%.*}} = call <2 x i64> @llvm.aarch64.neon.fcvtzu.v2i64.v2f64(<2 x double> {{%.*}})
+}
+
+// CHECK-LABEL: test_vcvtq_s64_f64
+int64x2_t test_vcvtq_s64_f64(float64x2_t a) {
+  return vcvtq_s64_f64(a);
+
+  // CIR-LABEL: vcvtq_s64_f64
+  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.double x 2>) -> !cir.vector<!s64i x 2>
+
+  // LLVM-LABEL: @test_vcvtq_s64_f64
+  // LLVM: {{%.*}} = call <2 x i64> @llvm.aarch64.neon.fcvtzs.v2i64.v2f64(<2 x double> {{%.*}})
+
+  // OGCG-LABEL: @test_vcvtq_s64_f64
+  // OGCG: {{%.*}} = call <2 x i64> @llvm.aarch64.neon.fcvtzs.v2i64.v2f64(<2 x double> {{%.*}})
+}
