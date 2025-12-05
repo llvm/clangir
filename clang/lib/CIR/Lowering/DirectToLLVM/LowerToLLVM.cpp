@@ -1132,40 +1132,15 @@ mlir::LogicalResult CIRToLLVMGetElementOpLowering::matchAndRewrite(
         mlir::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
       elementTy = mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
 
-    // Zero-extend, sign-extend or trunc the pointer value.
+    // Zero-extend, sign-extend or trunc the index value.
     auto index = adaptor.getIndex();
-    auto width = mlir::cast<mlir::IntegerType>(index.getType()).getWidth();
     mlir::DataLayout LLVMLayout(op->getParentOfType<mlir::ModuleOp>());
-    auto layoutWidth =
-        LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
-    auto indexOp = index.getDefiningOp();
-    if (indexOp && layoutWidth && width != *layoutWidth) {
-      // If the index comes from a subtraction, make sure the extension happens
-      // before it. To achieve that, look at unary minus, which already got
-      // lowered to "sub 0, x".
-      auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
-      auto unary =
-          dyn_cast_if_present<cir::UnaryOp>(op.getIndex().getDefiningOp());
-      bool rewriteSub =
-          unary && unary.getKind() == cir::UnaryOpKind::Minus && sub;
-      if (rewriteSub)
-        index = indexOp->getOperand(1);
-
-      // Handle the cast
-      auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
-      index = getLLVMIntCast(rewriter, index, llvmDstType,
-                             op.getIndex().getType().isUnsigned(), width,
-                             *layoutWidth);
-
-      // Rewrite the sub in front of extensions/trunc
-      if (rewriteSub) {
-        index = mlir::LLVM::SubOp::create(
-            rewriter, index.getLoc(),
-            mlir::LLVM::ConstantOp::create(rewriter, index.getLoc(),
-                                           index.getType(), 0),
-            index);
-        rewriter.eraseOp(sub);
-      }
+    if (auto layoutWidth =
+            LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType())) {
+      bool isUnsigned = false;
+      if (auto strideTy = dyn_cast<cir::IntType>(op.getOperand(1).getType()))
+        isUnsigned = strideTy.isUnsigned();
+      index = promoteIndex(rewriter, index, *layoutWidth, isUnsigned);
     }
 
     // Since the base address is a pointer to an aggregate, the first
