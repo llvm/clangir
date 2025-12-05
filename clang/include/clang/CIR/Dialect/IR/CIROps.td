@@ -2600,6 +2600,10 @@ def CIR_GlobalOp : CIR_Op<"global", [
 
     `visibility_attr` is defined in terms of CIR's visibility.
 
+    The `static_local` attribute indicates that this global represents a
+    function-local static variable that requires guarded initialization
+    (e.g., C++ static local variables with non-constant initializers).
+
     Example:
 
     ```mlir
@@ -2611,27 +2615,18 @@ def CIR_GlobalOp : CIR_Op<"global", [
   // Note that both sym_name and sym_visibility are tied to Symbol trait.
   // TODO: sym_visibility can possibly be represented by implementing the
   // necessary Symbol's interface in terms of linkage instead.
-  let arguments = (ins
-    SymbolNameAttr:$sym_name,
-    DefaultValuedAttr<
-      CIR_VisibilityAttr,
-      "VisibilityKind::Default"
-    >:$global_visibility,
-    OptionalAttr<StrAttr>:$sym_visibility,
-    TypeAttr:$sym_type,
-    CIR_GlobalLinkageKind:$linkage,
-    OptionalAttr<MemorySpaceAttrInterface>:$addr_space,
-    OptionalAttr<CIR_TLSModel>:$tls_model,
-    // Note this can also be a FlatSymbolRefAttr
-    OptionalAttr<AnyAttr>:$initial_value,
-    UnitAttr:$comdat,
-    UnitAttr:$constant,
-    UnitAttr:$dso_local,
-    OptionalAttr<I64Attr>:$alignment,
-    OptionalAttr<ASTVarDeclInterface>:$ast,
-    OptionalAttr<StrAttr>:$section,
-    OptionalAttr<ArrayAttr>:$annotations
-  );
+  let arguments = (ins SymbolNameAttr:$sym_name,
+      DefaultValuedAttr<CIR_VisibilityAttr,
+                        "VisibilityKind::Default">:$global_visibility,
+      OptionalAttr<StrAttr>:$sym_visibility, TypeAttr:$sym_type,
+      CIR_GlobalLinkageKind:$linkage,
+      OptionalAttr<MemorySpaceAttrInterface>:$addr_space,
+      OptionalAttr<CIR_TLSModel>:$tls_model,
+      // Note this can also be a FlatSymbolRefAttr
+      OptionalAttr<AnyAttr>:$initial_value, UnitAttr:$comdat,
+      UnitAttr:$constant, UnitAttr:$dso_local, UnitAttr:$static_local,
+      OptionalAttr<I64Attr>:$alignment, OptionalAttr<ASTVarDeclInterface>:$ast,
+      OptionalAttr<StrAttr>:$section, OptionalAttr<ArrayAttr>:$annotations);
 
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
 
@@ -2643,6 +2638,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
        (`comdat` $comdat^)?
        ($tls_model^)?
        (`dso_local` $dso_local^)?
+       (`static_local` $static_local^)?
        (` ` custom<GlobalAddressSpaceValue>($addr_space)^ )?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
@@ -2696,6 +2692,10 @@ def CIR_GetGlobalOp : CIR_Op<"get_global", [
     Addresses of thread local globals can only be retrieved if this operation
     is marked `thread_local`, which indicates the address isn't constant.
 
+    The `static_local` attribute indicates that this global is a function-local
+    static variable that requires guarded initialization (e.g., C++ static
+    local variables with non-constant initializers).
+
     Example:
     ```mlir
     %x = cir.get_global @foo : !cir.ptr<i32>
@@ -2704,14 +2704,18 @@ def CIR_GetGlobalOp : CIR_Op<"get_global", [
     ...
     cir.global external addrspace(offload_global) @gv = #cir.int<0> : !s32i
     %z = cir.get_global @gv : !cir.ptr<!s32i, addrspace(offload_global)>
+    ...
+    %w = cir.get_global static_local @func_static : !cir.ptr<i32>
     ```
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$name, UnitAttr:$tls);
+  let arguments = (ins FlatSymbolRefAttr:$name, UnitAttr:$tls,
+      UnitAttr:$static_local);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
     (`thread_local` $tls^)?
+    (`static_local` $static_local^)?
     $name `:` qualified(type($addr)) attr-dict
   }];
 }
