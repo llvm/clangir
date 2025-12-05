@@ -220,3 +220,49 @@ void test_wave_reduce_add_u32_iterative(global int* out, int in) {
 void test_wave_reduce_add_u32_dpp(global int* out, int in) {
   *out = __builtin_amdgcn_wave_reduce_add_u32(in, 2);
 }
+
+// CIR-LABEL: @test_div_scale_f64
+// CIR: cir.llvm.intrinsic "amdgcn.div.scale" {{.*}} : (!cir.double, !cir.double, !cir.bool)
+// LLVM: define{{.*}} void @test_div_scale_f64
+// LLVM: call { double, i1 } @llvm.amdgcn.div.scale.f64(double %{{.+}}, double %{{.+}}, i1 true)
+// OGCG: define{{.*}} void @test_div_scale_f64
+// OGCG: call { double, i1 } @llvm.amdgcn.div.scale.f64(double %{{.+}}, double %{{.+}}, i1 true)
+void test_div_scale_f64(global double* out, global int* flagout, double a, double b, global bool* flag)
+{
+  *out = __builtin_amdgcn_div_scale(a, b, true, flag);
+  *flagout = *flag;
+}
+
+// CIR-LABEL: @test_div_scale_f32
+// CIR: cir.llvm.intrinsic "amdgcn.div.scale" {{.*}} : (!cir.float, !cir.float, !cir.bool)
+// LLVM: define{{.*}} void @test_div_scale_f32
+// LLVM: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+// OGCG: define{{.*}} void @test_div_scale_f32
+// OGCG: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+void test_div_scale_f32(global float* out, global bool* flagout, float a, float b, global bool* flag)
+{
+  *out = __builtin_amdgcn_div_scalef(a, b, true, flag);
+  *flagout = *flag;
+}
+
+// CIR-LABEL: @test_div_scale_f32_global_ptr
+// CIR: cir.llvm.intrinsic "amdgcn.div.scale" {{.*}} : (!cir.float, !cir.float, !cir.bool)
+// LLVM: define{{.*}} void @test_div_scale_f32_global_ptr
+// LLVM: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+// OGCG: define{{.*}} void @test_div_scale_f32_global_ptr
+// OGCG: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+void test_div_scale_f32_global_ptr(global float* out, global int* flagout, float a, float b, global bool* flag)
+{
+  *out = __builtin_amdgcn_div_scalef(a, b, true, flag);
+}
+
+// CIR-LABEL: @test_div_scale_f32_generic_ptr
+// CIR: cir.llvm.intrinsic "amdgcn.div.scale" {{.*}} : (!cir.float, !cir.float, !cir.bool)
+// LLVM: define{{.*}} void @test_div_scale_f32_generic_ptr
+// LLVM: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+// OGCG: define{{.*}} void @test_div_scale_f32_generic_ptr
+// OGCG: call { float, i1 } @llvm.amdgcn.div.scale.f32(float %{{.+}}, float %{{.+}}, i1 true)
+void test_div_scale_f32_generic_ptr(global float* out, global int* flagout, float a, float b, generic bool* flag)
+{
+  *out = __builtin_amdgcn_div_scalef(a, b, true, flag);
+}
