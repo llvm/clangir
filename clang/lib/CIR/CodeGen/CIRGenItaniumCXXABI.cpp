@@ -2182,7 +2182,7 @@ static mlir::Value performTypeAdjustment(CIRGenFunction &cgf,
   // In a base-to-derived cast, the non-virtual adjustment is applied first.
   if (nonVirtualAdjustment && !isReturnAdjustment) {
     auto offsetConst = builder.getSInt64(nonVirtualAdjustment, loc);
-    v = builder.create<cir::PtrStrideOp>(loc, i8PtrTy, v, offsetConst);
+    v = cir::PtrStrideOp::create(builder, loc, i8PtrTy, v, offsetConst);
   }
 
   // Perform the virtual adjustment if we have one.
@@ -2198,7 +2198,7 @@ static mlir::Value performTypeAdjustment(CIRGenFunction &cgf,
   if (nonVirtualAdjustment && isReturnAdjustment) {
     auto offsetConst = builder.getSInt64(nonVirtualAdjustment, loc);
     resultPtr =
-        builder.create<cir::PtrStrideOp>(loc, i8PtrTy, resultPtr, offsetConst);
+        cir::PtrStrideOp::create(builder, loc, i8PtrTy, resultPtr, offsetConst);
   }
 
   // Cast back to original pointer type
@@ -3038,6 +3038,8 @@ void CIRGenItaniumCXXABI::emitGuardedInit(CIRGenFunction &cgf,
                                           const VarDecl &varDecl,
                                           cir::GlobalOp globalOp,
                                           bool performInit) {
+  // NOTE(CIR): this diverges from CodeGen. We handle all these considerations
+  // in LoweringPrepare::handleStaticLocal
 
   // Emit the initializer and add a global destructor if appropriate.
   cgf.CGM.emitCXXGlobalVarDeclInit(&varDecl, globalOp, performInit);

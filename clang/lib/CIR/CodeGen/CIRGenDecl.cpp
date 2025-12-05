@@ -1026,14 +1026,31 @@ struct DestroyObject final : EHScopeStack::Cleanup {
 
 template <class Derived> struct DestroyNRVOVariable : EHScopeStack::Cleanup {
   DestroyNRVOVariable(Address addr, QualType type, mlir::Value NRVOFlag)
-      : NRVOFlag(NRVOFlag), Loc(addr), Ty(type) {}
+      : NRVOFlag(NRVOFlag), Addr(addr), Ty(type) {}
 
   mlir::Value NRVOFlag;
-  Address Loc;
+  Address Addr;
   QualType Ty;
 
   void Emit(CIRGenFunction &CGF, Flags flags) override {
-    assert(!cir::MissingFeatures::cleanupDestroyNRVOVariable());
+    // Along the exceptions path we always execute the dtor.
+    bool NRVO = flags.isForNormalCleanup() && NRVOFlag;
+
+    CIRGenBuilderTy &Builder = CGF.getBuilder();
+    mlir::OpBuilder::InsertionGuard guard(Builder);
+    mlir::Location Loc = Addr.getPointer().getLoc();
+    if (NRVO) {
+      // If we exited via NRVO, we skip the destructor call.
+      mlir::Value DidNRVO = Builder.CreateFlagLoad(Loc, NRVOFlag);
+      mlir::Value NotNRVO = Builder.createNot(DidNRVO);
+      cir::IfOp::create(Builder, Loc, NotNRVO, /*withElseRegion=*/false,
+                        [&](mlir::OpBuilder &b, mlir::Location) {
+                          static_cast<Derived *>(this)->emitDestructorCall(CGF);
+                          Builder.createYield(Loc);
+                        });
+    } else {
+      static_cast<Derived *>(this)->emitDestructorCall(CGF);
+    }
   }
 
   virtual ~DestroyNRVOVariable() = default;
@@ -1048,7 +1065,11 @@ struct DestroyNRVOVariableCXX final
 
   const CXXDestructorDecl *Dtor;
 
-  void emitDestructorCall(CIRGenFunction &CGF) { llvm_unreachable("NYI"); }
+  void emitDestructorCall(CIRGenFunction &CGF) {
+    CGF.emitCXXDestructorCall(Dtor, Dtor_Complete,
+                              /*ForVirtualBase=*/false,
+                              /*Delegating=*/false, Addr, Ty);
+  }
 };
 
 struct DestroyNRVOVariableC final : DestroyNRVOVariable<DestroyNRVOVariableC> {

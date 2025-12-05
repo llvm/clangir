@@ -239,7 +239,12 @@ static Address emitPointerWithAlignment(const Expr *expr,
     case Builtin::BIaddressof:
     case Builtin::BI__addressof:
     case Builtin::BI__builtin_addressof: {
-      llvm_unreachable("NYI");
+      LValue LV = cgf.emitLValue(Call->getArg(0));
+      if (baseInfo)
+        *baseInfo = LV.getBaseInfo();
+      if (tbaaInfo)
+        *tbaaInfo = LV.getTBAAInfo();
+      return LV.getAddress();
     }
     }
   }

@@ -807,6 +807,33 @@ class CIRUnaryOpLowering : public mlir::OpConversionPattern<cir::UnaryOp> {
 public:
   using OpConversionPattern<cir::UnaryOp>::OpConversionPattern;
 
+  template <typename OpFloat, typename OpInt, bool rev>
+  mlir::Operation *
+  replaceImmediateOp(cir::UnaryOp op, mlir::Type type, mlir::Value input,
+                     int64_t n,
+                     mlir::ConversionPatternRewriter &rewriter) const {
+    if (type.isFloat()) {
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(),
+          mlir::FloatAttr::get(type, static_cast<double>(n)));
+      if constexpr (rev)
+        return rewriter.replaceOpWithNewOp<OpFloat>(op, type, imm, input);
+      else
+        return rewriter.replaceOpWithNewOp<OpFloat>(op, type, input, imm);
+    }
+    if (type.isInteger()) {
+      auto imm = mlir::arith::ConstantOp::create(
+          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, n));
+      if constexpr (rev)
+        return rewriter.replaceOpWithNewOp<OpInt>(op, type, imm, input);
+      else
+        return rewriter.replaceOpWithNewOp<OpInt>(op, type, input, imm);
+    }
+    op->emitError("Unsupported type: ") << type << " at " << op->getLoc();
+    llvm_unreachable("CIRUnaryOpLowering met unsupported type");
+    return nullptr;
+  }
+
   mlir::LogicalResult
   matchAndRewrite(cir::UnaryOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -815,15 +842,13 @@ public:
 
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
-      auto One = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, One);
+      replaceImmediateOp<mlir::arith::AddFOp, mlir::arith::AddIOp, false>(
+          op, type, input, 1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Dec: {
-      auto One = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, One);
+      replaceImmediateOp<mlir::arith::AddFOp, mlir::arith::AddIOp, false>(
+          op, type, input, -1, rewriter);
       break;
     }
     case cir::UnaryOpKind::Plus: {
@@ -831,20 +856,17 @@ public:
       break;
     }
     case cir::UnaryOpKind::Minus: {
-      auto Zero = mlir::arith::ConstantOp::create(
-          rewriter, op.getLoc(), mlir::IntegerAttr::get(type, 0));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, Zero, input);
+      replaceImmediateOp<mlir::arith::SubFOp, mlir::arith::SubIOp, true>(
+          op, type, input, 0, rewriter);
       break;
     }
     case cir::UnaryOpKind::Not: {
-      auto MinusOne = mlir::arith::ConstantOp::create(
+      auto o = mlir::arith::ConstantOp::create(
           rewriter, op.getLoc(), mlir::IntegerAttr::get(type, -1));
-      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, MinusOne,
-                                                       input);
+      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, o, input);
       break;
     }
     }
-
     return mlir::LogicalResult::success();
   }
 };
@@ -1699,6 +1721,20 @@ public:
   }
 };
 
+class CIRSelectOpLowering : public mlir::OpConversionPattern<cir::SelectOp> {
+public:
+  using OpConversionPattern<cir::SelectOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::SelectOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::arith::SelectOp>(
+        op, adaptor.getCondition(), adaptor.getTrueValue(),
+        adaptor.getFalseValue());
+    return mlir::success();
+  }
+};
+
 class CIRUnreachableOpLowering
     : public mlir::OpConversionPattern<cir::UnreachableOp> {
 public:
@@ -1742,14 +1778,15 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
       CIRGetGlobalOpLowering, CIRComplexCreateOpLowering,
       CIRComplexRealOpLowering, CIRComplexImagOpLowering, CIRCastOpLowering,
-      CIRPtrStrideOpLowering, CIRGetElementOpLowering, CIRSqrtOpLowering,
-      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
-      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
-      CIRTanOpLowering, CIRShiftOpLowering, CIRBitClzOpLowering,
-      CIRBitCtzOpLowering, CIRBitPopcountOpLowering, CIRBitClrsbOpLowering,
-      CIRBitFfsOpLowering, CIRBitParityOpLowering, CIRIfOpLowering,
-      CIRScopeOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRPtrStrideOpLowering, CIRSelectOpLowering, CIRGetElementOpLowering,
+      CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering,
+      CIRFAbsOpLowering, CIRAbsOpLowering, CIRFloorOpLowering,
+      CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
+      CIRRoundOpLowering, CIRSinOpLowering, CIRTanOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
+      CIRVectorCreateLowering, CIRVectorInsertLowering,
       CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
       CIRASinOpLowering, CIRUnreachableOpLowering, CIRTrapOpLowering>(
       converter, patterns.getContext());

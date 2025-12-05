@@ -1379,8 +1379,9 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     }
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    auto fnEndLoc = (fd && fd->getBody()) ? getLoc(fd->getBody()->getEndLoc())
-                                          : getLoc(Loc);
+    auto fnEndLoc = (fd && fd->getBody())
+                        ? getLoc(fd->getBody()->getEndLoc())
+                        : getLoc(Loc);
 
     // When the current function is not void, create an address to store the
     // result value.

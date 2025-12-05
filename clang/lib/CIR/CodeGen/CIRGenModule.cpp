@@ -3084,9 +3084,8 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
   // Add other optimization related attributes if we are optimizing this
   // function.
   if (!decl->hasAttr<OptimizeNoneAttr>()) {
-    if (decl->hasAttr<ColdAttr>()) {
-      llvm_unreachable("NYI");
-    }
+    if (decl->hasAttr<ColdAttr>())
+      f.setCold(true);
     if (decl->hasAttr<HotAttr>()) {
       auto attr = cir::HotAttr::get(&getMLIRContext());
       attrs.set(attr.getMnemonic(), attr);

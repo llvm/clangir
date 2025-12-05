@@ -2416,6 +2416,7 @@ void LoweringPreparePass::runOnOperation() {
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
   return std::make_unique<LoweringPreparePass>();
 }
+
 std::unique_ptr<Pass>
 mlir::createLoweringPreparePass(clang::ASTContext *astCtx) {
   auto pass = std::make_unique<LoweringPreparePass>();

@@ -69,8 +69,6 @@ void CIRGenFunction::emitCXXGlobalVarDeclInit(const VarDecl &varDecl,
                                               cir::GlobalOp globalOp,
                                               bool performInit) {
   // TODO(CIR): We diverge from CodeGen here via having this in CIRGenModule
-  // instead. This is necessary due to the way we are constructing global inits
-  // at the moment. With LoweringPrepare being moved to CIRGen we should
-  // refactor this to live here.
+  // instead. This is necessary due to the way we are constructing global inits.
   llvm_unreachable("NYI");
 }

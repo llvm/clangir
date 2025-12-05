@@ -42,11 +42,10 @@ mlir::Value CIRGenBuilderTy::promoteArrayIndex(const clang::TargetInfo &ti,
 
   // If this an integer, ensure that it is at least as width as the array index
   // type.
-  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType())) {
+  if (auto intTy = mlir::dyn_cast<cir::IntType>(index.getType()))
     if (intTy.getWidth() < arrayIndexWidth)
       return cir::CastOp::create(*this, loc, arrayIndexType,
                                  cir::CastKind::integral, index);
-  }
 
   return index;
 }
@@ -57,17 +56,17 @@ mlir::Value CIRGenBuilderTy::getArrayElement(const clang::TargetInfo &ti,
                                              mlir::Value arrayPtr,
                                              mlir::Type eltTy, mlir::Value idx,
                                              bool shouldDecay) {
-  auto arrayPtrTy = mlir::dyn_cast<cir::PointerType>(arrayPtr.getType());
-  assert(arrayPtrTy && "expected pointer type");
-
   // If the array pointer is not decayed, emit a GetElementOp.
-  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee());
-  if (shouldDecay && arrayTy && arrayTy == eltTy) {
-    auto eltPtrTy =
-        getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
-    return cir::GetElementOp::create(*this, arrayLocEnd, eltPtrTy, arrayPtr,
-                                     promoteArrayIndex(ti, arrayLocBegin, idx));
-  }
+  if (shouldDecay)
+    if (auto arrayPtrTy = dyn_cast<cir::PointerType>(arrayPtr.getType()))
+      if (auto arrayTy = dyn_cast<cir::ArrayType>(arrayPtrTy.getPointee()))
+        if (arrayTy == eltTy) {
+          auto eltPtrTy =
+              getPointerTo(arrayTy.getElementType(), arrayPtrTy.getAddrSpace());
+          return cir::GetElementOp::create(
+              *this, arrayLocEnd, eltPtrTy, arrayPtr,
+              promoteArrayIndex(ti, arrayLocBegin, idx));
+        }
 
   // If we don't have sufficient type information, emit a PtrStrideOp.
   mlir::Value basePtr = arrayPtr;

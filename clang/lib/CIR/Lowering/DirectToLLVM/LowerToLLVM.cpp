@@ -2369,6 +2369,7 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
         name == func.getFunctionTypeAttrName() ||
         name == getLinkageAttrNameString() ||
         name == func.getCallingConvAttrName() ||
+        name == func.getColdAttrName() ||
         name == func.getOptNoneAttrName() ||
         name == func.getDsoLocalAttrName() ||
         name == func.getInlineKindAttrName() ||
@@ -2502,6 +2503,11 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
 
   fn.setOptimizeNone(op.getOptNone());
 
+  // Collect passthrough attributes that need to be added to the function.
+  mlir::SmallVector<mlir::Attribute> passThroughAttrs;
+  if (op.getCold())
+    passThroughAttrs.push_back(mlir::StringAttr::get(getContext(), "cold"));
+
   // Lower CIR attributes for arguments.
   for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
     mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);
@@ -2536,6 +2542,14 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
 
   // Handle optnone attribute
   fn.setOptimizeNone(op.getOptNone());
+
+  // Apply collected passthrough attributes.
+  if (!passThroughAttrs.empty()) {
+    auto existingAttrs = fn.getPassthrough();
+    if (existingAttrs)
+      passThroughAttrs.append(existingAttrs->begin(), existingAttrs->end());
+    fn.setPassthroughAttr(mlir::ArrayAttr::get(getContext(), passThroughAttrs));
+  }
 
   rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
   if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,
@@ -3801,6 +3815,8 @@ CIRToLLVMAtomicFetchLowering::getLLVMBinop(cir::AtomicFetchKind k,
   case cir::AtomicFetchKind::Max:
   case cir::AtomicFetchKind::Min:
     llvm_unreachable("handled in buildMinMaxPostOp");
+  case cir::AtomicFetchKind::Xchg:
+    llvm_unreachable("xchg has no binop");
   }
   llvm_unreachable("Unknown atomic fetch opcode");
 }
