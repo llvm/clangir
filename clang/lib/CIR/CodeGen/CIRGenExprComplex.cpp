@@ -181,10 +181,10 @@ public:
 
   mlir::Value VisitUnaryPlus(const UnaryOperator *e,
                              QualType promotionType = QualType());
-  mlir::Value VisitPlus(const UnaryOperator *e, QualType promotionType);
   mlir::Value VisitUnaryMinus(const UnaryOperator *e,
                               QualType promotionType = QualType());
-  mlir::Value VisitMinus(const UnaryOperator *e, QualType promotionType);
+  mlir::Value VisitPlusMinus(const UnaryOperator *e, cir::UnaryOpKind kind,
+                             QualType promotionType);
   mlir::Value VisitUnaryNot(const UnaryOperator *e);
   // LNot,Real,Imag never return complex.
   mlir::Value VisitUnaryExtension(const UnaryOperator *e) {
@@ -586,45 +586,33 @@ mlir::Value ComplexExprEmitter::emitCast(CastKind ck, Expr *op,
 
 mlir::Value ComplexExprEmitter::VisitUnaryPlus(const UnaryOperator *e,
                                                QualType promotionType) {
-  QualType promotionTy = promotionType.isNull()
-                             ? getPromotionType(e->getSubExpr()->getType())
-                             : promotionType;
-  mlir::Value result = VisitPlus(e, promotionTy);
+  QualType promotionTy = getPromotionType(e->getSubExpr()->getType());
+  mlir::Value result = VisitPlusMinus(e, cir::UnaryOpKind::Plus, promotionTy);
   return promotionTy.isNull()
              ? result
              : cgf.emitUnPromotedValue(result, e->getSubExpr()->getType());
-}
-
-mlir::Value ComplexExprEmitter::VisitPlus(const UnaryOperator *e,
-                                          QualType promotionType) {
-  mlir::Value op =
-      promotionType.isNull()
-          ? Visit(e->getSubExpr())
-          : cgf.emitPromotedComplexExpr(e->getSubExpr(), promotionType);
-  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()),
-                               cir::UnaryOpKind::Plus, op);
 }
 
 mlir::Value ComplexExprEmitter::VisitUnaryMinus(const UnaryOperator *e,
                                                 QualType promotionType) {
-  QualType promotionTy = promotionType.isNull()
-                             ? getPromotionType(e->getSubExpr()->getType())
-                             : promotionType;
-  mlir::Value result = VisitMinus(e, promotionTy);
+  QualType promotionTy = getPromotionType(e->getSubExpr()->getType());
+  mlir::Value result = VisitPlusMinus(e, cir::UnaryOpKind::Minus, promotionTy);
   return promotionTy.isNull()
              ? result
              : cgf.emitUnPromotedValue(result, e->getSubExpr()->getType());
 }
 
-mlir::Value ComplexExprEmitter::VisitMinus(const UnaryOperator *e,
-                                           QualType promotionType) {
-  mlir::Value op;
-  if (!promotionType.isNull())
-    op = cgf.emitPromotedComplexExpr(e->getSubExpr(), promotionType);
-  else
-    op = Visit(e->getSubExpr());
-  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()),
-                               cir::UnaryOpKind::Minus, op);
+mlir::Value ComplexExprEmitter::VisitPlusMinus(const UnaryOperator *e,
+                                               cir::UnaryOpKind kind,
+                                               QualType promotionType) {
+  assert(kind == cir::UnaryOpKind::Plus ||
+         kind == cir::UnaryOpKind::Minus &&
+             "Invalid UnaryOp kind for ComplexType Plus or Minus");
+  mlir::Value operand =
+      promotionType.isNull()
+          ? Visit(e->getSubExpr())
+          : cgf.emitPromotedComplexExpr(e->getSubExpr(), promotionType);
+  return builder.createUnaryOp(cgf.getLoc(e->getExprLoc()), kind, operand);
 }
 
 mlir::Value ComplexExprEmitter::VisitUnaryNot(const UnaryOperator *e) {
@@ -691,13 +679,13 @@ mlir::Value CIRGenFunction::emitPromotedValue(mlir::Value result,
 }
 
 mlir::Value ComplexExprEmitter::emitPromoted(const Expr *e,
-                                             QualType PromotionTy) {
+                                             QualType promotionTy) {
   e = e->IgnoreParens();
   if (const auto *bo = dyn_cast<BinaryOperator>(e)) {
     switch (bo->getOpcode()) {
 #define HANDLE_BINOP(OP)                                                       \
   case BO_##OP:                                                                \
-    return emitBin##OP(emitBinOps(bo, PromotionTy));
+    return emitBin##OP(emitBinOps(bo, promotionTy));
       HANDLE_BINOP(Add)
       HANDLE_BINOP(Sub)
       HANDLE_BINOP(Mul)
@@ -706,20 +694,22 @@ mlir::Value ComplexExprEmitter::emitPromoted(const Expr *e,
     default:
       break;
     }
-  } else if (const auto *uo = dyn_cast<UnaryOperator>(e)) {
-    switch (uo->getOpcode()) {
+  } else if (const auto *unaryOp = dyn_cast<UnaryOperator>(e)) {
+    switch (unaryOp->getOpcode()) {
     case UO_Minus:
-      return VisitMinus(uo, PromotionTy);
-    case UO_Plus:
-      return VisitPlus(uo, PromotionTy);
+    case UO_Plus: {
+      auto kind = unaryOp->getOpcode() == UO_Plus ? cir::UnaryOpKind::Plus
+                                                  : cir::UnaryOpKind::Minus;
+      return VisitPlusMinus(unaryOp, kind, promotionTy);
+    }
     default:
       break;
     }
   }
 
   mlir::Value result = Visit(const_cast<Expr *>(e));
-  if (!PromotionTy.isNull())
-    return cgf.emitPromotedValue(result, PromotionTy);
+  if (!promotionTy.isNull())
+    return cgf.emitPromotedValue(result, promotionTy);
   return result;
 }
 
