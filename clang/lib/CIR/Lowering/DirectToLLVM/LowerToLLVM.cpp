@@ -5425,6 +5425,11 @@ void ConvertCIRToLLVMPass::processCIRAttrs(mlir::ModuleOp module) {
     module->setAttr(mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
                     tripleAttr);
 
+  if (mlir::Attribute asmAttr =
+          module->getAttr(cir::CIRDialect::getModuleLevelAsmAttrName()))
+    module->setAttr(mlir::LLVM::LLVMDialect::getModuleLevelAsmAttrName(),
+                    asmAttr);
+
   // Strip the CIR attributes.
   module->removeAttr(cir::CIRDialect::getSOBAttrName());
   module->removeAttr(cir::CIRDialect::getSourceLanguageAttrName());

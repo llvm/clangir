@@ -993,6 +993,8 @@ public:
   /// one of them.
   cir::AnnotationAttr emitAnnotateAttr(const clang::AnnotateAttr *aa);
 
+  llvm::SmallVector<mlir::Attribute> globalScopeAsm;
+
 private:
   // An ordered map of canonical GlobalDecls to their mangled names.
   llvm::MapVector<clang::GlobalDecl, llvm::StringRef> MangledDeclNames;

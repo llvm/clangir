@@ -2190,6 +2190,20 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
   case Decl::Enum:
     assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
     break;
+  case Decl::FileScopeAsm:
+    // File-scope asm is ignored during device-side CUDA compilation.
+    if (langOpts.CUDA && langOpts.CUDAIsDevice)
+      break;
+    // File-scope asm is ignored during device-side OpenMP compilation.
+    if (langOpts.OpenMPIsTargetDevice)
+      break;
+    // File-scope asm is ignored during device-side SYCL compilation.
+    if (langOpts.SYCLIsDevice)
+      break;
+    auto *file_asm = cast<FileScopeAsmDecl>(decl);
+    std::string line = file_asm->getAsmString();
+    globalScopeAsm.push_back(builder.getStringAttr(line));
+    break;
   }
 }
 
@@ -3603,6 +3617,11 @@ void CIRGenModule::Release() {
   emitVTablesOpportunistically();
   assert(!MissingFeatures::applyGlobalValReplacements());
   applyReplacements();
+
+  // Set module-level assembly attribute
+  theModule->setAttr(cir::CIRDialect::getModuleLevelAsmAttrName(),
+                     builder.getArrayAttr(globalScopeAsm));
+
   assert(!MissingFeatures::emitMultiVersionFunctions());
 
   assert(!MissingFeatures::incrementalExtensions());
