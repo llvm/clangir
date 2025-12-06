@@ -1,4 +1,4 @@
-#include "cuda.h"
+#include "../Inputs/cuda.h"
 
 // RUN: echo "sample fatbin" > %t.fatbin
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
@@ -33,7 +33,7 @@
 // LLVM-HOST:   i32 1212764230, i32 1, ptr @__hip_fatbin_str, ptr null
 // LLVM-HOST: }, section ".hipFatBinSegment"
 // LLVM-HOST: @_Z2fnv = constant ptr @_Z17__device_stub__fnv, align 8
-// LLVM-HOST: @a = global i32 undef, align 4
+// LLVM-HOST: @a = internal global i32 undef, align 4
 // LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__hip_module_ctor
 
 // CIR-HOST:  cir.func internal private @__hip_module_dtor() {
