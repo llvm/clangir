@@ -298,3 +298,23 @@ void test_div_fmas_f64(global double* out, double a, double b, double c, int d)
 void test_ds_swizzle(global int* out, int a) {
   *out = __builtin_amdgcn_ds_swizzle(a, 32);
 }
+
+// CIR-LABEL: @test_readlane
+// CIR: cir.llvm.intrinsic "amdgcn.readlane" {{.*}} : (!s32i, !s32i) -> !s32i
+// LLVM: define{{.*}} void @test_readlane
+// LLVM: call i32 @llvm.amdgcn.readlane.i32(i32 %{{.*}}, i32 %{{.*}})
+// OGCG: define{{.*}} void @test_readlane
+// OGCG: call i32 @llvm.amdgcn.readlane.i32(i32 %{{.*}}, i32 %{{.*}})
+void test_readlane(global int* out, int a, int b) {
+  *out = __builtin_amdgcn_readlane(a, b);
+}
+
+// CIR-LABEL: @test_readfirstlane
+// CIR: cir.llvm.intrinsic "amdgcn.readfirstlane" {{.*}} : (!s32i) -> !s32i
+// LLVM: define{{.*}} void @test_readfirstlane
+// LLVM: call i32 @llvm.amdgcn.readfirstlane.i32(i32 %{{.*}})
+// OGCG: define{{.*}} void @test_readfirstlane
+// OGCG: call i32 @llvm.amdgcn.readfirstlane.i32(i32 %{{.*}})
+void test_readfirstlane(global int* out, int a) {
+  *out = __builtin_amdgcn_readfirstlane(a);
+}

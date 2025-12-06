@@ -148,9 +148,13 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
     return emitBuiltinWithOneOverloadedType<1>(expr, "amdgcn.permlane64")
         .getScalarVal();
   }
-  case AMDGPU::BI__builtin_amdgcn_readlane:
+  case AMDGPU::BI__builtin_amdgcn_readlane: {
+    return emitBuiltinWithOneOverloadedType<2>(expr, "amdgcn.readlane")
+        .getScalarVal();
+  }
   case AMDGPU::BI__builtin_amdgcn_readfirstlane: {
-    llvm_unreachable("readlane_* NYI");
+    return emitBuiltinWithOneOverloadedType<1>(expr, "amdgcn.readfirstlane")
+        .getScalarVal();
   }
   case AMDGPU::BI__builtin_amdgcn_div_fixup:
   case AMDGPU::BI__builtin_amdgcn_div_fixupf:
