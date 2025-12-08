@@ -159,7 +159,8 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   case AMDGPU::BI__builtin_amdgcn_div_fixup:
   case AMDGPU::BI__builtin_amdgcn_div_fixupf:
   case AMDGPU::BI__builtin_amdgcn_div_fixuph: {
-    llvm_unreachable("div_fixup_* NYI");
+    return emitBuiltinWithOneOverloadedType<3>(expr, "amdgcn.div.fixup")
+        .getScalarVal();
   }
   case AMDGPU::BI__builtin_amdgcn_trig_preop:
   case AMDGPU::BI__builtin_amdgcn_trig_preopf: {

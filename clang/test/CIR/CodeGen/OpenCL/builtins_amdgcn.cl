@@ -318,3 +318,25 @@ void test_readlane(global int* out, int a, int b) {
 void test_readfirstlane(global int* out, int a) {
   *out = __builtin_amdgcn_readfirstlane(a);
 }
+
+// CIR-LABEL: @test_div_fixup_f32
+// CIR: cir.llvm.intrinsic "amdgcn.div.fixup" {{.*}} : (!cir.float, !cir.float, !cir.float) -> !cir.float
+// LLVM: define{{.*}} void @test_div_fixup_f32
+// LLVM: call{{.*}} float @llvm.amdgcn.div.fixup.f32(float %{{.+}}, float %{{.+}}, float %{{.+}})
+// OGCG: define{{.*}} void @test_div_fixup_f32
+// OGCG: call{{.*}} float @llvm.amdgcn.div.fixup.f32(float %{{.+}}, float %{{.+}}, float %{{.+}})
+void test_div_fixup_f32(global float* out, float a, float b, float c)
+{
+  *out = __builtin_amdgcn_div_fixupf(a, b, c);
+}
+
+// CIR-LABEL: @test_div_fixup_f64
+// CIR: cir.llvm.intrinsic "amdgcn.div.fixup" {{.*}} : (!cir.double, !cir.double, !cir.double) -> !cir.double
+// LLVM: define{{.*}} void @test_div_fixup_f64
+// LLVM: call{{.*}} double @llvm.amdgcn.div.fixup.f64(double %{{.+}}, double %{{.+}}, double %{{.+}})
+// OGCG: define{{.*}} void @test_div_fixup_f64
+// OGCG: call{{.*}} double @llvm.amdgcn.div.fixup.f64(double %{{.+}}, double %{{.+}}, double %{{.+}})
+void test_div_fixup_f64(global double* out, double a, double b, double c)
+{
+  *out = __builtin_amdgcn_div_fixup(a, b, c);
+}
