@@ -1676,7 +1676,15 @@ public:
     auto stride = adaptor.getStride();
 
     auto ptrType = op.getType();
-    auto elementType = convertTy(ptrType.getPointee());
+
+    int mulSize = 1;
+    auto innerMostPointee = ptrType.getPointee();
+    while (auto t1 = mlir::dyn_cast<cir::ArrayType>(innerMostPointee)) {
+      mulSize *= t1.getSize();
+      innerMostPointee = t1.getElementType();
+    }
+
+    auto elementType = convertTy(innerMostPointee);
 
     auto ptrPtrType = mlir::ptr::PtrType::get(
         rewriter.getContext(),
@@ -1688,8 +1696,18 @@ public:
     mlir::Value strideIndex = mlir::arith::IndexCastOp::create(
         rewriter, op.getLoc(), rewriter.getIndexType(), stride);
 
-    mlir::Value offset = mlir::arith::MulIOp::create(rewriter, op.getLoc(),
-                                                     strideIndex, elemSizeVal);
+    mlir::Value offsetInnerMost = mlir::arith::MulIOp::create(
+        rewriter, op.getLoc(), strideIndex, elemSizeVal);
+
+    mlir::Value offset;
+    if (mulSize > 1) {
+      mlir::Value mulSizeConst =
+          mlir::arith::ConstantIndexOp::create(rewriter, op->getLoc(), mulSize);
+      offset = mlir::arith::MulIOp::create(rewriter, op.getLoc(),
+                                           offsetInnerMost, mulSizeConst);
+    } else {
+      offset = offsetInnerMost;
+    }
 
     auto t1 = mlir::cast<mlir::MemRefType>(base.getType());
     auto t2 =
