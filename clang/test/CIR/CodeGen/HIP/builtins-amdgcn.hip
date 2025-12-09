@@ -325,3 +325,23 @@ __device__ void test_div_fixup_f32(float* out, float a, float b, float c) {
 __device__ void test_div_fixup_f64(double* out, double a, double b, double c) {
   *out = __builtin_amdgcn_div_fixup(a, b, c);
 }
+
+// CIR-LABEL: @_Z19test_trig_preop_f32Pffi
+// CIR: cir.llvm.intrinsic "amdgcn.trig.preop" {{.*}} : (!cir.float, !s32i) -> !cir.float
+// LLVM: define{{.*}} void @_Z19test_trig_preop_f32Pffi
+// LLVM: call{{.*}} float @llvm.amdgcn.trig.preop.f32(float %{{.+}}, i32 %{{.*}})
+// OGCG: define{{.*}} void @_Z19test_trig_preop_f32Pffi
+// OGCG: call{{.*}} float @llvm.amdgcn.trig.preop.f32(float %{{.+}}, i32 %{{.*}})
+__device__ void test_trig_preop_f32(float* out, float a, int b) {
+  *out = __builtin_amdgcn_trig_preopf(a, b);
+}
+
+// CIR-LABEL: @_Z19test_trig_preop_f64Pddi
+// CIR: cir.llvm.intrinsic "amdgcn.trig.preop" {{.*}} : (!cir.double, !s32i) -> !cir.double
+// LLVM: define{{.*}} void @_Z19test_trig_preop_f64Pddi
+// LLVM: call{{.*}} double @llvm.amdgcn.trig.preop.f64(double %{{.+}}, i32 %{{.*}})
+// OGCG: define{{.*}} void @_Z19test_trig_preop_f64Pddi
+// OGCG: call{{.*}} double @llvm.amdgcn.trig.preop.f64(double %{{.+}}, i32 %{{.*}})
+__device__ void test_trig_preop_f64(double* out, double a, int b) {
+  *out = __builtin_amdgcn_trig_preop(a, b);
+}

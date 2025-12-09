@@ -340,3 +340,23 @@ void test_div_fixup_f64(global double* out, double a, double b, double c)
 {
   *out = __builtin_amdgcn_div_fixup(a, b, c);
 }
+
+// CIR-LABEL: @test_trig_preop_f32
+// CIR: cir.llvm.intrinsic "amdgcn.trig.preop" {{.*}} : (!cir.float, !s32i) -> !cir.float
+// LLVM: define{{.*}} void @test_trig_preop_f32
+// LLVM: call{{.*}} float @llvm.amdgcn.trig.preop.f32(float %{{.+}}, i32 %{{.*}})
+// OGCG: define{{.*}} void @test_trig_preop_f32
+// OGCG: call{{.*}} float @llvm.amdgcn.trig.preop.f32(float %{{.+}}, i32 %{{.*}})
+void test_trig_preop_f32(global float* out, float a, int b) {
+  *out = __builtin_amdgcn_trig_preopf(a, b);
+}
+
+// CIR-LABEL: @test_trig_preop_f64
+// CIR: cir.llvm.intrinsic "amdgcn.trig.preop" {{.*}} : (!cir.double, !s32i) -> !cir.double
+// LLVM: define{{.*}} void @test_trig_preop_f64
+// LLVM: call{{.*}} double @llvm.amdgcn.trig.preop.f64(double %{{.+}}, i32 %{{.*}})
+// OGCG: define{{.*}} void @test_trig_preop_f64
+// OGCG: call{{.*}} double @llvm.amdgcn.trig.preop.f64(double %{{.+}}, i32 %{{.*}})
+void test_trig_preop_f64(global double* out, double a, int b) {
+  *out = __builtin_amdgcn_trig_preop(a, b);
+}
