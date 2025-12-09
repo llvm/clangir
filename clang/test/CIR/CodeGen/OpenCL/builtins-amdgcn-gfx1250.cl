@@ -27,3 +27,14 @@ void test_rcp_bf16(global __bf16* out, __bf16 a)
 {
   *out = __builtin_amdgcn_rcp_bf16(a);
 }
+
+// CIR-LABEL: @test_sqrt_bf16
+// CIR: cir.llvm.intrinsic "amdgcn.sqrt" {{.*}} : (!cir.bf16) -> !cir.bf16
+// LLVM: define{{.*}} void @test_sqrt_bf16
+// LLVM: call{{.*}} bfloat @llvm.amdgcn.sqrt.bf16(bfloat %{{.*}})
+// OGCG: define{{.*}} void @test_sqrt_bf16
+// OGCG: call{{.*}} bfloat @llvm.amdgcn.sqrt.bf16(bfloat %{{.*}})
+void test_sqrt_bf16(global __bf16* out, __bf16 a)
+{
+  *out = __builtin_amdgcn_sqrt_bf16(a);
+}

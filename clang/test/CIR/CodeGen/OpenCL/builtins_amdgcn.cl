@@ -380,3 +380,23 @@ void test_rcp_f32(global float* out, float a) {
 void test_rcp_f64(global double* out, double a) {
   *out = __builtin_amdgcn_rcp(a);
 }
+
+// CIR-LABEL: @test_sqrt_f32
+// CIR: cir.llvm.intrinsic "amdgcn.sqrt" {{.*}} : (!cir.float) -> !cir.float
+// LLVM: define{{.*}} void @test_sqrt_f32
+// LLVM: call{{.*}} float @llvm.amdgcn.sqrt.f32(float %{{.*}})
+// OGCG: define{{.*}} void @test_sqrt_f32
+// OGCG: call{{.*}} float @llvm.amdgcn.sqrt.f32(float %{{.*}})
+void test_sqrt_f32(global float* out, float a) {
+  *out = __builtin_amdgcn_sqrtf(a);
+}
+
+// CIR-LABEL: @test_sqrt_f64
+// CIR: cir.llvm.intrinsic "amdgcn.sqrt" {{.*}} : (!cir.double) -> !cir.double
+// LLVM: define{{.*}} void @test_sqrt_f64
+// LLVM: call{{.*}} double @llvm.amdgcn.sqrt.f64(double %{{.*}})
+// OGCG: define{{.*}} void @test_sqrt_f64
+// OGCG: call{{.*}} double @llvm.amdgcn.sqrt.f64(double %{{.*}})
+void test_sqrt_f64(global double* out, double a) {
+  *out = __builtin_amdgcn_sqrt(a);
+}
