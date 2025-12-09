@@ -345,3 +345,23 @@ __device__ void test_trig_preop_f32(float* out, float a, int b) {
 __device__ void test_trig_preop_f64(double* out, double a, int b) {
   *out = __builtin_amdgcn_trig_preop(a, b);
 }
+
+// CIR-LABEL: @_Z12test_rcp_f32Pff
+// CIR: cir.llvm.intrinsic "amdgcn.rcp" {{.*}} : (!cir.float) -> !cir.float
+// LLVM: define{{.*}} void @_Z12test_rcp_f32Pff
+// LLVM: call{{.*}} float @llvm.amdgcn.rcp.f32(float %{{.*}})
+// OGCG: define{{.*}} void @_Z12test_rcp_f32Pff
+// OGCG: call{{.*}} float @llvm.amdgcn.rcp.f32(float %{{.*}})
+__device__ void test_rcp_f32(float* out, float a) {
+  *out = __builtin_amdgcn_rcpf(a);
+}
+
+// CIR-LABEL: @_Z12test_rcp_f64Pdd
+// CIR: cir.llvm.intrinsic "amdgcn.rcp" {{.*}} : (!cir.double) -> !cir.double
+// LLVM: define{{.*}} void @_Z12test_rcp_f64Pdd
+// LLVM: call{{.*}} double @llvm.amdgcn.rcp.f64(double %{{.*}})
+// OGCG: define{{.*}} void @_Z12test_rcp_f64Pdd
+// OGCG: call{{.*}} double @llvm.amdgcn.rcp.f64(double %{{.*}})
+__device__ void test_rcp_f64(double* out, double a) {
+  *out = __builtin_amdgcn_rcp(a);
+}
