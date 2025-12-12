@@ -3355,6 +3355,9 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // mangledname if Entry is nullptr
   auto f = createCIRFunction(getLocForFunction(fd), mangledName, fTy, fd);
 
+  if (d && d->hasAttr<AnnotateAttr>())
+    deferredAnnotations[mangledName] = fd;
+
   // If we already created a function with the same mangled name (but different
   // type) before, take its name and add it to the list of functions to be
   // replaced with F at the end of CodeGen.
