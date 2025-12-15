@@ -4,7 +4,7 @@
 float f[32000];
 // CHECK: memref.global "public" @f : memref<32000xf32> = dense<0.000000e+00>
 double d;
-// CHECK: memref.global "public" @d : memref<f64> = dense<0.000000e+00>
+// CHECK: memref.global "public" @d : memref<1xf64> = dense<0.000000e+00>
 float f_init[] = {1.0, 2.0};
 // CHECK: memref.global "public" @f_init : memref<2xf32> = dense<[1.000000e+00, 2.000000e+00]>
 int i_init[2] = {0, 1};

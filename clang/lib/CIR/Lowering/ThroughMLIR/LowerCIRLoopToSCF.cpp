@@ -244,12 +244,24 @@ mlir::Value SCFLoop::findIVInitValue() {
   auto remapAddr = rewriter->getRemappedValue(ivAddr);
   if (!remapAddr)
     return nullptr;
-  if (!remapAddr.hasOneUse())
-    return nullptr;
-  auto memrefStore = dyn_cast<mlir::memref::StoreOp>(*remapAddr.user_begin());
-  if (!memrefStore)
-    return nullptr;
-  return memrefStore->getOperand(0);
+  if (auto castOp =
+          mlir::dyn_cast<mlir::memref::CastOp>(remapAddr.getDefiningOp())) {
+    remapAddr = castOp->getOperand(0);
+    if (!remapAddr)
+      return nullptr;
+    // Alloca has two uses, one is the CastOp, and second is the StoreOp (which
+    // bypasses the CastOp)
+    if (remapAddr.getNumUses() > 2)
+      return nullptr;
+  } else {
+    if (!remapAddr.hasOneUse())
+      return nullptr;
+  }
+  for (auto user : remapAddr.getUsers()) {
+    if (auto memrefStore = dyn_cast<mlir::memref::StoreOp>(user))
+      return memrefStore->getOperand(0);
+  }
+  return nullptr;
 }
 
 void SCFLoop::analysis() {
@@ -340,10 +352,13 @@ void SCFLoop::transferToSCFForOp() {
   // The operations before the loop have been transferred to MLIR.
   // So we need to go through getRemappedValue to find the operations.
   auto remapAddr = rewriter->getRemappedValue(ivAddr);
-
+  if (auto castOp =
+          mlir::dyn_cast<mlir::memref::CastOp>(remapAddr.getDefiningOp()))
+    remapAddr = castOp->getOperand(0);
   // Since this is a canonical loop we can remove the alloca + initial store op
   rewriter->eraseOp(remapAddr.getDefiningOp());
-  rewriter->eraseOp(*remapAddr.user_begin());
+  for (auto user : remapAddr.getUsers())
+    rewriter->eraseOp(user);
 }
 
 void SCFLoop::transformToSCFWhileOp() {

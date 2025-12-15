@@ -9,7 +9,7 @@ int test_array1() {
     // CIR: %{{.*}} = cir.get_element %[[ARRAY]][{{.*}}] : (!cir.ptr<!cir.array<!s32i x 3>>, !s32i) -> !cir.ptr<!s32i>
 
     // MLIR-LABEL: func @test_array1
-    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
+    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
     // MLIR: %[[ARRAY:.*]] = memref.alloca() {alignment = 4 : i64} : memref<3xi32>
     // MLIR: %{{.*}} = memref.load %[[ARRAY]][%{{.*}}] : memref<3xi32>
     int a[3];
@@ -23,7 +23,7 @@ int test_array2() {
     // CIR: %{{.*}} = cir.get_element %{{.*}}[%{{.*}}] : (!cir.ptr<!cir.array<!s32i x 4>>, !s32i) -> !cir.ptr<!s32i>
 
     // MLIR-LABEL: func @test_array2
-    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
+    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
     // MLIR: %[[ARRAY:.*]] = memref.alloca() {alignment = 16 : i64} : memref<3x4xi32>
     // MLIR: %{{.*}} = memref.load %[[ARRAY]][%{{.*}}, %{{.*}}] : memref<3x4xi32>
     int a[3][4];
@@ -42,7 +42,7 @@ int test_array3() {
     // CIR: %{{.*}} = cir.load align(4) %[[ELEM3]] : !cir.ptr<!s32i>, !s32i
 
     // MLIR-LABEL: func @test_array3
-    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
+    // MLIR: %{{.*}} = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
     // MLIR: %[[ARRAY:.*]] = memref.alloca() {alignment = 4 : i64} : memref<3xi32>
     // MLIR: %[[IDX1:.*]] = arith.index_cast %{{.*}} : i32 to index
     // MLIR: %{{.*}} = memref.load %[[ARRAY]][%[[IDX1]]] : memref<3xi32>

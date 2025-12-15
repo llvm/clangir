@@ -12,26 +12,26 @@ void foo() {
 }
 
 //CHECK: func.func @foo() {
-//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
-//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
+//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
+//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
 //CHECK:   %[[C2_I32:.+]] = arith.constant 2 : i32
-//CHECK:   memref.store %[[C2_I32]], %[[alloca]][] : memref<i32>
+//CHECK:   memref.store %[[C2_I32]], %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   %[[C0_I32:.+]] = arith.constant 0 : i32
-//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][] : memref<i32>
+//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   memref.alloca_scope  {
-//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][] : memref<i32>
+//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     %[[C0_I32_1:.+]] = arith.constant 0 : i32
 //CHECK:     %[[ONE:.+]] = arith.cmpi sgt, %[[ZERO]], %[[C0_I32_1]] : i32
 //CHECK:     scf.if %[[ONE]] {
-//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][] : memref<i32>
+//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:       %[[C1_I32:.+]] = arith.constant 1 : i32
 //CHECK:       %[[SEVEN:.+]] = arith.addi %[[SIX]], %[[C1_I32]] : i32
-//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][] : memref<i32>
+//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     } else {
-//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][] : memref<i32>
+//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:       %[[C1_I32:.+]] = arith.constant -1 : i32
 //CHECK:       %[[SEVEN:.+]] = arith.addi %[[SIX]], %[[C1_I32]] : i32
-//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][] : memref<i32>
+//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     }
 //CHECK:   }
 //CHECK:   return
@@ -46,21 +46,21 @@ void foo2() {
 }
 
 //CHECK: func.func @foo2() {
-//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
-//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
+//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
+//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
 //CHECK:   %[[C2_I32:.+]] = arith.constant 2 : i32
-//CHECK:   memref.store %[[C2_I32]], %[[alloca]][] : memref<i32>
+//CHECK:   memref.store %[[C2_I32]], %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   %[[C0_I32:.+]] = arith.constant 0 : i32
-//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][] : memref<i32>
+//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   memref.alloca_scope  {
-//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][] : memref<i32>
+//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     %[[C3_I32:.+]] = arith.constant 3 : i32
 //CHECK:     %[[ONE:.+]] = arith.cmpi slt, %[[ZERO]], %[[C3_I32]] : i32
 //CHECK:     scf.if %[[ONE]] {
-//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][] : memref<i32>
+//CHECK:       %[[SIX:.+]] = memref.load %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:       %[[C1_I32:.+]] = arith.constant 1 : i32
 //CHECK:       %[[SEVEN:.+]] = arith.addi %[[SIX]], %[[C1_I32]] : i32
-//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][] : memref<i32>
+//CHECK:       memref.store %[[SEVEN]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     }
 //CHECK:   }
 //CHECK:   return
@@ -81,34 +81,34 @@ void foo3() {
 
 
 //CHECK: func.func @foo3() {
-//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
-//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
+//CHECK:   %[[alloca:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
+//CHECK:   %[[alloca_0:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
 //CHECK:   %[[C2_I32:.+]] = arith.constant 2 : i32
-//CHECK:   memref.store %[[C2_I32]], %[[alloca]][] : memref<i32>
+//CHECK:   memref.store %[[C2_I32]], %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   %[[C0_I32:.+]] = arith.constant 0 : i32
-//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][] : memref<i32>
+//CHECK:   memref.store %[[C0_I32]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:   memref.alloca_scope  {
-//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][] : memref<i32>
+//CHECK:     %[[ZERO:.+]] = memref.load %[[alloca]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:     %[[C3_I32:.+]] = arith.constant 3 : i32
 //CHECK:     %[[ONE:.+]] = arith.cmpi slt, %[[ZERO]], %[[C3_I32]] : i32
 //CHECK:     scf.if %[[ONE]] {
-//CHECK:       %[[alloca_2:.+]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
+//CHECK:       %[[alloca_2:.+]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
 //CHECK:       %[[C1_I32:.+]] = arith.constant 1 : i32
-//CHECK:       memref.store %[[C1_I32]], %[[alloca_2]][] : memref<i32>
+//CHECK:       memref.store %[[C1_I32]], %[[alloca_2]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:       memref.alloca_scope  {
-//CHECK:         %[[SIX:.+]] = memref.load %[[alloca_2]][] : memref<i32>
+//CHECK:         %[[SIX:.+]] = memref.load %[[alloca_2]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:         %[[C2_I32_3:.+]] = arith.constant 2 : i32
 //CHECK:         %[[SEVEN:.+]] = arith.cmpi sgt, %[[SIX]], %[[C2_I32_3]] : i32
 //CHECK:         scf.if %[[SEVEN]] {
-//CHECK:           %[[TWELVE:.+]] = memref.load %[[alloca_0]][] : memref<i32>
+//CHECK:           %[[TWELVE:.+]] = memref.load %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:           %[[C1_I32_5:.+]] = arith.constant 1 : i32
 //CHECK:           %[[THIRTEEN:.+]] = arith.addi %[[TWELVE]], %[[C1_I32_5]] : i32
-//CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][] : memref<i32>
+//CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:         } else {
-//CHECK:           %[[TWELVE:.+]] = memref.load %[[alloca_0]][] : memref<i32>
+//CHECK:           %[[TWELVE:.+]] = memref.load %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:           %[[C1_I32_5:.+]] = arith.constant -1 : i32
 //CHECK:           %[[THIRTEEN:.+]] = arith.addi %[[TWELVE]], %[[C1_I32_5]] : i32
-//CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][] : memref<i32>
+//CHECK:           memref.store %[[THIRTEEN]], %[[alloca_0]][{{%c0(_[0-9]+)?}}] : memref<1xi32>
 //CHECK:         }
 //CHECK:       }
 //CHECK:     }

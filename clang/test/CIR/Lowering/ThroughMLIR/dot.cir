@@ -17,13 +17,13 @@ module {
 }
 
 //      CHECK: module {
-// CHECK-NEXT:   func.func @dot(%arg0: memref<f64>) -> i32 {
-// CHECK-NEXT:     %alloca = memref.alloca() {alignment = 8 : i64} : memref<memref<f64>>
-// CHECK-NEXT:     %alloca_0 = memref.alloca() {alignment = 4 : i64} : memref<i32>
-// CHECK-NEXT:     %alloca_1 = memref.alloca() {alignment = 8 : i64} : memref<memref<f64>>
-// CHECK-NEXT:     memref.store %arg0, %alloca[] : memref<memref<f64>>
-// CHECK-NEXT:     %0 = memref.load %alloca[] : memref<memref<f64>>
-// CHECK-NEXT:     memref.store %0, %alloca_1[] : memref<memref<f64>>
-// CHECK-NEXT:     %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:     %1 = memref.load %alloca_0[] : memref<i32>
+// CHECK-NEXT:   func.func @dot(%arg0: memref<?xf64>) -> i32 {
+// CHECK-NEXT:     %alloca = memref.alloca() {alignment = 8 : i64} : memref<1xmemref<?xf64>>
+// CHECK-NEXT:     %alloca_0 = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
+// CHECK-NEXT:     %alloca_1 = memref.alloca() {alignment = 8 : i64} : memref<1xmemref<?xf64>>
+// CHECK:          memref.store %arg0, %alloca[{{%c0(_[0-9]+)?}}] : memref<1xmemref<?xf64>>
+// CHECK:          %0 = memref.load %alloca[{{%c0(_[0-9]+)?}}] : memref<1xmemref<?xf64>>
+// CHECK:          memref.store %0, %alloca_1[{{%c0(_[0-9]+)?}}] : memref<1xmemref<?xf64>>
+// CHECK:          %c0_i32 = arith.constant 0 : i32
+// CHECK:          %1 = memref.load %alloca_0[{{%c0(_[0-9]+)?}}] : memref<1xi32>
 // CHECK-NEXT:     return %1 : i32
