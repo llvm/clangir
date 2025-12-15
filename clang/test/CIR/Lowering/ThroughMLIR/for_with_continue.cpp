@@ -6,14 +6,14 @@ void for_continue() {
     continue;
 
   // CHECK: scf.while : () -> () {
-  // CHECK:   %[[IV:.+]] = memref.load %alloca[]
+  // CHECK:   %[[IV:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   %[[CMP:.+]] = arith.cmpi slt, %[[IV]], %c100_i32
   // CHECK:   scf.condition(%[[CMP]])
   // CHECK: } do {
-  // CHECK:   %[[IV2:.+]] = memref.load %alloca[]
+  // CHECK:   %[[IV2:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   %[[ONE:.+]] = arith.constant 1
   // CHECK:   %[[CMP2:.+]] = arith.addi %[[IV2]], %[[ONE]]
-  // CHECK:   memref.store %[[CMP2]], %alloca[]
+  // CHECK:   memref.store %[[CMP2]], %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   scf.yield
   // CHECK: }
 }
