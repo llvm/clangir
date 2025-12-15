@@ -1770,7 +1770,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::ptr::MemorySpaceAttrInterface EAS = cir::toCIRLangAddressSpaceAttr(
         &getMLIRContext(), E->getType()->getPointeeType().getAddressSpace());
     if (EAS != AAS) {
-      assert(false && "Non-default address space for alloca NYI");
+      mlir::Type TY = CGM.getTypes().convertType(E->getType());
+      return RValue::get(getTargetHooks().performAddrSpaceCast(
+          *this, AllocaAddr, AAS, EAS, TY));
     }
 
     // Bitcast the alloca to the expected type.
