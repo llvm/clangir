@@ -17,12 +17,14 @@ module {
 
 // MLIR: module {
 // MLIR-NEXT:  func.func @foo(%[[ARG0:.*]]: i32) -> i32 {
-// MLIR-NEXT:    %[[ALLOCA:.*]] = memref.alloca() {alignment = 4 : i64} : memref<i32>
-// MLIR-NEXT:    memref.store %[[ARG0]], %[[ALLOCA]][] : memref<i32>
+// MLIR-NEXT:    %[[ALLOCA:.*]] = memref.alloca() {alignment = 4 : i64} : memref<1xi32>
+// MLIR-NEXT:    %[[C0_IDX:.*]] = arith.constant 0 : index
+// MLIR-NEXT:    memref.store %[[ARG0]], %[[ALLOCA]][%[[C0_IDX]]] : memref<1xi32>
 // MLIR-NEXT:    %[[C100_I32:.*]] = arith.constant 100 : i32
 // MLIR-NEXT:    %[[C10_I32:.*]] = arith.constant 10 : i32
 // MLIR-NEXT:    %[[C20_I32:.*]] = arith.constant 20 : i32
-// MLIR-NEXT:    %[[V:.*]] = memref.load %[[ALLOCA]][] : memref<i32>
+// MLIR-NEXT:    %[[C0_IDX2:.*]] = arith.constant 0 : index
+// MLIR-NEXT:    %[[V:.*]] = memref.load %[[ALLOCA]][%[[C0_IDX2]]] : memref<1xi32>
 // MLIR-NEXT:    %[[C:.*]] = arith.cmpi ugt, %[[V]], %[[C100_I32]] : i32
 // MLIR-NEXT:    %[[OP:.*]] = arith.select %[[C]], %[[C100_I32]], %[[C10_I32]] : i32
 // MLIR-NEXT:    return %[[OP]] : i32

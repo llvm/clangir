@@ -3,17 +3,10 @@
 !s32i = !cir.int<s, 32>
 module {
   cir.func @raw_pointer(%p : !cir.ptr<!s32i>) -> !s32i {
-    // MLIR: %[[TWO:.*]] = arith.constant 2 : i32
-    // MLIR-NEXT: %[[TYPEOFFSET:.*]] = ptr.type_offset i32 : index
+    // MLIR:     func.func @raw_pointer(%[[ARG0:.*]]: memref<?xi32>) -> i32 {
+    // MLIR:      %[[TWO:.*]] = arith.constant 2 : i32
     // MLIR-NEXT: %[[I:.*]] = arith.index_cast %[[TWO]] : i32 to index
-    // MLIR-NEXT: %[[OFFSET:.*]] = arith.muli %[[I]], %[[TYPEOFFSET]] : index
-    // MLIR-NEXT: %[[CAST1:.*]] = memref.memory_space_cast %arg0 : memref<i32> to memref<i32, #ptr.generic_space>
-    // MLIR-NEXT: %[[META:.*]] = ptr.get_metadata %[[CAST1]] : memref<i32, #ptr.generic_space>
-    // MLIR-NEXT: %[[P1:.*]] = ptr.to_ptr %[[CAST1]] : memref<i32, #ptr.generic_space> -> <#ptr.generic_space>
-    // MLIR-NEXT: %[[P2:.*]] = ptr.ptr_add %[[P1]], %[[OFFSET]] : !ptr.ptr<#ptr.generic_space>, index
-    // MLIR-NEXT: %[[PP:.*]] = ptr.from_ptr %[[P2]] metadata %[[META]] : <#ptr.generic_space> -> memref<i32, #ptr.generic_space>
-    // MLIR-NEXT: %[[CAST2:.*]] = memref.memory_space_cast %[[PP]] : memref<i32, #ptr.generic_space> to memref<i32>
-    // MLIR-NEXT: %[[R:.*]] = memref.load %[[CAST2]][] : memref<i32>
+    // MLIR-NEXT: %[[R:.*]] = memref.load %[[ARG0]][%[[I]]] : memref<?xi32>
     // MLIR-NEXT: return %[[R]] : i32
 
     %0 = cir.const #cir.int<2> : !s32i

@@ -12,16 +12,16 @@ void while_continue() {
   // Only the first `i++` will be emitted.
 
   // CHECK: scf.while : () -> () {
-  // CHECK:   %[[TMP0:.+]] = memref.load %alloca[]
+  // CHECK:   %[[TMP0:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   %[[HUNDRED:.+]] = arith.constant 100
   // CHECK:   %[[TMP1:.+]] = arith.cmpi slt, %[[TMP0]], %[[HUNDRED]]
   // CHECK:   scf.condition(%[[TMP1]])
   // CHECK: } do {
   // CHECK:   memref.alloca_scope  {
-  // CHECK:     %[[TMP2:.+]] = memref.load %alloca[]
+  // CHECK:     %[[TMP2:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:     %[[ONE:.+]] = arith.constant 1
   // CHECK:     %[[TMP3:.+]] = arith.addi %[[TMP2]], %[[ONE]]
-  // CHECK:     memref.store %[[TMP3]], %alloca[]
+  // CHECK:     memref.store %[[TMP3]], %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   }
   // CHECK:   scf.yield
   // CHECK: }
@@ -43,7 +43,7 @@ void while_continue_2() {
   // CHECK:   %[[NOTALLOCA:.+]] = memref.alloca
   // CHECK:   memref.alloca_scope  {
   // CHECK:     memref.alloca_scope  {
-  // CHECK:       %[[IV:.+]] = memref.load %[[IVADDR:.+]][]
+  // CHECK:       %[[IV:.+]] = memref.load %[[IVADDR:.+]][{{%c0(_[0-9]+)?}}]
   // CHECK:       %[[FIVE:.+]] = arith.constant 5
   // CHECK:       %[[COND:.+]] = arith.cmpi eq, %[[IV]], %[[FIVE]]
   // CHECK:       %true = arith.constant true
@@ -82,7 +82,7 @@ void while_continue_nested() {
   // The continue will only work on the inner while.
 
   // CHECK: scf.while : () -> () {
-  // CHECK:   %[[IV:.+]] = memref.load %alloca[]
+  // CHECK:   %[[IV:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   %[[TEN:.+]] = arith.constant 10
   // CHECK:   %[[LT:.+]] = arith.cmpi slt, %[[IV]], %[[TEN]]
   // CHECK:   scf.condition(%[[LT]])
@@ -96,10 +96,10 @@ void while_continue_nested() {
   // CHECK:         scf.yield
   // CHECK:       }
   // CHECK:     }
-  // CHECK:     %[[IV2:.+]] = memref.load %alloca[]
+  // CHECK:     %[[IV2:.+]] = memref.load %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:     %[[ONE:.+]] = arith.constant 1
   // CHECK:     %[[ADD:.+]] = arith.addi %[[IV2]], %[[ONE]]
-  // CHECK:     memref.store %[[ADD]], %alloca[]
+  // CHECK:     memref.store %[[ADD]], %alloca[{{%c0(_[0-9]+)?}}]
   // CHECK:   }
   // CHECK:   scf.yield
   // CHECK: }

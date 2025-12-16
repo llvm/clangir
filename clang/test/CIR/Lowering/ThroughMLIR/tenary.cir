@@ -33,7 +33,8 @@ cir.func @_Z1xi(%arg0: !s32i) -> !s32i {
 // MLIR-NEXT:   %c5_i32 = arith.constant 5 : i32
 // MLIR-NEXT:   scf.yield %c5_i32 : i32
 // MLIR-NEXT: }
-// MLIR-NEXT: memref.store %2, %alloca_0[] : memref<i32>
+// MLIR-NEXT: %[[CONST0:[a-z0-9_]+]] = arith.constant 0 : index
+// MLIR-NEXT: memref.store %2, %alloca_0[%[[CONST0]]] : memref<1xi32>
 
 // MLIR-CANONICALIZE: %[[CMP:.*]] = arith.cmpi sgt
 // MLIR-CANONICALIZE: arith.select %[[CMP]]
