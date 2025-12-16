@@ -181,8 +181,8 @@ static Address emitPointerWithAlignment(const Expr *expr,
         addr = cgf.getBuilder().createElementBitCast(
             cgf.getLoc(expr->getSourceRange()), addr, eltTy);
         if (CE->getCastKind() == CK_AddressSpaceConversion) {
-          assert(!cir::MissingFeatures::addressSpace());
-          llvm_unreachable("NYI");
+          addr = cgf.getBuilder().createAddrSpaceCast(
+              addr, cgf.convertType(expr->getType()), eltTy);
         }
         return addr;
       }

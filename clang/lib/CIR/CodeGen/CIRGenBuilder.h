@@ -970,6 +970,15 @@ public:
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
   }
 
+  using cir::CIRBaseBuilderTy::createAddrSpaceCast;
+  Address createAddrSpaceCast(Address addr, mlir::Type ty, mlir::Type elemTy) {
+    return Address(createAddrSpaceCast(addr.hasOffset() ? addr.emitRawPointer()
+                                                        : addr.getBasePointer(),
+                                       ty),
+                   elemTy, addr.getAlignment(), addr.getPointerAuthInfo(),
+                   nullptr, addr.isKnownNonNull());
+  }
+
   /// Create a call to a Masked Load intrinsic.
   /// \p loc       - expression location
   /// \p ty        - vector type to load
