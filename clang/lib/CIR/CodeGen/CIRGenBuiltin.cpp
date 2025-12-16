@@ -1765,7 +1765,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // default (e.g. in C / C++ auto vars are in the generic address space). At
     // the AST level this is handled within CreateTempAlloca et al., but for the
     // builtin / dynamic alloca we have to handle it here.
-    assert(!cir::MissingFeatures::addressSpace());
     mlir::ptr::MemorySpaceAttrInterface AAS = getCIRAllocaAddressSpace();
     mlir::ptr::MemorySpaceAttrInterface EAS = cir::toCIRLangAddressSpaceAttr(
         &getMLIRContext(), E->getType()->getPointeeType().getAddressSpace());
