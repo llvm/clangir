@@ -15,7 +15,7 @@
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
-
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -322,7 +322,6 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
   const Expr *init = varDecl->getInit();
   QualType ty = varDecl->getType();
 
-  // TODO: handle address space
   // The address space of a static local variable (DeclPtr) may be different
   // from the address space of the "this" argument of the constructor. In that
   // case, we need an addrspacecast before calling the constructor.
@@ -338,7 +337,10 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
   // For example, in the above CUDA code, the static local variable s has a
   // "shared" address space qualifier, but the constructor of StructWithCtor
   // expects "this" in the "generic" address space.
-  assert(!cir::MissingFeatures::addressSpace());
+
+  mlir::ptr::MemorySpaceAttrInterface expectedAddrSpace =
+      cir::toCIRLangAddressSpaceAttr(&getMLIRContext(), ty.getAddressSpace());
+  mlir::ptr::MemorySpaceAttrInterface actualAddrSpace = addr.getAddrSpaceAttr();
 
   assert(varDecl && " Expected a global declaration!");
   CIRGenFunction cgf{*this, builder, true};
@@ -367,8 +369,17 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
       lexScope.setAsGlobalInit();
 
       builder.setInsertionPointToStart(block);
-      Address declAddr(getAddrOfGlobalVar(varDecl),
-                       getASTContext().getDeclAlign(varDecl));
+      mlir::Value declPtr = getAddrOfGlobalVar(varDecl);
+
+      if (actualAddrSpace != expectedAddrSpace) {
+        auto ptrTy = mlir::cast<cir::PointerType>(declPtr.getType());
+        auto expectedPtrTy =
+            builder.getPointerTo(ptrTy.getPointee(), expectedAddrSpace);
+        declPtr = builder.createAddrSpaceCast(declPtr.getLoc(), declPtr,
+                                              expectedPtrTy);
+      }
+
+      Address declAddr(declPtr, getASTContext().getDeclAlign(varDecl));
       emitDeclInit(cgf, varDecl, declAddr);
       builder.setInsertionPointToEnd(block);
       cir::YieldOp::create(builder, addr->getLoc());

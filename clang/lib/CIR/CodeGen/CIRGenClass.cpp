@@ -12,7 +12,8 @@
 
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
-
+#include "TargetInfo.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Type.h"
@@ -1947,12 +1948,20 @@ void CIRGenFunction::emitCXXConstructorCall(const clang::CXXConstructorDecl *D,
                                             const clang::CXXConstructExpr *E) {
   CallArgList Args;
   Address This = ThisAVS.getAddress();
-  LangAS SlotAS = ThisAVS.getQualifiers().getAddressSpace();
   QualType ThisType = D->getThisType();
-  LangAS ThisAS = ThisType.getTypePtr()->getPointeeType().getAddressSpace();
+
+  mlir::ptr::MemorySpaceAttrInterface SlotAS = cir::toCIRLangAddressSpaceAttr(
+      &getMLIRContext(), ThisAVS.getQualifiers().getAddressSpace());
+  mlir::ptr::MemorySpaceAttrInterface ThisAS = cir::toCIRLangAddressSpaceAttr(
+      &getMLIRContext(),
+      ThisType.getTypePtr()->getPointeeType().getAddressSpace());
   mlir::Value ThisPtr = This.getPointer();
 
-  assert(SlotAS == ThisAS && "This edge case NYI");
+  if (SlotAS != ThisAS) {
+    cir::PointerType newType = builder.getPointerTo(ThisPtr.getType(), ThisAS);
+    ThisPtr = getTargetHooks().performAddrSpaceCast(*this, ThisPtr, ThisAS,
+                                                    SlotAS, newType);
+  }
 
   Args.add(RValue::get(ThisPtr), D->getThisType());
 
