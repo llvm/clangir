@@ -587,6 +587,13 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     llvm_unreachable("NYI");                                                   \
   } break;
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
+#define AMDGPU_OPAQUE_PTR_TYPE(Name, Id, SingletonId, Width, Align, AS)        \
+  case BuiltinType::Id:                                                        \
+    ResultType = Builder.getPointerTo(CGM.VoidTy);                             \
+    break;
+#define AMDGPU_NAMED_BARRIER_TYPE(Name, Id, SingletonId, Width, Align, Scope)  \
+  case BuiltinType::Id:                                                        \
+    llvm_unreachable("NYI");
 #define AMDGPU_TYPE(Name, Id, SingletonId, Width, Align)                       \
   case BuiltinType::Id:                                                        \
     llvm_unreachable("NYI");
