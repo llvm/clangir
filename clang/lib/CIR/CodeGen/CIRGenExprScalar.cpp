@@ -758,7 +758,7 @@ public:
     llvm_unreachable("NYI");
   }
   mlir::Value VisitExpressionTraitExpr(const ExpressionTraitExpr *E) {
-    llvm_unreachable("NYI");
+    return Builder.getBool(E->getValue(), CGF.getLoc(E->getExprLoc()));
   }
   mlir::Value VisitCXXPseudoDestructorExpr(const CXXPseudoDestructorExpr *E) {
     llvm_unreachable("NYI");
