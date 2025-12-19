@@ -1,5 +1,3 @@
-#include "../Inputs/cuda.h"
-
 // REQUIRES: amdgpu-registered-target
 // RUN: %clang_cc1 -triple amdgcn-unknown-unknown -cl-std=CL2.0 -fclangir \
 // RUN:            -target-cpu tonga -emit-cir %s -o %t.cir
@@ -56,12 +54,14 @@
 // Test AMDGPU builtins
 //===----------------------------------------------------------------------===//
 
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
 // CIR-LABEL: @test_div_fixup_f16
 // CIR: cir.llvm.intrinsic "amdgcn.div.fixup" {{.*}} : (!cir.f16, !cir.f16, !cir.f16) -> !cir.f16
 // LLVM: define{{.*}} void @test_div_fixup_f16
 // LLVM: call{{.*}} half @llvm.amdgcn.div.fixup.f16(half %{{.+}}, half %{{.+}}, half %{{.+}})
 // OGCG: define{{.*}} void @test_div_fixup_f16
 // OGCG: call{{.*}} half @llvm.amdgcn.div.fixup.f16(half %{{.+}}, half %{{.+}}, half %{{.+}})
-__device__ void test_div_fixup_f16(_Float16* out, _Float16 a, _Float16 b, _Float16 c) {
+void test_div_fixup_f16(global half* out, half a, half b, half c) {
   *out = __builtin_amdgcn_div_fixuph(a, b, c);
 }
