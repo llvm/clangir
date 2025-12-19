@@ -743,9 +743,9 @@ public:
 
   mlir::Value createDynCastToVoid(mlir::Location loc, mlir::Value src,
                                   bool vtableUseRelativeLayout) {
-    // TODO(cir): consider address space here.
-    assert(!cir::MissingFeatures::addressSpace());
-    auto destTy = getVoidPtrTy();
+    mlir::ptr::MemorySpaceAttrInterface srcAS =
+        mlir::dyn_cast<cir::PointerType>(src.getType()).getAddrSpace();
+    auto destTy = getVoidPtrTy(srcAS);
     return cir::DynamicCastOp::create(
         *this, loc, destTy, cir::DynamicCastKind::Ptr, src,
         cir::DynamicCastInfoAttr{}, vtableUseRelativeLayout);

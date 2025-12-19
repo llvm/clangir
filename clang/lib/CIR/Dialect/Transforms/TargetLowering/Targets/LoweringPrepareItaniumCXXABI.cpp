@@ -15,9 +15,11 @@
 // TODO(cir): Refactor this to follow some level of codegen parity.
 
 #include "../LoweringPrepareItaniumCXXABI.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
+#include "mlir/Support/LLVM.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
@@ -116,8 +118,10 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   // Access vtable to get the offset from the given object to its containing
   // complete object.
   // TODO: Add a specialized operation to get the object offset?
+  mlir::ptr::MemorySpaceAttrInterface srcAS =
+      mlir::dyn_cast<cir::PointerType>(op.getSrc().getType()).getAddrSpace();
   auto vptrTy = cir::VPtrType::get(builder.getContext());
-  auto vptrPtrTy = builder.getPointerTo(vptrTy);
+  auto vptrPtrTy = builder.getPointerTo(vptrTy, srcAS);
   auto vptrPtr =
       cir::VTableGetVPtrOp::create(builder, loc, vptrPtrTy, op.getSrc());
   auto vptr = builder.createLoad(loc, vptrPtr);
@@ -131,12 +135,13 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
 
   // Add the offset to the given pointer to get the cast result.
   // Cast the input pointer to a uint8_t* to allow pointer arithmetic.
-  auto u8PtrTy = builder.getPointerTo(builder.getUIntNTy(8));
+
+  auto u8PtrTy = builder.getPointerTo(builder.getUIntNTy(8), srcAS);
   auto srcBytePtr = builder.createBitcast(op.getSrc(), u8PtrTy);
   auto dstBytePtr =
       cir::PtrStrideOp::create(builder, loc, u8PtrTy, srcBytePtr, offsetToTop);
   // Cast the result to a void*.
-  return builder.createBitcast(dstBytePtr, builder.getVoidPtrTy());
+  return builder.createBitcast(dstBytePtr, builder.getVoidPtrTy(srcAS));
 }
 
 mlir::Value
