@@ -107,6 +107,19 @@ emitAMDGCNImageOverloadedReturnType(CIRGenFunction &CGF, const CallExpr *E,
   return CallOp.getResult();
 }
 
+// Emit an intrinsic that has 1 float or double operand, and 1 integer.
+static mlir::Value emitFPIntBuiltin(CIRGenFunction &CGF, const CallExpr *E,
+                                    llvm::StringRef intrinsicName) {
+  mlir::Value Src0 = CGF.emitScalarExpr(E->getArg(0));
+  mlir::Value Src1 = CGF.emitScalarExpr(E->getArg(1));
+  mlir::Value result =
+      LLVMIntrinsicCallOp::create(CGF.getBuilder(), CGF.getLoc(E->getExprLoc()),
+                                  CGF.getBuilder().getStringAttr(intrinsicName),
+                                  Src0.getType(), {Src0, Src1})
+          .getResult();
+  return result;
+}
+
 mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
                                                   const CallExpr *expr) {
   switch (builtinId) {
@@ -217,7 +230,7 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   }
   case AMDGPU::BI__builtin_amdgcn_trig_preop:
   case AMDGPU::BI__builtin_amdgcn_trig_preopf: {
-    llvm_unreachable("trig_preop_* NYI");
+    return emitFPIntBuiltin(*this, expr, "amdgcn.trig.preop");
   }
   case AMDGPU::BI__builtin_amdgcn_rcp:
   case AMDGPU::BI__builtin_amdgcn_rcpf:
