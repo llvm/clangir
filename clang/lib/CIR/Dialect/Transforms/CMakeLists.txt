@@ -12,6 +12,7 @@ add_clang_library(MLIRCIRTransforms
   FlattenCFG.cpp
   GotoSolver.cpp
   SCFPrepare.cpp
+  ABILowering.cpp
   CallConvLowering.cpp
   HoistAllocas.cpp
 
