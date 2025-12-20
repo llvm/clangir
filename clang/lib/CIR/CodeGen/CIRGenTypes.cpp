@@ -589,7 +589,13 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 #define AMDGPU_OPAQUE_PTR_TYPE(Name, Id, SingletonId, Width, Align, AS)        \
   case BuiltinType::Id:                                                        \
-    ResultType = Builder.getPointerTo(CGM.VoidTy);                             \
+    if (AS == 0) {                                                             \
+      ResultType = Builder.getPointerTo(CGM.VoidTy);                           \
+    } else {                                                                   \
+      ResultType = Builder.getPointerTo(                                       \
+          CGM.VoidTy,                                                          \
+          cir::TargetAddressSpaceAttr::get(&getMLIRContext(), AS));            \
+    }                                                                          \
     break;
 #define AMDGPU_NAMED_BARRIER_TYPE(Name, Id, SingletonId, Width, Align, Scope)  \
   case BuiltinType::Id:                                                        \
