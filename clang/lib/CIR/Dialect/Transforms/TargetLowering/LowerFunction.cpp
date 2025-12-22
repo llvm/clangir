@@ -1388,8 +1388,14 @@ cir::TypeEvaluationKind LowerFunction::getEvaluationKind(mlir::Type type) {
   // FIXME(cir): Implement type classes for CIR types.
   if (mlir::isa<RecordType>(type))
     return cir::TypeEvaluationKind::TEK_Aggregate;
+
+  if (mlir::isa<ComplexType>(type))
+    return cir::TypeEvaluationKind::TEK_Complex;
+
+  // Scalar types
   if (mlir::isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType,
-                VectorType, PointerType>(type))
+                VectorType, PointerType, VoidType, FP16Type, FP80Type,
+                FP128Type, BF16Type>(type))
     return cir::TypeEvaluationKind::TEK_Scalar;
   cir_cconv_unreachable("NYI");
 }
