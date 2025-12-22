@@ -284,6 +284,10 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   // Track emitted diagnostics, and do not repeat them.
   llvm::SmallSet<mlir::Location, 8, LocOrdering> emittedDiagnostics;
 
+  // Track which values have already been warned about for moved-from state
+  // to avoid multiple warnings for the same variable.
+  llvm::DenseSet<mlir::Value> warnedMovedFromValues;
+
   ///
   /// Pointer Map and Pointer Set
   /// ---------------------------
@@ -1388,6 +1392,26 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
         !owners.count(srcAddr) && !ptrs.count(srcAddr)) {
       checkPointerDeref(srcAddr, storeOp.getLoc());
     }
+
+    // Check if this is initialization from an rvalue (std::move)
+    // This handles cases like: int b(std::move(a));
+    auto destAddr = storeOp.getAddr();
+
+    // Only check for new variables (AllocaOp) that are Value types
+    if (auto allocaOp = destAddr.getDefiningOp<cir::AllocaOp>()) {
+      if (!owners.count(destAddr) && !ptrs.count(destAddr) &&
+          getPmap().count(srcAddr) && !owners.count(srcAddr) &&
+          !ptrs.count(srcAddr)) {
+        // Check if source is in a valid state (not moved-from or invalid)
+        // If srcAddr is NOT moved-from and we're doing a non-deref load,
+        // this could be an rvalue initialization
+        if (!getPmap()[srcAddr].count(State::getInvalid()) &&
+            !loadOp.getIsDeref()) {
+          // Mark source as moved-from for rvalue initialization
+          markPsetInvalid(srcAddr, InvalidStyle::MovedFrom, storeOp.getLoc());
+        }
+      }
+    }
   }
 
   // Handle reinitialization of Value types
@@ -1397,6 +1421,10 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
       // Reinitialize: clear invalid state
       getPmap()[addr].clear();
       getPmap()[addr].insert(State::getLocalValue(addr));
+      // Clear moved-from warning tracking since the variable is reinitialized
+      if (warnedMovedFromValues.count(addr)) {
+        warnedMovedFromValues.erase(addr);
+      }
     }
     return;
   }
@@ -1510,6 +1538,21 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
   if (emittedDiagnostics.count(loc))
     return;
 
+  // For moved-from values, also track per-value to avoid multiple warnings
+  // for the same variable at different use sites.
+  bool isMovedFrom = false;
+  if (hasInvalid && invalidHist.count(addr)) {
+    for (const auto &entry : invalidHist[addr].entries) {
+      if (entry.style == InvalidStyle::MovedFrom) {
+        isMovedFrom = true;
+        break;
+      }
+    }
+  }
+
+  if (isMovedFrom && warnedMovedFromValues.count(addr))
+    return;
+
   bool psetRemarkEmitted = false;
   if (opts.emitRemarkPsetAlways()) {
     emitPsetRemark();
@@ -1533,6 +1576,10 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
   auto varName = getVarNameFromValue(addr);
   auto D = emitWarning(loc);
   emittedDiagnostics.insert(loc);
+
+  // Track that we've warned about this moved-from value
+  if (isMovedFrom)
+    warnedMovedFromValues.insert(addr);
 
   bool isValueType = !ptrs.count(addr) && !owners.count(addr);
 
@@ -1674,9 +1721,18 @@ void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
 
     auto arg = callOp.getArgOperand(i);
 
-    // Skip loaded values (by-value passing, not a move)
-    if (arg.getDefiningOp<cir::LoadOp>())
+    // Check if this is a load from a moved-from value
+    if (auto loadOp = arg.getDefiningOp<cir::LoadOp>()) {
+      auto srcAddr = loadOp.getAddr();
+      // If loading from a moved-from value, warn about the use
+      if (getPmap().count(srcAddr) &&
+          getPmap()[srcAddr].count(State::getInvalid()) &&
+          !owners.count(srcAddr) && !ptrs.count(srcAddr)) {
+        checkPointerDeref(srcAddr, callOp.getLoc());
+      }
+      // Either way, skip - LoadOp means by-value passing, not a move
       continue;
+    }
 
     // Argument should be an address
     mlir::Value addr = arg;
@@ -1690,6 +1746,12 @@ void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
     // Skip Owner/Pointer types (handled by checkMoveAssignment)
     if (owners.count(addr) || ptrs.count(addr))
       continue;
+
+    // Check if already moved-from - if so, warn about using a moved-from value
+    if (getPmap()[addr].count(State::getInvalid())) {
+      checkPointerDeref(addr, callOp.getLoc());
+      continue; // Don't mark as moved again
+    }
 
     // Mark as moved-from
     markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
