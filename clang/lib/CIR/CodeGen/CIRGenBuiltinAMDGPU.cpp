@@ -236,7 +236,8 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   case AMDGPU::BI__builtin_amdgcn_rcpf:
   case AMDGPU::BI__builtin_amdgcn_rcph:
   case AMDGPU::BI__builtin_amdgcn_rcp_bf16: {
-    llvm_unreachable("rcp_* NYI");
+    return emitBuiltinWithOneOverloadedType<1>(expr, "amdgcn.rcp")
+        .getScalarVal();
   }
   case AMDGPU::BI__builtin_amdgcn_sqrt:
   case AMDGPU::BI__builtin_amdgcn_sqrtf:

@@ -65,3 +65,14 @@
 void test_div_fixup_f16(global half* out, half a, half b, half c) {
   *out = __builtin_amdgcn_div_fixuph(a, b, c);
 }
+
+// CIR-LABEL: @test_rcp_f16
+// CIR: cir.llvm.intrinsic "amdgcn.rcp" {{.*}} : (!cir.f16) -> !cir.f16
+// LLVM: define{{.*}} void @test_rcp_f16
+// LLVM: call{{.*}} half @llvm.amdgcn.rcp.f16(half %{{.*}})
+// OGCG: define{{.*}} void @test_rcp_f16
+// OGCG: call{{.*}} half @llvm.amdgcn.rcp.f16(half %{{.*}})
+void test_rcp_f16(global half* out, half a)
+{
+  *out = __builtin_amdgcn_rcph(a);
+}
