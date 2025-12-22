@@ -1,0 +1,116 @@
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -fclangir-lifetime-check="history=invalid,null" -clangir-verify-diagnostics -emit-cir %s -o %t.cir
+
+namespace std {
+template <typename T>
+T&& move(T& t) {
+  return static_cast<T&&>(t);
+}
+}
+
+void consume_int(int&&);
+void consume_double(double&&);
+void consume_float(float&&);
+
+// Test 1: Basic int move
+void test_int_basic() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 2: Reinitialization clears state
+void test_reinit() {
+  int a = 10;
+  consume_int(std::move(a));
+  a = 20; // Reinitialize
+  int b = a; // OK - no warning
+}
+
+// Test 3: Multiple types
+void test_double() {
+  double d = 3.14;
+  consume_double(std::move(d)); // expected-note {{moved here via std::move or rvalue reference}}
+  double e = d; // expected-warning {{use of moved-from value 'd'}}
+}
+
+void test_float() {
+  float f = 1.5f;
+  consume_float(std::move(f)); // expected-note {{moved here via std::move or rvalue reference}}
+  float g = f; // expected-warning {{use of moved-from value 'f'}}
+}
+
+// Test 4: Negative cases - NOT moves
+void take_lvalue(int&);
+void take_value(int);
+
+void test_lvalue_ref() {
+  int a = 10;
+  take_lvalue(a); // Not a move
+  int b = a; // OK
+}
+
+void test_by_value() {
+  int a = 10;
+  take_value(a); // Not a move (copies value)
+  int b = a; // OK
+}
+
+// Test 5: Use in expressions
+void test_use_in_expr() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int b = a + 5; // expected-warning {{use of moved-from value 'a'}}
+}
+
+int test_use_in_return() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  return a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 6: Multiple moves in sequence
+void test_multiple_moves() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+
+  a = 30; // Reinit
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int c = a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 7: Move in conditional
+void test_move_in_if(bool cond) {
+  int a = 10;
+  if (cond) {
+    consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  }
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 8: Move with different primitive types
+void consume_char(char&&);
+void consume_bool(bool&&);
+
+void test_char() {
+  char c = 'x';
+  consume_char(std::move(c)); // expected-note {{moved here via std::move or rvalue reference}}
+  char d = c; // expected-warning {{use of moved-from value 'c'}}
+}
+
+void test_bool() {
+  bool b = true;
+  consume_bool(std::move(b)); // expected-note {{moved here via std::move or rvalue reference}}
+  bool c = b; // expected-warning {{use of moved-from value 'b'}}
+}
+
+// Test 9: Reinit after conditional move
+void test_reinit_after_cond(bool cond) {
+  int a = 10;
+  if (cond) {
+    consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  }
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+  a = 50; // Reinit
+  int c = a; // OK - reinitialized
+}

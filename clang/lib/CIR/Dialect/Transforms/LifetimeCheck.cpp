@@ -78,6 +78,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   void checkCtor(CallOp callOp, cir::CXXCtorAttr ctor);
   void checkMoveAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
+  void checkMoveViaCall(CallOp callOp);
   void checkCopyAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkNonConstUseOfOwner(mlir::Value ownerAddr, mlir::Location loc);
   void checkOperators(CallOp callOp, ASTCXXMethodDeclInterface m);
@@ -1291,6 +1292,28 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
     return;
   }
 
+  // Check if storing a moved-from value
+  auto data = storeOp.getValue();
+  if (auto loadOp = data.getDefiningOp<cir::LoadOp>()) {
+    auto srcAddr = loadOp.getAddr();
+    if (getPmap().count(srcAddr) &&
+        getPmap()[srcAddr].count(State::getInvalid()) &&
+        !owners.count(srcAddr) && !ptrs.count(srcAddr)) {
+      checkPointerDeref(srcAddr, storeOp.getLoc());
+    }
+  }
+
+  // Handle reinitialization of Value types
+  if (getPmap().count(addr) && !owners.count(addr) && !ptrs.count(addr)) {
+    // Check if this value was previously moved-from
+    if (getPmap()[addr].count(State::getInvalid())) {
+      // Reinitialize: clear invalid state
+      getPmap()[addr].clear();
+      getPmap()[addr].insert(State::getLocalValue(addr));
+    }
+    return;
+  }
+
   // The bulk of the check is done on top of store to pointer categories,
   // which usually represent the most common case.
   //
@@ -1313,13 +1336,21 @@ void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
   // Only interested in checking deference on top of pointer types.
   // Note that usually the use of the invalid address happens at the
   // load or store using the result of this loadOp.
-  if (!getPmap().count(addr) || !ptrs.count(addr))
+  if (!getPmap().count(addr))
     return;
 
-  if (!loadOp.getIsDeref())
+  // For pointer types, only check on deref
+  if (ptrs.count(addr)) {
+    if (!loadOp.getIsDeref())
+      return;
+    checkPointerDeref(addr, loadOp.getLoc());
     return;
+  }
 
-  checkPointerDeref(addr, loadOp.getLoc());
+  // For value types (not owners, not pointers), check if moved-from
+  if (!owners.count(addr) && getPmap()[addr].count(State::getInvalid())) {
+    checkPointerDeref(addr, loadOp.getLoc());
+  }
 }
 
 void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
@@ -1364,6 +1395,10 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
     }
     case InvalidStyle::NonConstUseOfOwner: {
       D.attachNote(info.loc) << "invalidated by non-const use of owner type";
+      break;
+    }
+    case InvalidStyle::MovedFrom: {
+      D.attachNote(info.loc) << "moved here via std::move or rvalue reference";
       break;
     }
     default:
@@ -1412,6 +1447,8 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
   auto D = emitWarning(loc);
   emittedDiagnostics.insert(loc);
 
+  bool isValueType = !ptrs.count(addr) && !owners.count(addr);
+
   if (tasks.count(addr))
     D << "use of coroutine '" << varName << "' with dangling reference";
   else if (derefStyle == DerefStyle::RetLambda)
@@ -1421,12 +1458,13 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
     bool isAgg = addr.getDefiningOp<cir::GetMemberOp>();
     D << "passing ";
     if (!isAgg)
-      D << "invalid pointer";
+      D << (isValueType ? "moved-from value" : "invalid pointer");
     else
       D << "aggregate containing invalid pointer member";
     D << " '" << varName << "'";
   } else
-    D << "use of invalid pointer '" << varName << "'";
+    D << "use of " << (isValueType ? "moved-from" : "invalid")
+      << (isValueType ? " value '" : " pointer '") << varName << "'";
 
   // TODO: add accuracy levels, different combinations of invalid and null
   // could have different ratios of false positives.
@@ -1513,6 +1551,61 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
     // 2.4.2 - It is an error to use a moved-from object.
     // To that intent we mark src's pset with invalid.
     markPsetInvalid(src, InvalidStyle::MovedFrom, callOp.getLoc());
+  }
+}
+
+void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
+  // Detect use-after-move for Value types passed to rvalue reference parameters
+  // Skip if no callee
+  if (!callOp.getCallee())
+    return;
+
+  auto calleeFuncOp = getCalleeFromSymbol(theModule, *callOp.getCallee());
+  if (!calleeFuncOp)
+    return;
+
+  // Get AST function declaration to check parameter types
+  auto astAttr = calleeFuncOp.getAstAttr();
+  if (!astAttr)
+    return;
+
+  auto funcDeclAttr = dyn_cast<cir::ASTFunctionDeclAttr>(astAttr);
+  if (!funcDeclAttr)
+    return;
+
+  auto *clangFuncDecl = funcDeclAttr.getAst();
+
+  // Check each argument for rvalue reference parameters
+  unsigned numArgs = callOp.getNumArgOperands();
+  for (unsigned i = 0; i < numArgs; ++i) {
+    if (i >= clangFuncDecl->getNumParams())
+      continue;
+
+    auto *paramDecl = clangFuncDecl->getParamDecl(i);
+    if (!paramDecl->getType()->isRValueReferenceType())
+      continue; // Not an rvalue reference
+
+    auto arg = callOp.getArgOperand(i);
+
+    // Skip loaded values (by-value passing, not a move)
+    if (arg.getDefiningOp<cir::LoadOp>())
+      continue;
+
+    // Argument should be an address
+    mlir::Value addr = arg;
+    if (!addr.getDefiningOp<cir::AllocaOp>())
+      continue;
+
+    // Must be tracked in pmap
+    if (!getPmap().count(addr))
+      continue;
+
+    // Skip Owner/Pointer types (handled by checkMoveAssignment)
+    if (owners.count(addr) || ptrs.count(addr))
+      continue;
+
+    // Mark as moved-from
+    markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
   }
 }
 
@@ -1785,6 +1878,9 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // Note that we can't reliably know if a function is a coroutine only as
   // part of declaration
   trackCallToCoroutine(callOp);
+
+  // Track moves via rvalue reference parameters for Value types
+  checkMoveViaCall(callOp);
 
   auto methodDecl = getMethod(theModule, callOp);
   if (!isOwnerOrPointerClassMethod(callOp, methodDecl))
