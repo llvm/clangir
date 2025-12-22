@@ -151,3 +151,70 @@ void test_lambda_multiple_captures() {
   int z = x; // expected-warning {{use of moved-from value 'x'}}
   int w = y; // OK - y was copied, not moved
 }
+
+// Test 15: Move-after-move
+void test_move_after_move() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  consume_int(std::move(a)); // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 16: Function parameter move
+void test_parameter_move(int a) {
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 17: Loop with conditional move
+void test_loop_with_move() {
+  int a = 10;
+  for (int i = 0; i < 3; i++) {
+    if (i == 1) {
+      consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+    }
+    if (i == 2) {
+      int b = a; // expected-warning {{use of moved-from value 'a'}}
+    }
+  }
+}
+
+// Test 18: Capture after move (explicit)
+void test_capture_after_move() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  auto lambda = [a]() { return a; }; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 19: Capture after move (implicit =)
+void test_implicit_capture_after_move() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  auto lambda = [=]() { return a; }; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 20: Switch with fallthrough
+void test_switch_fallthrough(int cond) {
+  int a = 10;
+  switch (cond) {
+  case 1:
+    consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  case 2: // fallthrough
+    int b = a; // expected-warning {{use of moved-from value 'a'}}
+    break;
+  }
+}
+
+// Test 21: Move in declaration
+void test_move_in_declaration() {
+  int a = 10;
+  int b(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int c = a; // expected-warning {{use of moved-from value 'a'}}
+}
+
+// Test 22: Only first use warned
+void test_only_first_use_warned() {
+  int a = 10;
+  consume_int(std::move(a)); // expected-note {{moved here via std::move or rvalue reference}}
+  int b = a; // expected-warning {{use of moved-from value 'a'}}
+  int c = a; // NO warning (already warned once)
+}
