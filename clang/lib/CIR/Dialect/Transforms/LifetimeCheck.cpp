@@ -85,6 +85,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkCopyAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkNonConstUseOfOwner(mlir::Value ownerAddr, mlir::Location loc);
   void markOwnerAsMovedFrom(mlir::Value addr, mlir::Location loc);
+  bool isTemporary(mlir::Value v);
   void checkOperators(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkOtherMethodsAndFunctions(CallOp callOp,
                                      ASTCXXMethodDeclInterface m);
@@ -931,6 +932,24 @@ static bool isSmartPointerType(mlir::Type ty) {
          qualifiedName == "std::shared_ptr";
 }
 
+bool LifetimeCheckPass::isTemporary(mlir::Value v) {
+  auto allocaOp = v.getDefiningOp<cir::AllocaOp>();
+  if (!allocaOp)
+    return false;
+
+  auto name = allocaOp.getName();
+  // Temporaries have names starting with "ref.tmp"
+  if (!name.starts_with("ref.tmp"))
+    return false;
+
+  // Don't skip coroutine tasks - they need lifetime tracking even as
+  // temporaries
+  if (isTaskType(v))
+    return false;
+
+  return true;
+}
+
 static bool containsPointerElts(cir::RecordType s) {
   auto members = s.getMembers();
   return std::any_of(members.begin(), members.end(), [](mlir::Type t) {
@@ -1439,6 +1458,15 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
     }
   }
 
+  // Handle coroutine tasks BEFORE the Value type reinitialization check
+  // Tasks need special tracking for dangling references
+  if (!ptrs.count(addr)) {
+    if (currScope->localTempTasks.count(storeOp.getValue())) {
+      checkCoroTaskStore(storeOp);
+      return;
+    }
+  }
+
   // Handle reinitialization of Value types
   if (getPmap().count(addr) && !owners.count(addr) && !ptrs.count(addr)) {
     // Check if this value was previously moved-from
@@ -1457,13 +1485,10 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   // The bulk of the check is done on top of store to pointer categories,
   // which usually represent the most common case.
   //
-  // We handle some special local values, like coroutine tasks and lambdas,
+  // We handle some special local values, like lambdas,
   // which could be holding references to things with dangling lifetime.
   if (!ptrs.count(addr)) {
-    if (currScope->localTempTasks.count(storeOp.getValue()))
-      checkCoroTaskStore(storeOp);
-    else
-      checkLambdaCaptureStore(storeOp);
+    checkLambdaCaptureStore(storeOp);
     return;
   }
 
@@ -1779,7 +1804,9 @@ void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
         continue;
       }
 
-      markOwnerAsMovedFrom(addr, callOp.getLoc());
+      // Don't mark temporaries as moved-from
+      if (!isTemporary(addr))
+        markOwnerAsMovedFrom(addr, callOp.getLoc());
       continue;
     }
 
@@ -1789,7 +1816,9 @@ void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
         checkPointerDeref(addr, callOp.getLoc());
         continue;
       }
-      markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
+      // Don't mark temporaries as moved-from
+      if (!isTemporary(addr))
+        markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
       continue;
     }
 
@@ -1800,8 +1829,10 @@ void LifetimeCheckPass::checkMoveViaCall(CallOp callOp) {
       continue; // Don't mark as moved again
     }
 
+    // Don't mark temporaries as moved-from
     // Mark as moved-from
-    markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
+    if (!isTemporary(addr))
+      markPsetInvalid(addr, InvalidStyle::MovedFrom, callOp.getLoc());
   }
 }
 
@@ -1993,14 +2024,18 @@ void LifetimeCheckPass::checkMoveCtor(CallOp callOp, cir::CXXCtorAttr ctor) {
   // Check if this is an Owner type move constructor
   auto addr = getThisParamOwnerCategory(callOp);
   if (addr && owners.count(src)) {
-    markOwnerAsMovedFrom(src, callOp.getLoc());
+    // Don't mark temporaries as moved-from - they're about to be destroyed
+    if (!isTemporary(src))
+      markOwnerAsMovedFrom(src, callOp.getLoc());
     return;
   }
 
   // Check if this is a Pointer type move constructor
   addr = getThisParamPointerCategory(callOp);
   if (addr && ptrs.count(src)) {
-    markPsetInvalid(src, InvalidStyle::MovedFrom, callOp.getLoc());
+    // Don't mark temporaries as moved-from
+    if (!isTemporary(src))
+      markPsetInvalid(src, InvalidStyle::MovedFrom, callOp.getLoc());
     return;
   }
 }
