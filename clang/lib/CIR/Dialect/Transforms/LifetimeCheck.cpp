@@ -74,6 +74,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
                          DerefStyle derefStyle = DerefStyle::Direct);
   void checkCoroTaskStore(StoreOp storeOp);
   void checkLambdaCaptureStore(StoreOp storeOp);
+  void checkLambdaInitCaptureMove(StoreOp storeOp, mlir::Value lambdaAddr,
+                                  LoadOp loadOp, mlir::Value lambdaCaptureAddr);
   void trackCallToCoroutine(CallOp callOp);
 
   void checkCtor(CallOp callOp, cir::CXXCtorAttr ctor);
@@ -1113,18 +1115,103 @@ mlir::Value LifetimeCheckPass::getLambdaFromMemberAccess(mlir::Value addr) {
   return allocaOp;
 }
 
+void LifetimeCheckPass::checkLambdaInitCaptureMove(
+    StoreOp storeOp, mlir::Value lambdaAddr, LoadOp loadOp,
+    mlir::Value lambdaCaptureAddr) {
+  auto sourceAddr = loadOp.getAddr();
+
+  // Get the field name of the capture being stored
+  auto getMemberOp = lambdaCaptureAddr.getDefiningOp<cir::GetMemberOp>();
+  if (!getMemberOp)
+    return;
+
+  auto fieldName = getMemberOp.getName();
+
+  // Access lambda AST to check if this capture uses std::move
+  // lambdaAddr is an AllocaOp result (pointer type), we need the allocated type
+  auto lambdaType = lambdaAddr.getType();
+  auto ptrType = dyn_cast<cir::PointerType>(lambdaType);
+  if (!ptrType)
+    return;
+
+  auto recordType = dyn_cast<cir::RecordType>(ptrType.getPointee());
+  if (!recordType)
+    return;
+
+  auto astAttr = recordType.getAst();
+  if (!astAttr.isLambda())
+    return;
+
+  auto *recordDecl =
+      dyn_cast_or_null<clang::CXXRecordDecl>(astAttr.getRawDecl());
+  if (!recordDecl)
+    return;
+
+  // Find the specific capture matching this field name
+  for (const auto &capture : recordDecl->captures()) {
+    if (!capture.capturesVariable())
+      continue;
+
+    auto *capturedVar = capture.getCapturedVar();
+    if (!capturedVar)
+      continue;
+
+    // getCapturedVar() returns ValueDecl*, but for init-captures it's a VarDecl
+    auto *varDecl = dyn_cast<clang::VarDecl>(capturedVar);
+    if (!varDecl || !varDecl->isInitCapture())
+      continue;
+
+    // Match the capture by field name
+    if (varDecl->getName() != fieldName)
+      continue;
+
+    // Check if THIS specific capture's init expression uses std::move
+    auto *initExpr = varDecl->getInit();
+    if (!initExpr)
+      continue;
+
+    // Detect std::move: it's a CallExpr to a function named "move"
+    // We need to strip implicit casts to get to the actual call
+    auto *strippedExpr = initExpr->IgnoreImplicit();
+    if (auto *callExpr = dyn_cast<clang::CallExpr>(strippedExpr)) {
+      if (auto *callee = callExpr->getDirectCallee()) {
+        if (callee->getNameAsString() == "move") {
+          // Found init-capture with std::move
+          // Mark source as moved-from
+          if (getPmap().count(sourceAddr) && !owners.count(sourceAddr) &&
+              !ptrs.count(sourceAddr)) {
+            markPsetInvalid(sourceAddr, InvalidStyle::MovedFrom,
+                            storeOp.getLoc());
+          }
+          return;
+        }
+      }
+    }
+  }
+}
+
 void LifetimeCheckPass::checkLambdaCaptureStore(StoreOp storeOp) {
   auto localByRefAddr = storeOp.getValue();
   auto lambdaCaptureAddr = storeOp.getAddr();
 
-  if (!localByRefAddr.getDefiningOp<cir::AllocaOp>())
-    return;
   auto lambdaAddr = getLambdaFromMemberAccess(lambdaCaptureAddr);
   if (!lambdaAddr)
     return;
 
-  if (currScope->localValues.count(localByRefAddr))
-    getPmap()[lambdaAddr].insert(State::getLocalValue(localByRefAddr));
+  // Case 1: Reference capture - value is an AllocaOp (address)
+  if (localByRefAddr.getDefiningOp<cir::AllocaOp>()) {
+    if (currScope->localValues.count(localByRefAddr))
+      getPmap()[lambdaAddr].insert(State::getLocalValue(localByRefAddr));
+    return;
+  }
+
+  // Case 2: Value/move capture - value is loaded first
+  // Check if this is an init-capture with std::move
+  auto loadOp = localByRefAddr.getDefiningOp<cir::LoadOp>();
+  if (!loadOp)
+    return;
+
+  checkLambdaInitCaptureMove(storeOp, lambdaAddr, loadOp, lambdaCaptureAddr);
 }
 
 void LifetimeCheckPass::updatePointsToForConstRecord(mlir::Value addr,
