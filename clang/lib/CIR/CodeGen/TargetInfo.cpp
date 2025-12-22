@@ -371,6 +371,7 @@ public:
 
   cir::ABIArgInfo classifyReturnType(QualType retTy) const;
   cir::ABIArgInfo classifyArgumentType(QualType ty) const;
+  cir::ABIArgInfo classifyKernelArgumentType(QualType ty) const;
 };
 
 class AMDGPUTargetCIRGenInfo : public TargetCIRGenInfo {
@@ -378,8 +379,13 @@ public:
   AMDGPUTargetCIRGenInfo(CIRGenTypes &cgt)
       : TargetCIRGenInfo(std::make_unique<AMDGPUABIInfo>(cgt)) {}
 
+  cir::CallingConv getOpenCLKernelCallingConv() const override {
+    return cir::CallingConv::AMDGPUKernel;
+  }
+
   void setCUDAKernelCallingConvention(const FunctionType *&ft) const override {
-    llvm_unreachable("NYI");
+    ft = getABIInfo().getContext().adjustFunctionType(
+        ft, ft->getExtInfo().withCallingConv(CC_DeviceKernel));
   }
 };
 
@@ -519,13 +525,44 @@ cir::ABIArgInfo NVPTXABIInfo::classifyArgumentType(QualType ty) const {
   llvm_unreachable("not yet implemented");
 }
 
-// Skeleton only. Implement when used in TargetLower stage.
 cir::ABIArgInfo AMDGPUABIInfo::classifyReturnType(QualType retTy) const {
-  llvm_unreachable("not yet implemented");
+  if (retTy->isVoidType())
+    return cir::ABIArgInfo::getIgnore();
+
+  if (!isAggregateTypeForABI(retTy)) {
+    return (isPromotableIntegerTypeForABI(retTy)
+                ? cir::ABIArgInfo::getExtend(retTy)
+                : cir::ABIArgInfo::getDirect());
+  }
+
+  llvm_unreachable("Aggregate types NYI for AMDGPU");
 }
 
 cir::ABIArgInfo AMDGPUABIInfo::classifyArgumentType(QualType ty) const {
-  llvm_unreachable("not yet implemented");
+  ty = useFirstFieldIfTransparentUnion(ty);
+
+  if (!isAggregateTypeForABI(ty)) {
+    return (isPromotableIntegerTypeForABI(ty) ? cir::ABIArgInfo::getExtend(ty)
+                                              : cir::ABIArgInfo::getDirect());
+  }
+
+  llvm_unreachable("Aggregate types NYI for AMDGPU");
+}
+
+// TODO(CIR): This method is not currently called in AST->CIR translation.
+cir::ABIArgInfo AMDGPUABIInfo::classifyKernelArgumentType(QualType ty) const {
+  ty = useFirstFieldIfTransparentUnion(ty);
+
+  if (isAggregateTypeForABI(ty)) {
+    llvm_unreachable("Aggregate types NYI for AMDGPU");
+  }
+
+  // For kernels, all parameters passed directly via special buffer. It doesn't
+  // make sense to pass anything byval, so everything must be direct.
+  // Set CanBeFlattened=false to prevent struct expansion.
+  return cir::ABIArgInfo::getDirect(/*T=*/nullptr, /*Offset=*/0,
+                                    /*Padding=*/nullptr,
+                                    /*CanBeFlattened=*/false);
 }
 
 ABIInfo::~ABIInfo() {}
