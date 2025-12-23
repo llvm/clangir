@@ -302,8 +302,8 @@ def CIR_AnyScalarType : AnyTypeOf<CIR_ScalarTypes, "cir scalar type"> {
 
 def CIR_AnyVectorType : CIR_TypeBase<"::cir::VectorType", "vector type">;
 
-def CIR_VectorElementType : AnyTypeOf<[CIR_AnyIntOrFloatType, CIR_AnyPtrType],
-    "any cir integer, floating point or pointer type"
+def CIR_VectorElementType : AnyTypeOf<[CIR_AnyIntOrFloatType, CIR_AnyPtrType, CIR_AnyBoolType],
+    "any cir integer, floating point, pointer or boolean type"
 > {
     let cppFunctionName = "isValidVectorTypeElementType";
 }

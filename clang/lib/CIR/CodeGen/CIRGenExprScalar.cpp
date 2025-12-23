@@ -793,6 +793,8 @@ public:
 #undef VISITCOMP
 
   mlir::Value VisitBinAssign(const BinaryOperator *E);
+  mlir::Value emitVectorLogicalOp(const BinaryOperator *E,
+                                  cir::BinOpKind OpKind);
   mlir::Value VisitBinLAnd(const BinaryOperator *B);
   mlir::Value VisitBinLOr(const BinaryOperator *B);
   mlir::Value VisitBinComma(const BinaryOperator *E) {
@@ -1115,12 +1117,35 @@ public:
       return emitFloatToBoolConversion(Src, loc);
 
     if (llvm::isa<MemberPointerType>(SrcType))
-      assert(0 && "not implemented");
+      llvm_unreachable("member pointer to bool not implemented");
 
     if (SrcType->isIntegerType())
       return emitIntToBoolConversion(Src, loc);
 
-    assert(::mlir::isa<cir::PointerType>(Src.getType()));
+    // Convert vector values to a vector<bool> by testing each element for
+    // non-zero.
+    if (SrcType->isVectorType()) {
+      auto vecType = mlir::cast<cir::VectorType>(Src.getType());
+      auto elemType = vecType.getElementType();
+      uint64_t numElts = vecType.getSize();
+
+      // Build a zero vector of the same type
+      auto zeroElemAttr = cir::IntAttr::get(elemType, 0);
+      llvm::SmallVector<mlir::Attribute> zeroElems(numElts, zeroElemAttr);
+      auto zeroVecAttr =
+          cir::ConstVectorAttr::get(vecType, Builder.getArrayAttr(zeroElems));
+      auto zeroVec =
+          cir::ConstantOp::create(Builder, loc, vecType, zeroVecAttr);
+
+      // Perform elementwise comparison: Src != 0
+      auto boolElemType = cir::BoolType::get(Builder.getContext());
+      auto boolVecType = cir::VectorType::get(boolElemType, numElts);
+      return cir::VecCmpOp::create(Builder, loc, boolVecType,
+                                   cir::CmpOpKind::ne, Src, zeroVec);
+    }
+
+    assert(::mlir::isa<cir::PointerType>(Src.getType()) &&
+           "expected pointer type for pointer-to-bool conversion");
     return emitPointerToBoolConversion(Src, SrcType);
   }
 
@@ -2742,7 +2767,12 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
   // the select function.
   if ((CGF.getLangOpts().OpenCL && condExpr->getType()->isVectorType()) ||
       condExpr->getType()->isExtVectorType()) {
-    llvm_unreachable("NYI");
+    // Treat the conditional operator as an element-wise select on vectors
+    mlir::Value condValue = Visit(condExpr);
+    mlir::Value lhsValue = Visit(lhsExpr);
+    mlir::Value rhsValue = Visit(rhsExpr);
+    return cir::VecTernaryOp::create(builder, loc, condValue, lhsValue,
+                                     rhsValue);
   }
 
   if (condExpr->getType()->isVectorType() ||
@@ -2851,10 +2881,36 @@ mlir::Value CIRGenFunction::emitScalarPrePostIncDec(const UnaryOperator *E,
       .emitScalarPrePostIncDec(E, LV, isInc, isPre);
 }
 
+// Emit elementwise vector logical operations
+mlir::Value ScalarExprEmitter::emitVectorLogicalOp(const BinaryOperator *E,
+                                                   cir::BinOpKind OpKind) {
+  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
+  mlir::Type ResTy = convertType(E->getType());
+  mlir::Value LHSBool = CGF.evaluateExprAsBool(E->getLHS());
+  mlir::Value RHSBool = CGF.evaluateExprAsBool(E->getRHS());
+
+  auto LHSVecTy = mlir::cast<cir::VectorType>(LHSBool.getType());
+  uint64_t NumElts = LHSVecTy.getSize();
+  auto BoolElemTy = Builder.getBoolTy();
+  auto BoolVecTy = cir::VectorType::get(BoolElemTy, NumElts);
+
+  // Elementwise logical operation
+  auto LogicVal =
+      cir::BinOp::create(Builder, Loc, BoolVecTy, OpKind, LHSBool, RHSBool);
+  // Return vector<bool> or convert to integer vector
+  if (ResTy == BoolVecTy)
+    return LogicVal;
+
+  if (auto ResVecTy = mlir::dyn_cast<cir::VectorType>(ResTy))
+    if (mlir::isa<cir::IntType>(ResVecTy.getElementType()))
+      return Builder.createBoolToInt(LogicVal, ResVecTy);
+
+  llvm_unreachable("unsupported vector logical operation type conversion");
+}
+
 mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
-  if (E->getType()->isVectorType()) {
-    llvm_unreachable("NYI");
-  }
+  if (E->getType()->isVectorType())
+    return emitVectorLogicalOp(E, cir::BinOpKind::And);
 
   bool InstrumentRegions = CGF.CGM.getCodeGenOpts().hasProfileClangInstr();
   mlir::Type ResTy = convertType(E->getType());
@@ -2920,9 +2976,8 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
 }
 
 mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
-  if (E->getType()->isVectorType()) {
-    llvm_unreachable("NYI");
-  }
+  if (E->getType()->isVectorType())
+    return emitVectorLogicalOp(E, cir::BinOpKind::Or);
 
   bool InstrumentRegions = CGF.CGM.getCodeGenOpts().hasProfileClangInstr();
   mlir::Type ResTy = convertType(E->getType());
