@@ -87,3 +87,14 @@ void test_sqrt_f16(global half* out, half a)
 {
   *out = __builtin_amdgcn_sqrth(a);
 }
+
+// CIR-LABEL: @test_rsq_f16
+// CIR: cir.llvm.intrinsic "amdgcn.rsq" {{.*}} : (!cir.f16) -> !cir.f16
+// LLVM: define{{.*}} void @test_rsq_f16
+// LLVM: call{{.*}} half @llvm.amdgcn.rsq.f16(half %{{.*}})
+// OGCG: define{{.*}} void @test_rsq_f16
+// OGCG: call{{.*}} half @llvm.amdgcn.rsq.f16(half %{{.*}})
+void test_rsq_f16(global half* out, half a)
+{
+  *out = __builtin_amdgcn_rsqh(a);
+}

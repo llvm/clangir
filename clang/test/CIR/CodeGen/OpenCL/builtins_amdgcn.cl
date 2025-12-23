@@ -400,3 +400,43 @@ void test_sqrt_f32(global float* out, float a) {
 void test_sqrt_f64(global double* out, double a) {
   *out = __builtin_amdgcn_sqrt(a);
 }
+
+// CIR-LABEL: @test_rsq_f32
+// CIR: cir.llvm.intrinsic "amdgcn.rsq" {{.*}} : (!cir.float) -> !cir.float
+// LLVM: define{{.*}} void @test_rsq_f32
+// LLVM: call{{.*}} float @llvm.amdgcn.rsq.f32(float %{{.*}})
+// OGCG: define{{.*}} void @test_rsq_f32
+// OGCG: call{{.*}} float @llvm.amdgcn.rsq.f32(float %{{.*}})
+void test_rsq_f32(global float* out, float a) {
+  *out = __builtin_amdgcn_rsqf(a);
+}
+
+// CIR-LABEL: @test_rsq_f64
+// CIR: cir.llvm.intrinsic "amdgcn.rsq" {{.*}} : (!cir.double) -> !cir.double
+// LLVM: define{{.*}} void @test_rsq_f64
+// LLVM: call{{.*}} double @llvm.amdgcn.rsq.f64(double %{{.*}})
+// OGCG: define{{.*}} void @test_rsq_f64
+// OGCG: call{{.*}} double @llvm.amdgcn.rsq.f64(double %{{.*}})
+void test_rsq_f64(global double* out, double a) {
+  *out = __builtin_amdgcn_rsq(a);
+}
+
+// CIR-LABEL: @test_rsq_clamp_f32
+// CIR: cir.llvm.intrinsic "amdgcn.rsq.clamp" {{.*}} : (!cir.float) -> !cir.float
+// LLVM: define{{.*}} void @test_rsq_clamp_f32
+// LLVM: call{{.*}} float @llvm.amdgcn.rsq.clamp.f32(float %{{.*}})
+// OGCG: define{{.*}} void @test_rsq_clamp_f32
+// OGCG: call{{.*}} float @llvm.amdgcn.rsq.clamp.f32(float %{{.*}})
+void test_rsq_clamp_f32(global float* out, float a) {
+  *out = __builtin_amdgcn_rsq_clampf(a);
+}
+
+// CIR-LABEL: @test_rsq_clamp_f64
+// CIR: cir.llvm.intrinsic "amdgcn.rsq.clamp" {{.*}} : (!cir.double) -> !cir.double
+// LLVM: define{{.*}} void @test_rsq_clamp_f64
+// LLVM: call{{.*}} double @llvm.amdgcn.rsq.clamp.f64(double %{{.*}})
+// OGCG: define{{.*}} void @test_rsq_clamp_f64
+// OGCG: call{{.*}} double @llvm.amdgcn.rsq.clamp.f64(double %{{.*}})
+void test_rsq_clamp_f64(global double* out, double a) {
+  *out = __builtin_amdgcn_rsq_clamp(a);
+}
