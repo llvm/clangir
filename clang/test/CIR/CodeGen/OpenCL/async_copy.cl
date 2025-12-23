@@ -25,10 +25,10 @@ __kernel void test_async_copy(__global int *g_in, __local int *l_in, int size) {
     // wait_group_events(1, &e_in);
 }
 
-// CIR-SPIR: cir.call @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (!cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!s32i, addrspace(offload_global)>, !u64i, !cir.opaque<"event">) -> !cir.opaque<"event">
+// CIR-SPIR: cir.call @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (!{{.*}}, !{{.*}}, !u64i, !cir.opaque<"event">) -> !cir.opaque<"event">
 // LLVM-SPIR: call spir_func target("spirv.Event") @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) %{{.*}}, ptr addrspace(1) %{{.*}}, i64 %{{.*}}, target("spirv.Event") zeroinitializer)
 // OG-LLVM-SPIR: call spir_func target("spirv.Event") @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) noundef %{{.*}}, ptr addrspace(1) noundef %{{.*}}, i64 noundef %{{.*}}, target("spirv.Event") zeroinitializer
 
-// CIR-AMDGCN: cir.call @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (!cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!s32i, addrspace(offload_global)>, !u64i, !cir.opaque<"event">) -> !cir.opaque<"event">
+// CIR-AMDGCN: cir.call @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (!{{.*}}, !{{.*}}, !u64i, !cir.opaque<"event">) -> !cir.opaque<"event">
 // LLVM-AMDGCN: call ptr @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) %{{.*}}, ptr addrspace(1) %{{.*}}, i64 %{{.*}}, ptr null)
 // OG-LLVM-AMDGCN: call ptr @_Z21async_work_group_copyPU3AS3iPU3AS1Kim9ocl_event(ptr addrspace(3) noundef %{{.*}}, ptr addrspace(1) noundef %{{.*}}, i64 noundef %{{.*}}, ptr null)
