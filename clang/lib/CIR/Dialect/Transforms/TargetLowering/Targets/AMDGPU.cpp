@@ -34,9 +34,15 @@ public:
   AMDGPUABIInfo(LowerTypes &lt) : ABIInfo(lt) {}
 
 private:
-  void computeInfo(LowerFunctionInfo &fi) const override {
-    llvm_unreachable("NYI");
-  }
+  static const unsigned MaxNumRegsForArgsRet = 16;
+
+  ABIArgInfo classifyReturnType(mlir::Type ty) const;
+  ABIArgInfo classifyArgumentType(mlir::Type Ty, bool Variadic,
+                                  unsigned &NumRegsLeft) const;
+
+  ABIArgInfo classifyKernelArgumentType(mlir::Type ty) const;
+
+  void computeInfo(LowerFunctionInfo &fi) const override;
 };
 
 class AMDGPUTargetLoweringInfo : public TargetLoweringInfo {
@@ -64,6 +70,77 @@ public:
 };
 
 } // namespace
+
+ABIArgInfo AMDGPUABIInfo::classifyReturnType(mlir::Type ty) const {
+  if (llvm::isa<VoidType>(ty))
+    return ABIArgInfo::getIgnore();
+
+  if (getContext().getLangOpts().OpenMP)
+    llvm_unreachable("NYI");
+
+  if (!isScalarType(ty))
+    return ABIArgInfo::getDirect();
+
+  // OG treats enums as their underlying type.
+  // This has already been done for CIR.
+
+  // Integers with size < 32 must be extended to 32 bits.
+  // (See Section 3.3 of PTX ABI.)
+  return (isPromotableIntegerTypeForABI(ty) ? ABIArgInfo::getExtend(ty)
+                                            : ABIArgInfo::getDirect());
+}
+
+/// For kernels all parameters are really passed in a special buffer. It doesn't
+/// make sense to pass anything byval, so everything must be direct.
+ABIArgInfo AMDGPUABIInfo::classifyKernelArgumentType(mlir::Type ty) const {
+  return ABIArgInfo::getDirect();
+}
+
+ABIArgInfo AMDGPUABIInfo::classifyArgumentType(mlir::Type ty, bool variadic,
+                                               unsigned &numRegsLeft) const {
+  assert(numRegsLeft <= MaxNumRegsForArgsRet && "register estimate underflow");
+
+  ty = useFirstFieldIfTransparentUnion(ty);
+
+  // Variadic arguments: always direct.
+  if (variadic) {
+    return ABIArgInfo::getDirect();
+  }
+
+  // Aggregate (struct/array) handling
+  if (isAggregateTypeForABI(ty)) {
+    llvm_unreachable("NYI");
+  }
+
+  // === Non-aggregate fallback ===
+  ABIArgInfo Info = isPromotableIntegerTypeForABI(ty)
+                        ? ABIArgInfo::getExtend(ty)
+                        : ABIArgInfo::getDirect();
+
+  return Info;
+}
+
+void AMDGPUABIInfo::computeInfo(LowerFunctionInfo &fi) const {
+  llvm::CallingConv::ID cc = fi.getCallingConvention();
+
+  if (!getCXXABI().classifyReturnType(fi))
+    fi.getReturnInfo() = classifyReturnType(fi.getReturnType());
+
+  unsigned argumentIndex = 0;
+  const unsigned numFixedArguments = fi.getNumRequiredArgs();
+
+  unsigned numRegsLeft = MaxNumRegsForArgsRet;
+  for (auto &argument : fi.arguments()) {
+    if (cc == llvm::CallingConv::AMDGPU_KERNEL) {
+      argument.info = classifyKernelArgumentType(argument.type);
+    } else {
+      bool fixedArgument = argumentIndex++ < numFixedArguments;
+      argument.info =
+          classifyArgumentType(argument.type, !fixedArgument, numRegsLeft);
+    }
+  }
+}
+
 std::unique_ptr<TargetLoweringInfo>
 createAMDGPUTargetLoweringInfo(LowerModule &lowerModule) {
   return std::make_unique<AMDGPUTargetLoweringInfo>(lowerModule.getTypes());
