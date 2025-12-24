@@ -500,8 +500,12 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
     unsigned numElements = descriptor.Vector_Width.getFixedValue();
     return cir::VectorType::get(context, elementType, numElements);
   }
-  case IITDescriptor::Pointer:
-    llvm_unreachable("NYI: IITDescriptor::Pointer");
+  case IITDescriptor::Pointer: {
+    mlir::Type pointee = {};
+    auto addrSpace =
+        static_cast<cir::AddressSpace>(descriptor.Pointer_AddressSpace);
+    return cir::PointerType::get(pointee, addrSpace);
+  }
   case IITDescriptor::Struct:
     llvm_unreachable("NYI: IITDescriptor::Struct");
   case IITDescriptor::Argument:
@@ -565,6 +569,29 @@ static mlir::Type getIntrinsicArgumentTypeFromAST(mlir::Type iitType,
 
   // Default: keep IIT type (signed)
   return iitType;
+}
+
+// Ensures a pointer argument matches the expected CIR pointer type,
+// emitting an addrspacecast for address-space mismatches only.
+static mlir::Value getCorrectedPtr(mlir::Value argValue, mlir::Type expectedTy,
+                                   CIRGenBuilderTy &builder) {
+  mlir::Type argType = argValue.getType();
+  if (isa<cir::PointerType>(argType)) {
+    auto ptrType = mlir::cast<cir::PointerType>(argType);
+    auto expectedPtrType = mlir::cast<cir::PointerType>(expectedTy);
+    if (ptrType.getPointee() != expectedPtrType.getPointee()) {
+      if (expectedPtrType.getAddrSpace() != ptrType.getAddrSpace()) {
+        auto newPtrType = cir::PointerType::get(ptrType.getPointee(),
+                                                expectedPtrType.getAddrSpace());
+        return builder.createAddrSpaceCast(argValue, newPtrType);
+      }
+    } else {
+      llvm_unreachable("NYI");
+    }
+  } else {
+    llvm_unreachable("NYI");
+  }
+  return argValue;
 }
 
 static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
@@ -2844,7 +2871,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
           getIntrinsicArgumentTypeFromAST(expectedTy, E, i, &getMLIRContext());
 
       if (argType != correctedExpectedTy)
-        llvm_unreachable("NYI");
+        argValue = getCorrectedPtr(argValue, expectedTy, builder);
 
       args.push_back(argValue);
     }
