@@ -2142,7 +2142,10 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
                                          DestTy);
   }
   case CK_ZeroToOCLOpaqueType:
-    llvm_unreachable("NYI");
+    // OpenCL: event_t e = async_work_group_copy(..., 0);
+    // The source is an integer constant zero; the destination is an OpenCL
+    // opaque type
+    return emitNullValue(DestTy, CGF.getLoc(E->getExprLoc()));
   case CK_IntToOCLSampler:
     llvm_unreachable("NYI");
 

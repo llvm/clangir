@@ -2061,6 +2061,45 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
     rewriter.replaceOp(op, lowerCirAttrAsValue(op, op.getValue(), rewriter,
                                                getTypeConverter(), dataLayout));
     return mlir::success();
+  } else if (mlir::isa<cir::OpaqueType>(op.getType())) {
+    mlir::Attribute valAttr = op.getValue();
+    mlir::Type llvmTy = getTypeConverter()->convertType(op.getType());
+    // If the attribute is ZeroAttr or UndefAttr, handle it:
+    if (mlir::isa<cir::ZeroAttr, cir::UndefAttr>(valAttr)) {
+      // Handle target-ext type
+      if (auto tgtExtTy =
+              llvm::dyn_cast_or_null<mlir::LLVM::LLVMTargetExtType>(llvmTy)) {
+        // Produce a real zero constant if the target-ext type allows it
+        if (tgtExtTy.hasProperty(mlir::LLVM::LLVMTargetExtType::HasZeroInit)) {
+          if (mlir::isa<cir::ZeroAttr>(valAttr)) {
+            auto zero =
+                mlir::LLVM::ZeroOp::create(rewriter, op.getLoc(), llvmTy);
+            rewriter.replaceOp(op, zero.getResult());
+            return mlir::success();
+          }
+          // Fallback: emit an undef of that exact llvm type so users have
+          // matching types.
+          auto undef =
+              mlir::LLVM::UndefOp::create(rewriter, op.getLoc(), llvmTy);
+          rewriter.replaceOp(op, undef.getResult());
+          return mlir::success();
+        }
+      } else {
+        // Target ext type does not support zero init — use `ptr null` of
+        // the target-ext type (so users still have the expected type).
+        auto ptrTy = mlir::LLVM::LLVMPointerType::get(getContext());
+        auto nullPtr = mlir::LLVM::ZeroOp::create(rewriter, op.getLoc(), ptrTy);
+
+        rewriter.replaceOp(op, nullPtr.getResult());
+        return mlir::success();
+      }
+    }
+
+    // If the attr is a non-zero concrete value, we must decide if the target
+    // expects an encoded representation. Most target-ext types for OpenCL
+    // do not accept arbitrary non-zero constants; reject them.
+    return op.emitError() << "non-zero constant for target extension type "
+                          << llvmTy << " is unsupported";
   } else
     return op.emitError() << "unsupported constant type " << op.getType();
 
@@ -5046,6 +5085,11 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   });
   converter.addConversion([&](cir::VoidType type) -> mlir::Type {
     return mlir::LLVM::LLVMVoidType::get(type.getContext());
+  });
+
+  converter.addConversion([&, lowerModule](cir::OpaqueType type) -> mlir::Type {
+    assert(lowerModule && "LowerModule is not available");
+    return lowerModule->getTargetLoweringInfo().getOpaqueType(type);
   });
 }
 
