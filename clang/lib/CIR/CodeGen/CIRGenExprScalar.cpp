@@ -995,14 +995,18 @@ public:
 
   // TODO(cir): Candidate to be in a common AST helper between CIR and LLVM
   // codegen.
-  QualType getPromotionType(QualType Ty) {
-    if (Ty->getAs<ComplexType>()) {
-      llvm_unreachable("NYI");
+  QualType getPromotionType(QualType ty) {
+    const clang::ASTContext &ctx = CGF.getContext();
+    if (auto *complexTy = ty->getAs<ComplexType>()) {
+      QualType elementTy = complexTy->getElementType();
+      if (elementTy.UseExcessPrecision(ctx))
+        return ctx.getComplexType(ctx.FloatTy);
     }
-    if (Ty.UseExcessPrecision(CGF.getContext())) {
-      if (Ty->getAs<VectorType>())
+
+    if (ty.UseExcessPrecision(ctx)) {
+      if (ty->getAs<VectorType>())
         llvm_unreachable("NYI");
-      return CGF.getContext().FloatTy;
+      return ctx.FloatTy;
     }
     return QualType();
   }
