@@ -703,11 +703,11 @@ public:
   }
 
   mlir::Value VisitUnaryLNot(const UnaryOperator *E);
-  mlir::Value VisitUnaryReal(const UnaryOperator *E) { return VisitReal(E); }
-  mlir::Value VisitUnaryImag(const UnaryOperator *E) { return VisitImag(E); }
 
-  mlir::Value VisitReal(const UnaryOperator *E);
-  mlir::Value VisitImag(const UnaryOperator *E);
+  mlir::Value VisitUnaryReal(const UnaryOperator *E);
+  mlir::Value VisitUnaryImag(const UnaryOperator *E);
+  mlir::Value VisitRealImag(const UnaryOperator *e,
+                            QualType promotionType = QualType());
 
   mlir::Value VisitUnaryExtension(const UnaryOperator *E) {
     // __extension__ doesn't requred any codegen
@@ -995,14 +995,18 @@ public:
 
   // TODO(cir): Candidate to be in a common AST helper between CIR and LLVM
   // codegen.
-  QualType getPromotionType(QualType Ty) {
-    if (Ty->getAs<ComplexType>()) {
-      llvm_unreachable("NYI");
+  QualType getPromotionType(QualType ty) {
+    const clang::ASTContext &ctx = CGF.getContext();
+    if (auto *complexTy = ty->getAs<ComplexType>()) {
+      QualType elementTy = complexTy->getElementType();
+      if (elementTy.UseExcessPrecision(ctx))
+        return ctx.getComplexType(ctx.FloatTy);
     }
-    if (Ty.UseExcessPrecision(CGF.getContext())) {
-      if (Ty->getAs<VectorType>())
+
+    if (ty.UseExcessPrecision(ctx)) {
+      if (ty->getAs<VectorType>())
         llvm_unreachable("NYI");
-      return CGF.getContext().FloatTy;
+      return ctx.FloatTy;
     }
     return QualType();
   }
@@ -2297,50 +2301,6 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   llvm_unreachable("destination type for logical-not unary operator is NYI");
 }
 
-mlir::Value ScalarExprEmitter::VisitReal(const UnaryOperator *E) {
-  // TODO(cir): handle scalar promotion.
-
-  Expr *Op = E->getSubExpr();
-  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
-  if (Op->getType()->isAnyComplexType()) {
-
-    // If it's an l-value, load through the appropriate subobject l-value.
-    // Note that we have to ask E because Op might be an l-value that
-    // this won't work for, e.g. an Obj-C property.
-    if (E->isGLValue()) {
-      mlir::Value Complex = CGF.emitComplexExpr(Op);
-      return CGF.builder.createComplexReal(Loc, Complex);
-    }
-
-    // Otherwise, calculate and project.
-    return Builder.createComplexReal(Loc, CGF.emitComplexExpr(Op));
-  }
-
-  return Builder.createComplexReal(Loc, Visit(Op));
-}
-
-mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
-  // TODO(cir): handle scalar promotion.
-
-  Expr *Op = E->getSubExpr();
-  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
-  if (Op->getType()->isAnyComplexType()) {
-
-    // If it's an l-value, load through the appropriate subobject l-value.
-    // Note that we have to ask E because Op might be an l-value that
-    // this won't work for, e.g. an Obj-C property.
-    if (E->isGLValue()) {
-      mlir::Value Complex = CGF.emitComplexExpr(Op);
-      return CGF.builder.createComplexImag(Loc, Complex);
-    }
-
-    // Otherwise, calculate and project.
-    return Builder.createComplexImag(Loc, CGF.emitComplexExpr(Op));
-  }
-
-  return Builder.createComplexImag(Loc, Visit(Op));
-}
-
 // Conversion from bool, integral, or floating-point to integral or
 // floating-point. Conversions involving other types are handled elsewhere.
 // Conversion to bool is handled elsewhere because that's a comparison against
@@ -3038,6 +2998,68 @@ mlir::Value ScalarExprEmitter::VisitVAArgExpr(VAArgExpr *VE) {
   mlir::Value Val = CGF.emitVAArg(VE, ArgValue);
 
   return Val;
+}
+
+mlir::Value ScalarExprEmitter::VisitUnaryReal(const UnaryOperator *e) {
+  QualType promotionTy = getPromotionType(e->getSubExpr()->getType());
+  mlir::Value result = VisitRealImag(e, promotionTy);
+  if (result && !promotionTy.isNull())
+    result = emitUnPromotedValue(result, e->getType());
+  return result;
+}
+
+mlir::Value ScalarExprEmitter::VisitUnaryImag(const UnaryOperator *e) {
+  QualType promotionTy = getPromotionType(e->getSubExpr()->getType());
+  mlir::Value result = VisitRealImag(e, promotionTy);
+  if (result && !promotionTy.isNull())
+    result = emitUnPromotedValue(result, e->getType());
+  return result;
+}
+
+mlir::Value ScalarExprEmitter::VisitRealImag(const UnaryOperator *e,
+                                             QualType promotionTy) {
+  assert(e->getOpcode() == clang::UO_Real ||
+         e->getOpcode() == clang::UO_Imag &&
+             "Invalid UnaryOp kind for ComplexType Real or Imag");
+
+  Expr *op = e->getSubExpr();
+  mlir::Location loc = CGF.getLoc(e->getExprLoc());
+  if (op->getType()->isAnyComplexType()) {
+    // If it's an l-value, load through the appropriate subobject l-value.
+    // Note that we have to ask `e` because `op` might be an l-value that
+    // this won't work for, e.g. an Obj-C property
+    mlir::Value complex = CGF.emitComplexExpr(op);
+    if (e->isGLValue() && !promotionTy.isNull()) {
+      promotionTy = promotionTy->isAnyComplexType()
+                        ? promotionTy
+                        : CGF.getContext().getComplexType(promotionTy);
+      complex = CGF.emitPromotedValue(complex, promotionTy);
+    }
+
+    return e->getOpcode() == clang::UO_Real
+               ? Builder.createComplexReal(loc, complex)
+               : Builder.createComplexImag(loc, complex);
+  }
+
+  if (e->getOpcode() == UO_Real) {
+    mlir::Value operand = promotionTy.isNull()
+                              ? Visit(op)
+                              : CGF.emitPromotedScalarExpr(op, promotionTy);
+    return Builder.createComplexReal(loc, operand);
+  }
+
+  // __imag on a scalar returns zero. Emit the subexpr to ensure side
+  // effects are evaluated, but not the actual value.
+  mlir::Value operand;
+  if (op->isGLValue()) {
+    operand = CGF.emitLValue(op).getPointer();
+    operand = cir::LoadOp::create(Builder, loc, operand);
+  } else if (!promotionTy.isNull()) {
+    operand = CGF.emitPromotedScalarExpr(op, promotionTy);
+  } else {
+    operand = CGF.emitScalarExpr(op);
+  }
+  return Builder.createComplexImag(loc, operand);
 }
 
 /// Return the size or alignment of the type of argument of the sizeof
