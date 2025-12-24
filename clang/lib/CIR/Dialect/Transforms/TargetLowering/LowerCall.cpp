@@ -76,9 +76,11 @@ static void appendParameterTypes(SmallVectorImpl<Type> &prefix, FuncType fnTy) {
 /// \param instanceMethod - Whether the function is an instance method.
 /// \param prefix - List of implicit parameters to be prepended (e.g. 'this').
 /// \param FTP - ABI-agnostic function type.
+/// \param callingConv - The CIR calling convention.
 static const LowerFunctionInfo &
 arrangeCIRFunctionInfo(LowerTypes &CGT, bool instanceMethod,
-                       SmallVectorImpl<mlir::Type> &prefix, FuncType fnTy) {
+                       SmallVectorImpl<mlir::Type> &prefix, FuncType fnTy,
+                       cir::CallingConv callingConv = cir::CallingConv::C) {
   cir_cconv_assert(!MissingFeatures::extParamInfo());
   RequiredArgs Required = RequiredArgs::forPrototypePlus(fnTy, prefix.size());
   // FIXME: Kill copy.
@@ -88,7 +90,8 @@ arrangeCIRFunctionInfo(LowerTypes &CGT, bool instanceMethod,
 
   FnInfoOpts opts =
       instanceMethod ? FnInfoOpts::IsInstanceMethod : FnInfoOpts::None;
-  return CGT.arrangeLLVMFunctionInfo(resultType, opts, prefix, Required);
+  return CGT.arrangeLLVMFunctionInfo(resultType, opts, prefix, Required,
+                                     callingConv);
 }
 
 } // namespace
@@ -273,7 +276,9 @@ const LowerFunctionInfo &LowerTypes::arrangeFunctionDeclaration(FuncOp fnOp) {
                               "NYI");
   }
 
-  return arrangeFreeFunctionType(FTy);
+  // Extract calling convention from FuncOp.
+  cir::CallingConv callingConv = fnOp.getCallingConv();
+  return arrangeFreeFunctionType(FTy, callingConv);
 }
 
 /// Figure out the rules for calling a function with the given formal
@@ -289,10 +294,12 @@ LowerTypes::arrangeFreeFunctionCall(const OperandRange args,
 
 /// Arrange the argument and result information for the declaration or
 /// definition of the given function.
-const LowerFunctionInfo &LowerTypes::arrangeFreeFunctionType(FuncType FTy) {
+const LowerFunctionInfo &
+LowerTypes::arrangeFreeFunctionType(FuncType FTy,
+                                    cir::CallingConv callingConv) {
   llvm::SmallVector<mlir::Type, 16> argTypes;
   return ::arrangeCIRFunctionInfo(*this, /*instanceMethod=*/false, argTypes,
-                                  FTy);
+                                  FTy, callingConv);
 }
 
 /// Arrange the argument and result information for the declaration or
@@ -313,17 +320,15 @@ const LowerFunctionInfo &LowerTypes::arrangeGlobalDeclaration(FuncOp fnOp) {
 /// \param opts - Options to control the arrangement.
 /// \param argTypes - ABI-agnostic CIR argument types.
 /// \param required - Information about required/optional arguments.
-const LowerFunctionInfo &
-LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
-                                    ArrayRef<Type> argTypes,
-                                    RequiredArgs required) {
+const LowerFunctionInfo &LowerTypes::arrangeLLVMFunctionInfo(
+    Type resultType, FnInfoOpts opts, ArrayRef<Type> argTypes,
+    RequiredArgs required, cir::CallingConv callingConv) {
   cir_cconv_assert(!cir::MissingFeatures::qualifiedTypes());
 
   LowerFunctionInfo *FI = nullptr;
 
-  // FIXME(cir): Allow user-defined CCs (e.g. __attribute__((vectorcall))).
   cir_cconv_assert(!cir::MissingFeatures::extParamInfo());
-  unsigned CC = clangCallConvToLLVMCallConv(clang::CallingConv::CC_C);
+  unsigned CC = cirCallConvToLLVMCallConv(callingConv);
 
   // Construct the function info. We co-allocate the ArgInfos.
   // NOTE(cir): This initial function info might hold incorrect data.

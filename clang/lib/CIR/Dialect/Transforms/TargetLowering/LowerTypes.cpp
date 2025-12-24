@@ -17,20 +17,31 @@
 #include "mlir/IR/Types.h"
 #include "mlir/Support/LLVM.h"
 #include "clang/CIR/ABIArgInfo.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/MissingFeatures.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace cir;
 
 using ABIArgInfo = cir::ABIArgInfo;
 
-unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv CC) {
+unsigned LowerTypes::cirCallConvToLLVMCallConv(cir::CallingConv CC) {
   switch (CC) {
-  case clang::CC_C:
+  case cir::CallingConv::C:
     return llvm::CallingConv::C;
-  default:
-    cir_cconv_unreachable("calling convention NYI");
+  case cir::CallingConv::SpirKernel:
+    return llvm::CallingConv::SPIR_KERNEL;
+  case cir::CallingConv::SpirFunction:
+    return llvm::CallingConv::SPIR_FUNC;
+  case cir::CallingConv::OpenCLKernel:
+    cir_cconv_unreachable("OpenCL kernel calling convention NYI");
+  case cir::CallingConv::PTXKernel:
+    return llvm::CallingConv::PTX_Kernel;
+  case cir::CallingConv::AMDGPUKernel:
+    return llvm::CallingConv::AMDGPU_KERNEL;
   }
+  cir_cconv_unreachable("Unknown calling convention");
 }
 
 LowerTypes::LowerTypes(LowerModule &LM)
