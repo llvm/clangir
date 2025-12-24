@@ -365,3 +365,23 @@ __device__ void test_rcp_f32(float* out, float a) {
 __device__ void test_rcp_f64(double* out, double a) {
   *out = __builtin_amdgcn_rcp(a);
 }
+
+// CIR-LABEL: @_Z13test_sqrt_f32Pff
+// CIR: cir.llvm.intrinsic "amdgcn.sqrt" {{.*}} : (!cir.float) -> !cir.float
+// LLVM: define{{.*}} void @_Z13test_sqrt_f32Pff
+// LLVM: call{{.*}} float @llvm.amdgcn.sqrt.f32(float %{{.*}})
+// OGCG: define{{.*}} void @_Z13test_sqrt_f32Pff
+// OGCG: call{{.*}} float @llvm.amdgcn.sqrt.f32(float %{{.*}})
+__device__ void test_sqrt_f32(float* out, float a) {
+  *out = __builtin_amdgcn_sqrtf(a);
+}
+
+// CIR-LABEL: @_Z13test_sqrt_f64Pdd
+// CIR: cir.llvm.intrinsic "amdgcn.sqrt" {{.*}} : (!cir.double) -> !cir.double
+// LLVM: define{{.*}} void @_Z13test_sqrt_f64Pdd
+// LLVM: call{{.*}} double @llvm.amdgcn.sqrt.f64(double %{{.*}})
+// OGCG: define{{.*}} void @_Z13test_sqrt_f64Pdd
+// OGCG: call{{.*}} double @llvm.amdgcn.sqrt.f64(double %{{.*}})
+__device__ void test_sqrt_f64(double* out, double a) {
+  *out = __builtin_amdgcn_sqrt(a);
+}
