@@ -155,7 +155,25 @@ public:
     return {};
   }
 
-  mlir::Value VisitConstantExpr(ConstantExpr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitConstantExpr(ConstantExpr *E) {
+    // A constant expression of type 'void'
+    // generates no code and produces no value.
+    if (E->getType()->isVoidType())
+      return {};
+
+    if (mlir::Attribute result = ConstantEmitter(CGF).tryEmitConstantExpr(E)) {
+      if (E->isGLValue()) {
+        return {};
+      }
+
+      return Builder.getConstant(CGF.getLoc(E->getSourceRange()),
+                                 mlir::cast<mlir::TypedAttr>(result));
+    }
+
+    llvm_unreachable("ScalarExprEmitter: VisitConstantExpr");
+    return {};
+  }
+
   mlir::Value VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr()); }
 
   mlir::Value VisitPackIndexingExpr(PackIndexingExpr *E) {
