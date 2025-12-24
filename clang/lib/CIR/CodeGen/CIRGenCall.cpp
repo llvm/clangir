@@ -1393,10 +1393,10 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
     if (MD->isInstance())
       return arrangeCXXMethodDeclaration(MD);
 
-  auto FTy = FD->getType()->getCanonicalTypeUnqualified();
+  CanQualType FTy = FD->getType()->getCanonicalTypeUnqualified();
 
   assert(isa<FunctionType>(FTy));
-  // TODO: setCUDAKernelCallingConvention
+  setCUDAKernelCallingConvention(FTy, CGM, FD);
 
   // When declaring a function without a prototype, always use a non-variadic
   // type.

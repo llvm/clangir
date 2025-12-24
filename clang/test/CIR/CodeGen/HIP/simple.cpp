@@ -64,8 +64,8 @@ __device__ void device_fn(int* a, double b, float c) {}
 // CIR-DEVICE: cir.func {{.*}} @_Z9device_fnPidf
 
 __global__ void global_fn(int a) {}
-// CIR-DEVICE: @_Z9global_fni
-// LLVM-DEVICE: define dso_local void @_Z9global_fni
+// CIR-DEVICE: @_Z9global_fni{{.*}} cc(amdgpu_kernel)
+// LLVM-DEVICE: define dso_local amdgpu_kernel void @_Z9global_fni
 // OGCG-DEVICE: define dso_local amdgpu_kernel void @_Z9global_fni 
 
 // CIR-HOST: @_Z24__device_stub__global_fni{{.*}}extra([[Kernel]])

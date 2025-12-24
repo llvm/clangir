@@ -4003,7 +4003,8 @@ def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", [
   I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">,
   I32EnumAttrCase<"SpirFunction", 3, "spir_function">,
   I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">,
-  I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">
+  I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">,
+  I32EnumAttrCase<"AMDGPUKernel", 6, "amdgpu_kernel">
 ]>;
 
 def CIR_OptionalPriorityAttr : OptionalAttr<

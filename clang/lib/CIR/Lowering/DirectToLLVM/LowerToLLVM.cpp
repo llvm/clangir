@@ -901,6 +901,8 @@ mlir::LLVM::CConv convertCallingConv(cir::CallingConv callingConv) {
     llvm_unreachable("NYI");
   case CIR::PTXKernel:
     return LLVM::PTX_Kernel;
+  case CIR::AMDGPUKernel:
+    return LLVM::AMDGPU_KERNEL;
   }
   llvm_unreachable("Unknown calling convention");
 }

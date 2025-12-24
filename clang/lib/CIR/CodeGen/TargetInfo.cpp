@@ -378,8 +378,13 @@ public:
   AMDGPUTargetCIRGenInfo(CIRGenTypes &cgt)
       : TargetCIRGenInfo(std::make_unique<AMDGPUABIInfo>(cgt)) {}
 
+  cir::CallingConv getOpenCLKernelCallingConv() const override {
+    return cir::CallingConv::AMDGPUKernel;
+  }
+
   void setCUDAKernelCallingConvention(const FunctionType *&ft) const override {
-    llvm_unreachable("NYI");
+    ft = getABIInfo().getContext().adjustFunctionType(
+        ft, ft->getExtInfo().withCallingConv(CC_DeviceKernel));
   }
 };
 
