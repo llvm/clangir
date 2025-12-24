@@ -386,6 +386,29 @@ public:
     ft = getABIInfo().getContext().adjustFunctionType(
         ft, ft->getExtInfo().withCallingConv(CC_DeviceKernel));
   }
+
+  void setTargetAttributes(const clang::Decl *decl, mlir::Operation *global,
+                           CIRGenModule &cgm) const override {
+
+    if (const auto *fd = clang::dyn_cast_or_null<clang::FunctionDecl>(decl)) {
+      cir::FuncOp func = mlir::cast<cir::FuncOp>(global);
+      if (func.isDeclaration())
+        return;
+
+      if (cgm.getLangOpts().HIP) {
+        if (fd->hasAttr<CUDAGlobalAttr>()) {
+          func.setCallingConv(cir::CallingConv::AMDGPUKernel);
+          func.setLinkageAttr(cir::GlobalLinkageKindAttr::get(
+              func.getContext(), cir::GlobalLinkageKind::ExternalLinkage));
+          func.setVisibility(mlir::SymbolTable::Visibility::Public);
+          func.setGlobalVisibility(cir::VisibilityKind::Protected);
+        }
+      }
+
+      if (fd->getAttr<CUDALaunchBoundsAttr>())
+        llvm_unreachable("NYI");
+    }
+  }
 };
 
 } // namespace

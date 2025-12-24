@@ -16,7 +16,8 @@
 // RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fclangir \
-// RUN:            -fcuda-is-device -fhip-new-launch-api \
+// RUN:            -fcuda-is-device -fhip-new-launch-api    \
+// RUN:            -fvisibility=hidden                      \
 // RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-DEVICE --input-file=%t.ll %s
 
@@ -27,6 +28,7 @@
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip \
 // RUN:            -fcuda-is-device -fhip-new-launch-api \
+// RUN:            -fvisibility=hidden                      \
 // RUN:            -I%S/../Inputs/ -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
@@ -65,8 +67,8 @@ __device__ void device_fn(int* a, double b, float c) {}
 
 __global__ void global_fn(int a) {}
 // CIR-DEVICE: @_Z9global_fni{{.*}} cc(amdgpu_kernel)
-// LLVM-DEVICE: define dso_local amdgpu_kernel void @_Z9global_fni
-// OGCG-DEVICE: define dso_local amdgpu_kernel void @_Z9global_fni 
+// LLVM-DEVICE: define protected amdgpu_kernel void @_Z9global_fni
+// OGCG-DEVICE: define protected amdgpu_kernel void @_Z9global_fni
 
 // CIR-HOST: @_Z24__device_stub__global_fni{{.*}}extra([[Kernel]])
 // CIR-HOST: %[[#CIRKernelArgs:]] = cir.alloca {{.*}}"kernel_args"
