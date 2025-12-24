@@ -670,7 +670,20 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
         CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
     if (vTy != newVecTy) {
-      llvm_unreachable("NYI");
+      unsigned srcElts = vTy.getSize();
+      unsigned dstElts = newVecTy.getSize();
+      if (dstElts <= srcElts)
+        llvm_unreachable("NYI"); // Shrink the vector
+
+      // Build mask for extending vector with undef elements.
+      // Example: char3 -> char4 => mask = [0, 1, 2, -1]
+      llvm::SmallVector<int64_t, 16> mask(srcElts);
+      std::iota(mask.begin(), mask.end(), 0);
+      // Handle vector widening by filling remaining lanes with undef (-1)
+      mask.resize(dstElts, -1);
+
+      value = builder.createVecShuffle(*currSrcLoc, value, mask);
+      eltTy = newVecTy; // Ensure the store uses the widened vector type
     }
   }
 
