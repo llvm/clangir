@@ -854,7 +854,14 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_store_b64:
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_store_b96:
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_store_b128: {
-    llvm_unreachable("raw_buffer_store_* NYI");
+    mlir::Type voidTy = cir::VoidType::get(builder.getContext());
+    llvm::SmallVector<mlir::Value, 5> Args;
+    for (unsigned I = 0; I < 5; ++I)
+      Args.push_back(emitScalarExpr(expr->getArg(I)));
+    auto CallOp = LLVMIntrinsicCallOp::create(
+        builder, getLoc(expr->getExprLoc()),
+        builder.getStringAttr("amdgcn.raw.ptr.buffer.store"), voidTy, Args);
+    return CallOp.getResult();
   }
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b8:
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b16:
@@ -862,23 +869,55 @@ mlir::Value CIRGenFunction::emitAMDGPUBuiltinExpr(unsigned builtinId,
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b64:
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b96:
   case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b128: {
-    llvm_unreachable("raw_buffer_load_* NYI");
+    mlir::Type retTy;
+    switch (builtinId) {
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b8:
+      retTy = builder.getUIntNTy(8);
+      break;
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b16:
+      retTy = builder.getUIntNTy(16);
+      break;
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b32:
+      retTy = builder.getUIntNTy(32);
+      break;
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b64:
+      retTy = cir::VectorType::get(builder.getUIntNTy(32), 2);
+      break;
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b96:
+      retTy = cir::VectorType::get(builder.getUIntNTy(32), 3);
+      break;
+    case AMDGPU::BI__builtin_amdgcn_raw_buffer_load_b128:
+      retTy = cir::VectorType::get(builder.getUIntNTy(32), 4);
+      break;
+    }
+    return LLVMIntrinsicCallOp::create(
+               builder, getLoc(expr->getExprLoc()),
+               builder.getStringAttr("amdgcn.raw.ptr.buffer.load"), retTy,
+               {emitScalarExpr(expr->getArg(0)),
+                emitScalarExpr(expr->getArg(1)),
+                emitScalarExpr(expr->getArg(2)),
+                emitScalarExpr(expr->getArg(3))})
+        .getResult();
   }
-  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_add_i32: {
-    llvm_unreachable("raw_ptr_buffer_atomic_add_* NYI");
-  }
+  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_add_i32:
+    return emitBuiltinWithOneOverloadedType<5>(
+               expr, "amdgcn.raw.ptr.buffer.atomic.add")
+        .getScalarVal();
   case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fadd_f32:
-  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fadd_v2f16: {
-    llvm_unreachable("raw_ptr_buffer_atomic_fadd_* NYI");
-  }
+  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fadd_v2f16:
+    return emitBuiltinWithOneOverloadedType<5>(
+               expr, "amdgcn.raw.ptr.buffer.atomic.fadd")
+        .getScalarVal();
   case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmin_f32:
-  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmin_f64: {
-    llvm_unreachable("raw_ptr_buffer_atomic_fmin_* NYI");
-  }
+  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmin_f64:
+    return emitBuiltinWithOneOverloadedType<5>(
+               expr, "amdgcn.raw.ptr.buffer.atomic.fmin")
+        .getScalarVal();
   case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmax_f32:
-  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmax_f64: {
-    llvm_unreachable("raw_ptr_buffer_atomic_fmax_* NYI");
-  }
+  case AMDGPU::BI__builtin_amdgcn_raw_ptr_buffer_atomic_fmax_f64:
+    return emitBuiltinWithOneOverloadedType<5>(
+               expr, "amdgcn.raw.ptr.buffer.atomic.fmax")
+        .getScalarVal();
   case AMDGPU::BI__builtin_amdgcn_s_prefetch_data: {
     llvm_unreachable("s_prefetch_data_* NYI");
   }
