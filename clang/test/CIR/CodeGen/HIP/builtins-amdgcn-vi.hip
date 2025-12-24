@@ -87,3 +87,14 @@ __device__ void test_sqrt_f16(_Float16* out, _Float16 a)
 {
   *out = __builtin_amdgcn_sqrth(a);
 }
+
+// CIR-LABEL: @_Z10test_rsq_hPDF16_DF16_
+// CIR: cir.llvm.intrinsic "amdgcn.rsq" {{.*}} : (!cir.f16) -> !cir.f16
+// LLVM: define{{.*}} void @_Z10test_rsq_hPDF16_DF16_
+// LLVM: call{{.*}} half @llvm.amdgcn.rsq.f16(half %{{.*}})
+// OGCG: define{{.*}} void @_Z10test_rsq_hPDF16_DF16_
+// OGCG: call{{.*}} half @llvm.amdgcn.rsq.f16(half %{{.*}})
+__device__ void test_rsq_h(_Float16* out, _Float16 a)
+{
+  *out = __builtin_amdgcn_rsqh(a);
+}
