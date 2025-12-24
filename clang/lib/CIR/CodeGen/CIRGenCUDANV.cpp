@@ -54,6 +54,18 @@ protected:
 
   // Map a kernel handle to the kernel stub.
   llvm::DenseMap<mlir::Operation *, mlir::Operation *> KernelStubs;
+  struct VarInfo {
+    cir::GlobalOp var;
+    const VarDecl *declaration;
+    DeviceVarFlags flags;
+  };
+
+  llvm::SmallVector<VarInfo, 16> deviceVars;
+
+  /// Keeps track of variable containing handle of GPU binary. Populated by
+  /// ModuleCtorFunction() and used to create corresponding cleanup calls in
+  /// ModuleDtorFunction()
+  llvm::GlobalVariable *gpuBinaryHandle = nullptr;
 
   // Mangle context for device.
   std::unique_ptr<MangleContext> deviceMC;
@@ -72,6 +84,7 @@ public:
 
   void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
                       FunctionArgList &args) override;
+  void handleVarRegistration(const VarDecl *vd, cir::GlobalOp var) override;
 
   mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) override;
 
@@ -86,6 +99,15 @@ public:
   /// Returns function or variable name on device side even if the current
   /// compilation is for host.
   std::string getDeviceSideName(const NamedDecl *nd) override;
+
+  void registerDeviceVar(const VarDecl *vd, cir::GlobalOp &var, bool isExtern,
+                         bool isConstant) {
+    deviceVars.push_back({var,
+                          vd,
+                          {DeviceVarFlags::Variable, isExtern, isConstant,
+                           vd->hasAttr<HIPManagedAttr>(),
+                           /*Normalized*/ false, 0}});
+  }
 };
 
 } // namespace
@@ -400,4 +422,36 @@ void CIRGenNVCUDARuntime::internalizeDeviceSideVar(
   if (d->getType()->isCUDADeviceBuiltinSurfaceType() ||
       d->getType()->isCUDADeviceBuiltinTextureType())
     llvm_unreachable("NYI");
+}
+
+void CIRGenNVCUDARuntime::handleVarRegistration(const VarDecl *declaration,
+                                                cir::GlobalOp globalVariable) {
+  if (declaration->hasAttr<CUDADeviceAttr>() ||
+      declaration->hasAttr<CUDAConstantAttr>()) {
+    // Shadow variables and their properties must be registered with CUDA
+    // runtime. Skip Extern global variables, which will be registered in
+    // the TU where they are defined.
+    //
+    // Don't register a C++17 inline variable. The local symbol can be
+    // discarded and referencing a discarded local symbol from outside the
+    // comdat (__cuda_register_globals) is disallowed by the ELF spec.
+    //
+    // HIP managed variables need to be always recorded in device and host
+    // compilations for transformation.
+    //
+    // HIP managed variables and variables in CUDADeviceVarODRUsedByHost are
+    // added to llvm.compiler-used, therefore they are safe to be registered.
+    if ((!declaration->hasExternalStorage() && !declaration->isInline()) ||
+        cgm.getASTContext().CUDADeviceVarODRUsedByHost.contains(declaration) ||
+        declaration->hasAttr<HIPManagedAttr>()) {
+      registerDeviceVar(declaration, globalVariable,
+                        !declaration->hasDefinition(),
+                        declaration->hasAttr<CUDAConstantAttr>());
+    }
+  } else if (declaration->getType()->isCUDADeviceBuiltinSurfaceType() ||
+             declaration->getType()->isCUDADeviceBuiltinTextureType()) {
+    // Builtin surfaces and textures and their template arguments are
+    // also registered with CUDA runtime.
+    llvm_unreachable("Surface and Texture registration NYI");
+  }
 }
