@@ -6,8 +6,10 @@
 #include "CIRGenTypes.h"
 #include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 
+#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/ABIArgInfo.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Target/x86.h"
 
@@ -380,6 +382,38 @@ public:
 
   cir::CallingConv getOpenCLKernelCallingConv() const override {
     return cir::CallingConv::AMDGPUKernel;
+  }
+
+  clang::LangAS
+  getGlobalVarAddressSpace(CIRGenModule &CGM,
+                           const clang::VarDecl *D) const override {
+    using clang::LangAS;
+    assert(!CGM.getLangOpts().OpenCL &&
+           !(CGM.getLangOpts().CUDA && CGM.getLangOpts().CUDAIsDevice) &&
+           "Address space agnostic languages only");
+    LangAS defaultGlobalAS = LangAS::opencl_global;
+    if (!D)
+      return defaultGlobalAS;
+
+    LangAS addrSpace = D->getType().getAddressSpace();
+    if (addrSpace != LangAS::Default)
+      return addrSpace;
+
+    // Only promote to address space 4 if VarDecl has constant initialization.
+    if (D->getType().isConstantStorage(CGM.getASTContext(), false, false) &&
+        D->hasConstantInitialization()) {
+      if (auto ConstAS = CGM.getTarget().getConstantAddressSpace())
+        return *ConstAS;
+    }
+
+    return defaultGlobalAS;
+  }
+
+  mlir::ptr::MemorySpaceAttrInterface
+  getCIRAllocaAddressSpace() const override {
+    return cir::LangAddressSpaceAttr::get(
+        &getABIInfo().CGT.getMLIRContext(),
+        cir::LangAddressSpace::OffloadPrivate);
   }
 
   void setCUDAKernelCallingConvention(const FunctionType *&ft) const override {

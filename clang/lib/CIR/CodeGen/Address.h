@@ -15,12 +15,14 @@
 #define LLVM_CLANG_LIB_CIR_ADDRESS_H
 
 #include "clang/AST/CharUnits.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/IR/Constants.h"
 
 #include "CIRGenPointerAuthInfo.h"
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Value.h"
 
 namespace clang::CIRGen {
@@ -182,6 +184,23 @@ public:
 
   template <typename T> T getDefiningOp() const {
     return mlir::dyn_cast_or_null<T>(getDefiningOp());
+  }
+
+  /// Return the address space of this pointer.
+  mlir::ptr::MemorySpaceAttrInterface getAddressSpace() const {
+    return getType().getAddrSpace();
+  }
+
+  /// Get the underlying AllocaOp, walking through any casts (e.g., address
+  /// space casts) that may wrap it. Returns nullptr if the base is not an
+  /// alloca.
+  cir::AllocaOp getAllocaOp() const {
+    if (!isValid())
+      return nullptr;
+    mlir::Value val = getPointer();
+    while (auto castOp = val.getDefiningOp<cir::CastOp>())
+      val = castOp.getOperand();
+    return val.getDefiningOp<cir::AllocaOp>();
   }
 };
 

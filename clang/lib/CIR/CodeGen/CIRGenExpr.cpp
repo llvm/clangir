@@ -36,8 +36,10 @@
 #include "llvm/Support/ErrorHandling.h"
 
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Support/LLVM.h"
@@ -3201,7 +3203,7 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
                                       mlir::Location Loc, const Twine &Name,
                                       Address *Alloca,
                                       mlir::OpBuilder::InsertPoint ip) {
-  Address Result = CreateTempAlloca(convertTypeForMem(Ty), Align, Loc, Name,
+  Address Result = CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
                                     /*ArraySize=*/nullptr, Alloca, ip);
   if (Ty->isConstantMatrixType()) {
     assert(0 && "NYI");
@@ -3220,28 +3222,68 @@ Address CIRGenFunction::CreateTempAllocaWithoutCast(
   return Address(Alloca, Ty, Align);
 }
 
+Address CIRGenFunction::maybeCastStackAddressSpace(
+    Address alloca, mlir::ptr::MemorySpaceAttrInterface destLangAS,
+    mlir::Value arraySize) {
+  // Alloca always returns a pointer in alloca address space, which may
+  // be different from the type defined by the language. For example,
+  // in C++ the auto variables are in the default address space. Therefore
+  // cast alloca to the default address space when necessary.
+
+  // If no destination address space is specified, use the language's temp
+  // alloca address space.
+  if (!destLangAS)
+    destLangAS = cir::toCIRLangAddressSpaceAttr(
+        &getMLIRContext(), CGM.getLangTempAllocaAddressSpace());
+
+  mlir::ptr::MemorySpaceAttrInterface srcAS = getCIRAllocaAddressSpace();
+
+  if (srcAS == destLangAS)
+    return alloca;
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  // When arraySize is nullptr, the alloca was inserted at the entry block.
+  // Insert the cast at the "post-alloca" point (after all allocas).
+  // Otherwise, the alloca is at the current insertion point, so insert
+  // the cast right after it.
+  if (!arraySize) {
+    mlir::Block *entryBlock = getCurFunctionEntryBlock();
+    builder.restoreInsertionPoint(builder.getBestAllocaInsertPoint(entryBlock));
+  } else if (auto allocaOp = alloca.getAllocaOp()) {
+    builder.setInsertionPointAfter(allocaOp);
+  }
+
+  mlir::Type destPtrTy =
+      builder.getPointerTo(alloca.getElementType(), destLangAS);
+  mlir::Value val = getTargetHooks().performAddrSpaceCast(
+      *this, alloca.getPointer(), srcAS, destLangAS, destPtrTy,
+      /*IsNonNull=*/true);
+
+  return Address(val, alloca.getElementType(), alloca.getAlignment(),
+                 KnownNonNull);
+}
+
 /// This creates a alloca and inserts it into the entry block. The alloca is
 /// casted to default address space if necessary.
+Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, mlir::ptr::MemorySpaceAttrInterface destAS, CharUnits Align,
+                                         mlir::Location Loc, const Twine &Name,
+                                         mlir::Value ArraySize,
+                                         Address *AllocaAddr,
+                                         mlir::OpBuilder::InsertPoint ip) {
+  Address Alloca =
+      CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
+  if (AllocaAddr)
+    *AllocaAddr = Alloca;
+  return maybeCastStackAddressSpace(Alloca, destAS, ArraySize);
+}
+
 Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
                                          mlir::Location Loc, const Twine &Name,
                                          mlir::Value ArraySize,
                                          Address *AllocaAddr,
                                          mlir::OpBuilder::InsertPoint ip) {
-  auto Alloca =
-      CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
-  if (AllocaAddr)
-    *AllocaAddr = Alloca;
-  mlir::Value V = Alloca.getPointer();
-  // Alloca always returns a pointer in alloca address space, which may
-  // be different from the type defined by the language. For example,
-  // in C++ the auto variables are in the default address space. Therefore
-  // cast alloca to the default address space when necessary.
-  if (auto ASTAS = cir::toCIRLangAddressSpaceAttr(
-          &getMLIRContext(), CGM.getLangTempAllocaAddressSpace());
-      getCIRAllocaAddressSpace() != ASTAS) {
-    llvm_unreachable("Requires address space cast which is NYI");
-  }
-  return Address(V, Ty, Align);
+  return CreateTempAlloca(Ty, /*destAS=*/{}, Align, Loc, Name, ArraySize,
+                          AllocaAddr, ip);
 }
 
 /// This creates an alloca and inserts it into the entry block if \p ArraySize

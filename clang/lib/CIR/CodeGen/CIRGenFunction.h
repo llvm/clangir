@@ -31,6 +31,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
@@ -2586,16 +2587,39 @@ public:
                                  const Twine &Name = "tmp",
                                  mlir::OpBuilder::InsertPoint ip = {},
                                  mlir::Value ArraySize = nullptr);
+  Address CreateTempAlloca(mlir::Type Ty,
+                           mlir::ptr::MemorySpaceAttrInterface destAS,
+                           CharUnits align, mlir::Location Loc,
+                           const Twine &Name = "tmp",
+                           mlir::Value ArraySize = nullptr,
+                           Address *Alloca = nullptr,
+                           mlir::OpBuilder::InsertPoint ip = {});
+
+  /// CreateTempAlloca - This creates a alloca and inserts it into the entry
+  /// block. The alloca is casted to default address space if necessary.
+  ///
+  /// FIXME: This version should be removed, and context should provide the
+  /// context use address space used instead of default.
   Address CreateTempAlloca(mlir::Type Ty, CharUnits align, mlir::Location Loc,
                            const Twine &Name = "tmp",
                            mlir::Value ArraySize = nullptr,
                            Address *Alloca = nullptr,
                            mlir::OpBuilder::InsertPoint ip = {});
+
   Address CreateTempAllocaWithoutCast(mlir::Type Ty, CharUnits align,
                                       mlir::Location Loc,
                                       const Twine &Name = "tmp",
                                       mlir::Value ArraySize = nullptr,
                                       mlir::OpBuilder::InsertPoint ip = {});
+
+  /// If \p alloca is not in the destination address space, insert an address
+  /// space cast. The returned Address will have the destination address space
+  /// with KnownNonNull.
+  /// \param destLangAS is the destination language address space. If not
+  /// specified, defaults to the language's temp alloca address space.
+  Address maybeCastStackAddressSpace(
+      Address alloca, mlir::ptr::MemorySpaceAttrInterface destLangAS = {},
+      mlir::Value arraySize = {});
 
   /// Create a temporary memory object of the given type, with
   /// appropriate alignmen and cast it to the default address space. Returns

@@ -234,8 +234,9 @@ __device__ void foo() {
   bar(cchar);
 }
 // CIR-DEVICE-LABEL: @_Z3foov
-// CIR-DEVICE: cir.alloca
-// CIR-DEVICE: cir.get_global @__const._Z3foov.cchar
+// CIR-DEVICE: cir.alloca !cir.array<!s8i x 13>, !cir.ptr<!cir.array<!s8i x 13>, lang_address_space(offload_private)>
+// CIR-DEVICE: cir.cast address_space
+// CIR-DEVICE: cir.get_global @__const._Z3foov
 // CIR-DEVICE: cir.copy
 // CIR-DEVICE: cir.cast array_to_ptrdecay
 // CIR-DEVICE: cir.call @bar
