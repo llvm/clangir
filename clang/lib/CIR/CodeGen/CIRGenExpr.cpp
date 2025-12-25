@@ -3203,8 +3203,9 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
                                       mlir::Location Loc, const Twine &Name,
                                       Address *Alloca,
                                       mlir::OpBuilder::InsertPoint ip) {
-  Address Result = CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
-                                    /*ArraySize=*/nullptr, Alloca, ip);
+  Address Result =
+      CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
+                       /*ArraySize=*/nullptr, Alloca, ip);
   if (Ty->isConstantMatrixType()) {
     assert(0 && "NYI");
   }
@@ -3265,11 +3266,10 @@ Address CIRGenFunction::maybeCastStackAddressSpace(
 
 /// This creates a alloca and inserts it into the entry block. The alloca is
 /// casted to default address space if necessary.
-Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, mlir::ptr::MemorySpaceAttrInterface destAS, CharUnits Align,
-                                         mlir::Location Loc, const Twine &Name,
-                                         mlir::Value ArraySize,
-                                         Address *AllocaAddr,
-                                         mlir::OpBuilder::InsertPoint ip) {
+Address CIRGenFunction::CreateTempAlloca(
+    mlir::Type Ty, mlir::ptr::MemorySpaceAttrInterface destAS, CharUnits Align,
+    mlir::Location Loc, const Twine &Name, mlir::Value ArraySize,
+    Address *AllocaAddr, mlir::OpBuilder::InsertPoint ip) {
   Address Alloca =
       CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
   if (AllocaAddr)
