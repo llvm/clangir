@@ -168,8 +168,8 @@ long f11(int n, int m) {
 // CHECK: %[[RESULT:[0-9]+]] = cir.binop(div, %[[PTRDIFF]], %[[NM_S64]]) : !s64i
 
 // # store + return
-// CHECK: cir.store %[[RESULT]], %[[RET]] : !s64i, !cir.ptr<!s64i>
-// CHECK: %[[RETVAL:[0-9]+]] = cir.load %[[RET]] : !cir.ptr<!s64i>, !s64i
+// CHECK: cir.store{{.*}} %[[RESULT]], %[[RET]] : !s64i, !cir.ptr<!s64i>
+// CHECK: %[[RETVAL:[0-9]+]] = cir.load{{.*}} %[[RET]] : !cir.ptr<!s64i>, !s64i
 // CHECK: cir.return %[[RETVAL]] : !s64i
 
 

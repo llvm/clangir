@@ -15,7 +15,7 @@ int x(int y) {
 // CHECK:     %5 = cir.const #cir.int<3> : !s32i
 // CHECK:     %6 = cir.const #cir.int<5> : !s32i
 // CHECK:     %7 = cir.select if %4 then %5 else %6 : (!cir.bool, !s32i, !s32i) -> !s32i
-// CHECK:     cir.store %7, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK:     cir.store{{.*}} %7, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK:     %8 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK:     cir.return %8 : !s32i
 // CHECK:   }
@@ -92,6 +92,6 @@ bool func(bool a, bool b) {
 // CHECK:      [[B0:%.*]] = cir.load{{.*}} [[ALLOC_B]] : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK:      cir.yield [[B0]] : !cir.bool
 // CHECK:    }) : (!cir.bool) -> !cir.bool
-// CHECK:    cir.store [[RES]], [[ALLOC_RET]] : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK:    cir.store{{.*}} [[RES]], [[ALLOC_RET]] : !cir.bool, !cir.ptr<!cir.bool>
 // CHECK:    [[R:%.*]] = cir.load{{.*}} [[ALLOC_RET]] : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK:    cir.return [[R]] : !cir.bool

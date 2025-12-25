@@ -566,7 +566,7 @@ mlir::LogicalResult CIRGenFunction::emitReturnStmt(const ReturnStmt &S) {
       switch (CIRGenFunction::getEvaluationKind(RV->getType())) {
       case cir::TEK_Scalar:
         V = emitScalarExpr(RV);
-        builder.CIRBaseBuilderTy::createStore(loc, V, *FnRetAlloca);
+        builder.createStore(loc, V, ReturnValue);
         break;
       case cir::TEK_Complex:
         emitComplexExprIntoLValue(RV,
