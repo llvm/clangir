@@ -87,8 +87,8 @@ int check_load(st1 *s1) {
 // CIR:    [[MEMBER:%.*]] = cir.get_member [[LOAD]][0] {name = "b"} : !cir.ptr<!rec_st1> -> !cir.ptr<!u16i>
 // CIR:    [[BITFI:%.*]] = cir.get_bitfield align(4) (#bfi_b, [[MEMBER]] {is_volatile} : !cir.ptr<!u16i>) -> !u32i
 // CIR:    [[CAST:%.*]] = cir.cast integral [[BITFI]] : !u32i -> !s32i
-// CIR:    cir.store [[CAST]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[RET:%.*]] = cir.load [[RETVAL]] : !cir.ptr<!s32i>, !s32i
+// CIR:    cir.store{{.*}} [[CAST]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[RET:%.*]] = cir.load{{.*}} [[RETVAL]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[RET]] : !s32i
 
 // LLVM:define dso_local i32 @check_load
@@ -119,8 +119,8 @@ int check_load_exception(st3 *s3) {
 // CIR:    [[MEMBER:%.*]] = cir.get_member [[LOAD]][2] {name = "b"} : !cir.ptr<!rec_st3> -> !cir.ptr<!u8i>
 // CIR:    [[BITFI:%.*]] = cir.get_bitfield align(4) (#bfi_b1, [[MEMBER]] {is_volatile} : !cir.ptr<!u8i>) -> !u32i
 // CIR:    [[CAST:%.*]] = cir.cast integral [[BITFI]] : !u32i -> !s32i
-// CIR:    cir.store [[CAST]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[RET:%.*]] = cir.load [[RETVAL]] : !cir.ptr<!s32i>, !s32i
+// CIR:    cir.store{{.*}} [[CAST]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[RET:%.*]] = cir.load{{.*}} [[RETVAL]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[RET]] : !s32i
 
 // LLVM:define dso_local i32 @check_load_exception
@@ -155,8 +155,8 @@ int clip_load_exception2(clip *c) {
 // CIR:    [[LOAD:%.*]] = cir.load align(8) {{.*}} : !cir.ptr<!cir.ptr<!rec_clip>>, !cir.ptr<!rec_clip>
 // CIR:    [[MEMBER:%.*]] = cir.get_member [[LOAD]][0] {name = "a"} : !cir.ptr<!rec_clip> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CIR:    [[BITFI:%.*]] = cir.get_bitfield align(4) (#bfi_a1, [[MEMBER]] {is_volatile} : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
-// CIR:    cir.store [[BITFI]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[RET:%.*]] = cir.load [[RETVAL]] : !cir.ptr<!s32i>, !s32i
+// CIR:    cir.store{{.*}} [[BITFI]], [[RETVAL:%.*]] : !s32i, !cir.ptr<!s32i>
+// CIR:    [[RET:%.*]] = cir.load{{.*}} [[RETVAL]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[RET]] : !s32i
 
 // LLVM:define dso_local i32 @clip_load_exception2

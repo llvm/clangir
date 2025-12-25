@@ -92,7 +92,7 @@ int _Complex complex_real_operator_on_rvalue() {
 // CIR: cir.store{{.*}} %[[REAL]], %[[REAL_ADDR]] : !s32i, !cir.ptr<!s32i>
 // CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[RET_COMPLEX]], %[[RET_ADDR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
-// CIR: %[[TMP_RET:.*]] = cir.load %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR: %[[TMP_RET:.*]] = cir.load{{.*}} %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CIR: cir.return %[[TMP_RET]] : !cir.complex<!s32i>
 
 // LLVM: %[[RET_ADDR:.*]] = alloca { i32, i32 }, i64 1, align 4
@@ -139,7 +139,7 @@ int _Complex complex_imag_operator_on_rvalue() {
 // CIR: cir.store{{.*}} %[[IMAG]], %[[IMAG_ADDR]] : !s32i, !cir.ptr<!s32i>
 // CIR: %[[RET_COMPLEX:.*]] = cir.const #cir.zero : !cir.complex<!s32i>
 // CIR: cir.store{{.*}} %[[RET_COMPLEX]], %[[RET_ADDR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
-// CIR: %[[TMP_RET:.*]] = cir.load %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CIR: %[[TMP_RET:.*]] = cir.load{{.*}} %[[RET_ADDR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CIR: cir.return %[[TMP_RET]] : !cir.complex<!s32i>
 
 // LLVM: %[[RET_ADDR:.*]] = alloca { i32, i32 }, i64 1, align 4

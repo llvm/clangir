@@ -364,8 +364,8 @@ int ternary_throw1(bool condition, int x) {
 // CIR-NEXT:     %[[V9:.*]] = cir.load align(4) %[[V1]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:     cir.yield %[[V9]] : !s32i
 // CIR-NEXT:   }) : (!cir.bool) -> !s32i
-// CIR-NEXT:   cir.store %[[V7]], %[[V2]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT:   %[[V8:.*]] = cir.load %[[V2]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:   cir.store{{.*}} %[[V7]], %[[V2]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V8:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:   cir.return %[[V8]] : !s32i
 // CIR-NEXT: }
 

@@ -11,15 +11,15 @@ __int128 test1(__int128 a, __int128 b) {
   //      CHECK: %[[#SLOT_A:]] = cir.alloca !s128i, !cir.ptr<!s128i>
   // CHECK-NEXT: %[[#SLOT_A2:]] = cir.cast bitcast %[[#SLOT_A]] : !cir.ptr<!s128i> -> !cir.ptr<![[I128_STRUCT]]>
   // CHECK-NEXT: %[[#SLOT_A_LO:]] = cir.get_member %[[#SLOT_A2]][0] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
-  // CHECK-NEXT: cir.store %[[ARG0]], %[[#SLOT_A_LO]] : !s64i, !cir.ptr<!s64i>
+  // CHECK-NEXT: cir.store{{.*}} %[[ARG0]], %[[#SLOT_A_LO]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_A_HI:]] = cir.get_member %[[#SLOT_A2]][1] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
-  // CHECK-NEXT: cir.store %arg1, %[[#SLOT_A_HI]] : !s64i, !cir.ptr<!s64i>
+  // CHECK-NEXT: cir.store{{.*}} %arg1, %[[#SLOT_A_HI]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_B:]] = cir.alloca !s128i, !cir.ptr<!s128i>
   // CHECK-NEXT: %[[#SLOT_B2:]] = cir.cast bitcast %[[#SLOT_B]] : !cir.ptr<!s128i> -> !cir.ptr<![[I128_STRUCT]]>
   // CHECK-NEXT: %[[#SLOT_B_LO:]] = cir.get_member %[[#SLOT_B2]][0] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
-  // CHECK-NEXT: cir.store %arg2, %[[#SLOT_B_LO]] : !s64i, !cir.ptr<!s64i>
+  // CHECK-NEXT: cir.store{{.*}} %arg2, %[[#SLOT_B_LO]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_B_HI:]] = cir.get_member %[[#SLOT_B2]][1] {name = ""} : !cir.ptr<![[I128_STRUCT]]> -> !cir.ptr<!s64i>
-  // CHECK-NEXT: cir.store %arg3, %[[#SLOT_B_HI]] : !s64i, !cir.ptr<!s64i>
+  // CHECK-NEXT: cir.store{{.*}} %arg3, %[[#SLOT_B_HI]] : !s64i, !cir.ptr<!s64i>
   // CHECK-NEXT: %[[#SLOT_RET:]] = cir.alloca !s128i, !cir.ptr<!s128i>, ["__retval"]
 
   //      LLVM: %[[#A_SLOT:]] = alloca i128, i64 1, align 4
@@ -38,7 +38,7 @@ __int128 test1(__int128 a, __int128 b) {
   //      CHECK: %[[#A:]] = cir.load{{.*}} %[[#SLOT_A]] : !cir.ptr<!s128i>, !s128i
   // CHECK-NEXT: %[[#B:]] = cir.load{{.*}} %[[#SLOT_B]] : !cir.ptr<!s128i>, !s128i
   // CHECK-NEXT: %[[#SUM:]] = cir.binop(add, %[[#A]], %[[#B]]) nsw : !s128i
-  // CHECK-NEXT: cir.store %[[#SUM]], %[[#SLOT_RET]] : !s128i, !cir.ptr<!s128i>
+  // CHECK-NEXT: cir.store{{.*}} %[[#SUM]], %[[#SLOT_RET]] : !s128i, !cir.ptr<!s128i>
 
   //      LLVM: %[[#A:]] = load i128, ptr %5, align 16
   // LLVM-NEXT: %[[#B:]] = load i128, ptr %8, align 16

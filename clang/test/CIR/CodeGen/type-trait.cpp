@@ -5,8 +5,8 @@
 // CIR-LABEL: cir.func {{.*}} @_Z4testv() -> !cir.bool
 // CIR:       %[[RETVAL:.+]] = cir.alloca !cir.bool
 // CIR:       %[[CONST_TRUE:.+]] = cir.const #true
-// CIR:       cir.store %[[CONST_TRUE]], %[[RETVAL]]
-// CIR:       %[[LOADED_VAL:.+]] = cir.load %[[RETVAL]]
+// CIR:       cir.store{{.*}} %[[CONST_TRUE]], %[[RETVAL]]
+// CIR:       %[[LOADED_VAL:.+]] = cir.load{{.*}} %[[RETVAL]]
 // CIR:       cir.return %[[LOADED_VAL]]
 
 // LLVM-LABEL: define dso_local {{.*}}i1 @_Z4testv()

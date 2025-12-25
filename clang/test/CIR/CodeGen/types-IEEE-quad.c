@@ -17,7 +17,7 @@ long double t2(long double i2) {
 // CIR-NEXT:    %[[#I:]] = cir.get_global @i : !cir.ptr<!cir.long_double<!cir.f128>>
 // CIR-NEXT:    %[[#I_LOAD:]] = cir.load{{.*}} %[[#I]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
 // CIR-NEXT:    %[[#ADD:]] = cir.binop(add, %[[#I2_LOAD]], %[[#I_LOAD]]) : !cir.long_double<!cir.f128>
-// CIR-NEXT:    cir.store %[[#ADD]], %[[#RETVAL]] : !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>
+// CIR-NEXT:    cir.store{{.*}} %[[#ADD]], %[[#RETVAL]] : !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>
 // CIR-NEXT:    %[[#RETVAL_LOAD:]] = cir.load{{.*}} %[[#RETVAL]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
 // CIR-NEXT:    cir.return %[[#RETVAL_LOAD]] : !cir.long_double<!cir.f128>
 

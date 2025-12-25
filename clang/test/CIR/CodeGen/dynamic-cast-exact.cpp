@@ -109,7 +109,7 @@ Derived *ptr_cast_always_fail(Base2 *ptr) {
   return dynamic_cast<Derived *>(ptr);
   //      CHECK: %{{.+}} = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_Base2>>, !cir.ptr<!rec_Base2>
   // CHECK-NEXT: %[[#RESULT:]] = cir.const #cir.ptr<null> : !cir.ptr<!rec_Derived>
-  // CHECK-NEXT: cir.store %[[#RESULT]], %{{.+}} : !cir.ptr<!rec_Derived>, !cir.ptr<!cir.ptr<!rec_Derived>>
+  // CHECK-NEXT: cir.store{{.*}} %[[#RESULT]], %{{.+}} : !cir.ptr<!rec_Derived>, !cir.ptr<!cir.ptr<!rec_Derived>>
 }
 
 //      LLVM: define dso_local noalias noundef ptr @_Z20ptr_cast_always_failP5Base2(ptr readnone captures(none) %{{.+}})

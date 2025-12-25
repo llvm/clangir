@@ -14,7 +14,7 @@ int test_float_isinf_sign(float x) {
     // CIR: %[[C_m1:.*]] = cir.const #cir.int<-1> : !s32i
     // CIR: %[[TMP4:.*]] = cir.select if %[[IS_NEG]] then %[[C_m1]] else %[[C_1]] : (!cir.bool, !s32i, !s32i) -> !s32i
     // CIR: %[[RET:.*]] = cir.select if %[[IS_INF]] then %[[TMP4]] else %[[C_0]] : (!cir.bool, !s32i, !s32i) -> !s32i
-    // CIR: cir.store %[[RET]], %{{.*}} : !s32i, !cir.ptr<!s32i>
+    // CIR: cir.store{{.*}} %[[RET]], %{{.*}} : !s32i, !cir.ptr<!s32i>
 
     // LLVM-LABEL: test_float_isinf_sign
     // LLVM: %[[TMP0:.*]] = load float, ptr %{{.*}}

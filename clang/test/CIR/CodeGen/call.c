@@ -27,7 +27,7 @@ void d(void) {
 // CHECK:     %3 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK:     %4 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK:     %5 = cir.binop(add, %3, %4) nsw : !s32i
-// CHECK:     cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
+// CHECK:     cir.store{{.*}} %5, %2 : !s32i, !cir.ptr<!s32i>
 // CHECK:     %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK:     cir.return %6
 // CHECK:   }
@@ -40,7 +40,7 @@ void d(void) {
 // CHECK:     %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.double>, !cir.double
 // CHECK:     %4 = cir.load{{.*}} %1 : !cir.ptr<!cir.double>, !cir.double
 // CHECK:     %5 = cir.binop(add, %3, %4) : !cir.double
-// CHECK:     cir.store %5, %2 : !cir.double, !cir.ptr<!cir.double>
+// CHECK:     cir.store{{.*}} %5, %2 : !cir.double, !cir.ptr<!cir.double>
 // CHECK:     %6 = cir.load{{.*}} %2 : !cir.ptr<!cir.double>, !cir.double
 // CHECK:     cir.return %6 : !cir.double
 // CHECK:   }
@@ -65,7 +65,7 @@ void d(void) {
 // CXX-NEXT:     %3 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CXX-NEXT:     %4 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CXX-NEXT:     %5 = cir.binop(add, %3, %4) nsw : !s32i
-// CXX-NEXT:     cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
+// CXX-NEXT:     cir.store{{.*}} %5, %2 : !s32i, !cir.ptr<!s32i>
 // CXX-NEXT:     %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CXX-NEXT:     cir.return %6
 // CXX-NEXT:   }
@@ -78,7 +78,7 @@ void d(void) {
 // CXX-NEXT:     %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.double>, !cir.double
 // CXX-NEXT:     %4 = cir.load{{.*}} %1 : !cir.ptr<!cir.double>, !cir.double
 // CXX-NEXT:     %5 = cir.binop(add, %3, %4) : !cir.double
-// CXX-NEXT:     cir.store %5, %2 : !cir.double, !cir.ptr<!cir.double>
+// CXX-NEXT:     cir.store{{.*}} %5, %2 : !cir.double, !cir.ptr<!cir.double>
 // CXX-NEXT:     %6 = cir.load{{.*}} %2 : !cir.ptr<!cir.double>, !cir.double
 // CXX-NEXT:     cir.return %6 : !cir.double
 // CXX-NEXT:   }

@@ -88,7 +88,7 @@ bool bar() { return foo(1) || foo(2); }
 // CHECK:       cir.call @_ZN1XD2Ev(%[[V6]]) : (!cir.ptr<!rec_X>) -> ()
 // CHECK:       cir.yield %[[V9]] : !cir.bool
 // CHECK:     }) : (!cir.bool) -> !cir.bool
-// CHECK:     cir.store %[[V5]], %[[V0]] : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK:     cir.store{{.*}} %[[V5]], %[[V0]] : !cir.bool, !cir.ptr<!cir.bool>
 // CHECK:     cir.call @_ZN1XD2Ev(%[[V2]]) : (!cir.ptr<!rec_X>) -> ()
 // CHECK:   }
 // CHECK:   %[[V1:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!cir.bool>, !cir.bool

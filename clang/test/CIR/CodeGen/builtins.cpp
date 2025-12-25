@@ -15,8 +15,8 @@ int *test_addressof() {
   
   // CIR-LABEL: test_addressof
   // CIR: [[ADDR:%.*]] = cir.get_global @s : !cir.ptr<!s32i>
-  // CIR: cir.store [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-  // CIR: [[RES:%.*]] = cir.load [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CIR: cir.store{{.*}} [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CIR: [[RES:%.*]] = cir.load{{.*}} [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: cir.return [[RES]] : !cir.ptr<!s32i>
 
   // LLVM-LABEL: test_addressof
@@ -31,8 +31,8 @@ int *test_std_addressof() {
   
   // CIR-LABEL: test_std_addressof
   // CIR: [[ADDR:%.*]] = cir.get_global @s : !cir.ptr<!s32i>
-  // CIR: cir.store [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-  // CIR: [[RES:%.*]] = cir.load [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CIR: cir.store{{.*}} [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CIR: [[RES:%.*]] = cir.load{{.*}} [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: cir.return [[RES]] : !cir.ptr<!s32i>
 
   // LLVM-LABEL: test_std_addressof
@@ -47,8 +47,8 @@ int *test_std_addressof2() {
   
   // CIR-LABEL: test_std_addressof2
   // CIR: [[ADDR:%.*]] = cir.get_global @s : !cir.ptr<!s32i>
-  // CIR: cir.store [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-  // CIR: [[RES:%.*]] = cir.load [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CIR: cir.store{{.*}} [[ADDR]], [[SAVE:%.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CIR: [[RES:%.*]] = cir.load{{.*}} [[SAVE]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: cir.return [[RES]] : !cir.ptr<!s32i>
 
   /// LLVM-LABEL: test_std_addressof2
