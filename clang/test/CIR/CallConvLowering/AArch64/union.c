@@ -13,7 +13,7 @@ typedef union {
 // CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast integral %arg0 : !u64i -> !u32i
 // CIR: %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_U> -> !cir.ptr<!u32i>
-// CIR: cir.store %[[#V1]], %[[#V2]] : !u32i, !cir.ptr<!u32i>
+// CIR: cir.store{{.*}} %[[#V1]], %[[#V2]] : !u32i, !cir.ptr<!u32i>
 // CIR: cir.return
 
 // LLVM: void @foo(i64 %[[#V0:]]
@@ -25,9 +25,9 @@ void foo(U u) {}
 
 // CIR: cir.func {{.*}} @init() -> !u32i
 // CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["__retval"] {alignment = 4 : i64}
-// CIR: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!rec_U>, !rec_U
+// CIR: %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!rec_U>, !rec_U
 // CIR: %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_U> -> !cir.ptr<!u32i>
-// CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u32i>, !u32i
+// CIR: %[[#V3:]] = cir.load{{.*}} %[[#V2]] : !cir.ptr<!u32i>, !u32i
 // CIR: cir.return %[[#V3]] : !u32i
 
 // LLVM: i32 @init()

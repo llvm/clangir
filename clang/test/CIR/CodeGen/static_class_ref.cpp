@@ -16,8 +16,8 @@ A& ref() {
   // CIR-LABEL: _Z3refv
   // CIR: [[GLOBAL:%.*]] = cir.get_global @_ZN1B1AE : !cir.ptr<!cir.ptr<!rec_A>>
   // CIR: [[LD1:%.*]] = cir.load [[GLOBAL]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
-  // CIR: cir.store align(8) [[LD1]], [[ALLOCA:%.*]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
-  // CIR: [[LD2:%.*]] = cir.load [[ALLOCA:%.*]]: !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+  // CIR: cir.store{{.*}} [[LD1]], [[ALLOCA:%.*]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
+  // CIR: [[LD2:%.*]] = cir.load{{.*}} [[ALLOCA:%.*]]: !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
   // CIR: cir.return [[LD2]] : !cir.ptr<!rec_A>
 
   // LLVM-LABEL: _Z3refv

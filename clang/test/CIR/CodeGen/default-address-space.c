@@ -64,3 +64,30 @@ void test4(int *a) {
   a[0] = 0;
 }
 
+// Test that the return value alloca also gets an address space cast.
+// The __retval alloca is in addrspace(5) and stores/loads should go
+// through the casted flat pointer.
+// CIR-LABEL: cir.func {{.*}} @test_retval
+// CIR: %[[RETVAL_ALLOCA:.*]] = cir.alloca !s32i, !cir.ptr<!s32i, lang_address_space(offload_private)>, ["__retval"]
+// CIR: %[[RETVAL_CAST:.*]] = cir.cast address_space %[[RETVAL_ALLOCA]] : !cir.ptr<!s32i, lang_address_space(offload_private)> -> !cir.ptr<!s32i>
+// CIR: cir.store {{.*}}, %[[RETVAL_CAST]] : !s32i, !cir.ptr<!s32i>
+// CIR: %[[RET:.*]] = cir.load {{.*}} %[[RETVAL_CAST]] : !cir.ptr<!s32i>, !s32i
+// CIR: cir.return %[[RET]] : !s32i
+// LLVM-LABEL: define{{.*}} i32 @test_retval(i32 %{{.*}})
+// LLVM-DAG: alloca i32,{{.*}} addrspace(5)
+// LLVM-DAG: %[[RETVAL_ALLOCA:.*]] = alloca i32,{{.*}} addrspace(5)
+// LLVM-DAG: %[[RETVAL_CAST:.*]] = addrspacecast ptr addrspace(5) %[[RETVAL_ALLOCA]] to ptr
+// LLVM: store i32 {{.*}}, ptr %[[RETVAL_CAST]]
+// LLVM: %[[RET:.*]] = load i32, ptr %[[RETVAL_CAST]]
+// LLVM: ret i32 %[[RET]]
+// Note: OGCG optimizes away the store/load through retval for simple returns.
+// It stores and loads directly from the parameter, so we only check that
+// the retval addrspacecast is generated.
+// OGCG-LABEL: define{{.*}} i32 @test_retval(i32 noundef %{{.*}})
+// OGCG: %[[RETVAL:.*]] = alloca i32, align 4, addrspace(5)
+// OGCG: %[[RETVAL_CAST:.*]] = addrspacecast ptr addrspace(5) %[[RETVAL]] to ptr
+// OGCG: ret i32
+int test_retval(int x) {
+  return x;
+}
+

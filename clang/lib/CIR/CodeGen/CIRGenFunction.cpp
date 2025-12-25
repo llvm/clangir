@@ -275,9 +275,9 @@ void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
     if (!endsWithReturn(CurFuncDecl))
       ++NumReturnExprs;
   } else {
-    auto addr = emitAlloca("__retval", ty, loc, alignment);
-    FnRetAlloca = addr;
-    ReturnValue = Address(addr, alignment);
+    Address allocaAddr = Address::invalid();
+    ReturnValue = CreateMemTemp(ty, alignment, loc, "__retval", &allocaAddr);
+    FnRetAlloca = allocaAddr.getPointer();
 
     // Tell the epilog emitter to autorelease the result. We do this now so
     // that various specialized functions can suppress it during their IR -
@@ -481,7 +481,7 @@ cir::ReturnOp CIRGenFunction::LexicalScope::emitReturn(mlir::Location loc) {
 
   if (CGF.FnRetCIRTy.has_value()) {
     // If there's anything to return, load it first.
-    auto val = LoadOp::create(builder, loc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
+    auto val = builder.createLoad(loc, CGF.ReturnValue);
     return ReturnOp::create(builder, loc, llvm::ArrayRef(val.getResult()));
   }
   return ReturnOp::create(builder, loc);

@@ -241,8 +241,8 @@ void* test_builtin_mempcpy(void *dest, void *src, size_t n) {
   // CIR: [[CAST2:%.*]] = cir.cast bitcast [[DST]] : !cir.ptr<!void> -> !cir.ptr<!cir.ptr<!u8i>>
   // CIR: [[GEP:%.*]] = cir.ptr_stride [[CAST2]], [[NUM]] : (!cir.ptr<!cir.ptr<!u8i>>, !u64i) -> !cir.ptr<!cir.ptr<!u8i>>
   // CIR: [[CAST3:%.*]] = cir.cast bitcast [[ALLOCA]]
-  // CIR: cir.store [[GEP]], [[CAST3:%.*]]
-  // CIR-NEXT: [[LD:%.*]] = cir.load [[ALLOCA]]
+  // CIR: cir.store{{.*}} [[GEP]], [[CAST3:%.*]]
+  // CIR-NEXT: [[LD:%.*]] = cir.load{{.*}} [[ALLOCA]]
   // CIR-NEXT: cir.return [[LD]]
  
   // LLVM-LABEL: test_builtin_mempcpy

@@ -43,7 +43,7 @@ std::vector<const char*> test_nrvo() {
 // CIR:   cir.if %[[NOT_NRVO]] {
 // CIR:     cir.call @_ZNSt6vectorIPKcED1Ev(%[[RESULT]]) : (!cir.ptr<!rec_std3A3Avector3Cconst_char_2A3E>) -> ()
 // CIR:   }
-// CIR:   %[[RETVAL:.*]] = cir.load %[[RESULT]] : !cir.ptr<![[VEC]]>, ![[VEC]]
+// CIR:   %[[RETVAL:.*]] = cir.load{{.*}} %[[RESULT]] : !cir.ptr<![[VEC]]>, ![[VEC]]
 // CIR:   cir.return %[[RETVAL]] : ![[VEC]]
 
 // LLVM: define {{.*}} %[[VEC:.*]] @_Z9test_nrvov()

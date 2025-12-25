@@ -30,7 +30,7 @@ float32_t test_vrndns_f32(float32_t a) {
 // CIR: cir.store %arg0, [[ARG_SAVE0:%.*]] : !cir.float, !cir.ptr<!cir.float>
 // CIR: [[FUNC_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float
 // CIR: [[FUNC_RES:%.*]] = cir.call @vrndns_f32([[FUNC_ARG]]) : (!cir.float) -> !cir.float
-// CIR: cir.store [[FUNC_RES]], [[RET_P:%.*]] : !cir.float, !cir.ptr<!cir.float>
+// CIR: cir.store{{.*}} [[FUNC_RES]], [[RET_P:%.*]] : !cir.float, !cir.ptr<!cir.float>
 // CIR: [[RET_VAL:%.*]] = cir.load{{.*}} [[RET_P]] : !cir.ptr<!cir.float>, !cir.float
 // CIR: cir.return [[RET_VAL]] : !cir.float loc
 
@@ -50,7 +50,7 @@ float32x2_t test_vrnda_f32(float32x2_t a) {
 // CIR: cir.store %arg0, [[ARG_SAVE0:%.*]] :  !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
 // CIR: [[FUNC_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
 // CIR: [[FUNC_RES:%.*]] = cir.call @vrnda_f32([[FUNC_ARG]]) : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
-// CIR: cir.store [[FUNC_RES]], [[RET_P:%.*]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
+// CIR: cir.store{{.*}} [[FUNC_RES]], [[RET_P:%.*]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
 // CIR: [[RET_VAL:%.*]] = cir.load{{.*}} [[RET_P]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
 // CIR: cir.return [[RET_VAL]] : !cir.vector<!cir.float x 2>
 
