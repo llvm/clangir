@@ -3256,14 +3256,9 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
                                       mlir::Location Loc, const Twine &Name,
                                       Address *Alloca,
                                       mlir::OpBuilder::InsertPoint ip) {
-<<<<<<< HEAD
   Address Result =
       CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
                        /*ArraySize=*/nullptr, Alloca, ip);
-=======
-  Address Result = CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
-                                    /*ArraySize=*/nullptr, Alloca, ip);
->>>>>>> 3c92f1e83cb2 ([CIR][CIRGen] Handle AS in temp Allocas and override AS methods for AMDGPU)
   if (Ty->isConstantMatrixType()) {
     assert(0 && "NYI");
   }
