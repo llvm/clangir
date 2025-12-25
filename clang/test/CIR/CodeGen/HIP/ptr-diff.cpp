@@ -22,19 +22,19 @@ __device__ int ptr_diff() {
 }
 
 
-// CIR-DEVICE: %[[#LenLocalAddr:]] = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["len", init]
+// CIR-DEVICE: %[[#LenLocalAlloca:]] = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>, lang_address_space(offload_private)>, ["len", init]
+// CIR-DEVICE: %[[#LenLocalAddr:]] = cir.cast address_space %[[#LenLocalAlloca]] : !cir.ptr<!cir.ptr<!s8i>, lang_address_space(offload_private)> -> !cir.ptr<!cir.ptr<!s8i>>
 // CIR-DEVICE: %[[#GlobalPtr:]] = cir.get_global @_ZZ8ptr_diffvE5c_str : !cir.ptr<!cir.array<!s8i x 9>, lang_address_space(offload_constant)>
 // CIR-DEVICE: %[[#CastDecay:]] = cir.cast array_to_ptrdecay %[[#GlobalPtr]] : !cir.ptr<!cir.array<!s8i x 9>, lang_address_space(offload_constant)>
 // CIR-DEVICE: %[[#LenLocalAddrCast:]] = cir.cast bitcast %[[#LenLocalAddr]] : !cir.ptr<!cir.ptr<!s8i>> -> !cir.ptr<!cir.ptr<!s8i, lang_address_space(offload_constant)>>
 // CIR-DEVICE: cir.store align(8) %[[#CastDecay]], %[[#LenLocalAddrCast]] : !cir.ptr<!s8i, lang_address_space(offload_constant)>, !cir.ptr<!cir.ptr<!s8i, lang_address_space(offload_constant)>>
 // CIR-DEVICE: %[[#CStr:]] = cir.cast array_to_ptrdecay %[[#GlobalPtr]] : !cir.ptr<!cir.array<!s8i x 9>, lang_address_space(offload_constant)> -> !cir.ptr<!s8i, lang_address_space(offload_constant)>
-// CIR-DEVICE: %[[#LoadedLenAddr:]] = cir.load align(8) %[[#LenLocalAddr]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i> loc(#loc7)
+// CIR-DEVICE: %[[#LoadedLenAddr:]] = cir.load align(8) %[[#LenLocalAddr]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
 // CIR-DEVICE: %[[#AddrCast:]] = cir.cast address_space %[[#LoadedLenAddr]] : !cir.ptr<!s8i> -> !cir.ptr<!s8i, lang_address_space(offload_constant)>
 // CIR-DEVICE: %[[#DIFF:]] = cir.ptr_diff %[[#CStr]], %[[#AddrCast]] : !cir.ptr<!s8i, lang_address_space(offload_constant)>
 
 // LLVM-DEVICE: define dso_local i32 @_Z8ptr_diffv()
-// LLVM-DEVICE: %[[#GlobalPtrAddr:]] = alloca i32, i64 1, align 4, addrspace(5)
-// LLVM-DEVICE: %[[#GlobalPtrCast:]] = addrspacecast ptr addrspace(5) %[[#GlobalPtrAddr]] to ptr
+// LLVM-DEVICE: %[[#RetvalAddr:]] = alloca i32, i64 1, align 4, addrspace(5)
 // LLVM-DEVICE: %[[#LenLocalAddr:]] = alloca ptr, i64 1, align 8, addrspace(5)
 // LLVM-DEVICE: %[[#LenLocalAddrCast:]] = addrspacecast ptr addrspace(5) %[[#LenLocalAddr]] to ptr
 // LLVM-DEVICE: store ptr addrspace(4) @_ZZ8ptr_diffvE5c_str, ptr %[[#LenLocalAddrCast]], align 8

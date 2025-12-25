@@ -13,7 +13,8 @@ __global__ void fn() {
 
 // CIR: cir.global "private" internal dso_local lang_address_space(offload_local) @_ZZ2fnvE1j : !s32i
 // CIR: cir.func {{.*}} @_Z2fnv
-// CIR: [[Local:%[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init]
+// CIR: [[Local:%[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i, lang_address_space(offload_private)>, ["i", init]
+// CIR: [[LocalCast:%[0-9]+]] = cir.cast address_space [[Local]] : !cir.ptr<!s32i, lang_address_space(offload_private)> -> !cir.ptr<!s32i>
 // CIR: [[Shared:%[0-9]+]] = cir.get_global @_ZZ2fnvE1j : !cir.ptr<!s32i, lang_address_space(offload_local)>
-// CIR: [[Tmp:%[0-9]+]] = cir.load {{.*}} [[Local]] : !cir.ptr<!s32i>, !s32i
+// CIR: [[Tmp:%[0-9]+]] = cir.load {{.*}} [[LocalCast]] : !cir.ptr<!s32i>, !s32i
 // CIR: cir.store{{.*}} [[Tmp]], [[Shared]] : !s32i, !cir.ptr<!s32i, lang_address_space(offload_local)>

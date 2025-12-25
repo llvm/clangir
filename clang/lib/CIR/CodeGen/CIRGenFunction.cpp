@@ -295,10 +295,15 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(namedVar && "Needs a named decl");
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
-  addr = emitAlloca(namedVar->getName(), ty, loc, alignment);
-  auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
-  allocaOp.setInit(isParam);
-  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
+  Address allocaAddr = Address::invalid();
+  Address result =
+      CreateMemTemp(ty, alignment, loc, namedVar->getName(), &allocaAddr);
+  addr = result.getPointer();
+
+  if (auto allocaOp = result.getAllocaOp()) {
+    allocaOp.setInit(isParam);
+    allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
+  }
 
   symbolTable.insert(var, addr);
   return mlir::success();
@@ -314,9 +319,12 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  auto allocaOp = addrVal.getDefiningOp<cir::AllocaOp>();
-  allocaOp.setInit(isParam);
-  allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
+  // Use getAllocaOp() to walk through any casts (e.g., address space casts)
+  // that may wrap the alloca.
+  if (auto allocaOp = addr.getAllocaOp()) {
+    allocaOp.setInit(isParam);
+    allocaOp.setConstant(ty->isReferenceType() || ty.isConstQualified());
+  }
 
   symbolTable.insert(var, addrVal);
   return mlir::success();

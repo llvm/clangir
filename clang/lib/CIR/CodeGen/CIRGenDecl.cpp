@@ -342,12 +342,10 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
     emitExprAsInit(Init, &D, lv);
     // In case lv has uses it means we indeed initialized something
     // out of it while trying to build the expression, mark it as such.
-    auto addr = lv.getAddress().getPointer();
-    assert(addr && "Should have an address");
-    auto allocaOp = addr.getDefiningOp<cir::AllocaOp>();
-    assert(allocaOp && "Address should come straight out of the alloca");
-
-    allocaOp.setInit(!allocaOp.use_empty());
+    auto addr = lv.getAddress();
+    assert(addr.isValid() && "Should have a valid address");
+    if (auto allocaOp = addr.getAllocaOp())
+      allocaOp.setInit(!allocaOp.use_empty());
     return;
   }
 
