@@ -135,6 +135,9 @@ private:
           llvm::AttrBuilder builder(llvmFunc->getContext());
           builder.addUWTableAttr(convertUWTableKind(uwTableAttr.getValue()));
           llvmFunc->addFnAttrs(builder);
+        } else if (auto strAttr =
+                       mlir::dyn_cast<mlir::StringAttr>(attr.getValue())) {
+          llvmFunc->addFnAttr(attr.getName().str(), strAttr.getValue().str());
         }
       }
     }
