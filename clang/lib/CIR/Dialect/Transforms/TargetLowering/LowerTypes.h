@@ -62,8 +62,8 @@ public:
   const clang::TargetInfo &getTarget() const { return Target; }
   mlir::MLIRContext *getMLIRContext() { return mlirContext; }
 
-  /// Convert clang calling convention to LLVM callilng convention.
-  unsigned clangCallConvToLLVMCallConv(clang::CallingConv CC);
+  /// Convert CIR calling convention to LLVM calling convention.
+  unsigned cirCallConvToLLVMCallConv(cir::CallingConv CC);
 
   /// Free functions are functions that are compatible with an ordinary
   /// C function pointer type.
@@ -72,7 +72,9 @@ public:
   const LowerFunctionInfo &
   arrangeFreeFunctionCall(const mlir::OperandRange args, const FuncType fnType,
                           bool chainCall);
-  const LowerFunctionInfo &arrangeFreeFunctionType(FuncType FTy);
+  const LowerFunctionInfo &
+  arrangeFreeFunctionType(FuncType FTy,
+                          cir::CallingConv callingConv = cir::CallingConv::C);
 
   const LowerFunctionInfo &arrangeGlobalDeclaration(FuncOp fnOp);
 
@@ -87,7 +89,8 @@ public:
   const LowerFunctionInfo &
   arrangeLLVMFunctionInfo(mlir::Type resultType, cir::FnInfoOpts opts,
                           llvm::ArrayRef<mlir::Type> argTypes,
-                          RequiredArgs required);
+                          RequiredArgs required,
+                          cir::CallingConv callingConv = cir::CallingConv::C);
 
   /// Return the ABI-specific function type for a CIR function type.
   FuncType getFunctionType(const LowerFunctionInfo &FI);
