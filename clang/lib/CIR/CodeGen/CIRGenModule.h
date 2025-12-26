@@ -233,6 +233,15 @@ public:
   template <typename SomeDecl>
   void maybeHandleStaticInExternC(const SomeDecl *D, cir::GlobalOp GV);
 
+  /// Add a global value to the LLVMUsed list.
+  void addLLVMUsed(cir::GlobalOp GV);
+
+  /// Add a global value to the LLVMCompilerUsed list.
+  void addLLVMCompilerUsed(cir::GlobalOp GV);
+
+  /// Emit llvm.used and llvm.compiler.used globals.
+  void emitLLVMUsed();
+
   /// Tell the consumer that this variable has been instantiated.
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
 
@@ -602,6 +611,12 @@ public:
 
   /// A queue of (optional) vtables that may be emitted opportunistically.
   std::vector<const clang::CXXRecordDecl *> opportunisticVTables;
+
+  /// List of global values which are required to be present in the object file;
+  /// This is used for forcing visibility of symbols which may otherwise be
+  /// optimized out.
+  std::vector<cir::GlobalOp> LLVMUsed;
+  std::vector<cir::GlobalOp> LLVMCompilerUsed;
 
   mlir::Type getVTableComponentType();
   CIRGenVTables &getVTables() { return VTables; }
