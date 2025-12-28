@@ -61,7 +61,7 @@ struct CIRGenTypeCache {
 
   /// void* in address space 0
   cir::PointerType VoidPtrTy;
-  cir::PointerType UInt8PtrTy;
+  cir::PointerType UInt8PtrTy; // we should have this ptrTy with the target AS.
 
   /// void** in address space 0
   cir::PointerType VoidPtrPtrTy;
@@ -72,10 +72,10 @@ struct CIRGenTypeCache {
   cir::PointerType AllocaInt8PtrTy;
 
   /// void* in default globals address space
-  //   union {
-  //     cir::PointerType GlobalsVoidPtrTy;
-  //     cir::PointerType GlobalsInt8PtrTy;
-  //   };
+    union {
+      // cir::PointerType GlobalsVoidPtrTy;
+      cir::PointerType GlobalsUInt8PtrTy;
+    };
 
   /// void* in the address space for constant globals
   //   cir::PointerType ConstGlobalsPtrTy;

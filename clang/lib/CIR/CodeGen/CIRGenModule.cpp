@@ -119,6 +119,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   unsigned charSize = astContext.getTargetInfo().getCharWidth();
   unsigned intSize = astContext.getTargetInfo().getIntWidth();
   unsigned sizeTSize = astContext.getTargetInfo().getMaxPointerWidth();
+  mlir::ptr::MemorySpaceAttrInterface CIRGlobalsAS = cir::toCIRLangAddressSpaceAttr(
+      &getMLIRContext(), getGlobalVarAddressSpace(nullptr));
 
   auto typeSizeInfo =
       cir::TypeSizeInfoAttr::get(&mlirContext, charSize, intSize, sizeTSize);
@@ -168,7 +170,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   UInt8PtrPtrTy = builder.getPointerTo(UInt8PtrTy);
   AllocaInt8PtrTy = UInt8PtrTy;
   AllocaVoidPtrTy = VoidPtrTy;
-  // TODO: GlobalsInt8PtrTy
+  GlobalsUInt8PtrTy = builder.getPointerTo(UInt8Ty, CIRGlobalsAS);
   // TODO: ConstGlobalsPtrTy
   CIRAllocaAddressSpace = getTargetCIRGenInfo().getCIRAllocaAddressSpace();
 
@@ -823,6 +825,12 @@ cir::GlobalOp CIRGenModule::createGlobalOp(
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
+    mlir::ptr::MemorySpaceAttrInterface cirAS =
+        addrSpace
+            ? addrSpace
+            : toCIRLangAddressSpaceAttr(&cgm.getMLIRContext(),
+                                        cgm.getGlobalVarAddressSpace(nullptr));
+
     // Some global emissions are triggered while emitting a function, e.g.
     // void s() { const char *s = "yolo"; ... }
     //
@@ -834,7 +842,7 @@ cir::GlobalOp CIRGenModule::createGlobalOp(
     builder.clearInsertionPoint();
 
     g = cir::GlobalOp::create(builder, loc, name, t, isConstant, linkage,
-                              addrSpace);
+                              cirAS);
 
     // Manually insert at the correct location
     if (curCGF) {

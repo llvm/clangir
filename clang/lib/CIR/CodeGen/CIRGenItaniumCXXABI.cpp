@@ -1562,8 +1562,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(mlir::Location loc,
   if (OldGV && !OldGV.isDeclaration()) {
     assert(!OldGV.hasAvailableExternallyLinkage() &&
            "available_externally typeinfos not yet implemented");
-    return CGM.getBuilder().getGlobalViewAttr(CGM.getBuilder().getUInt8PtrTy(),
-                                              OldGV);
+    return CGM.getBuilder().getGlobalViewAttr(CGM.GlobalsUInt8PtrTy, OldGV);
   }
 
   // Check if there is already an external RTTI descriptor for this type.
@@ -1718,8 +1717,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   if (CGM.getItaniumVTableContext().isRelativeLayout())
     llvm_unreachable("NYI");
   if (!VTable) {
-    VTable = CGM.getOrInsertGlobal(loc, VTableName,
-                                   CGM.getBuilder().getUInt8PtrTy());
+    VTable = CGM.getOrInsertGlobal(loc, VTableName, CGM.GlobalsUInt8PtrTy);
   }
 
   if (cir::MissingFeatures::setDSOLocal())
@@ -1733,8 +1731,8 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
     SmallVector<mlir::Attribute, 4> offsets{
         CGM.getBuilder().getI32IntegerAttr(2)};
     auto indices = mlir::ArrayAttr::get(builder.getContext(), offsets);
-    field = CGM.getBuilder().getGlobalViewAttr(CGM.getBuilder().getUInt8PtrTy(),
-                                               VTable, indices);
+    field = CGM.getBuilder().getGlobalViewAttr(CGM.GlobalsUInt8PtrTy, VTable,
+                                               indices);
   }
 
   assert(field && "expected attribute");
@@ -1942,7 +1940,7 @@ CIRGenItaniumRTTIBuilder::GetAddrOfExternalRTTIDescriptor(mlir::Location loc,
     // From LLVM codegen => Note for the future: If we would ever like to do
     // deferred emission of RTTI, check if emitting vtables opportunistically
     // need any adjustment.
-    GV = CIRGenModule::createGlobalOp(CGM, loc, Name, builder.getUInt8PtrTy(),
+    GV = CIRGenModule::createGlobalOp(CGM, loc, Name, CGM.GlobalsUInt8PtrTy,
                                       /*isConstant=*/true);
     const CXXRecordDecl *RD = Ty->getAsCXXRecordDecl();
     CGM.setGVProperties(GV, RD);
@@ -1953,7 +1951,7 @@ CIRGenItaniumRTTIBuilder::GetAddrOfExternalRTTIDescriptor(mlir::Location loc,
       llvm_unreachable("NYI");
   }
 
-  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);
+  return builder.getGlobalViewAttr(CGM.GlobalsUInt8PtrTy, GV);
 }
 
 mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
@@ -1978,8 +1976,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
     // for global pointers.  This is very ARM64-specific.
     llvm_unreachable("NYI");
   } else {
-    TypeNameField =
-        builder.getGlobalViewAttr(builder.getUInt8PtrTy(), TypeName);
+    TypeNameField = builder.getGlobalViewAttr(CGM.GlobalsUInt8PtrTy, TypeName);
   }
   Fields.push_back(TypeNameField);
 
@@ -2144,7 +2141,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   assert(!cir::MissingFeatures::setDSOLocal());
   CIRGenModule::setInitializer(GV, init);
 
-  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);
+  return builder.getGlobalViewAttr(CGM.GlobalsUInt8PtrTy, GV);
   ;
 }
 
@@ -2606,7 +2603,7 @@ static cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
   //                      std::ptrdiff_t src2dst_offset);
 
   mlir::Type VoidPtrTy = CGF.VoidPtrTy;
-  mlir::Type RTTIPtrTy = CGF.getBuilder().getUInt8PtrTy();
+  mlir::Type RTTIPtrTy = CGF.GlobalsUInt8PtrTy;
   mlir::Type PtrDiffTy = CGF.convertType(CGF.getContext().getPointerDiffType());
 
   // TODO(cir): mark the function as nowind readonly.
@@ -2704,9 +2701,10 @@ static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
 
   mlir::Value ExpectedVPtr =
       ABI.getVTableAddressPoint(BaseSubobject(SrcDecl, *Offset), DestDecl);
+  // mlir::ptr::MemorySpaceAttrInterface srcAS =
+  //     mlir::dyn_cast<cir::PointerType>(Src.getPointer().getType())
+  //         .getAddrSpace();
 
-  // TODO(cir): handle address space here.
-  assert(!cir::MissingFeatures::addressSpace());
   mlir::Type VPtrTy = ExpectedVPtr.getType();
   mlir::Type VPtrPtrTy = builder.getPointerTo(VPtrTy);
   Address SrcVPtrPtr(builder.createBitcast(Src.getPointer(), VPtrPtrTy),
@@ -2723,9 +2721,7 @@ static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
     if (Offset->isZero())
       return builder.createBitcast(Src.getPointer(), DestCIRTy);
 
-    // TODO(cir): handle address space here.
-    assert(!cir::MissingFeatures::addressSpace());
-    mlir::Type U8PtrTy = builder.getPointerTo(builder.getUInt8Ty());
+    mlir::Type U8PtrTy = builder.getPointerTo(builder.getUInt8Ty(), srcAS);
 
     mlir::Value StrideToApply =
         builder.getConstInt(Loc, builder.getUInt64Ty(), Offset->getQuantity());
