@@ -501,10 +501,11 @@ decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
     return cir::VectorType::get(context, elementType, numElements);
   }
   case IITDescriptor::Pointer: {
-    mlir::Type pointee = {};
-    auto addrSpace =
-        static_cast<cir::AddressSpace>(descriptor.Pointer_AddressSpace);
-    return cir::PointerType::get(pointee, addrSpace);
+    mlir::ptr::MemorySpaceAttrInterface addrSpace =
+        cir::toCIRLangAddressSpaceAttr(
+            context,
+            static_cast<clang::LangAS>(descriptor.Pointer_AddressSpace));
+    return cir::PointerType::get({}, addrSpace);
   }
   case IITDescriptor::Struct:
     llvm_unreachable("NYI: IITDescriptor::Struct");
@@ -577,16 +578,16 @@ static mlir::Value getCorrectedPtr(mlir::Value argValue, mlir::Type expectedTy,
                                    CIRGenBuilderTy &builder) {
   mlir::Type argType = argValue.getType();
   if (isa<cir::PointerType>(argType)) {
-    auto ptrType = mlir::cast<cir::PointerType>(argType);
+    auto ptrType = mlir::dyn_cast<cir::PointerType>(argType);
+    assert(ptrType && "expected pointer type");
     auto expectedPtrType = mlir::cast<cir::PointerType>(expectedTy);
-    if (ptrType.getPointee() != expectedPtrType.getPointee()) {
-      if (expectedPtrType.getAddrSpace() != ptrType.getAddrSpace()) {
-        auto newPtrType = cir::PointerType::get(ptrType.getPointee(),
-                                                expectedPtrType.getAddrSpace());
-        return builder.createAddrSpaceCast(argValue, newPtrType);
-      }
-    } else {
-      llvm_unreachable("NYI");
+    assert(ptrType.getPointee() != expectedPtrType.getPointee() &&
+           "types should not match");
+
+    if (expectedPtrType.getAddrSpace() != ptrType.getAddrSpace()) {
+      auto newPtrType = cir::PointerType::get(ptrType.getPointee(),
+                                              expectedPtrType.getAddrSpace());
+      return builder.createAddrSpaceCast(argValue, newPtrType);
     }
   } else {
     llvm_unreachable("NYI");
