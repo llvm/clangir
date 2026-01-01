@@ -2064,26 +2064,20 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
   } else if (mlir::isa<cir::OpaqueType>(op.getType())) {
     mlir::Attribute valAttr = op.getValue();
     mlir::Type llvmTy = getTypeConverter()->convertType(op.getType());
-    // If the attribute is ZeroAttr or UndefAttr, handle it:
-    if (mlir::isa<cir::ZeroAttr, cir::UndefAttr>(valAttr)) {
+    // Handle attribute ZeroAttr (UndefAttr may also handled here)
+    if (mlir::isa<cir::ZeroAttr>(valAttr)) {
       // Handle target-ext type
       if (auto tgtExtTy =
               llvm::dyn_cast_or_null<mlir::LLVM::LLVMTargetExtType>(llvmTy)) {
         // Produce a real zero constant if the target-ext type allows it
         if (tgtExtTy.hasProperty(mlir::LLVM::LLVMTargetExtType::HasZeroInit)) {
-          if (mlir::isa<cir::ZeroAttr>(valAttr)) {
-            auto zero =
-                mlir::LLVM::ZeroOp::create(rewriter, op.getLoc(), llvmTy);
-            rewriter.replaceOp(op, zero.getResult());
-            return mlir::success();
-          }
-          // Fallback: emit an undef of that exact llvm type so users have
-          // matching types.
-          auto undef =
-              mlir::LLVM::UndefOp::create(rewriter, op.getLoc(), llvmTy);
-          rewriter.replaceOp(op, undef.getResult());
+          auto zero = mlir::LLVM::ZeroOp::create(rewriter, op.getLoc(), llvmTy);
+          rewriter.replaceOp(op, zero.getResult());
           return mlir::success();
         }
+        return op.emitError()
+               << "non-zero constant for target extension type " << llvmTy
+               << " is supported but has no init property";
       } else {
         // Target ext type does not support zero init — use `ptr null` of
         // the target-ext type (so users still have the expected type).

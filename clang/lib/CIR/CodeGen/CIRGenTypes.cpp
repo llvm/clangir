@@ -516,18 +516,14 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
       ResultType = cir::OpaqueType::get(
           Builder.getContext(),
           mlir::StringAttr::get(Builder.getContext(),
-                                cir::OpaqueType::getEventTag()));
+                                cir::OpaqueType::getOpenCLEventTag()));
       break;
     case BuiltinType::OCLSampler:
     case BuiltinType::OCLClkEvent:
     case BuiltinType::OCLQueue:
+    case BuiltinType::OCLReserveID:
       llvm_unreachable("NYI");
       break;
-    case BuiltinType::OCLReserveID:
-      ResultType = cir::RecordType::get(
-          &getMLIRContext(), {},
-          mlir::StringAttr::get(&getMLIRContext(), "ocl_reserve_id"), false,
-          false, cir::RecordType::Struct);
 
     case BuiltinType::SveInt8:
     case BuiltinType::SveUint8:

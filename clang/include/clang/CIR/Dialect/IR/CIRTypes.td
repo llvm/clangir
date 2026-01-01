@@ -772,7 +772,9 @@ def CIR_OCLOpaqueType : CIR_Type<"Opaque", "opaque"> {
     Values of this type typically appear only through pointer types.
 
     Example:
-      !cir.ptr<!cir.opaque<"event">, addrspace(1)>
+    ```mlir
+      !cir.opaque<"event">
+    ```
   }];
 
   let parameters = (ins "mlir::StringAttr":$tag);
@@ -784,7 +786,7 @@ def CIR_OCLOpaqueType : CIR_Type<"Opaque", "opaque"> {
   ];
 
   let extraClassDeclaration = [{
-    static llvm::StringRef getEventTag() { return "event"; }
+    static llvm::StringRef getOpenCLEventTag() { return "event"; }
   }];
 
   let assemblyFormat = [{

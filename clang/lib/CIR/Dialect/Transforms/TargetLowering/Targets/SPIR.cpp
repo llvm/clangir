@@ -63,7 +63,7 @@ public:
   }
 
   mlir::Type getOpaqueType(cir::OpaqueType type) const override {
-    if (type.getTag() != cir::OpaqueType::getEventTag())
+    if (type.getTag() != cir::OpaqueType::getOpenCLEventTag())
       llvm_unreachable("NYI");
 
     return mlir::LLVM::LLVMTargetExtType::get(type.getContext(),
