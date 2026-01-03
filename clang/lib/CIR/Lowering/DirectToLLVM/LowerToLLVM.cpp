@@ -2079,9 +2079,9 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
                << "non-zero constant for target extension type " << llvmTy
                << " is supported but has no init property";
       } else {
-        // Target ext type does not support zero init — use `ptr null` of
-        // the target-ext type (so users still have the expected type).
-        auto ptrTy = mlir::LLVM::LLVMPointerType::get(getContext());
+        // NOTE: Ref CGOpenCLRuntime::convertOpenCLSpecificType
+        // Targets without `getOpenCLType` overrides use pointer types.
+        auto ptrTy = mlir::cast<mlir::LLVM::LLVMPointerType>(llvmTy);
         auto nullPtr = mlir::LLVM::ZeroOp::create(rewriter, op.getLoc(), ptrTy);
 
         rewriter.replaceOp(op, nullPtr.getResult());

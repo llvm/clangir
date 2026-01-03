@@ -64,6 +64,8 @@ public:
   }
 
   mlir::Type getOpaqueType(cir::OpaqueType type) const override {
+    // TODO: Should use the address space according to `type`.
+    // Ref: CGOpenCLRuntime::convertOpenCLSpecificType
     assert(!cir::MissingFeatures::addressSpace());
     return mlir::LLVM::LLVMPointerType::get(type.getContext());
   }
