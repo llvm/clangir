@@ -22,6 +22,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/Math/IR/Math.h"
@@ -95,7 +96,7 @@ struct ConvertCIRToMLIRPass
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                     mlir::scf::SCFDialect, mlir::math::MathDialect,
                     mlir::ptr::PtrDialect, mlir::vector::VectorDialect,
-                    mlir::LLVM::LLVMDialect>();
+                    mlir::LLVM::LLVMDialect, mlir::gpu::GPUDialect>();
   }
   void runOnOperation() final;
 
@@ -740,6 +741,25 @@ class CIRFuncOpLowering : public mlir::OpConversionPattern<cir::FuncOp> {
 public:
   using OpConversionPattern<cir::FuncOp>::OpConversionPattern;
 
+  void lowerFuncOpenCLKernelMetadataToMLIR(
+      cir::ExtraFuncAttributesAttr extraAttr,
+      SmallVectorImpl<mlir::NamedAttribute> &result) const {
+    if (extraAttr.getElements().get(cir::OpenCLKernelAttr::getMnemonic()))
+      result.push_back(
+          mlir::NamedAttribute(mlir::gpu::GPUDialect::getKernelFuncAttrName(),
+                               mlir::UnitAttr::get(getContext())));
+  }
+
+  void lowerFuncAttributesToMLIR(
+      cir::FuncOp func, SmallVectorImpl<mlir::NamedAttribute> &result) const {
+    if (auto symVisibilityAttr = func.getSymVisibilityAttr())
+      result.push_back(
+          mlir::NamedAttribute("sym_visibility", symVisibilityAttr));
+
+    if (auto extraAttr = func.getExtraAttrs())
+      lowerFuncOpenCLKernelMetadataToMLIR(extraAttr, result);
+  }
+
   mlir::LogicalResult
   matchAndRewrite(cir::FuncOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -777,11 +797,8 @@ public:
         signatureConversion.addInputs(argType.index(), convertedType);
       }
 
-      SmallVector<mlir::NamedAttribute, 2> passThroughAttrs;
-
-      if (auto symVisibilityAttr = op.getSymVisibilityAttr())
-        passThroughAttrs.push_back(
-            rewriter.getNamedAttr("sym_visibility", symVisibilityAttr));
+      SmallVector<mlir::NamedAttribute, 4> passThroughAttrs;
+      lowerFuncAttributesToMLIR(op, passThroughAttrs);
 
       mlir::Type resultType =
           getTypeConverter()->convertType(fnType.getReturnType());
