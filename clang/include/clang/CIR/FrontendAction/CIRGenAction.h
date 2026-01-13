@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CIR_CIRGENACTION_H
-#define LLVM_CLANG_CIR_CIRGENACTION_H
+#ifndef LLVM_CLANG_CIR_CIRCOMBINEACTION_H
+#define LLVM_CLANG_CIR_CIRCOMBINEACTION_H
 
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/FrontendAction.h"
@@ -48,8 +48,6 @@ private:
   std::unique_ptr<llvm::Module> llvmModule;
 
   mlir::MLIRContext *mlirContext;
-
-  mlir::OwningOpRef<mlir::ModuleOp> loadModule(llvm::MemoryBufferRef mbRef);
 
 protected:
   CIRGenAction(OutputType action, mlir::MLIRContext *_MLIRContext = nullptr);

@@ -30,7 +30,7 @@ def CIR_CUDAKernelNameAttr : CIR_Attr<"CUDAKernelName", "cu.kernel_name"> {
     names, we must record the corresponding device-side name for a stub.
   }];
 
-  let parameters = (ins "std::string":$kernel_name);
+  let parameters = (ins StringRefParameter<"">:$kernel_name);
   let assemblyFormat = "`<` $kernel_name `>`";
 }
 
@@ -65,7 +65,7 @@ def CIR_CUDABinaryHandleAttr : CIR_Attr<
     and then generate various registration functions.
   }];
 
-  let parameters = (ins "std::string":$name);
+  let parameters = (ins StringRefParameter<"">:$name);
   let assemblyFormat = "`<` $name `>`";
 }
 

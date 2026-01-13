@@ -19,25 +19,38 @@ Action::~Action() = default;
 
 const char *Action::getClassName(ActionClass AC) {
   switch (AC) {
-  case InputClass: return "input";
-  case BindArchClass: return "bind-arch";
+  case InputClass:
+    return "input";
+  case BindArchClass:
+    return "bind-arch";
   case OffloadClass:
     return "offload";
-  case PreprocessJobClass: return "preprocessor";
-  case PrecompileJobClass: return "precompiler";
+  case PreprocessJobClass:
+    return "preprocessor";
+  case PrecompileJobClass:
+    return "precompiler";
   case ExtractAPIJobClass:
     return "api-extractor";
   case AnalyzeJobClass:
     return "analyzer";
-  case CompileJobClass: return "compiler";
-  case BackendJobClass: return "backend";
-  case AssembleJobClass: return "assembler";
-  case IfsMergeJobClass: return "interface-stub-merger";
-  case LinkJobClass: return "linker";
-  case LipoJobClass: return "lipo";
-  case DsymutilJobClass: return "dsymutil";
-  case VerifyDebugInfoJobClass: return "verify-debug-info";
-  case VerifyPCHJobClass: return "verify-pch";
+  case CompileJobClass:
+    return "compiler";
+  case BackendJobClass:
+    return "backend";
+  case AssembleJobClass:
+    return "assembler";
+  case IfsMergeJobClass:
+    return "interface-stub-merger";
+  case LinkJobClass:
+    return "linker";
+  case LipoJobClass:
+    return "lipo";
+  case DsymutilJobClass:
+    return "dsymutil";
+  case VerifyDebugInfoJobClass:
+    return "verify-debug-info";
+  case VerifyPCHJobClass:
+    return "verify-pch";
   case OffloadBundlingJobClass:
     return "clang-offload-bundler";
   case OffloadUnbundlingJobClass:
@@ -54,6 +67,10 @@ const char *Action::getClassName(ActionClass AC) {
     return "binary-translator";
   case ObjcopyJobClass:
     return "objcopy";
+  case CIRSplitJobClass:
+    return "splitcir";
+  case CIRCombineJobClass:
+    return "comebinecir";
   }
 
   llvm_unreachable("invalid class");
@@ -64,16 +81,25 @@ void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch,
   // Offload action set its own kinds on their dependences.
   if (Kind == OffloadClass)
     return;
+
   // Unbundling actions use the host kinds.
   if (Kind == OffloadUnbundlingJobClass)
     return;
 
-  assert((OffloadingDeviceKind == OKind || OffloadingDeviceKind == OFK_None) &&
+  assert((Kind == CIRCombineJobClass || OffloadingDeviceKind == OKind ||
+          OffloadingDeviceKind == OFK_None) &&
          "Setting device kind to a different device??");
   assert(!ActiveOffloadKindMask && "Setting a device kind in a host action??");
   OffloadingDeviceKind = OKind;
   OffloadingArch = OArch;
   OffloadingToolChain = OToolChain;
+
+  if (Kind == CIRCombineJobClass) {
+    auto *CIRCombineAction = dyn_cast<CombineCIRJobAction>(this);
+    CIRCombineAction->getDeviceAction()->propagateDeviceOffloadInfo(
+        OffloadingDeviceKind, OArch, OToolChain);
+    return;
+  }
 
   for (auto *A : Inputs)
     A->propagateDeviceOffloadInfo(OffloadingDeviceKind, OArch, OToolChain);
@@ -83,11 +109,17 @@ void Action::propagateHostOffloadInfo(unsigned OKinds, const char *OArch) {
   // Offload action set its own kinds on their dependences.
   if (Kind == OffloadClass)
     return;
-
-  assert(OffloadingDeviceKind == OFK_None &&
+  assert((Kind == CIRCombineJobClass || OffloadingDeviceKind == OFK_None) &&
          "Setting a host kind in a device action.");
   ActiveOffloadKindMask |= OKinds;
   OffloadingArch = OArch;
+
+  if (Kind == CIRCombineJobClass) {
+    auto *CIRCombineAction = dyn_cast<CombineCIRJobAction>(this);
+    CIRCombineAction->getHostAction()->propagateHostOffloadInfo(
+        ActiveOffloadKindMask, OArch);
+    return;
+  }
 
   for (auto *A : Inputs)
     A->propagateHostOffloadInfo(ActiveOffloadKindMask, OArch);
@@ -144,10 +176,9 @@ std::string Action::getOffloadingKindPrefix() const {
 
 /// Return a string that can be used as prefix in order to generate unique files
 /// for each offloading kind.
-std::string
-Action::GetOffloadingFileNamePrefix(OffloadKind Kind,
-                                    StringRef NormalizedTriple,
-                                    bool CreatePrefixForHost) {
+std::string Action::GetOffloadingFileNamePrefix(OffloadKind Kind,
+                                                StringRef NormalizedTriple,
+                                                bool CreatePrefixForHost) {
   // Don't generate prefix for host actions unless required.
   if (!CreatePrefixForHost && (Kind == OFK_None || Kind == OFK_Host))
     return {};
@@ -217,8 +248,9 @@ OffloadAction::OffloadAction(const DeviceDependences &DDeps, types::ID Ty)
     OffloadingArch = BArchs.front();
 
   // Propagate info to the dependencies.
-  for (unsigned i = 0, e = getInputs().size(); i != e; ++i)
+  for (unsigned i = 0, e = getInputs().size(); i != e; ++i) {
     getInputs()[i]->propagateDeviceOffloadInfo(OKinds[i], BArchs[i], OTCs[i]);
+  }
 }
 
 OffloadAction::OffloadAction(const HostDependence &HDep,
@@ -364,7 +396,7 @@ PrecompileJobAction::PrecompileJobAction(Action *Input, types::ID OutputType)
 PrecompileJobAction::PrecompileJobAction(ActionClass Kind, Action *Input,
                                          types::ID OutputType)
     : JobAction(Kind, Input, OutputType) {
-  assert(isa<PrecompileJobAction>((Action*)this) && "invalid action kind");
+  assert(isa<PrecompileJobAction>((Action *)this) && "invalid action kind");
 }
 
 void ExtractAPIJobAction::anchor() {}
@@ -447,6 +479,36 @@ void OffloadPackagerJobAction::anchor() {}
 OffloadPackagerJobAction::OffloadPackagerJobAction(ActionList &Inputs,
                                                    types::ID Type)
     : JobAction(OffloadPackagerJobClass, Inputs, Type) {}
+
+void CombineCIRJobAction::anchor() {}
+
+CombineCIRJobAction::CombineCIRJobAction(
+    const ToolChain *HostToolChain, const ToolChain *DeviceToolChain,
+    Action *HostAction, Action *DeviceAction, char *HostBoundArch,
+    const char *DeviceBoundArch, unsigned HostOffloadKind, types::ID Type,
+    OffloadKind OffloadDeviceKind)
+    : JobAction(CIRCombineJobClass, {HostAction, DeviceAction}, Type),
+      HostToolChain(HostToolChain), DeviceToolChain(DeviceToolChain),
+      HostAction(HostAction), DeviceAction(DeviceAction),
+      HostBoundArch(HostBoundArch), DeviceBoundArch(DeviceBoundArch),
+      HostOffloadKind(HostOffloadKind) {
+
+  OffloadingDeviceKind = OffloadDeviceKind;
+  ActiveOffloadKindMask = 0;
+
+  // Propagate info to the dependencies.
+  // NOTE: THIS IS LIKELY THE LAST STEP OF MAKING THE -print-passes-work
+  // properly. I need to extent the constructors and get access to the
+  // toolchains
+}
+
+void SplitCIRJobAction::anchor() {}
+
+SplitCIRJobAction::SplitCIRJobAction(Action *Input, bool isHost, types::ID Type,
+                                     OffloadKind Kind)
+    : JobAction(CIRSplitJobClass, Input, Type), isHost(isHost) {
+  OffloadingDeviceKind = Kind;
+}
 
 void LinkerWrapperJobAction::anchor() {}
 

@@ -2643,6 +2643,49 @@ LogicalResult cir::VTTAddrPointOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// Offload container
+//===----------------------------------------------------------------------===//
+
+std::optional<mlir::ModuleOp> cir::OffloadContainerOp::getHostModule() {
+  if (getBody().empty())
+    return std::nullopt;
+
+  for (mlir::Operation &op : getBody().front()) {
+    auto mod = llvm::dyn_cast<mlir::ModuleOp>(op);
+    if (!mod)
+      continue;
+    if (auto name = mod.getSymNameAttr(); name && name.getValue() == "host")
+      return mod;
+  }
+  return std::nullopt;
+}
+
+std::optional<mlir::ModuleOp> cir::OffloadContainerOp::getDeviceModule() {
+  if (getBody().empty())
+    return std::nullopt;
+
+  for (mlir::Operation &op : getBody().front()) {
+    auto mod = llvm::dyn_cast<mlir::ModuleOp>(op);
+    if (!mod)
+      continue;
+    if (auto name = mod.getSymNameAttr(); name && name.getValue() == "device")
+      return mod;
+  }
+  return std::nullopt;
+}
+
+mlir::LogicalResult cir::OffloadContainerOp::verify() {
+  auto host = getHostModule();
+  auto dev = getDeviceModule();
+
+  if (!host)
+    return emitOpError() << "expects nested module @host";
+  if (!dev)
+    return emitOpError() << "expects nested module @device";
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // FuncOp
 //===----------------------------------------------------------------------===//
 
@@ -3798,29 +3841,45 @@ LogicalResult cir::ConstArrayAttr::verify(
     return {};
   }
 
-  // ArrayAttrrs have per-element type, not the type of the array...
-  if (llvm::dyn_cast<ArrayAttr>(*resultVal)) {
-    // Array has implicit type: infer from const array type.
-    if (parser.parseOptionalColon().failed()) {
-      resultTy = type;
-    } else { // Array has explicit type: parse it.
-      resultTy = ::mlir::FieldParser<::mlir::Type>::parse(parser);
-      if (failed(resultTy)) {
-        parser.emitError(
-            parser.getCurrentLocation(),
-            "failed to parse ConstArrayAttr parameter 'type' which is "
-            "to be a `::mlir::Type`");
-        return {};
-      }
+  // Case 1: array attribute => infer from outer `type` (since printer never
+  // prints `: ty`).
+  if (llvm::isa<mlir::ArrayAttr>(*resultVal)) {
+    resultTy = type;
+    if (!type) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "missing outer type for ConstArrayAttr");
+      return {};
     }
-  } else {
-    assert(mlir::isa<TypedAttr>(*resultVal) && "IDK");
-    auto ta = mlir::cast<TypedAttr>(*resultVal);
+  }
+  // Case 2: string literal => also infer from outer `type`.
+  else if (llvm::isa<mlir::StringAttr>(*resultVal)) {
+    resultTy = type;
+    if (!type) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "expected outer type declaration for string literal");
+      return {};
+    }
+  }
+  // Case 3: typed attribute => use its type, but allow fallback to outer type
+  // if NoneType.
+  else {
+    auto ta = llvm::dyn_cast<mlir::TypedAttr>(*resultVal);
+    if (!ta) {
+      parser.emitError(
+          parser.getCurrentLocation(),
+          "expected array, string, or typed attribute for ConstArrayAttr");
+      return {};
+    }
     resultTy = ta.getType();
     if (mlir::isa<mlir::NoneType>(resultTy.value())) {
-      parser.emitError(parser.getCurrentLocation(),
-                       "expected type declaration for string literal");
-      return {};
+      // For safety: prefer outer type if provided.
+      if (type)
+        resultTy = type;
+      else {
+        parser.emitError(parser.getCurrentLocation(),
+                         "expected type declaration for attribute");
+        return {};
+      }
     }
   }
 

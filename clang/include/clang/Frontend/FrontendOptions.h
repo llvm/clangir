@@ -68,6 +68,10 @@ enum ActionKind {
   /// Generate CIR, bud don't emit anything.
   EmitCIROnly,
 
+  /// Combine multiple CIR modules (e.g. host and device) into a single
+  /// container
+  CIRCombine,
+
   /// Emit a .mlir file
   EmitMLIR,
 
@@ -413,6 +417,11 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned UseClangIRPipeline : 1;
 
+  /// Use CIR-based offload pipeline (combine/split/fatbin/embed) when compiling
+  /// offload code.
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned UseClangIROffloadPipeline : 1;
+
   /// Lower directly from ClangIR to LLVM
   unsigned ClangIRDirectLowering : 1;
 
@@ -454,6 +463,11 @@ public:
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
   std::string ClangIRFile;
+  std::string CIRHostInput;
+  std::string CIRDeviceInput;
+  bool EmitSplit;
+  std::string CIRHostOutput;
+  std::string CIRDeviceOutput;
 
   frontend::MLIRDialectKind MLIRTargetDialect = frontend::MLIR_CORE;
 
@@ -532,7 +546,6 @@ public:
   /// should only be used for debugging and experimental features.
   std::vector<std::string> MLIRArgs;
 
-
   /// File name of the file that will provide record layouts
   /// (in the format produced by -fdump-record-layouts).
   std::string OverrideRecordLayoutsFile;
@@ -587,7 +600,7 @@ public:
         ClangIRVerifyDiags(false), ClangIRLifetimeCheck(false),
         ClangIRIdiomRecognizer(false), ClangIRLibOpt(false),
         ClangIRCallConvLowering(true), ClangIREnableMem2Reg(false),
-        ClangIRAnalysisOnly(false), EmitClangIRFile(false),
+        ClangIRAnalysisOnly(false), EmitClangIRFile(false), EmitSplit(false),
         TimeTraceGranularity(500), TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file

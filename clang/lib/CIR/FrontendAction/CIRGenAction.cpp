@@ -7,8 +7,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CIR/FrontendAction/CIRGenAction.h"
+#include "mlir/Bytecode/BytecodeReader.h"
+#include "mlir/Bytecode/BytecodeWriter.h"
+#include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OperationSupport.h"
@@ -195,99 +201,62 @@ public:
     llvm_unreachable("NYI");
   }
 
-  void HandleTranslationUnit(ASTContext &C) override {
-    llvm::TimeTraceScope Scope("CIR Gen");
+  void SetupCirPipelineAndExecute(mlir::ModuleOp MlirMod,
+                                  mlir::MLIRContext &MlirCtx, ASTContext &C) {
+    // Sanitize passes options. MLIR uses spaces between pass options
+    // and since that's hard to fly in clang, we currently use ';'.
+    std::string LifetimeOpts, IdiomRecognizerOpts, LibOptOpts;
+    if (FeOptions.ClangIRLifetimeCheck)
+      LifetimeOpts = sanitizePassOptions(FeOptions.ClangIRLifetimeCheckOpts);
+    if (FeOptions.ClangIRIdiomRecognizer)
+      IdiomRecognizerOpts =
+          sanitizePassOptions(FeOptions.ClangIRIdiomRecognizerOpts);
+    if (FeOptions.ClangIRLibOpt)
+      LibOptOpts = sanitizePassOptions(FeOptions.ClangIRLibOptOpts);
 
-    // Note that this method is called after `HandleTopLevelDecl` has already
-    // ran all over the top level decls. Here clang mostly wraps defered and
-    // global codegen, followed by running CIR passes.
-    Gen->HandleTranslationUnit(C);
+    bool EnableCcLowering =
+        FeOptions.ClangIRCallConvLowering &&
+        !(Action == CIRGenAction::OutputType::EmitMLIR &&
+          FeOptions.MLIRTargetDialect == frontend::MLIR_CIR);
+    bool FlattenCir =
+        Action == CIRGenAction::OutputType::EmitMLIR &&
+        FeOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT;
 
-    if (!FeOptions.ClangIRDisableCIRVerifier)
-      if (!Gen->verifyModule()) {
-        llvm::report_fatal_error(
-            "CIR codegen: module verification error before running CIR passes");
-        return;
-      }
+    // Setup and run CIR pipeline.
+    std::string PassOptParsingFailure;
+    if (runCIRToCIRPasses(
+            MlirMod, &MlirCtx, C, !FeOptions.ClangIRDisableCIRVerifier,
+            FeOptions.ClangIRLifetimeCheck, LifetimeOpts,
+            FeOptions.ClangIRIdiomRecognizer, IdiomRecognizerOpts,
+            FeOptions.ClangIRLibOpt, LibOptOpts, PassOptParsingFailure,
+            CodeGenOpts.OptimizationLevel > 0, FlattenCir,
+            !FeOptions.ClangIRDirectLowering, EnableCcLowering,
+            FeOptions.ClangIREnableMem2Reg)
+            .failed()) {
+      if (!PassOptParsingFailure.empty()) {
+        auto D = Diags.Report(diag::err_drv_cir_pass_opt_parsing);
+        D << PassOptParsingFailure;
+      } else
+        llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
+                                 "when running CIR passes!");
+      return;
+    }
+  }
 
-    auto MlirMod = Gen->getModule();
-    auto MlirCtx = Gen->takeContext();
-
-    auto SetupCirPipelineAndExecute = [&] {
-      // Sanitize passes options. MLIR uses spaces between pass options
-      // and since that's hard to fly in clang, we currently use ';'.
-      std::string LifetimeOpts, IdiomRecognizerOpts, LibOptOpts;
-      if (FeOptions.ClangIRLifetimeCheck)
-        LifetimeOpts = sanitizePassOptions(FeOptions.ClangIRLifetimeCheckOpts);
-      if (FeOptions.ClangIRIdiomRecognizer)
-        IdiomRecognizerOpts =
-            sanitizePassOptions(FeOptions.ClangIRIdiomRecognizerOpts);
-      if (FeOptions.ClangIRLibOpt)
-        LibOptOpts = sanitizePassOptions(FeOptions.ClangIRLibOptOpts);
-
-      bool EnableCcLowering =
-          FeOptions.ClangIRCallConvLowering &&
-          !(Action == CIRGenAction::OutputType::EmitMLIR &&
-            FeOptions.MLIRTargetDialect == frontend::MLIR_CIR);
-      bool FlattenCir =
-          Action == CIRGenAction::OutputType::EmitMLIR &&
-          FeOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT;
-
-      // Setup and run CIR pipeline.
-      std::string PassOptParsingFailure;
-      if (runCIRToCIRPasses(
-              MlirMod, MlirCtx.get(), C, !FeOptions.ClangIRDisableCIRVerifier,
-              FeOptions.ClangIRLifetimeCheck, LifetimeOpts,
-              FeOptions.ClangIRIdiomRecognizer, IdiomRecognizerOpts,
-              FeOptions.ClangIRLibOpt, LibOptOpts, PassOptParsingFailure,
-              CodeGenOpts.OptimizationLevel > 0, FlattenCir,
-              !FeOptions.ClangIRDirectLowering, EnableCcLowering,
-              FeOptions.ClangIREnableMem2Reg)
-              .failed()) {
-        if (!PassOptParsingFailure.empty()) {
-          auto D = Diags.Report(diag::err_drv_cir_pass_opt_parsing);
-          D << PassOptParsingFailure;
-        } else
-          llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
-                                   "when running CIR passes!");
-        return;
-      }
-    };
-
-    if (!FeOptions.ClangIRDisablePasses) {
-      // Handle source manager properly given that lifetime analysis
-      // might emit warnings and remarks.
-      auto &ClangSourceMgr = C.getSourceManager();
-      FileID MainFileID = ClangSourceMgr.getMainFileID();
-
-      std::unique_ptr<llvm::MemoryBuffer> FileBuf =
-          llvm::MemoryBuffer::getMemBuffer(
-              ClangSourceMgr.getBufferOrFake(MainFileID));
-
-      llvm::SourceMgr MlirSourceMgr;
-      MlirSourceMgr.AddNewSourceBuffer(std::move(FileBuf), llvm::SMLoc());
-
-      if (FeOptions.ClangIRVerifyDiags) {
-        mlir::SourceMgrDiagnosticVerifierHandler SourceMgrHandler(
-            MlirSourceMgr, MlirCtx.get());
-        MlirCtx->printOpOnDiagnostic(false);
-        SetupCirPipelineAndExecute();
-
-        // Verify the diagnostic handler to make sure that each of the
-        // diagnostics matched.
-        if (SourceMgrHandler.verify().failed()) {
-          // FIXME: we fail ungracefully, there's probably a better way
-          // to communicate non-zero return so tests can actually fail.
-          llvm::sys::RunInterruptHandlers();
-          exit(1);
-        }
-      } else {
-        mlir::SourceMgrDiagnosticHandler SourceMgrHandler(MlirSourceMgr,
-                                                          MlirCtx.get());
-        SetupCirPipelineAndExecute();
-      }
+  mlir::LogicalResult writeModuleBytecode(mlir::Operation *op,
+                                          raw_ostream &os) {
+    // If you have a ModuleOp, pass module.getOperation().
+    // writeBytecodeToFile takes an Operation* and a raw_ostream.
+    if (mlir::failed(mlir::writeBytecodeToFile(op, os))) {
+      return mlir::failure();
     }
 
+    os.flush();
+    return mlir::success();
+  }
+
+  void GenerateOutput(mlir::ModuleOp MlirMod,
+                      std::unique_ptr<mlir::MLIRContext> MlirCtx) {
     bool EmitCIR = LangOpts.EmitCIRToFile || FeOptions.EmitClangIRFile ||
                    !LangOpts.CIRFile.empty() || !FeOptions.ClangIRFile.empty();
     if (EmitCIR) {
@@ -332,12 +301,8 @@ public:
       assert(MlirMod &&
              "MLIR module does not exist, but lowering did not fail?");
       assert(OutputStream && "Why are we here without an output stream?");
-      // FIXME: we cannot roundtrip prettyForm=true right now.
-      mlir::OpPrintingFlags Flags;
-      Flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-      if (!Verify)
-        Flags.assumeVerified();
-      MlirMod->print(*OutputStream, Flags);
+      // FIXME: Think of a better error handling mechanism
+      (void)writeModuleBytecode(MlirMod, *OutputStream);
     };
 
     switch (Action) {
@@ -382,20 +347,75 @@ public:
           !FeOptions.ClangIRCallConvLowering, DisableDebugInfo);
 
       LlvmModule->setTargetTriple(llvm::Triple(CI.getTargetOpts().Triple));
-      LlvmModule->setDataLayout(C.getTargetInfo().getDataLayoutString());
+      LlvmModule->setDataLayout(CI.getTarget().getDataLayoutString());
 
       LinkInModules(*LlvmModule);
 
       BackendAction BackendAction = getBackendActionFromOutputType(Action);
 
-      emitBackendOutput(
-          CI, CodeGenOpts, C.getTargetInfo().getDataLayoutString(),
-          LlvmModule.get(), BackendAction, FS, std::move(OutputStream));
+      emitBackendOutput(CI, CodeGenOpts, CI.getTarget().getDataLayoutString(),
+                        LlvmModule.get(), BackendAction, FS,
+                        std::move(OutputStream));
       break;
     }
     case CIRGenAction::OutputType::None:
       break;
     }
+  }
+
+  void HandleTranslationUnit(ASTContext &C) override {
+    llvm::TimeTraceScope Scope("CIR Gen");
+
+    // Note that this method is called after `HandleTopLevelDecl` has already
+    // ran all over the top level decls. Here clang mostly wraps defered and
+    // global codegen, followed by running CIR passes.
+    Gen->HandleTranslationUnit(C);
+
+    if (!FeOptions.ClangIRDisableCIRVerifier)
+      if (!Gen->verifyModule()) {
+        llvm::report_fatal_error(
+            "CIR codegen: module verification error before running CIR passes");
+        return;
+      }
+
+    auto MlirMod = Gen->getModule();
+    auto MlirCtx = Gen->takeContext();
+
+    if (!FeOptions.ClangIRDisablePasses) {
+      // Handle source manager properly given that lifetime analysis
+      // might emit warnings and remarks.
+      auto &ClangSourceMgr = C.getSourceManager();
+      FileID MainFileID = ClangSourceMgr.getMainFileID();
+
+      std::unique_ptr<llvm::MemoryBuffer> FileBuf =
+          llvm::MemoryBuffer::getMemBuffer(
+              ClangSourceMgr.getBufferOrFake(MainFileID));
+
+      llvm::SourceMgr MlirSourceMgr;
+      MlirSourceMgr.AddNewSourceBuffer(std::move(FileBuf), llvm::SMLoc());
+
+      if (FeOptions.ClangIRVerifyDiags) {
+        mlir::SourceMgrDiagnosticVerifierHandler SourceMgrHandler(
+            MlirSourceMgr, MlirCtx.get());
+        MlirCtx->printOpOnDiagnostic(false);
+        SetupCirPipelineAndExecute(MlirMod, *MlirCtx, C);
+
+        // Verify the diagnostic handler to make sure that each of the
+        // diagnostics matched.
+        if (SourceMgrHandler.verify().failed()) {
+          // FIXME: we fail ungracefully, there's probably a better way
+          // to communicate non-zero return so tests can actually fail.
+          llvm::sys::RunInterruptHandlers();
+          exit(1);
+        }
+      } else {
+        mlir::SourceMgrDiagnosticHandler SourceMgrHandler(MlirSourceMgr,
+                                                          MlirCtx.get());
+        SetupCirPipelineAndExecute(MlirMod, *MlirCtx, C);
+      }
+    }
+
+    GenerateOutput(MlirMod, std::move(MlirCtx));
   }
 
   void LoadLinkModules(llvm::LLVMContext &LlvmCtx) {
@@ -526,12 +546,15 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &Ci, StringRef InputFile) {
   return std::move(Result);
 }
 
-mlir::OwningOpRef<mlir::ModuleOp>
-CIRGenAction::loadModule(llvm::MemoryBufferRef MbRef) {
-  auto Module =
-      mlir::parseSourceString<mlir::ModuleOp>(MbRef.getBuffer(), mlirContext);
-  assert(Module && "Failed to parse ClangIR module");
-  return Module;
+static mlir::FailureOr<mlir::OwningOpRef<mlir::ModuleOp>>
+loadModule(std::unique_ptr<llvm::MemoryBuffer> buf,
+           mlir::MLIRContext &mlirContext) {
+  llvm::SourceMgr sm;
+  sm.AddNewSourceBuffer(std::move(buf), llvm::SMLoc());
+  auto module = mlir::parseSourceFile<mlir::ModuleOp>(sm, &mlirContext);
+  if (!module)
+    return mlir::failure();
+  return module;
 }
 
 void CIRGenAction::ExecuteAction() {
@@ -540,44 +563,66 @@ void CIRGenAction::ExecuteAction() {
     return;
   }
 
-  // If this is a CIR file we have to treat it specially.
-  // TODO: This could be done more logically. This is just modeled at the moment
-  // mimicing CodeGenAction but this is clearly suboptimal.
   auto &Ci = getCompilerInstance();
-  std::unique_ptr<raw_pwrite_stream> Outstream =
-      getOutputStream(Ci, getCurrentFile(), action);
-  if (action != OutputType::None && !Outstream)
-    return;
+  auto &Diags = Ci.getDiagnostics();
+  const clang::FrontendOptions &Fo = Ci.getFrontendOpts();
 
+  if (Fo.Inputs.size() > 1)
+    llvm_unreachable("NYI: Missing support of 'linking CIR files'");
+
+  const FrontendInputFile &Input = Fo.Inputs.front();
+  StringRef InputFile = Input.getFile();
+  InputKind Kind = Input.getKind();
+  assert(Kind.getFormat() == InputKind::Source &&
+         "Loading CIR files only support source code formats");
+  auto Out = Ci.takeOutputStream();
   auto &SourceManager = Ci.getSourceManager();
   auto FileId = SourceManager.getMainFileID();
-  auto MainFile = SourceManager.getBufferOrNone(FileId);
 
-  if (!MainFile)
+  if (!Out)
+    Out = getOutputStream(Ci, InputFile, action);
+
+  auto Result = std::make_unique<cir::CIRGenConsumer>(
+      action, Ci, Ci.getDiagnostics(), &Ci.getVirtualFileSystem(),
+      Ci.getHeaderSearchOpts(), Ci.getCodeGenOpts(), Ci.getTargetOpts(),
+      Ci.getLangOpts(), Ci.getFrontendOpts(), InputFile, std::move(Out));
+  cgConsumer = Result.get();
+
+  std::unique_ptr<mlir::MLIRContext> MlirContext{new mlir::MLIRContext};
+  MlirContext->getOrLoadDialect<mlir::DLTIDialect>();
+  MlirContext->getOrLoadDialect<mlir::func::FuncDialect>();
+  MlirContext->getOrLoadDialect<cir::CIRDialect>();
+  MlirContext->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
+  MlirContext->getOrLoadDialect<mlir::memref::MemRefDialect>();
+  MlirContext->getOrLoadDialect<mlir::omp::OpenMPDialect>();
+
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> InputOrErr =
+      Ci.getFileManager().getBufferForFile(InputFile);
+  if (!InputOrErr) {
+    std::error_code Ec = InputOrErr.getError();
+    Diags.Report(clang::diag::err_fe_error_reading) << InputFile;
+    Diags.Report(clang::diag::note_drv_command_failed_diag_msg) << Ec.message();
     return;
+  }
+  std::unique_ptr<llvm::MemoryBuffer> InputBuf = std::move(*InputOrErr);
 
-  mlirContext->getOrLoadDialect<cir::CIRDialect>();
-  mlirContext->getOrLoadDialect<mlir::func::FuncDialect>();
-  mlirContext->getOrLoadDialect<mlir::memref::MemRefDialect>();
+  auto MlirModuleOr = loadModule(std::move(InputBuf), *MlirContext);
 
-  // TODO: unwrap this -- this exists because including the `OwningModuleRef` in
-  // CIRGenAction's header would require linking the Frontend against MLIR.
-  // Let's avoid that for now.
-  auto MlirModule = loadModule(*MainFile);
-  if (!MlirModule)
+  if (mlir::failed(MlirModuleOr)) {
+    Diags.Report(clang::diag::err_fe_error_reading)
+        << "failed to parse CIR module" << InputFile;
     return;
+  }
 
-  // FIXME(cir): This compilation path does not account for some flags.
-  llvm::LLVMContext LlvmCtx;
-  bool DisableDebugInfo =
-      Ci.getCodeGenOpts().getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
-  auto LlvmModule = lowerFromCIRToLLVMIR(
-      Ci.getFrontendOpts(), MlirModule.release(),
-      std::unique_ptr<mlir::MLIRContext>(mlirContext), LlvmCtx,
-      /*disableVerifier=*/false, /*disableCCLowering=*/true, DisableDebugInfo);
+  // FIXME: This introduces a leak. The ownership model of "GenerateOutput" is
+  // puzzling. We give ownership of MLIRContext, but not of the MLIRModule.
+  // If the lifetime of the ModuleOp exceeds the lifetime of the context there
+  // are crashes.
+  // I need to check this with CIR team.
+  mlir::ModuleOp MlirModule = std::move(*MlirModuleOr).release();
 
-  if (Outstream)
-    LlvmModule->print(*Outstream, nullptr);
+  assert(MlirModule && "Could not load module");
+  cgConsumer->GenerateOutput(std::move(MlirModule), std::move(MlirContext));
 }
 
 namespace cir {

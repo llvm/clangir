@@ -3156,6 +3156,13 @@ defm clangir : BoolFOption<"clangir",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use the ClangIR pipeline to compile">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option], "Use the AST -> LLVM pipeline to compile">,
   BothFlags<[], [ClangOption, CC1Option], "">>;
+defm clangir_offload : BoolFOption<"clangir-offload",
+  FrontendOpts<"UseClangIROffloadPipeline">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+          "Use the ClangIR-based offload compilation pipeline">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],
+          "Disable the ClangIR-based offload compilation pipeline">,
+  BothFlags<[], [ClangOption, CC1Option], "">>;
 def fcir_output_EQ : Joined<["-"], "fcir-output=">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option]>,
   Flags<[NoArgumentUnused]>,
@@ -3208,6 +3215,7 @@ def fclangir_mem2reg : Flag<["-"], "fclangir-mem2reg">,
   HelpText<"Enable mem2reg on the flat ClangIR">,
   MarshallingInfoFlag<FrontendOpts<"ClangIREnableMem2Reg">>;
 
+def CIR_Group : OptionGroup<"<CIR options>">;
 def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Disable CIR transformations pipeline">,
@@ -3256,6 +3264,25 @@ def emit_cir_only : Flag<["-"], "emit-cir-only">,
 def emit_cir_flat : Flag<["-"], "emit-cir-flat">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, Alias<emit_mlir_EQ>, AliasArgs<["cir-flat"]>,
   HelpText<"Similar to -emit-cir but also lowers structured CFG into basic blocks.">;
+def cir_combine : Flag<["-"], "cir-combine">,
+  Visibility<[CC1Option]>,
+  Group<Action_Group>,
+  HelpText<"Combine host and device CIR modules into a single offload container CIR module.">;
+def cir_host_input : Separate<["-"], "cir-host-input">,
+  Visibility<[CC1Option]>, Group<CIR_Group>,
+  HelpText<"Host CIR input for -cir-combine.">;
+def cir_device_input : Separate<["-"], "cir-device-input">,
+  Visibility<[CC1Option]>, Group<CIR_Group>,
+  HelpText<"Device CIR input for -cir-combine (may be repeated).">;
+def cir_emit_split : Flag<["-"], "cir-emit-split">,
+  Visibility<[CC1Option]>, Group<CIR_Group>,
+  HelpText<"Emit split host/device CIR instead of a combined CIR container">;
+def cir_host_output : Separate<["-"], "cir-host-output">,
+  Visibility<[CC1Option]>, Group<CIR_Group>,
+  HelpText<"Output path for host CIR when -cir-emit-split is used">;
+def cir_device_output : Separate<["-"], "cir-device-output">,
+  Visibility<[CC1Option]>, Group<CIR_Group>,
+  HelpText<"Output path for device CIR when -cir-emit-split is used">;
 /// ClangIR-specific options - END
 
 def flto : Flag<["-"], "flto">,
