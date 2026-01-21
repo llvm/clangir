@@ -13,8 +13,8 @@ float _Complex gcf2 = { 1.0f, 2.0f };
 
 // CHECK: cir.global external {{.*}} = #cir.zero : !cir.complex<!s32i>
 // CHECK: cir.global external {{.*}} = #cir.zero : !cir.complex<!cir.float>
-// CHECK: cir.global external {{.*}} = #cir.complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
-// CHECK: cir.global external {{.*}} = #cir.complex<#cir.fp<1.000000e+00> : !cir.float, #cir.fp<2.000000e+00> : !cir.float> : !cir.complex<!cir.float>
+// CHECK: cir.global external {{.*}} = #cir.const_complex<#cir.int<1> : !s32i, #cir.int<2> : !s32i> : !cir.complex<!s32i>
+// CHECK: cir.global external {{.*}} = #cir.const_complex<#cir.fp<1.000000e+00> : !cir.float, #cir.fp<2.000000e+00> : !cir.float> : !cir.complex<!cir.float>
 
 // LLVM: {{.*}} = global { i32, i32 } zeroinitializer, align 4
 // LLVM: {{.*}} = global { float, float } zeroinitializer, align 4

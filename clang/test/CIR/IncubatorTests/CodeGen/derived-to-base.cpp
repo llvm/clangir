@@ -78,7 +78,7 @@ void C3::Layer::Initialize() {
 // CHECK-DAG: !rec_C23A3ALayer = !cir.record<class "C2::Layer"
 // CHECK-DAG: !rec_C33A3ALayer = !cir.record<struct "C3::Layer"
 // CHECK-DAG: !rec_A = !cir.record<class "A"
-// CHECK-DAG: !rec_A2Ebase = !cir.record<class "A.base"
+// CHECK-DAG: !rec_A2Ebase = !cir.record<struct "A.base" packed
 // CHECK-DAG: !rec_B = !cir.record<class "B" {!rec_A2Ebase
 
 // CHECK: cir.func {{.*}} @_ZN2C35Layer10InitializeEv
@@ -147,7 +147,7 @@ public:
 // CHECK:     %3 = cir.base_class_addr %1 : !cir.ptr<!rec_B> nonnull [0] -> !cir.ptr<!rec_A>
 
 // Call @A::A(A const&)
-// CHECK:     cir.copy %3 to %2 : !cir.ptr<!rec_A>
+// CHECK:     cir.call @_ZN1AC2ERKS_(%2, %3)
 
 // Call @A::foo()
 // CHECK:     cir.call @_ZN1A3fooEv(%2) : (!cir.ptr<!rec_A>) -> ()

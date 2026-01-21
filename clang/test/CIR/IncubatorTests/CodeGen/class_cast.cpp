@@ -60,10 +60,9 @@ Derived &Derived::operator=(Derived &B) {
   // LLVM-NEXT:  [[TMP6:%.*]] = load ptr, ptr [[TMP3]], align 8
   // LLVM-NEXT:  [[TMP7:%.*]] = load ptr, ptr [[TMP4]], align 8
   // LLVM-NEXT:  [[TMP8:%.*]] = call ptr @_ZN4BaseaSERS_(ptr [[TMP6]], ptr [[TMP7]])
-  // LLVM-NEXT:  [[TMP9:%.*]] = getelementptr i8, ptr [[TMP8]], i32 0
-  // LLVM-NEXT:  store ptr [[TMP9]], ptr [[TMP5]], align 8
-  // LLVM-NEXT:  [[TMP10:%.*]] = load ptr, ptr [[TMP5]], align 8
-  // LLVM-NEXT:  ret ptr [[TMP10]]
+  // LLVM-NEXT:  store ptr [[TMP8]], ptr [[TMP5]], align 8
+  // LLVM-NEXT:  [[TMP9:%.*]] = load ptr, ptr [[TMP5]], align 8
+  // LLVM-NEXT:  ret ptr [[TMP9]]
 
   // OGCG-LABEL: @_ZN7DerivedaSERS_
   // OGCG-SAME: (ptr{{.*}}[[ARG0:%.*]], ptr{{.*}}[[ARG1:%.*]])

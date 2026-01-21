@@ -61,6 +61,17 @@ int use_func() { return func<int>(); }
 
 // CHECK-NEXT: cir.global external @s2 = #cir.global_view<@".str"> : !cir.ptr<!s8i>
 
+// Upstream generates all globals at module start, before functions.
+// These globals from later in the file need CHECK-DAG here.
+// CHECK-DAG: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
+// CHECK-DAG: cir.global external @uint = #cir.const_array<[#cir.int<255> : !u32i]> : !cir.array<!u32i x 1>
+// CHECK-DAG: cir.global external @sshort = #cir.const_array<[#cir.int<11111> : !s16i, #cir.int<22222> : !s16i]> : !cir.array<!s16i x 2>
+// CHECK-DAG: cir.global external @sint = #cir.const_array<[#cir.int<123> : !s32i, #cir.int<456> : !s32i, #cir.int<789> : !s32i]> : !cir.array<!s32i x 3>
+// CHECK-DAG: cir.global external @ll = #cir.const_array<[#cir.int<999999999> : !s64i, #cir.int<0> : !s64i, #cir.int<0> : !s64i, #cir.int<0> : !s64i]> : !cir.array<!s64i x 4>
+// CHECK-DAG: cir.global "private" external @externVar : !s32i
+// CHECK-DAG: cir.global external @var = #cir.int<1> : !s32i
+// CHECK-DAG: cir.global external @constAddr = #cir.global_view<@var> : !cir.ptr<!s32i>
+
 //      CHECK: cir.func {{.*}} @_Z10use_globalv()
 // CHECK-NEXT:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["li", init] {alignment = 4 : i64}
 // CHECK-NEXT:     %1 = cir.get_global @a : !cir.ptr<!s32i>
@@ -69,10 +80,10 @@ int use_func() { return func<int>(); }
 
 //      CHECK: cir.func {{.*}} @_Z17use_global_stringv()
 // CHECK-NEXT:   %0 = cir.alloca !u8i, !cir.ptr<!u8i>, ["c", init] {alignment = 1 : i64}
-// CHECK-NEXT:   %1 = cir.get_global @s2 : !cir.ptr<!cir.ptr<!s8i>>
-// CHECK-NEXT:   %2 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-// CHECK-NEXT:   %3 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:   %4 = cir.ptr_stride %2, %3 : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
+// CHECK-NEXT:   %1 = cir.const #cir.int<0> : !s32i
+// CHECK-NEXT:   %2 = cir.get_global @s2 : !cir.ptr<!cir.ptr<!s8i>>
+// CHECK-NEXT:   %3 = cir.load{{.*}} %2 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+// CHECK-NEXT:   %4 = cir.ptr_stride %3, %1 : (!cir.ptr<!s8i>, !s32i) -> !cir.ptr<!s8i>
 // CHECK-NEXT:   %5 = cir.load{{.*}} %4 : !cir.ptr<!s8i>, !s8i
 // CHECK-NEXT:   %6 = cir.cast integral %5 : !s8i -> !u8i
 // CHECK-NEXT:   cir.store{{.*}} %6, %0 : !u8i, !cir.ptr<!u8i>
@@ -95,15 +106,10 @@ int use_func() { return func<int>(); }
 
 
 char string[] = "whatnow";
-// CHECK: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
 unsigned uint[] = {255};
-// CHECK: cir.global external @uint = #cir.const_array<[#cir.int<255> : !u32i]> : !cir.array<!u32i x 1>
 short sshort[] = {11111, 22222};
-// CHECK: cir.global external @sshort = #cir.const_array<[#cir.int<11111> : !s16i, #cir.int<22222> : !s16i]> : !cir.array<!s16i x 2>
 int sint[] = {123, 456, 789};
-// CHECK: cir.global external @sint = #cir.const_array<[#cir.int<123> : !s32i, #cir.int<456> : !s32i, #cir.int<789> : !s32i]> : !cir.array<!s32i x 3>
 long long ll[] = {999999999, 0, 0, 0};
-// CHECK: cir.global external @ll = #cir.const_array<[#cir.int<999999999> : !s64i, #cir.int<0> : !s64i, #cir.int<0> : !s64i, #cir.int<0> : !s64i]> : !cir.array<!s64i x 4>
 
 void get_globals() {
   // CHECK: cir.func {{.*}} @_Z11get_globalsv()
@@ -127,11 +133,9 @@ void get_globals() {
 // Should generate extern global variables.
 extern int externVar;
 int testExternVar(void) { return externVar; }
-// CHECK: cir.global "private" external @externVar : !s32i
 // CHECK: cir.func {{.*}} @{{.+}}testExternVar
 // CHECK:   cir.get_global @externVar : !cir.ptr<!s32i>
 
 // Should constant initialize global with constant address.
 int var = 1;
 int *constAddr = &var;
-// CHECK-DAG: cir.global external @constAddr = #cir.global_view<@var> : !cir.ptr<!s32i>

@@ -34,7 +34,7 @@ unsigned long long tc() {
     // CIR_FLAT:   %[[MATCH_CASE_INT_IDX:.*]] = cir.cmp(eq, %[[INT_IDX_SEL]], %[[INT_IDX_ID]]) : !u32i, !cir.bool
     // CIR_FLAT:   cir.brcond %[[MATCH_CASE_INT_IDX]] ^[[BB_INT_IDX_CATCH:.*]](%[[INT_IDX_EH]] : {{.*}}), ^[[BB_CHAR_MSG_CMP:.*]](%[[INT_IDX_EH]], %[[INT_IDX_SEL]] : {{.*}}) loc
     // CIR_FLAT: ^[[BB_INT_IDX_CATCH]](%[[INT_IDX_CATCH_SLOT:.*]]: !cir.ptr<!void>
-    // CIR_FLAT:   %[[PARAM_INT_IDX:.*]] = cir.catch_param begin %[[INT_IDX_CATCH_SLOT]] -> !cir.ptr<!s32i>
+    // CIR_FLAT:   %[[PARAM_INT_IDX:.*]] = cir.catch_param begin %[[INT_IDX_CATCH_SLOT]] : !cir.ptr<!s32i>
     // CIR_FLAT:   cir.const #cir.int<98>
     // CIR_FLAT:   cir.br ^[[AFTER_TRY]] loc
     z = 98;
@@ -45,8 +45,8 @@ unsigned long long tc() {
     // CIR_FLAT:   %[[MATCH_CASE_CHAR_MSG:.*]] = cir.cmp(eq, %[[CHAR_MSG_SEL]], %[[CHAR_MSG_ID]])
     // CIR_FLAT:   cir.brcond %[[MATCH_CASE_CHAR_MSG]] ^[[BB_CHAR_MSG_CATCH:.*]](%[[CHAR_MSG_EH]] : {{.*}}), ^[[BB_RESUME:.*]](%[[CHAR_MSG_EH]], %[[CHAR_MSG_SEL]] : {{.*}}) loc
     // CIR_FLAT: ^[[BB_CHAR_MSG_CATCH]](%[[CHAR_MSG_CATCH_SLOT:.*]]: !cir.ptr<!void>
-    // CIR_FLAT:   %[[PARAM_CHAR_MSG:.*]] = cir.catch_param begin %[[CHAR_MSG_CATCH_SLOT]] -> !cir.ptr<!s8i>
-    // CIR_FLAT:   cir.const #cir.int<99> : !s32i
+    // CIR_FLAT:   %[[PARAM_CHAR_MSG:.*]] = cir.catch_param begin %[[CHAR_MSG_CATCH_SLOT]] : !cir.ptr<!s8i>
+    // CIR_FLAT:   cir.const #cir.int<99>
     // CIR_FLAT:   cir.br ^[[AFTER_TRY]] loc
     z = 99;
     (void)msg[0];
@@ -78,7 +78,7 @@ unsigned long long tc2() {
     (void)msg[0];
   } catch (...) {
     // CIR_FLAT:   cir.catch_param
-    // CIR_FLAT:   cir.const #cir.int<100> : !s32i
+    // CIR_FLAT:   cir.const #cir.int<100>
     // CIR_FLAT:   cir.br ^[[AFTER_TRY:.*]] loc
     // CIR_FLAT: ^[[AFTER_TRY]]:  // 4 preds
     // CIR_FLAT:   cir.load
@@ -100,8 +100,8 @@ unsigned long long tc3() {
     // CIR_FLAT:   cir.eh.inflight_exception loc
     // CIR_FLAT:   cir.br ^[[CATCH_ALL:.*]]({{.*}} : {{.*}}) loc
     // CIR_FLAT: ^[[CATCH_ALL]](%[[CATCH_ALL_EH:.*]]: !cir.ptr<!void>
-    // CIR_FLAT:   cir.catch_param begin %[[CATCH_ALL_EH]] -> !cir.ptr<!void>
-    // CIR_FLAT:   cir.const #cir.int<100> : !s32i
+    // CIR_FLAT:   cir.catch_param begin %[[CATCH_ALL_EH]] : !cir.ptr<!void>
+    // CIR_FLAT:   cir.const #cir.int<100>
     // CIR_FLAT:   cir.br ^[[AFTER_TRY:.*]] loc
     // CIR_FLAT: ^[[AFTER_TRY]]:  // 2 preds
     // CIR_FLAT:   cir.load

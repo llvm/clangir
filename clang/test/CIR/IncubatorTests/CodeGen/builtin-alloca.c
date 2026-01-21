@@ -9,18 +9,18 @@ void my_alloca(size_t n)
 {
   int *c1 = alloca(n);
 }
+// Upstream treats alloca() as a regular function call, not a builtin.
 // CIR:       cir.func {{.*}} @my_alloca([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
-// CIR:       [[ALLOCA_RES:%.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, [[TMP_ALLOCA_SIZE]] : !u64i, ["bi_alloca"] {alignment = 16 : i64}
-// CIR-NEXT:  cir.cast bitcast [[ALLOCA_RES]] : !cir.ptr<!u8i> -> !cir.ptr<!void>
+// CIR:       cir.call @alloca([[TMP_ALLOCA_SIZE]]) {{.*}} : (!u64i) -> !cir.ptr<!void>
 // CIR: }
 
 
 // LLVM:       define dso_local void @my_alloca(i64 [[ALLOCA_SIZE:%.*]])
 // LLVM:       store i64 [[ALLOCA_SIZE]], ptr [[LOCAL_VAR_ALLOCA_SIZE:%.*]],
 // LLVM:       [[TMP_ALLOCA_SIZE:%.*]] =  load i64, ptr [[LOCAL_VAR_ALLOCA_SIZE]],
-// LLVM:       [[ALLOCA_RES:%.*]] = alloca i8, i64 [[TMP_ALLOCA_SIZE]], align 16
+// LLVM:       call ptr @alloca(i64 [[TMP_ALLOCA_SIZE]])
 // LLVM: }
 
 void my___builtin_alloca(size_t n)

@@ -25,15 +25,15 @@ void x() {
 // BEFORE: cir.func {{.*}} @_Z1xv()
 // BEFORE:   %[[ArrayAddr:.*]] = cir.alloca !cir.array<!rec_xpto x 2>
 
-// BEFORE:   cir.array.ctor(%[[ArrayAddr]] : !cir.ptr<!cir.array<!rec_xpto x 2>>) {
+// BEFORE:   cir.array.ctor %[[ArrayAddr]] : !cir.ptr<!cir.array<!rec_xpto x 2>> {
 // BEFORE:   ^bb0(%arg0: !cir.ptr<!rec_xpto>
 // BEFORE:     cir.call @_ZN4xptoC1Ev(%arg0) : (!cir.ptr<!rec_xpto>) -> ()
 // BEFORE:     cir.yield
 // BEFORE:   }
 
-// BEFORE:   cir.array.dtor(%[[ArrayAddr]] : !cir.ptr<!cir.array<!rec_xpto x 2>>) {
+// BEFORE:   cir.array.dtor %[[ArrayAddr]] : !cir.ptr<!cir.array<!rec_xpto x 2>> {
 // BEFORE:   ^bb0(%arg0: !cir.ptr<!rec_xpto>
-// BEFORE:     cir.call @_ZN4xptoD1Ev(%arg0) : (!cir.ptr<!rec_xpto>) -> ()
+// BEFORE:     cir.call @_ZN4xptoD1Ev(%arg0) nothrow : (!cir.ptr<!rec_xpto>) -> ()
 // BEFORE:     cir.yield
 // BEFORE:   }
 

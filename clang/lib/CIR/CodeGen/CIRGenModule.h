@@ -424,6 +424,9 @@ public:
                     bool forVTable = false, bool dontDefer = false,
                     ForDefinition_t isForDefinition = NotForDefinition);
 
+  /// Get a reference to the target of a weak reference.
+  cir::FuncOp getWeakRefReference(const clang::ValueDecl *vd);
+
   mlir::Operation *
   getAddrOfGlobal(clang::GlobalDecl gd,
                   ForDefinition_t isForDefinition = NotForDefinition);

@@ -15,7 +15,7 @@ struct Inner {
 };
 
 // CHECK-DAG: !rec_anon_struct = !cir.record<struct  {!u8i, !u8i, !u8i, !u8i, !s32i}>
-// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u32i, !s32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u32i, !s32i}>
 // CHECK-DAG: !rec_anon_struct1 = !cir.record<struct  {!u8i, !cir.array<!u8i x 3>, !u8i, !u8i, !u8i, !u8i}>
 // CHECK-DAG: #bfi_Z = #cir.bitfield_info<name = "Z", storage_type = !u32i, size = 9, offset = 11, is_signed = true>
 

@@ -132,6 +132,7 @@ template <typename Ty> struct EnumTraits {};
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(SideEffect);
+REGISTER_ENUM_TYPE(CallingConv);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -219,6 +220,22 @@ void parseVisibilityAttr(OpAsmParser &parser, cir::VisibilityAttr &visibility) {
   cir::VisibilityKind visibilityKind =
       parseOptionalCIRKeyword(parser, cir::VisibilityKind::Default);
   visibility = cir::VisibilityAttr::get(parser.getContext(), visibilityKind);
+}
+
+// Custom directive for GlobalOp's visibility attribute
+static void printCIRVisibilityAttr(OpAsmPrinter &printer, mlir::Operation *,
+                                   cir::VisibilityAttr visibility) {
+  if (visibility && !visibility.isDefault()) {
+    printer << stringifyVisibilityKind(visibility.getValue()) << ' ';
+  }
+}
+
+static ParseResult parseCIRVisibilityAttr(OpAsmParser &parser,
+                                          cir::VisibilityAttr &visibility) {
+  cir::VisibilityKind visibilityKind =
+      parseOptionalCIRKeyword(parser, cir::VisibilityKind::Default);
+  visibility = cir::VisibilityAttr::get(parser.getContext(), visibilityKind);
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -818,11 +835,16 @@ parseTryCallDestinations(mlir::OpAsmParser &parser,
 
 static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
                                          mlir::OperationState &result,
+                                         llvm::StringRef extraAttrsAttrName,
                                          bool hasDestinationBlocks = false) {
   llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 4> ops;
   llvm::SMLoc opsLoc;
   mlir::FlatSymbolRefAttr calleeAttr;
   llvm::ArrayRef<mlir::Type> allResultTypes;
+
+  // Parse optional 'exception' keyword before the callee
+  if (parser.parseOptionalKeyword("exception").succeeded())
+    result.addAttribute("exception", mlir::UnitAttr::get(parser.getContext()));
 
   // If we cannot parse a string callee, it means this is an indirect call.
   if (!parser
@@ -850,10 +872,12 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
     return ::mlir::failure();
   }
 
+  // Parse optional nothrow (before the type, upstream format)
   if (parser.parseOptionalKeyword("nothrow").succeeded())
     result.addAttribute(CIRDialect::getNoThrowAttrName(),
                         mlir::UnitAttr::get(parser.getContext()));
 
+  // Parse optional side_effect(...) (before the type, upstream format)
   if (parser.parseOptionalKeyword("side_effect").succeeded()) {
     if (parser.parseLParen().failed())
       return failure();
@@ -882,20 +906,54 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
   if (parser.resolveOperands(ops, opsFnTy.getInputs(), opsLoc, result.operands))
     return mlir::failure();
 
+  auto &builder = parser.getBuilder();
+
+  // Parse optional cc(...) (after the type, incubator format)
+  if (parser.parseOptionalKeyword("cc").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    cir::CallingConv callingConv;
+    if (parseCIRKeyword<cir::CallingConv>(parser, callingConv).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+    result.addAttribute("calling_conv", cir::CallingConvAttr::get(
+                                            builder.getContext(), callingConv));
+  }
+
+  // Parse optional extra(...) (after the type, incubator format)
+  Attribute extraAttrs;
+  if (parser.parseOptionalKeyword("extra").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseAttribute(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  } else {
+    NamedAttrList empty;
+    extraAttrs = cir::ExtraFuncAttributesAttr::get(
+        empty.getDictionary(builder.getContext()));
+  }
+  result.addAttribute(extraAttrsAttrName, extraAttrs);
+
   return mlir::success();
 }
 
-static void printCallCommon(mlir::Operation *op,
-                            mlir::FlatSymbolRefAttr calleeSym,
-                            mlir::Value indirectCallee,
-                            mlir::OpAsmPrinter &printer, bool isNothrow,
-                            cir::SideEffect sideEffect,
-                            mlir::Block *normalDest = nullptr,
-                            mlir::Block *unwindDest = nullptr) {
+static void printCallCommon(
+    mlir::Operation *op, mlir::FlatSymbolRefAttr calleeSym,
+    mlir::Value indirectCallee, mlir::OpAsmPrinter &printer,
+    cir::ExtraFuncAttributesAttr extraAttrs, cir::CallingConv callingConv,
+    cir::SideEffect sideEffect, bool nothrow, bool exception = false,
+    mlir::Block *normalDest = nullptr, mlir::Block *unwindDest = nullptr) {
   printer << ' ';
 
   auto callLikeOp = mlir::cast<cir::CIRCallOpInterface>(op);
   auto ops = callLikeOp.getArgOperands();
+
+  // Print 'exception' keyword before the callee
+  if (exception)
+    printer << "exception ";
 
   if (calleeSym) {
     // Direct calls
@@ -917,9 +975,11 @@ static void printCallCommon(mlir::Operation *op,
     printer << tryCall.getUnwindDest();
   }
 
-  if (isNothrow)
+  // Print optional nothrow before the colon (upstream format)
+  if (nothrow)
     printer << " nothrow";
 
+  // Print optional side_effect(...) before the colon (upstream format)
   if (sideEffect != cir::SideEffect::All) {
     printer << " side_effect(";
     printer << stringifySideEffect(sideEffect);
@@ -927,25 +987,70 @@ static void printCallCommon(mlir::Operation *op,
   }
 
   llvm::SmallVector<::llvm::StringRef> elidedAttrs = {
-      CIRDialect::getCalleeAttrName(), CIRDialect::getNoThrowAttrName(),
+      CIRDialect::getCalleeAttrName(),
       CIRDialect::getSideEffectAttrName(),
-      CIRDialect::getOperandSegmentSizesAttrName()};
+      CIRDialect::getNoThrowAttrName(),
+      CIRDialect::getOperandSegmentSizesAttrName(),
+      "calling_conv",
+      "extra_attrs",
+      "exception"};
   printer.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
   printer << " : ";
   printer.printFunctionalType(op->getOperands().getTypes(),
                               op->getResultTypes());
+
+  // Print optional cc(...) after the type (incubator format)
+  if (callingConv != cir::CallingConv::C) {
+    printer << " cc(";
+    printer << stringifyCallingConv(callingConv);
+    printer << ")";
+  }
+
+  // Print optional extra(...) after the type (incubator format)
+  if (!extraAttrs.getElements().empty()) {
+    printer << " extra(";
+    printer.printAttributeWithoutType(extraAttrs);
+    printer << ")";
+  }
 }
 
 mlir::ParseResult cir::CallOp::parse(mlir::OpAsmParser &parser,
                                      mlir::OperationState &result) {
-  return parseCallCommon(parser, result);
+  if (parseCallCommon(parser, result, getExtraAttrsAttrName(result.name)))
+    return failure();
+
+  // Parse optional cleanup region
+  if (succeeded(parser.parseOptionalKeyword("cleanup"))) {
+    if (parser.parseRegion(*result.addRegion()))
+      return failure();
+  } else {
+    result.addRegion(); // Add empty region placeholder
+  }
+
+  return mlir::success();
 }
 
 void cir::CallOp::print(mlir::OpAsmPrinter &p) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  cir::CallingConv callingConv = getCallingConv();
   cir::SideEffect sideEffect = getSideEffect();
-  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, getNothrow(),
-                  sideEffect);
+  bool nothrow = getNothrowAttr() != nullptr;
+  bool exception = getExceptionAttr() != nullptr;
+  cir::ExtraFuncAttributesAttr extraAttrs = getExtraAttrsAttr();
+  if (!extraAttrs) {
+    NamedAttrList empty;
+    extraAttrs =
+        cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
+  }
+  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
+                  callingConv, sideEffect, nothrow, exception);
+
+  // Print cleanup region if not empty
+  if (!getCleanup().empty()) {
+    p << " cleanup ";
+    p.printRegion(getCleanup(), /*printEntryBlockArgs=*/false,
+                  /*printBlockTerminators=*/true);
+  }
 }
 
 static LogicalResult
@@ -1054,14 +1159,24 @@ cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 mlir::ParseResult cir::TryCallOp::parse(mlir::OpAsmParser &parser,
                                         mlir::OperationState &result) {
-  return parseCallCommon(parser, result, /*hasDestinationBlocks=*/true);
+  return parseCallCommon(parser, result, getExtraAttrsAttrName(result.name),
+                         /*hasDestinationBlocks=*/true);
 }
 
 void cir::TryCallOp::print(::mlir::OpAsmPrinter &p) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  cir::CallingConv callingConv = getCallingConv();
   cir::SideEffect sideEffect = getSideEffect();
-  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, getNothrow(),
-                  sideEffect, getNormalDest(), getUnwindDest());
+  bool nothrow = getNothrowAttr() != nullptr;
+  cir::ExtraFuncAttributesAttr extraAttrs = getExtraAttrsAttr();
+  if (!extraAttrs) {
+    NamedAttrList empty;
+    extraAttrs =
+        cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
+  }
+  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
+                  callingConv, sideEffect, nothrow, /*exception=*/false,
+                  getNormalDest(), getUnwindDest());
 }
 
 //===----------------------------------------------------------------------===//
@@ -1921,6 +2036,14 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
 
+  mlir::StringAttr optNoneNameAttr = getOptNoneAttrName(state.name);
+  if (parser.parseOptionalKeyword("optnone").succeeded())
+    state.addAttribute(optNoneNameAttr, parser.getBuilder().getUnitAttr());
+
+  mlir::StringAttr coldNameAttr = getColdAttrName(state.name);
+  if (parser.parseOptionalKeyword("cold").succeeded())
+    state.addAttribute(coldNameAttr, parser.getBuilder().getUnitAttr());
+
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
                      GlobalLinkageKindAttr::get(
@@ -2054,19 +2177,32 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       }).failed())
     return failure();
 
-  // Parse the rest of the attributes.
-  NamedAttrList parsedAttrs;
-  if (parser.parseOptionalAttrDictWithKeyword(parsedAttrs))
-    return failure();
+  // Parse optional extra(...) function attributes.
+  Attribute extraAttrs;
+  if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseAttribute(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  } else {
+    mlir::NamedAttrList empty;
+    extraAttrs = cir::ExtraFuncAttributesAttr::get(
+        empty.getDictionary(builder.getContext()));
+  }
+  state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
 
-  for (StringRef disallowed : cir::FuncOp::getAttributeNames()) {
-    if (parsedAttrs.get(disallowed))
-      return parser.emitError(loc, "attribute '")
-             << disallowed
-             << "' should not be specified in the explicit attribute list";
+  // Parse optional annotations attribute: [#cir.annotation<...>, ...]
+  {
+    mlir::ArrayAttr annotations;
+    if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
+      state.addAttribute(getAnnotationsAttrName(state.name), annotations);
   }
 
-  state.attributes.append(parsedAttrs);
+  // Parse the rest of the attributes.
+  if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
+    return failure();
 
   // Parse the optional function body.
   auto *body = state.addRegion();
@@ -2170,6 +2306,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getNoProto())
     p << " no_proto";
 
+  if (getOptNone())
+    p << " optnone";
+
+  if (getCold())
+    p << " cold";
+
   if (getComdat())
     p << " comdat";
 
@@ -2194,6 +2336,11 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   cir::FuncType fnType = getFunctionType();
   function_interface_impl::printFunctionSignature(
       p, *this, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
+
+  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
+    p << ' ';
+    p.printAttribute(annotations);
+  }
 
   if (std::optional<StringRef> aliaseeName = getAliasee()) {
     p << " alias(";
@@ -2227,6 +2374,14 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   function_interface_impl::printFunctionAttributes(
       p, *this, cir::FuncOp::getAttributeNames());
+
+  if (auto extraAttrs = getExtraAttrs()) {
+    if (!extraAttrs->getElements().empty()) {
+      p << " extra(";
+      p.printAttributeWithoutType(*extraAttrs);
+      p << ")";
+    }
+  }
 
   // Print the body if this is not an external function.
   Region &body = getOperation()->getRegion(0);
@@ -3640,6 +3795,12 @@ mlir::ValueRange cir::TryOp::getSuccessorInputs(RegionSuccessor successor) {
                               : ValueRange();
 }
 
+bool cir::TryOp::isCatchAllOnly() {
+  mlir::ArrayAttr handlerTypes = getHandlerTypesAttr();
+  return handlerTypes.size() == 1 &&
+         mlir::isa<cir::CatchAllAttr>(handlerTypes[0]);
+}
+
 static void
 printTryHandlerRegions(mlir::OpAsmPrinter &printer, cir::TryOp op,
                        mlir::MutableArrayRef<mlir::Region> handlerRegions,
@@ -3756,6 +3917,22 @@ cir::EhTypeIdOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   if (!isa_and_nonnull<GlobalOp>(op))
     return emitOpError("'")
            << getTypeSym() << "' does not reference a valid cir.global";
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CatchParamOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::CatchParamOp::verify() {
+  if (getExceptionPtr()) {
+    auto kind = getKind();
+    if (!kind || *kind != cir::CatchParamKind::Begin)
+      return emitOpError("needs 'begin' to work with exception pointer");
+    return success();
+  }
+  if (!getKind() && !(*this)->getParentOfType<cir::TryOp>())
+    return emitOpError("without 'kind' requires 'cir.try' surrounding scope");
   return success();
 }
 

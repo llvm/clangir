@@ -11,7 +11,7 @@ struct __long {
   unsigned __size_;
   unsigned *__data_;
 };
-// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!u32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!u32i}>
 // CHECK-DAG: !rec___long = !cir.record<struct "__long" {!rec_anon2E0, !u32i, !cir.ptr<!u32i>}>
 // CHECK-DAG: !rec_anon_struct = !cir.record<struct  {!u8i, !u8i, !cir.array<!u8i x 2>, !s32i}>
 void m() {
@@ -40,7 +40,7 @@ typedef struct {
   int a : 3;  // one bitfield with size < 8
   unsigned b;
 } T;
-// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u8i, !u32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u8i, !u32i}>
 // CHECK-DAG: #bfi_a = #cir.bitfield_info<name = "a", storage_type = !u8i, size = 3, offset = 0, is_signed = true>
 
 typedef struct {
@@ -62,7 +62,8 @@ typedef struct {
 } U;
 // CHECK-DAG: !cir.record<struct "U" packed {!s8i, !s8i, !s8i, !u8i, !u64i}>
 
-// CHECK-DAG: !rec_G = !cir.record<struct "G" {!u16i, !s32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_G = !cir.record<struct "G" {!u16i, !s32i}>
+// CHECK-DAG: cir.global external @g = #cir.const_record<{#cir.int<133> : !u8i, #cir.int<127> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<254> : !s32i}> : !rec_anon_struct {alignment = 4 : i64}
 
 // CHECK: cir.func {{.*@store_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
@@ -145,7 +146,6 @@ typedef struct {
   int y ;
 } G;
 
-// CHECK: cir.global external @g = #cir.const_record<{#cir.int<133> : !u8i, #cir.int<127> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<254> : !s32i}> : !rec_anon_struct
 G g = { -123, 254UL};
 
 // CHECK: cir.func {{.*@get_y}}

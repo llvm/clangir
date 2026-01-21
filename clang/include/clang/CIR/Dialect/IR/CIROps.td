@@ -849,7 +849,7 @@ def CIR_ConditionOp : CIR_Op<"condition", [
 //===----------------------------------------------------------------------===//
 
 defvar CIR_YieldableScopes = [
-  "ArrayCtor", "ArrayDtor", "AwaitOp", "CaseOp", "DoWhileOp", "ForOp",
+  "ArrayCtor", "ArrayDtor", "AwaitOp", "CallOp", "CaseOp", "DoWhileOp", "ForOp",
   "GlobalOp", "IfOp", "ScopeOp", "SwitchOp", "TernaryOp", "WhileOp", "TryOp"
 ];
 
@@ -2223,14 +2223,16 @@ def CIR_GlobalOp : CIR_Op<"global", [
                        UnitAttr:$comdat,
                        UnitAttr:$constant,
                        UnitAttr:$dso_local,
-                       OptionalAttr<I64Attr>:$alignment);
+                       OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<StrAttr>:$section,
+                       OptionalAttr<ArrayAttr>:$annotations);
 
   let regions = (region MaxSizedRegion<1>:$ctorRegion,
                         MaxSizedRegion<1>:$dtorRegion);
 
   let assemblyFormat = [{
     ($sym_visibility^)?
-    (`` $global_visibility^)?
+    custom<CIRVisibilityAttr>($global_visibility)
     (`constant` $constant^)?
     $linkage
     (`comdat` $comdat^)?
@@ -2239,6 +2241,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
     $sym_name
     custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value,
                                         $ctorRegion, $dtorRegion)
+    ($annotations^)?
     attr-dict
   }];
 
@@ -2867,9 +2870,16 @@ def CIR_OptionalPriorityAttr : OptionalAttr<
   >
 >;
 
-// TODO(CIR): CallingConv is a placeholder here so we can use it in
-// infrastructure calls, but it currently has no values.
-def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", []>;
+// TODO(CIR): CallingConv has been populated with values for GPU support.
+// Additional calling conventions should be added as needed.
+def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", [
+  I32EnumAttrCase<"C", 1, "c">,
+  I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">,
+  I32EnumAttrCase<"SpirFunction", 3, "spir_function">,
+  I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">,
+  I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">,
+  I32EnumAttrCase<"AMDGPUKernel", 6, "amdgpu_kernel">
+]>;
 
 def CIR_FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
@@ -2949,6 +2959,8 @@ def CIR_FuncOp : CIR_Op<"func", [
     OptionalAttr<CIR_InlineKind>:$inline_kind,
     UnitAttr:$lambda,
     UnitAttr:$no_proto,
+    UnitAttr:$opt_none,
+    UnitAttr:$cold,
     UnitAttr:$dso_local,
     DefaultValuedAttr<
       CIR_GlobalLinkageKind,
@@ -2962,7 +2974,10 @@ def CIR_FuncOp : CIR_Op<"func", [
     OptionalAttr<FlatSymbolRefAttr>:$personality,
     CIR_OptionalPriorityAttr:$global_ctor_priority,
     CIR_OptionalPriorityAttr:$global_dtor_priority,
-    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member
+    OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
+    DefaultValuedAttr<CIR_CallingConv, "cir::CallingConv::C">:$calling_conv,
+    OptionalAttr<CIR_ExtraFuncAttr>:$extra_attrs
   );
 
   let regions = (region AnyRegion:$body);
@@ -3169,7 +3184,9 @@ class CIR_CallOpBase<string mnemonic, list<Trait> extra_traits = []>
   dag commonArgs = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
       Variadic<CIR_AnyType>:$args,
       UnitAttr:$nothrow,
-      DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect);
+      DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect,
+      DefaultValuedAttr<CIR_CallingConv, "cir::CallingConv::C">:$calling_conv,
+      OptionalAttr<CIR_ExtraFuncAttr>:$extra_attrs);
 }
 
 def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
@@ -3187,15 +3204,21 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
     empty. The first operand of this operation must be a pointer to the callee
     function. The rest operands are arguments to the callee function.
 
+    If the `cir.call` has the `exception` keyword, the call can throw.
+
     Example:
 
     ```mlir
     %0 = cir.call @foo()
+
+    // Call that might throw
+    cir.call exception @my_div() -> ()
     ```
   }];
 
   let results = (outs Optional<CIR_AnyType>:$result);
-  let arguments = commonArgs;
+  let arguments = !con((ins UnitAttr:$exception), commonArgs);
+  let regions = (region AnyRegion:$cleanup);
 
   let skipDefaultBuilders = 1;
 
@@ -3207,6 +3230,27 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
         $_state.addAttribute("callee", callee);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
+    }]>,
+    OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
+                   "mlir::ValueRange":$operands,
+                   "cir::CallingConv":$callingConv,
+                   "cir::SideEffect":$sideEffect,
+                   "mlir::UnitAttr":$exception), [{
+      $_state.addOperands(operands);
+      if (callee)
+        $_state.addAttribute("callee", callee);
+      $_state.addAttribute("calling_conv",
+        CallingConvAttr::get($_builder.getContext(), callingConv));
+      $_state.addAttribute("side_effect",
+        SideEffectAttr::get($_builder.getContext(), sideEffect));
+      if (exception)
+        $_state.addAttribute("exception", exception);
+      if (resType && !isa<VoidType>(resType))
+        $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>
   ];
 }
@@ -5634,6 +5678,15 @@ def CIR_TryOp : CIR_Op<"try",[
     }]>
   ];
 
+  let extraClassDeclaration = [{
+    // Incubator-compatible API aliases
+    mlir::ArrayAttr getCatchTypesAttr() { return getHandlerTypesAttr(); }
+    llvm::MutableArrayRef<mlir::Region> getCatchRegions() {
+      return getHandlerRegions();
+    }
+    bool isCatchAllOnly();
+  }];
+
   let hasLLVMLowering = false;
 }
 
@@ -5641,27 +5694,53 @@ def CIR_TryOp : CIR_Op<"try",[
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
-def CIR_CatchParamOp : CIR_Op<"catch_param", [HasParent<"cir::TryOp">]> {
+def CIR_CatchParamKind : CIR_I32EnumAttr<
+  "CatchParamKind", "Designate limits for begin/end of catch param handling", [
+    I32EnumAttrCase<"Begin", 0, "begin">,
+    I32EnumAttrCase<"End",  1, "end">
+]>;
+
+def CIR_CatchParamOp : CIR_Op<"catch_param"> {
   let summary = "Represents the catch clause formal parameter";
   let description = [{
-    The `cir.catch_param` is used to retrieves the exception object inside
-    the handler regions of `cir.try`.
+    The `cir.catch_param` can operate in two modes: within catch regions of
+    `cir.try` or anywhere else with the `begin` or `end` markers. The `begin`
+    version requires an exception pointer of `cir.ptr<!void>`.
 
-    This operation is used only before the CFG flatterning pass.
+    This operation is used only before the CFG flatterning pass (without kind),
+    or after flattening (with begin/end kind).
 
     Example:
 
     ```mlir
+    // Before flattening (within cir.try):
     %exception = cir.catch_param : !cir.ptr<!void>
+
+    // After flattening:
+    %exception = cir.catch_param begin %exception_ptr : !cir.ptr<!void>
+    cir.catch_param end
     ```
   }];
 
+  let arguments = (ins
+    Optional<CIR_VoidPtrType>:$exception_ptr,
+    OptionalAttr<CIR_CatchParamKind>:$kind
+  );
+
   let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
-    (`:` qualified(type($param))^)?
+    ($kind^)?
+    ($exception_ptr^)?
+    (`:`  qualified(type($param))^)?
     attr-dict
   }];
 
+  let extraClassDeclaration = [{
+    bool isBegin() { return getKind() == cir::CatchParamKind::Begin; }
+    bool isEnd() { return getKind() == cir::CatchParamKind::End; }
+  }];
+
+  let hasVerifier = 1;
   let hasLLVMLowering = false;
 }
 

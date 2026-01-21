@@ -103,7 +103,6 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   const unsigned charSize = astContext.getTargetInfo().getCharWidth();
   uCharTy = cir::IntType::get(&getMLIRContext(), charSize, /*isSigned=*/false);
 
-  // TODO(CIR): Should be updated once TypeSizeInfoAttr is upstreamed
   const unsigned sizeTypeSize =
       astContext.getTypeSize(astContext.getSignedSizeType());
   SizeSizeInBytes = astContext.toCharUnitsFromBits(sizeTypeSize).getQuantity();
@@ -126,6 +125,30 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
                        cir::OptInfoAttr::get(&mlirContext,
                                              cgo.OptimizationLevel,
                                              cgo.OptimizeSize));
+
+  // Set signed overflow behavior attribute.
+  cir::SignedOverflowBehavior sob;
+  switch (langOpts.getSignedOverflowBehavior()) {
+  case LangOptions::SOB_Defined:
+    sob = cir::SignedOverflowBehavior::Defined;
+    break;
+  case LangOptions::SOB_Undefined:
+    sob = cir::SignedOverflowBehavior::Undefined;
+    break;
+  case LangOptions::SOB_Trapping:
+    sob = cir::SignedOverflowBehavior::Trapping;
+    break;
+  }
+  theModule->setAttr(cir::CIRDialect::getSOBAttrName(),
+                     cir::SignedOverflowBehaviorAttr::get(&mlirContext, sob));
+
+  // Set type size info attribute.
+  theModule->setAttr(
+      cir::CIRDialect::getTypeSizeInfoAttrName(),
+      cir::TypeSizeInfoAttr::get(&mlirContext, charSize,
+                                 astContext.getTypeSize(astContext.IntTy),
+                                 sizeTypeSize));
+
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -372,6 +395,10 @@ void CIRGenModule::emitGlobal(clang::GlobalDecl gd) {
 
   const auto *global = cast<ValueDecl>(gd.getDecl());
 
+  // Weak references don't produce any output by themselves.
+  if (global->hasAttr<WeakRefAttr>())
+    return;
+
   if (const auto *fd = dyn_cast<FunctionDecl>(global)) {
     // Update deferred annotations with the latest declaration if the function
     // was already used or defined.
@@ -569,7 +596,13 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *op) {
   setCommonAttributes(gd, op);
 
   assert(!cir::MissingFeatures::opGlobalUsedOrCompilerUsed());
-  assert(!cir::MissingFeatures::opGlobalSection());
+
+  // Set section attribute if the declaration has one.
+  const Decl *d = gd.getDecl();
+  if (auto globalOp = mlir::dyn_cast<cir::GlobalOp>(op)) {
+    if (const auto *sa = d->getAttr<SectionAttr>())
+      globalOp.setSectionAttr(builder.getStringAttr(sa->getName()));
+  }
   assert(!cir::MissingFeatures::opFuncCPUAndFeaturesAttributes());
   assert(!cir::MissingFeatures::opFuncSection());
 
@@ -713,6 +746,10 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       errorNYI(d->getSourceRange(), "MS static data member inline definition");
 
     assert(!cir::MissingFeatures::opGlobalSection());
+    if (d->hasExternalStorage()) {
+      if (const auto *sa = d->getAttr<SectionAttr>())
+        gv.setSectionAttr(builder.getStringAttr(sa->getName()));
+    }
     gv.setGlobalVisibilityAttr(getGlobalVisibilityAttrFromDecl(d));
 
     // Handle XCore specific ABI requirements.
@@ -893,7 +930,9 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *vd,
                   vd->getType().isConstantStorage(astContext,
                                                   /*ExcludeCtor=*/true,
                                                   /*ExcludeDtor=*/true)));
-  assert(!cir::MissingFeatures::opGlobalSection());
+  // Set section attribute if the declaration has one.
+  if (const auto *sa = vd->getAttr<SectionAttr>())
+    gv.setSectionAttr(builder.getStringAttr(sa->getName()));
 
   // Set CIR's linkage type as appropriate.
   cir::GlobalLinkageKind linkage =
@@ -1721,6 +1760,34 @@ std::pair<cir::FuncType, cir::FuncOp> CIRGenModule::getAddrAndTypeOfCXXStructor(
   return {fnType, fn};
 }
 
+cir::FuncOp CIRGenModule::getWeakRefReference(const ValueDecl *vd) {
+  const AliasAttr *aa = vd->getAttr<AliasAttr>();
+  assert(aa && "WeakRef without alias?");
+
+  // See if there is already something with the target's name in the module.
+  StringRef aliaseeName = aa->getAliasee();
+  mlir::Operation *entry = getGlobalValue(aliaseeName);
+  if (entry) {
+    cir::FuncOp func = dyn_cast<cir::FuncOp>(entry);
+    assert(func && "WeakRef aliasee is not a function");
+    return func;
+  }
+
+  // Create a new function declaration with the aliasee name.
+  const auto *fd = cast<FunctionDecl>(vd);
+  mlir::Type funcType = convertType(fd->getType());
+
+  cir::FuncOp func = getOrCreateCIRFunction(
+      aliaseeName, funcType, GlobalDecl(fd), /*ForVTable=*/false,
+      /*DontDefer=*/true, /*IsThunk=*/false, NotForDefinition);
+
+  // Set extern_weak linkage.
+  func.setLinkage(cir::GlobalLinkageKind::ExternalWeakLinkage);
+  func.setSymVisibility("private");
+
+  return func;
+}
+
 cir::FuncOp CIRGenModule::getAddrOfFunction(clang::GlobalDecl gd,
                                             mlir::Type funcType, bool forVTable,
                                             bool dontDefer,
@@ -2137,17 +2204,15 @@ void CIRGenModule::setCIRFunctionAttributes(GlobalDecl globalDecl,
   cir::CallingConv callingConv;
   cir::SideEffect sideEffect;
 
-  // TODO(cir): The current list should be initialized with the extra function
-  // attributes, but we don't have those yet.  For now, the PAL is initialized
-  // with nothing.
-  assert(!cir::MissingFeatures::opFuncExtraAttrs());
-  // Initialize PAL with existing attributes to merge attributes.
-  mlir::NamedAttrList pal{};
+  // Initialize PAL with existing extra attributes to merge attributes.
+  mlir::NamedAttrList pal;
+  if (auto existingExtraAttrs = func.getExtraAttrs())
+    pal = mlir::NamedAttrList{existingExtraAttrs->getElements().getValue()};
   constructAttributeList(func.getName(), info, globalDecl, pal, callingConv,
                          sideEffect,
                          /*attrOnCallSite=*/false, isThunk);
-  // TODO(cir): we need to set Extra Attrs here when that gets implemented.
-  assert(!cir::MissingFeatures::opFuncExtraAttrs());
+  func.setExtraAttrsAttr(
+      cir::ExtraFuncAttributesAttr::get(pal.getDictionary(&getMLIRContext())));
 
   // TODO(cir): Check X86_VectorCall incompatibility wiht WinARM64EC
 
@@ -2194,10 +2259,39 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   }
 }
 
+/// Returns true if exception handling is enabled and might actually be used
+/// enabled.  This means, for example, that C with -fexceptions enables this.
+static bool hasUnwindExceptions(const LangOptions &langOpts) {
+  // If exceptions are completely disabled, obviously this is false.
+  if (!langOpts.Exceptions)
+    return false;
+
+  // If C++ exceptions are enabled, this is true.
+  if (langOpts.CXXExceptions)
+    return true;
+
+  // If ObjC exceptions are enabled, this depends on the ABI.
+  if (langOpts.ObjCExceptions)
+    return langOpts.ObjCRuntime.hasUnwindExceptions();
+
+  return true;
+}
+
 void CIRGenModule::setCIRFunctionAttributesForDefinition(
     const clang::FunctionDecl *decl, cir::FuncOp f) {
+  // Get existing extra attributes or create empty dict.
+  mlir::NamedAttrList attrs;
+  if (auto existingExtraAttrs = f.getExtraAttrs())
+    attrs = mlir::NamedAttrList{existingExtraAttrs->getElements().getValue()};
+
   assert(!cir::MissingFeatures::opFuncUnwindTablesAttr());
   assert(!cir::MissingFeatures::stackProtector());
+
+  // Add nothrow attribute if exceptions aren't enabled.
+  if (!hasUnwindExceptions(getLangOpts())) {
+    auto attr = cir::NoThrowAttr::get(&getMLIRContext());
+    attrs.set(attr.getMnemonic(), attr);
+  }
 
   std::optional<cir::InlineKind> existingInlineKind = f.getInlineKind();
   bool isNoInline =
@@ -2215,19 +2309,42 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(
       f.setInlineKind(cir::InlineKind::NoInline);
     }
 
+    f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
+        attrs.getDictionary(&getMLIRContext())));
     return;
   }
 
   assert(!cir::MissingFeatures::opFuncArmStreamingAttr());
   assert(!cir::MissingFeatures::opFuncArmNewAttr());
-  assert(!cir::MissingFeatures::opFuncOptNoneAttr());
   assert(!cir::MissingFeatures::opFuncMinSizeAttr());
   assert(!cir::MissingFeatures::opFuncNakedAttr());
   assert(!cir::MissingFeatures::opFuncNoDuplicateAttr());
   assert(!cir::MissingFeatures::hlsl());
 
-  // Handle inline attributes
-  if (decl->hasAttr<NoInlineAttr>() && !isAlwaysInline) {
+  // Track whether we need to add the optnone attribute,
+  // starting with the default for this optimization level.
+  bool shouldAddOptNone =
+      !codeGenOpts.DisableO0ImplyOptNone && codeGenOpts.OptimizationLevel == 0;
+  // We can't add optnone in the following cases, it won't pass the verifier.
+  shouldAddOptNone &= !decl->hasAttr<MinSizeAttr>();
+  shouldAddOptNone &= !decl->hasAttr<AlwaysInlineAttr>();
+
+  // Handle optnone and inline attributes
+  if ((shouldAddOptNone || decl->hasAttr<OptimizeNoneAttr>()) &&
+      !isAlwaysInline) {
+    // Add optnone, but do so only if the function isn't always_inline.
+    f.setOptNone(true);
+
+    // OptimizeNone implies noinline; we should not be inlining such functions.
+    f.setInlineKind(cir::InlineKind::NoInline);
+
+    // We still need to handle naked functions even though optnone subsumes
+    // much of their semantics.
+    assert(!cir::MissingFeatures::opFuncNakedAttr());
+
+    // OptimizeNone wins over OptimizeForSize and MinSize.
+    assert(!cir::MissingFeatures::opFuncMinSizeAttr());
+  } else if (decl->hasAttr<NoInlineAttr>() && !isAlwaysInline) {
     // Add noinline if the function isn't always_inline.
     f.setInlineKind(cir::InlineKind::NoInline);
   } else if (decl->hasAttr<AlwaysInlineAttr>() && !isNoInline) {
@@ -2244,32 +2361,35 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(
     // Otherwise, propagate the inline hint attribute and potentially use its
     // absence to mark things as noinline.
     // Search function and template pattern redeclarations for inline.
-    if (auto *fd = dyn_cast<FunctionDecl>(decl)) {
-      // TODO: Share this checkForInline implementation with classic codegen.
-      // This logic is likely to change over time, so sharing would help ensure
-      // consistency.
-      auto checkForInline = [](const FunctionDecl *decl) {
-        auto checkRedeclForInline = [](const FunctionDecl *redecl) {
-          return redecl->isInlineSpecified();
-        };
-        if (any_of(decl->redecls(), checkRedeclForInline))
-          return true;
-        const FunctionDecl *pattern = decl->getTemplateInstantiationPattern();
-        if (!pattern)
-          return false;
-        return any_of(pattern->redecls(), checkRedeclForInline);
+    auto checkForInline = [](const FunctionDecl *decl) {
+      auto checkRedeclForInline = [](const FunctionDecl *redecl) {
+        return redecl->isInlineSpecified();
       };
-      if (checkForInline(fd)) {
-        f.setInlineKind(cir::InlineKind::InlineHint);
-      } else if (codeGenOpts.getInlining() ==
-                     CodeGenOptions::OnlyHintInlining &&
-                 !fd->isInlined() && !isAlwaysInline) {
-        f.setInlineKind(cir::InlineKind::NoInline);
-      }
+      if (any_of(decl->redecls(), checkRedeclForInline))
+        return true;
+      const FunctionDecl *pattern = decl->getTemplateInstantiationPattern();
+      if (!pattern)
+        return false;
+      return any_of(pattern->redecls(), checkRedeclForInline);
+    };
+    if (checkForInline(decl)) {
+      f.setInlineKind(cir::InlineKind::InlineHint);
+    } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyHintInlining &&
+               !decl->isInlined() && !isAlwaysInline) {
+      f.setInlineKind(cir::InlineKind::NoInline);
     }
   }
 
-  assert(!cir::MissingFeatures::opFuncColdHotAttr());
+  // Handle cold and hot attributes.
+  if (decl->hasAttr<ColdAttr>())
+    f.setCold(true);
+  if (decl->hasAttr<HotAttr>()) {
+    auto attr = cir::HotAttr::get(&getMLIRContext());
+    attrs.set(attr.getMnemonic(), attr);
+  }
+
+  f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
+      attrs.getDictionary(&getMLIRContext())));
 }
 
 cir::FuncOp CIRGenModule::getOrCreateCIRFunction(
@@ -2449,7 +2569,9 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     mlir::SymbolTable::setSymbolVisibility(
         func, mlir::SymbolTable::Visibility::Private);
 
-    assert(!cir::MissingFeatures::opFuncExtraAttrs());
+    // Initialize with empty dict of extra attributes.
+    func.setExtraAttrsAttr(
+        cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
     // Mark C++ special member functions (Constructor, Destructor etc.)
     setCXXSpecialMemberAttr(func, funcDecl);

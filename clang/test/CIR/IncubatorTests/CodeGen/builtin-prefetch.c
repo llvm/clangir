@@ -9,7 +9,7 @@ void foo(void *a) {
 // CIR:    [[PTR_ALLOC:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["a", init] {alignment = 8 : i64}
 // CIR:    cir.store %arg0, [[PTR_ALLOC]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    [[PTR:%.*]] = cir.load{{.*}} [[PTR_ALLOC]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:    cir.prefetch([[PTR]] : !cir.ptr<!void>) locality(1) write
+// CIR:    cir.prefetch write locality(1) [[PTR]] : !cir.ptr<!void>
 // CIR:    cir.return
 
 // LLVM:  define dso_local void @foo(ptr [[ARG0:%.*]])

@@ -1287,6 +1287,20 @@ public:
     mlir::Type resTy = cgf.convertType(e->getType());
     mlir::Location loc = cgf.getLoc(e->getExprLoc());
 
+    // If we have 0 && RHS, see if we can elide RHS, if so, just return 0.
+    // If we have 1 && X, just emit X without inserting the control flow.
+    bool lhsCondVal;
+    if (cgf.constantFoldsToBool(e->getLHS(), lhsCondVal)) {
+      if (lhsCondVal) {
+        // If we have 1 && X, just emit X.
+        mlir::Value rhsCond = cgf.evaluateExprAsBool(e->getRHS());
+        return maybePromoteBoolResult(rhsCond, resTy);
+      }
+      // 0 && RHS: If it is safe, just elide the RHS, and return 0/false.
+      if (!cgf.containsLabel(e->getRHS()))
+        return builder.getNullValue(resTy, loc);
+    }
+
     CIRGenFunction::ConditionalEvaluation eval(cgf);
 
     mlir::Value lhsCondV = cgf.evaluateExprAsBool(e->getLHS());
@@ -1332,6 +1346,23 @@ public:
     assert(!cir::MissingFeatures::instrumentation());
     mlir::Type resTy = cgf.convertType(e->getType());
     mlir::Location loc = cgf.getLoc(e->getExprLoc());
+
+    // If we have 1 || RHS, see if we can elide RHS, if so, just return 1.
+    // If we have 0 || X, just emit X without inserting the control flow.
+    bool lhsCondVal;
+    if (cgf.constantFoldsToBool(e->getLHS(), lhsCondVal)) {
+      if (!lhsCondVal) {
+        // If we have 0 || X, just emit X.
+        mlir::Value rhsCond = cgf.evaluateExprAsBool(e->getRHS());
+        return maybePromoteBoolResult(rhsCond, resTy);
+      }
+      // 1 || RHS: If it is safe, just elide the RHS, and return 1/true.
+      if (!cgf.containsLabel(e->getRHS())) {
+        if (auto intTy = mlir::dyn_cast<cir::IntType>(resTy))
+          return builder.getConstInt(loc, intTy, 1);
+        return builder.getBool(true, loc);
+      }
+    }
 
     CIRGenFunction::ConditionalEvaluation eval(cgf);
 

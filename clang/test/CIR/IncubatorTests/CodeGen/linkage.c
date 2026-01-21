@@ -14,18 +14,18 @@ int foo(void) {
   return bar(5);
 }
 
+static int var = 0;
+// CIR: cir.global "private" internal dso_local @var = #cir.int<0> : !s32i
+int get_var(void) {
+  return var;
+}
+
 // CIR-O0:   cir.func no_inline optnone internal private {{.*}} @bar
 // CIR-O1:   cir.func internal private {{.*}} @bar
 // CIR:      cir.func {{.*}} @foo
 
 // LLVM: define internal i32 @bar
 // LLVM: define dso_local i32 @foo
-
-static int var = 0;
-// CIR: cir.global "private" internal dso_local @var = #cir.int<0> : !s32i
-int get_var(void) {
-  return var;
-}
 
 // Should generate available_externally linkage when optimizing.
 inline int availableExternallyMethod(void) { return 0; }

@@ -90,6 +90,71 @@ def CIR_SourceLanguageAttr : CIR_EnumAttr<CIR_SourceLanguage, "lang"> {
 }
 
 //===----------------------------------------------------------------------===//
+// SignedOverflowBehaviorAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_SignedOverflowBehavior : CIR_I32EnumAttr<
+    "SignedOverflowBehavior", "signed overflow behavior", [
+  I32EnumAttrCase<"Undefined", 0, "undefined">,
+  I32EnumAttrCase<"Defined", 1, "defined">,
+  I32EnumAttrCase<"Trapping", 2, "trapping">
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_SignedOverflowBehaviorAttr
+    : CIR_EnumAttr<CIR_SignedOverflowBehavior, "signed_overflow_behavior"> {
+  let summary = "Signed overflow behavior for the module";
+  let description = [{
+    Represents the signed overflow behavior used for the module.
+
+    - `undefined`: Default C standard behavior, signed overflow is undefined.
+    - `defined`: Signed overflow wraps (as if using -fwrapv).
+    - `trapping`: Signed overflow traps (as if using -ftrapv).
+
+    Example:
+    ```
+    module attributes {cir.sob = #cir.signed_overflow_behavior<undefined>} {}
+    ```
+
+    Module signed overflow behavior attribute name is `cir.sob` and is defined by
+    `getSOBAttrName` method in CIRDialect class.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// TypeSizeInfoAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
+  let summary = "A module-level attribute that holds type size information";
+  let description = [{
+    The `#cir.type_size_info` attribute holds type size information for the
+    target. This includes the size (in bits) of fundamental C types.
+
+    The `char_` parameter gives the size of `char` type in bits.
+    The `int_` parameter gives the size of `int` type in bits.
+    The `size_t` parameter gives the size of `size_t` type in bits.
+
+    Examples:
+
+    ```mlir
+    #cir.type_size_info<char = 8, int = 32, size_t = 64>
+    ```
+  }];
+
+  let parameters = (ins
+    "unsigned":$char_,
+    "unsigned":$int_,
+    "unsigned":$size_t
+  );
+
+  let assemblyFormat = [{
+    `<` `char` `=` $char_ `,` `int` `=` $int_ `,` `size_t` `=` $size_t `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // OptInfoAttr
 //===----------------------------------------------------------------------===//
 
@@ -1236,6 +1301,152 @@ def CIR_BlockAddrInfoAttr : CIR_Attr<"BlockAddrInfo", "block_addr_info"> {
                    mlir::StringAttr::get($_ctxt, label_name));
     }]>
   ];
+}
+
+//===----------------------------------------------------------------------===//
+// AnnotationAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
+  let summary = "Annotation attribute for global variables and functions";
+  let description = [{
+    Represent C/C++ attribute of annotate in CIR.
+    Example C code:
+    ```
+     int *a __attribute__((annotate("testptr", "21", 12 )));
+    ```
+    In this example code, the `AnnotationAttr` has annotation name "testptr",
+    and arguments "21" and 12 constitutes an `ArrayAttr` type parameter `args`
+    for global variable `a`.
+    In CIR, the attribute for above annotation looks like:
+    ```
+    [#cir.annotation<name = "withargs", args = ["21", 12 : i32]>]
+    ```
+  }];
+
+  // The parameter args is empty when there is no arg.
+  let parameters = (ins "mlir::StringAttr":$name,
+                        "mlir::ArrayAttr":$args);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::StringAttr":$name,
+                                        CArg<"mlir::ArrayAttr", "{}">:$args), [{
+      return $_get(name.getContext(), name, args);
+    }]>
+  ];
+
+  let assemblyFormat = "`<` struct($name, $args) `>`";
+
+  let extraClassDeclaration = [{
+    bool isNoArgs() const { return getArgs().empty(); };
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// GlobalAnnotationValuesAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
+  "global_annotations"
+> {
+  let summary = "Array of annotations, each element consists of name of"
+                "a global var or func and one of its annotations";
+  let description = [{
+    This is annotation value array, which holds the annotation
+    values for all global variables and functions in a module.
+    This array is used to create the initial value of a global annotation
+    metadata variable in LLVM IR.
+    Example C code:
+    ```
+    double *a __attribute__((annotate("withargs", "21", 12 )));
+    int *b __attribute__((annotate("withargs", "21", 12 )));
+    void *c __attribute__((annotate("noargvar")));
+    void foo(int i) __attribute__((annotate("noargfunc"))) {}
+    ```
+    After CIR lowering prepare pass, compiler generates a
+    `GlobalAnnotationValuesAttr` like the following:
+    ```
+    #cir<global_annotations [
+      ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+      ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+      ["c", #cir.annotation<name = "noargvar", args = []>],
+      ["foo", #cir.annotation<name = "noargfunc", args = []>]]>
+    ```
+  }];
+
+  let parameters = (ins "mlir::ArrayAttr":$annotations);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::ArrayAttr":$annotations), [{
+      return $_get(annotations.getContext(), annotations);
+    }]>
+  ];
+
+  let assemblyFormat = [{ $annotations }];
+
+  // Enable verifier.
+  let genVerifyDecl = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// ExtraFuncAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
+  let summary = "Represents aggregated attributes for a function";
+  let description = [{
+    This is a wrapper of attribute dictionary that contains extra attributes of
+    a function.
+  }];
+
+  let parameters = (ins "mlir::DictionaryAttr":$elements);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::DictionaryAttr":$elements), [{
+      return $_get(elements.getContext(), elements);
+    }]>
+  ];
+
+  let assemblyFormat = [{ `(` $elements `)` }];
+}
+
+//===----------------------------------------------------------------------===//
+// Unit Function Attributes
+//===----------------------------------------------------------------------===//
+
+def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
+  let storageType = [{ NoThrowAttr }];
+}
+
+def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
+  let storageType = [{ ConvergentAttr }];
+}
+
+def CIR_HotAttr : CIR_UnitAttr<"Hot", "hot"> {
+  let storageType = [{ HotAttr }];
+}
+
+//===----------------------------------------------------------------------===//
+// UWTableAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_UWTableKind : CIR_I32EnumAttr<"UWTableKind", "Unwind table kind", [
+  I32EnumAttrCase<"None", 0, "none">,
+  I32EnumAttrCase<"Sync", 1, "sync">,
+  I32EnumAttrCase<"Async", 2, "async">
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_UWTableAttr : CIR_EnumAttr<CIR_UWTableKind, "uwtable"> {
+  let summary = "Unwind table kind attribute";
+  let description = [{
+    The kind of unwind tables to generate for a function.
+    - None: No unwind tables
+    - Sync: Synchronous unwind tables (default)
+    - Async: Asynchronous unwind tables (for async exception handling)
+  }];
+  let cppClassName = "UWTableAttr";
 }
 
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD

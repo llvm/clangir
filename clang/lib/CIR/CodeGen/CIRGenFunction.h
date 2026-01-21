@@ -978,6 +978,10 @@ public:
   void populateEHCatchRegions(EHScopeStack::stable_iterator scope,
                               cir::TryOp tryOp);
 
+  /// Tracks the current call operation that may throw, used to populate
+  /// its cleanup region during exception handling.
+  cir::CallOp callWithExceptionCtx = nullptr;
+
   /// The cleanup depth enclosing all the cleanups associated with the
   /// parameters.
   EHScopeStack::stable_iterator prologueCleanupDepth;

@@ -15,19 +15,19 @@ int average(int count, ...) {
 // AMR64_CHECK: cir.func {{.*}} @{{.*}}average{{.*}}(%arg0: !s32i loc({{.+}}), ...) -> !s32i
     va_list args, args_copy;
     va_start(args, count);
-    // CHECK: cir.va.start %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va_start %{{[0-9]+}} %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>, !s32i
 
     va_copy(args_copy, args);
-    // CHECK: cir.va.copy %{{[0-9]+}} to %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>, !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va_copy %{{[0-9]+}} to %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>, !cir.ptr<[[VALISTTYPE]]>
 
     int sum = 0;
     for(int i = 0; i < count; i++) {
         sum += va_arg(args, int);
-        // CHECK: %{{[0-9]+}} = cir.va.arg %{{[0-9]+}} : (!cir.ptr<[[VALISTTYPE]]>) -> !s32i
+        // CHECK: %{{[0-9]+}} = cir.va_arg %{{[0-9]+}} : (!cir.ptr<[[VALISTTYPE]]>) -> !s32i
     }
 
     va_end(args);
-    // CHECK: cir.va.end %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va_end %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
 
     return count > 0 ? sum / count : 0;
 }

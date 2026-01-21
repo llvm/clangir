@@ -5,12 +5,14 @@
 
 extern __thread int b;
 int c(void) { return *&b; }
-// CIR: cir.global "private" external tls_dyn @b : !s32i
-// CIR: cir.func {{.*}} @c() -> !s32i
-// CIR:   %[[TLS_ADDR:.*]] = cir.get_global thread_local @b : !cir.ptr<!s32i>
 
 __thread int a;
+
+// Globals are emitted at the top of the module.
+// CIR: cir.global "private" external tls_dyn @b : !s32i
 // CIR: cir.global external tls_dyn @a = #cir.int<0> : !s32i
+// CIR: cir.func {{.*}} @c() -> !s32i
+// CIR:   %[[TLS_ADDR:.*]] = cir.get_global thread_local @b : !cir.ptr<!s32i>
 
 // LLVM: @b = external thread_local global i32
 // LLVM: @a = thread_local global i32 0
