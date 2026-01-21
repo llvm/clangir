@@ -8,8 +8,7 @@ int get_num_types(Types...) {
 }
 
 // CHECK-LABEL: cir.func{{.*}} @{{.*}}get_num_typesIJifdEEiDpT_
-// CHECK: %{{.*}} = cir.const #cir.int<3> : !u64i
-// CHECK: %{{.*}} = cir.cast integral %{{.*}} : !u64i -> !s32i
+// CHECK: %{{.*}} = cir.const #cir.int<3> : !s32i
 
 template int get_num_types(int, float, double);
 
@@ -20,7 +19,7 @@ int get_num_empty(Types...) {
 }
 
 // CHECK-LABEL: cir.func{{.*}} @{{.*}}get_num_emptyIJEEiDpT_
-// CHECK: %{{.*}} = cir.const #cir.int<0> : !u64i
+// CHECK: %{{.*}} = cir.const #cir.int<0> : !s32i
 
 template int get_num_empty();
 
@@ -31,6 +30,6 @@ int count_values() {
 }
 
 // CHECK-LABEL: cir.func{{.*}} @{{.*}}count_valuesIJLi1ELi2ELi3ELi4ELi5EEEiv
-// CHECK: %{{.*}} = cir.const #cir.int<5> : !u64i
+// CHECK: %{{.*}} = cir.const #cir.int<5> : !s32i
 
 template int count_values<1, 2, 3, 4, 5>();

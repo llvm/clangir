@@ -797,12 +797,34 @@ CIRGenFunction::emitX86BuiltinExpr(unsigned builtinID, const CallExpr *expr) {
   case X86::BI_m_prefetch:
   case X86::BI_m_prefetchw:
     return emitPrefetch(*this, builtinID, expr, ops);
-  case X86::BI__rdtsc:
+  case X86::BI__rdtsc: {
+    // Return the 64-bit timestamp counter value
+    mlir::Location loc = getLoc(expr->getExprLoc());
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    return emitIntrinsicCallOp(builder, loc, "x86.rdtsc", u64Ty,
+                               mlir::ValueRange{});
+  }
   case X86::BI__builtin_ia32_rdtscp: {
-    cgm.errorNYI(expr->getSourceRange(),
-                 std::string("unimplemented X86 builtin call: ") +
-                     getContext().BuiltinInfo.getName(builtinID));
-    return mlir::Value{};
+    // Returns {i64 timestamp, i32 aux} and stores aux to the pointer argument
+    mlir::Location loc = getLoc(expr->getExprLoc());
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    mlir::Type u32Ty = builder.getUInt32Ty();
+
+    // The intrinsic returns a struct {i64, i32}
+    SmallVector<mlir::Type, 2> members = {u64Ty, u32Ty};
+    auto structTy =
+        cir::RecordType::get(&getMLIRContext(), members, false, false,
+                             cir::RecordType::RecordKind::Struct);
+    mlir::Value call = emitIntrinsicCallOp(builder, loc, "x86.rdtscp", structTy,
+                                           mlir::ValueRange{});
+
+    // Extract and store the TSC_AUX value (second member) to the pointer
+    mlir::Value tscAux =
+        cir::ExtractMemberOp::create(builder, loc, u32Ty, call, /*index=*/1);
+    builder.CIRBaseBuilderTy::createStore(loc, tscAux, ops[0]);
+
+    // Return the timestamp counter (first member)
+    return cir::ExtractMemberOp::create(builder, loc, u64Ty, call, /*index=*/0);
   }
   case X86::BI__builtin_ia32_lzcnt_u16:
   case X86::BI__builtin_ia32_lzcnt_u32:

@@ -13,18 +13,15 @@ int foo(void) {
 
 // CIR:  IR Dump After CIRCanonicalize (cir-canonicalize)
 // CIR:  cir.func {{.*}} @foo() -> !s32i
-// CIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
+// CIR:  IR Dump After CXXABILowering (cir-cxxabi-lowering)
 // CIR:  cir.func {{.*}} @foo() -> !s32i
-// CIR-NOT: IR Dump After FlattenCFG
-// CIR-NOT: IR Dump After SCFPrepare
-// CIR:  IR Dump After DropAST (cir-drop-ast)
+// CIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // CIR:  cir.func {{.*}} @foo() -> !s32i
 // CIRFLAT:  IR Dump After CIRCanonicalize (cir-canonicalize)
 // CIRFLAT:  cir.func {{.*}} @foo() -> !s32i
-// CIRFLAT:  IR Dump After LoweringPrepare (cir-lowering-prepare)
+// CIRFLAT:  IR Dump After CXXABILowering (cir-cxxabi-lowering)
 // CIRFLAT:  cir.func {{.*}} @foo() -> !s32i
-// CIRFLAT:  IR Dump After FlattenCFG (cir-flatten-cfg)
-// CIRFLAT:  IR Dump After DropAST (cir-drop-ast)
+// CIRFLAT:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // CIRFLAT:  cir.func {{.*}} @foo() -> !s32i
 // CIRMLIR:  IR Dump After CIRCanonicalize (cir-canonicalize)
 // CIRMLIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)

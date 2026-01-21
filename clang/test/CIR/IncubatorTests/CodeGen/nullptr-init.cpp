@@ -39,12 +39,6 @@ int t2() {
   return x;
 }
 
-// Note: An extra null pointer constant gets emitted as a result of visiting the
-//       compound initialization expression. We could avoid this by capturing
-//       the result of the compound initialization expression and explicitly
-//       casting it to the required type, but a redundant constant seems less
-//       intrusive than a redundant bitcast.
-
 // CIR:       cir.func {{.*}} @_Z2t2v()
 // CIR-NEXT:      %[[RETVAL_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR-NEXT:      %[[X:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
@@ -53,7 +47,6 @@ int t2() {
 // CIR-NEXT:      cir.store{{.*}} %[[ZERO]], %[[X]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:      %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
 // CIR-NEXT:      cir.store{{.*}} %[[ONE]], %[[X]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT:      %[[NULLPTR_EXTRA:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!void>
 // CIR-NEXT:      %[[NULLPTR:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
 // CIR-NEXT:      cir.store{{.*}} %[[NULLPTR]], %[[P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:      %[[X_VAL:.*]] = cir.load{{.*}} %[[X]] : !cir.ptr<!s32i>, !s32i

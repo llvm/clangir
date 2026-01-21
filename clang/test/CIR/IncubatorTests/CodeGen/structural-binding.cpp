@@ -91,7 +91,7 @@ void g(C &c) {
   // CIR: cir.store{{.*}} %[[x9]], %[[x9p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   // CIR: {{.*}} = cir.load %[[x8p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CIR: {{.*}} = cir.load %[[x9p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-  // LLVM: call void @llvm.memcpy.p0.p0.i32(ptr {{.*}}, ptr {{.*}}, i32 8, i1 false)
+  // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr {{.*}}, ptr {{.*}}, i32 8, i1 false)
   // LLVM: {{.*}} = call ptr @_Z3getILj0EERKiRK1C(ptr {{.*}})
   // LLVM: {{.*}} = call ptr @_Z3getILj1EERKiRK1C(ptr {{.*}})
 

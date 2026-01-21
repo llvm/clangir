@@ -12,7 +12,7 @@ int test_rdtsc(void) {
   // CIR-LABEL: @test_rdtsc
   // LLVM-LABEL: @test_rdtsc
   return __rdtsc();
-  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.rdtsc"  : () -> !u64i
+  // CIR: {{%.*}} = cir.call_llvm_intrinsic "x86.rdtsc"  : () -> !u64i
   // LLVM: call i64 @llvm.x86.rdtsc
 }
 
@@ -21,7 +21,7 @@ unsigned long long test_rdtscp(unsigned int *a) {
   return __rdtscp(a);
 
   // CIR-LABEL: @__rdtscp
-  // CIR: [[RDTSCP:%.*]] = cir.llvm.intrinsic "x86.rdtscp"  : () -> !rec_anon_struct
+  // CIR: [[RDTSCP:%.*]] = cir.call_llvm_intrinsic "x86.rdtscp"  : () -> !rec_anon_struct
   // CIR: [[TSC_AUX:%.*]] = cir.extract_member [[RDTSCP]][1] : !rec_anon_struct -> !u32i
   // CIR: cir.store [[TSC_AUX]], %{{.*}} : !u32i, !cir.ptr<!u32i>
   // CIR: {{%.*}} = cir.extract_member [[RDTSCP]][0] : !rec_anon_struct -> !u64i

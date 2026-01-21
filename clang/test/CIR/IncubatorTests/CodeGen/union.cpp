@@ -6,11 +6,11 @@ typedef union { yolo y; struct { int lifecnt; }; } yolm;
 typedef union { yolo y; struct { int *lifecnt; int genpad; }; } yolm2;
 typedef union { yolo y; struct { bool life; int genpad; }; } yolm3;
 
-// CHECK-DAG: !rec_U23A3ADummy = !cir.record<struct "U2::Dummy" {!s16i, !cir.float} #cir.record.decl.ast>
-// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!s32i} #cir.record.decl.ast>
-// CHECK-DAG: !rec_anon2E2 = !cir.record<struct "anon.2" {!cir.bool, !s32i} #cir.record.decl.ast>
-// CHECK-DAG: !rec_yolo = !cir.record<struct "yolo" {!s32i} #cir.record.decl.ast>
-// CHECK-DAG: !rec_anon2E1 = !cir.record<struct "anon.1" {!cir.ptr<!s32i>, !s32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_U23A3ADummy = !cir.record<struct "U2::Dummy" {!s16i, !cir.float}>
+// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!s32i}>
+// CHECK-DAG: !rec_anon2E2 = !cir.record<struct "anon.2" {!cir.bool, !s32i}>
+// CHECK-DAG: !rec_yolo = !cir.record<struct "yolo" {!s32i}>
+// CHECK-DAG: !rec_anon2E1 = !cir.record<struct "anon.1" {!cir.ptr<!s32i>, !s32i}>
 
 // CHECK-DAG: !rec_yolm = !cir.record<union "yolm" {!rec_yolo, !rec_anon2E0}>
 // CHECK-DAG: !rec_yolm3 = !cir.record<union "yolm3" {!rec_yolo, !rec_anon2E2}>
@@ -34,14 +34,15 @@ union U2 {
     float f;
   } s;
 } u2;
-// CHECK-DAG: !cir.record<union "U2" {!cir.bool, !rec_U23A3ADummy} #cir.record.decl.ast>
+// CHECK-DAG: !cir.record<union "U2" {!cir.bool, !rec_U23A3ADummy}>
 
 // Should genereate unions without padding.
 union U3 {
   short b;
   U u;
 } u3;
-// CHECK-DAG: !rec_U3 = !cir.record<union "U3" {!s16i, !rec_U} #cir.record.decl.ast>
+// Upstream adds explicit padding for unions.
+// CHECK-DAG: !rec_U3 = !cir.record<union "U3" padded {!s16i, !rec_U, !cir.array<!u8i x 7>}>
 
 void m() {
   yolm q;
@@ -86,6 +87,6 @@ void noCrushOnDifferentSizes() {
   A a = {0};
   // CHECK:  %[[#TMP0:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 4 : i64}
   // CHECK:  %[[#TMP1:]] = cir.cast bitcast %[[#TMP0]] : !cir.ptr<!rec_A> -> !cir.ptr<!rec_anon_struct>
-  // CHECK:  %[[#TMP2:]] = cir.const #cir.zero : !rec_anon_struct
-  // CHECK:  cir.store{{.*}} %[[#TMP2]], %[[#TMP1]] : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
+  // CHECK:  %[[#TMP2:]] = cir.get_global @__const._Z23noCrushOnDifferentSizesv.a : !cir.ptr<!rec_anon_struct>
+  // CHECK:  cir.copy %[[#TMP2]] to %[[#TMP1]] : !cir.ptr<!rec_anon_struct>
 }

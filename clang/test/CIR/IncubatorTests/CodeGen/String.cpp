@@ -25,9 +25,8 @@ void test() {
 // CHECK-NEXT:   %3 = cir.const #cir.ptr<null> : !cir.ptr<!s8i>
 // CHECK-NEXT:   cir.store{{.*}} %3, %2 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CHECK-NEXT:   %4 = cir.get_member %1[1] {name = "size"} : !cir.ptr<!rec_String> -> !cir.ptr<!s64i>
-// CHECK-NEXT:   %5 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:   %6 = cir.cast integral %5 : !s32i -> !s64i
-// CHECK-NEXT:   cir.store{{.*}} %6, %4 : !s64i, !cir.ptr<!s64i>
+// CHECK-NEXT:   %5 = cir.const #cir.int<0> : !s64i
+// CHECK-NEXT:   cir.store{{.*}} %5, %4 : !s64i, !cir.ptr<!s64i>
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
 //      CHECK: cir.func {{.*}} @_ZN6StringC2Ei

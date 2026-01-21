@@ -481,7 +481,7 @@ float16_t test_vduph_laneq_f16(float16x8_t vec) {
 
   // CIR-LABEL: vduph_laneq_f16
   // CIR: [[TMP0:%.*]] = cir.const #cir.int<7> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<!cir.f16 x 8>
+  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<8 x !cir.f16>
 
   // LLVM-LABEL: test_vduph_laneq_f16
   // LLVM-SAME: (<8 x half> [[VEC:%.*]])
@@ -494,7 +494,7 @@ float16_t test_vduph_lane_f16(float16x4_t vec) {
 
   // CIR-LABEL: vduph_lane_f16
   // CIR: [[TMP0:%.*]] = cir.const #cir.int<3> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<!cir.f16 x 4>
+  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<4 x !cir.f16>
 
   // LLVM-LABEL: test_vduph_lane_f16
   // LLVM-SAME: (<4 x half> [[VEC:%.*]])
@@ -507,7 +507,7 @@ uint16x8_t test_vcvtq_u16_f16(float16x8_t a) {
   return vcvtq_u16_f16(a);
 
   // CIR-LABEL: vcvtq_u16_f16
-  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<8 x !cir.f16>) -> !cir.vector<8 x !u16i>
 
   // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzu.v8i16.v8f16(<8 x half> {{%.*}})
 
@@ -520,7 +520,7 @@ int16x8_t test_vcvtq_s16_f16(float16x8_t a) {
   return vcvtq_s16_f16(a);
 
   // CIR-LABEL: vcvtq_s16_f16
-  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!s16i x 8>
+  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<8 x !cir.f16>) -> !cir.vector<8 x !s16i>
 
   // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzs.v8i16.v8f16(<8 x half> {{%.*}})
 

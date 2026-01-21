@@ -10,17 +10,17 @@ int f6(int a0, struct s6 a1, struct s6 a2) {
 }
 
 // CIR-LABEL: @f6
-// CIR:  %[[A0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a0"
-// CIR:  %[[A1:.*]] = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, ["a1"
-// CIR:  %[[A2:.*]] = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, ["a2"
+// CIR:  {{.*}} = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, [""]
+// CIR:  {{.*}} = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, [""]
+// CIR:  %[[A0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a0", init]
 // CIR:  cir.scope {
 // CIR:    %[[TMP:.*]] = cir.alloca !rec_s6, !cir.ptr<!rec_s6>, ["ref.tmp0"]
 // CIR:    %[[LOAD_A0:.*]] = cir.load{{.*}} %[[A0]] : !cir.ptr<!s32i>, !s32i
 // CIR:    %[[COND:.*]] = cir.cast int_to_bool %[[LOAD_A0]] : !s32i -> !cir.bool
 // CIR:    cir.if %[[COND]] {
-// CIR:      cir.copy %[[A1]] to %[[TMP]] : !cir.ptr<!rec_s6>
+// CIR:      cir.copy {{.*}} to %[[TMP]] : !cir.ptr<!rec_s6>
 // CIR:    } else {
-// CIR:      cir.copy %[[A2]] to %[[TMP]] : !cir.ptr<!rec_s6>
+// CIR:      cir.copy {{.*}} to %[[TMP]] : !cir.ptr<!rec_s6>
 // CIR:    }
 // CIR:    cir.get_member %[[TMP]][0] {name = "f0"} : !cir.ptr<!rec_s6> -> !cir.ptr<!s32i>
 
@@ -29,10 +29,10 @@ int f6(int a0, struct s6 a1, struct s6 a2) {
 // LLVM:    %[[COND:.*]] = icmp ne i32 %[[LOAD_A0]], 0
 // LLVM:    br i1 %[[COND]], label %[[A1_PATH:.*]], label %[[A2_PATH:.*]]
 // LLVM:  [[A1_PATH]]:
-// LLVM:    call void @llvm.memcpy.p0.p0.i32(ptr %[[TMP:.*]], ptr {{.*}}, i32 4, i1 false)
+// LLVM:    call void @llvm.memcpy.p0.p0.i64(ptr %[[TMP:.*]], ptr {{.*}}, i64 4, i1 false)
 // LLVM:    br label %[[EXIT:[a-z0-9]+]]
 // LLVM:  [[A2_PATH]]:
-// LLVM:    call void @llvm.memcpy.p0.p0.i32(ptr %[[TMP]], ptr {{.*}}, i32 4, i1 false)
+// LLVM:    call void @llvm.memcpy.p0.p0.i64(ptr %[[TMP]], ptr {{.*}}, i64 4, i1 false)
 // LLVM:    br label %[[EXIT]]
 // LLVM:  [[EXIT]]:
 // LLVM:    getelementptr {{.*}}, ptr %[[TMP]], i32 0, i32 0

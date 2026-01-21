@@ -16,6 +16,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Location.h"
 #include "mlir/Support/LLVM.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtOpenACC.h"
@@ -379,8 +380,9 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *s,
     return emitOMPMaskedDirective(cast<OMPMaskedDirective>(*s));
   case Stmt::OMPStripeDirectiveClass:
     return emitOMPStripeDirective(cast<OMPStripeDirective>(*s));
-  case Stmt::LabelStmtClass:
   case Stmt::AttributedStmtClass:
+    return emitAttributedStmt(cast<AttributedStmt>(*s));
+  case Stmt::LabelStmtClass:
   case Stmt::GotoStmtClass:
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
@@ -449,6 +451,35 @@ mlir::LogicalResult CIRGenFunction::emitLabelStmt(const clang::LabelStmt &s) {
 
   if (getContext().getLangOpts().EHAsynch && s.isSideEntry())
     getCIRGenModule().errorNYI(s.getSourceRange(), "IsEHa: not implemented.");
+
+  return emitStmt(s.getSubStmt(), /*useCurrentScope*/ true);
+}
+
+mlir::LogicalResult
+CIRGenFunction::emitAttributedStmt(const AttributedStmt &s) {
+  for (const auto *a : s.getAttrs()) {
+    switch (a->getKind()) {
+    case attr::NoMerge:
+    case attr::NoInline:
+    case attr::AlwaysInline:
+    case attr::MustTail:
+      cgm.errorNYI(s.getSourceRange(), "statement attributes");
+      return mlir::failure();
+    case attr::CXXAssume: {
+      const Expr *assumption = cast<CXXAssumeAttr>(a)->getAssumption();
+      if (getLangOpts().CXXAssumptions &&
+          !assumption->HasSideEffects(getContext())) {
+        mlir::Value argValue = emitCheckedArgForAssume(assumption);
+        cir::AssumeOp::create(builder, getLoc(s.getSourceRange()), argValue);
+      }
+      break;
+    }
+    default:
+      // For fallthrough and other attributes that don't need special handling,
+      // just continue to emit the substatement.
+      break;
+    }
+  }
 
   return emitStmt(s.getSubStmt(), /*useCurrentScope*/ true);
 }

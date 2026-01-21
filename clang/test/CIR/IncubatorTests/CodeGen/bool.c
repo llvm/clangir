@@ -8,9 +8,9 @@ typedef struct {
 } S;
 
 // CHECK:  cir.func {{.*}} @init_bool
-// CHECK:    [[ALLOC:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
-// CHECK:    [[ZERO:%.*]] = cir.const #cir.zero : !rec_S
-// CHECK:    cir.store{{.*}} [[ZERO]], [[ALLOC]] : !rec_S, !cir.ptr<!rec_S>
+// CHECK:    [[ALLOC:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init]
+// CHECK:    [[GLOBAL:%.*]] = cir.get_global @__const.init_bool.s : !cir.ptr<!rec_S>
+// CHECK:    cir.copy [[GLOBAL]] to [[ALLOC]] : !cir.ptr<!rec_S>
 void init_bool(void) {
   S s = {0};
 }

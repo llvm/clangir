@@ -17,4 +17,4 @@ char *packed_element = &(packed[-2].a3);
 // CHECK: cir.global external @packed = #cir.zero : !cir.array<!rec_PackedStruct x 10> {alignment = 16 : i64} loc(#loc5)
 // CHECK: cir.global external @packed_element = #cir.global_view<@packed, [-2 : i32, 2 : i32]>
 // LLVM: @packed = global [10 x %struct.PackedStruct] zeroinitializer
-// LLVM: @packed_element = global ptr getelementptr inbounds (i8, ptr @packed, i64 -4)
+// LLVM: @packed_element = global ptr getelementptr (i8, ptr @packed, i64 -4)

@@ -28,11 +28,17 @@ int foo(int* ptr) {
 // BEFORE:  [[X8:%.*]] = cir.cast bool_to_int [[X7]] : !cir.bool -> !s32i
 // BEFORE:  [[X9:%.*]] = cir.cast integral [[X8]] : !s32i -> !s64i
 // BEFORE:  [[X10:%.*]] = cir.const #cir.int<0> : !s32i
-// BEFORE:  [[X11:%.*]] = cir.cast integral [[X10]] : !s32i -> !s64i
-// BEFORE:  [[X12:%.*]] = cir.cast int_to_bool [[X9]] : !s64i -> !cir.bool
-// BEFORE:  cir.if [[X12]]
+// BEFORE:  [[X11:%.*]] = cir.const #cir.int<0> : !s64i
+// BEFORE:  [[X12:%.*]] = cir.expect([[X9]], [[X11]]) : !s64i
+// BEFORE:  [[X13:%.*]] = cir.cast int_to_bool [[X12]] : !s64i -> !cir.bool
+// BEFORE:  cir.if [[X13]]
 
 // AFTER:   [[X0:%.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // AFTER:   [[X1:%.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
 // AFTER:   [[X2:%.*]] = cir.cmp(eq, [[X0]], [[X1]]) : !cir.ptr<!s32i>, !cir.bool
-// AFTER:   cir.if [[X2]]
+// AFTER:   [[X3:%.*]] = cir.cast bool_to_int [[X2]] : !cir.bool -> !s32i
+// AFTER:   [[X4:%.*]] = cir.cast integral [[X3]] : !s32i -> !s64i
+// AFTER:   [[X5:%.*]] = cir.const #cir.int<0> : !s64i
+// AFTER:   [[X6:%.*]] = cir.expect([[X4]], [[X5]]) : !s64i
+// AFTER:   [[X7:%.*]] = cir.cast int_to_bool [[X6]] : !s64i -> !cir.bool
+// AFTER:   cir.if [[X7]]

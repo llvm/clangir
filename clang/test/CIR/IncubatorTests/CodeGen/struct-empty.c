@@ -20,4 +20,4 @@ void __copy_fs_struct(struct fs_struct *fs) { fs->lock = (rwlock_t) { }; }
 
 // LLVM-LABEL: __copy_fs_struct
 // LLVM:  %[[VAL_5:.*]] = getelementptr {{.*}}, {{.*}}, i32 0, i32 0
-// LLVM:  call void @llvm.memcpy.p0.p0.i32(ptr %[[VAL_5]], ptr {{.*}}, i32 0, i1 false)
+// LLVM:  call void @llvm.memcpy.p0.p0.i64(ptr %[[VAL_5]], ptr {{.*}}, i64 0, i1 false)

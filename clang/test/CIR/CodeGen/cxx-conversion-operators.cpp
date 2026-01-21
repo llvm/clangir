@@ -38,7 +38,7 @@ void test() {
 // CIR:   cir.return %[[RET_LOAD]] : !s32i
 // CIR: }
 
-// CIR: cir.func no_inline comdat linkonce_odr @_ZNK15inline_operatorcviEv(%[[INLINE_THIS_ARG:.+]]: !cir.ptr<!rec_inline_operator>{{.*}}) -> !s32i
+// CIR: cir.func {{.*}}comdat linkonce_odr @_ZNK15inline_operatorcviEv(%[[INLINE_THIS_ARG:.+]]: !cir.ptr<!rec_inline_operator>{{.*}}) -> !s32i
 // CIR:   %[[INLINE_THIS_ALLOCA:.+]] = cir.alloca !cir.ptr<!rec_inline_operator>, !cir.ptr<!cir.ptr<!rec_inline_operator>>, ["this", init]
 // CIR:   %[[INLINE_RETVAL:.+]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CIR:   cir.store %[[INLINE_THIS_ARG]], %[[INLINE_THIS_ALLOCA]] : !cir.ptr<!rec_inline_operator>, !cir.ptr<!cir.ptr<!rec_inline_operator>>

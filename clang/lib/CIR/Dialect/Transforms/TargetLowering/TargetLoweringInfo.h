@@ -7,25 +7,54 @@
 //===----------------------------------------------------------------------===//
 //
 // This file partially mimics the TargetCodeGenInfo class from the file
-// clang/lib/CodeGen/TargetInfo.h.
+// clang/lib/CodeGen/TargetInfo.h. This particular class was isolated in this
+// file due to build errors when trying to include the entire TargetInfo.h file.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_TARGETLOWERINGINFO_H
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_TARGETLOWERINGINFO_H
 
+#include "ABIInfo.h"
+#include <memory>
+
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
-#include <string>
 
 namespace cir {
 
 class TargetLoweringInfo {
+private:
+  std::unique_ptr<ABIInfo> Info;
+
 public:
+  TargetLoweringInfo(std::unique_ptr<ABIInfo> Info);
   virtual ~TargetLoweringInfo();
 
-  virtual std::string getLLVMSyncScope(cir::SyncScopeKind syncScope) const;
+  const ABIInfo &getABIInfo() const { return *Info; }
+
+  /// Get the LLVM sync scope string for a given CIR sync scope.
+  virtual std::string getLLVMSyncScope(cir::SyncScopeKind syncScope) const {
+    switch (syncScope) {
+    case cir::SyncScopeKind::SingleThread:
+      return "singlethread";
+    case cir::SyncScopeKind::System:
+      return "";
+    }
+    llvm_unreachable("unknown sync scope kind");
+  }
+
+  // TODO(cir): Add these back when LangAddressSpace and OpaqueType are ported
+  // to upstream.
+  // virtual unsigned
+  // getTargetAddrSpaceFromCIRAddrSpace(cir::LangAddressSpace addrSpace) const =
+  // 0;
+  //
+  // virtual mlir::Type getOpaqueType(cir::OpaqueType type) const {
+  //   llvm_unreachable("NYI");
+  // }
 };
 
 } // namespace cir
 
-#endif
+#endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_TARGETLOWERINGINFO_H

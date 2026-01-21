@@ -31,7 +31,7 @@ typedef struct {
 // LLVM: store i32 1, ptr %[[#V4]], align 4
 // LLVM: %[[#V5:]] = getelementptr %struct.S, ptr %[[#V2]], i32 0, i32 1
 // LLVM: store i32 2, ptr %[[#V5]], align 4
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V3]], ptr %[[#V2]], i32 8, i1 false)
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V3]], ptr %[[#V2]], i64 8, i1 false)
 // LLVM: %[[#V6:]] = load i64, ptr %[[#V3]], align 8
 // LLVM: ret i64 %[[#V6]]
 S init(S s) {
@@ -42,22 +42,18 @@ S init(S s) {
 
 // CIR: cir.func {{.*}} @foo1
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s"]
-// CIR: %[[#V1:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"] {alignment = 4 : i64}
 // CIR: %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u64i>, !u64i
 // CIR: %[[#V4:]] = cir.call @init(%[[#V3]]) : (!u64i) -> !u64i
-// CIR: %[[#V5:]] = cir.cast bitcast %[[#V1]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CIR: %[[#V5:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !u64i, !cir.ptr<!u64i>
-// CIR: cir.copy %[[#V1]] to %[[#V0]] : !cir.ptr<!rec_S>
 // CIR: cir.return
 
 // LLVM: @foo1()
 // LLVM: %[[#V1:]] = alloca %struct.S, i64 1, align 4
-// LLVM: %[[#V2:]] = alloca %struct.S, i64 1, align 4
 // LLVM: %[[#V3:]] = load i64, ptr %[[#V1]], align 8
 // LLVM: %[[#V4:]] = call i64 @init(i64 %[[#V3]])
-// LLVM: store i64 %[[#V4]], ptr %[[#V2]], align 8
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V1]], ptr %[[#V2]], i32 8, i1 false)
+// LLVM: store i64 %[[#V4]], ptr %[[#V1]], align 8
 void foo1() {
   S s;
   s = init(s);
@@ -69,15 +65,11 @@ void foo1() {
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["__retval"] {alignment = 4 : i64}
 // CIR: %[[#V3:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s2", init]
-// CIR: %[[#V4:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"] {alignment = 4 : i64}
-// CIR: %[[#V5:]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_S
-// CIR: cir.store{{.*}} %[[#V5]], %[[#V3]] : !rec_S, !cir.ptr<!rec_S>
 // CIR: %[[#V6:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: %[[#V7:]] = cir.load %[[#V6]] : !cir.ptr<!u64i>, !u64i
 // CIR: %[[#V8:]] = cir.call @foo2(%[[#V7]]) : (!u64i) -> !u64i
-// CIR: %[[#V9:]] = cir.cast bitcast %[[#V4]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
+// CIR: %[[#V9:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %[[#V8]], %[[#V9]] : !u64i, !cir.ptr<!u64i>
-// CIR: cir.copy %[[#V4]] to %[[#V0]] : !cir.ptr<!rec_S>
 // CIR: cir.copy %[[#V0]] to %[[#V2]] : !cir.ptr<!rec_S>
 // CIR: %[[#V10:]] = cir.cast bitcast %[[#V2]] : !cir.ptr<!rec_S> -> !cir.ptr<!u64i>
 // CIR: %[[#V11:]] = cir.load %[[#V10]] : !cir.ptr<!u64i>, !u64i
@@ -88,15 +80,13 @@ void foo1() {
 // LLVM: store i64 %[[#V0]], ptr %[[#V2]], align 8
 // LLVM: %[[#V3:]] = alloca %struct.S, i64 1, align 4
 // LLVM: %[[#V4:]] = alloca %struct.S, i64 1, align 4
-// LLVM: %[[#V5:]] = alloca %struct.S, i64 1, align 4
-// LLVM: store %struct.S { i32 1, i32 2 }, ptr %[[#V4]], align 4
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V4]], ptr @__const.foo2.s2, i64 8, i1 false)
 // LLVM: %[[#V6:]] = load i64, ptr %[[#V2]], align 8
 // LLVM: %[[#V7:]] = call i64 @foo2(i64 %[[#V6]])
-// LLVM: store i64 %[[#V7]], ptr %[[#V5]], align 8
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V2]], ptr %[[#V5]], i32 8, i1 false)
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V3]], ptr %[[#V2]], i32 8, i1 false)
-// LLVM: %[[#V8:]] = load i64, ptr %[[#V3]], align 8
-// LLVM: ret i64 %[[#V8]]
+// LLVM: store i64 %[[#V7]], ptr %[[#V2]], align 8
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V3]], ptr %[[#V2]], i64 8, i1 false)
+// LLVM: %[[#V9:]] = load i64, ptr %[[#V3]], align 8
+// LLVM: ret i64 %[[#V9]]
 S foo2(S s1) {
   S s2 = {1, 2};
   s1 = foo2(s1);
@@ -113,18 +103,16 @@ typedef struct {
 // CIR: %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u16i, !cir.ptr<!u16i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["__retval"] {alignment = 1 : i64}
-// CIR: %[[#V3:]] = cir.const #cir.int<1> : !s32i
-// CIR: %[[#V4:]] = cir.cast integral %[[#V3]] : !s32i -> !s8i
-// CIR: %[[#V5:]] = cir.get_member %[[#V0]][0] {name = "a"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
-// CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !s8i, !cir.ptr<!s8i>
-// CIR: %[[#V6:]] = cir.const #cir.int<2> : !s32i
-// CIR: %[[#V7:]] = cir.cast integral %[[#V6]] : !s32i -> !s8i
-// CIR: %[[#V8:]] = cir.get_member %[[#V0]][1] {name = "b"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
-// CIR: cir.store{{.*}} %[[#V7]], %[[#V8]] : !s8i, !cir.ptr<!s8i>
+// CIR: %[[#V3:]] = cir.const #cir.int<1> : !s8i
+// CIR: %[[#V4:]] = cir.get_member %[[#V0]][0] {name = "a"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
+// CIR: cir.store{{.*}} %[[#V3]], %[[#V4]] : !s8i, !cir.ptr<!s8i>
+// CIR: %[[#V5:]] = cir.const #cir.int<2> : !s8i
+// CIR: %[[#V6:]] = cir.get_member %[[#V0]][1] {name = "b"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
+// CIR: cir.store{{.*}} %[[#V5]], %[[#V6]] : !s8i, !cir.ptr<!s8i>
 // CIR: cir.copy %[[#V0]] to %[[#V2]] : !cir.ptr<!rec_S2>
-// CIR: %[[#V9:]] = cir.cast bitcast %[[#V2]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
-// CIR: %[[#V10:]] = cir.load %[[#V9]] : !cir.ptr<!u16i>, !u16i
-// CIR: cir.return %[[#V10]] : !u16i
+// CIR: %[[#V8:]] = cir.cast bitcast %[[#V2]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
+// CIR: %[[#V9:]] = cir.load %[[#V8]] : !cir.ptr<!u16i>, !u16i
+// CIR: cir.return %[[#V9]] : !u16i
 
 // LLVM: @init2(i16 %[[#V0:]])
 // LLVM: %[[#V2:]] = alloca %struct.S2, i64 1, align 4
@@ -134,7 +122,7 @@ typedef struct {
 // LLVM: store i8 1, ptr %[[#V4]], align 1
 // LLVM: %[[#V5:]] = getelementptr %struct.S2, ptr %[[#V2]], i32 0, i32 1
 // LLVM: store i8 2, ptr %[[#V5]], align 1
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V3]], ptr %[[#V2]], i32 2, i1 false)
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V3]], ptr %[[#V2]], i64 2, i1 false)
 // LLVM: %[[#V6:]] = load i16, ptr %[[#V3]], align 2
 // LLVM: ret i16 %[[#V6]]
 S2 init2(S2 s) {
@@ -145,22 +133,18 @@ S2 init2(S2 s) {
 
 // CIR: cir.func {{.*}} @foo3()
 // CIR: %[[#V0:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["s"]
-// CIR: %[[#V1:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["tmp"] {alignment = 1 : i64}
 // CIR: %[[#V2:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
 // CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u16i>, !u16i
 // CIR: %[[#V4:]] = cir.call @init2(%[[#V3]]) : (!u16i) -> !u16i
-// CIR: %[[#V5:]] = cir.cast bitcast %[[#V1]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
+// CIR: %[[#V5:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S2> -> !cir.ptr<!u16i>
 // CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !u16i, !cir.ptr<!u16i>
-// CIR: cir.copy %[[#V1]] to %[[#V0]] : !cir.ptr<!rec_S2>
 // CIR: cir.return
 
 // LLVM: @foo3()
 // LLVM: %[[#V1:]] = alloca %struct.S2, i64 1, align 1
-// LLVM: %[[#V2:]] = alloca %struct.S2, i64 1, align 1
 // LLVM: %[[#V3:]] = load i16, ptr %[[#V1]], align 2
 // LLVM: %[[#V4:]] = call i16 @init2(i16 %[[#V3]])
-// LLVM: store i16 %[[#V4]], ptr %[[#V2]], align 2
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V1]], ptr %[[#V2]], i32 2, i1 false)
+// LLVM: store i16 %[[#V4]], ptr %[[#V1]], align 2
 void foo3() {
   S2 s;
   s = init2(s);

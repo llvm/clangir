@@ -1,5 +1,13 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o - | FileCheck %s
 
+// CHECK-DAG: ![[anon:.*]] = !cir.record<struct  {!s32i}>
+// CHECK-DAG: ![[anon0:.*]] = !cir.record<struct  {!u32i}>
+// CHECK-DAG: #[[bfi_x:.*]] = #cir.bitfield_info<name = "x", storage_type = !u32i, size = 16, offset = 0, is_signed = true>
+// CHECK-DAG: #[[bfi_y:.*]] = #cir.bitfield_info<name = "y", storage_type = !u32i, size = 16, offset = 16, is_signed = true>
+// CHECK-DAG: ![[anon1:.*]] = !cir.record<union "{{.*}}" {!u32i, !cir.array<!u8i x 4>}
+
+// CHECK: cir.global external @u = #cir.zero : ![[anon]]
+
 typedef union {
   int value;
   struct {
@@ -11,12 +19,6 @@ typedef union {
 void foo(int x) {
   A a = {.x = x};
 }
-
-// CHECK-DAG: ![[anon0:.*]] = !cir.record<struct  {!u32i}>
-// CHECK-DAG: ![[anon:.*]] = !cir.record<struct  {!s32i}>
-// CHECK-DAG: #[[bfi_x:.*]] = #cir.bitfield_info<name = "x", storage_type = !u32i, size = 16, offset = 0, is_signed = true>
-// CHECK-DAG: #[[bfi_y:.*]] = #cir.bitfield_info<name = "y", storage_type = !u32i, size = 16, offset = 16, is_signed = true>
-// CHECK-DAG: ![[anon1:.*]] = !cir.record<union "{{.*}}" {!u32i, !cir.array<!u8i x 4>}
 
 // CHECK-LABEL:   cir.func {{.*}} @foo(
 // CHECK:  %[[VAL_1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
@@ -32,7 +34,6 @@ void foo(int x) {
 // CHECK:  cir.return
 
 union { int i; float f; } u = { };
-// CHECK: cir.global external @u = #cir.zero : ![[anon]]
 
 unsigned is_little(void) {
   const union {
@@ -43,21 +44,24 @@ unsigned is_little(void) {
 }
 
 // CHECK: cir.func {{.*}} @is_little
-// CHECK: %[[VAL_1:.*]] = cir.get_global @is_little.one : !cir.ptr<![[anon0]]>
-// CHECK: %[[VAL_2:.*]] = cir.cast bitcast %[[VAL_1]] : !cir.ptr<![[anon0]]> -> !cir.ptr<![[anon1]]>
-// CHECK: %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = "c"} : !cir.ptr<![[anon1]]> -> !cir.ptr<!cir.array<!u8i x 4>>
+// CHECK: %[[VAL_1:.*]] = cir.alloca ![[anon1]], !cir.ptr<![[anon1]]>, ["one", const]
+// CHECK: %[[VAL_2:.*]] = cir.cast bitcast %[[VAL_1]] : !cir.ptr<![[anon1]]> -> !cir.ptr<!rec_anon_struct>
+// CHECK: %[[VAL_3:.*]] = cir.get_global @__const.is_little.one : !cir.ptr<!rec_anon_struct>
+// CHECK: cir.copy %[[VAL_3]] to %[[VAL_2]] : !cir.ptr<!rec_anon_struct>
+// CHECK: %[[VAL_4:.*]] = cir.get_member %[[VAL_1]][1] {name = "c"} : !cir.ptr<![[anon1]]> -> !cir.ptr<!cir.array<!u8i x 4>>
 
 typedef union {
   int x;
 } U;
 
+void union_cast(int x) {
+  U u = (U) x;
+}
+
+// CHECK: cir.func {{.*}} @union_cast
 // CHECK: %[[VAL_0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK: %[[VAL_1:.*]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["u", init] {alignment = 4 : i64}
 // CHECK: cir.store{{.*}} %arg0, %[[VAL_0]] : !s32i, !cir.ptr<!s32i>
 // CHECK: %[[VAL_2:.*]] = cir.cast bitcast %[[VAL_1]] : !cir.ptr<!rec_U> -> !cir.ptr<!s32i>
 // CHECK: %[[VAL_3:.*]] = cir.load{{.*}} %[[VAL_0]] : !cir.ptr<!s32i>, !s32i
 // CHECK: cir.store{{.*}} %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
-
-void union_cast(int x) {
-  U u = (U) x;
-}

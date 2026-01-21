@@ -272,6 +272,11 @@ static RValue emitUnaryFPBuiltin(CIRGenFunction &cgf, const CallExpr &e) {
   return RValue::get(call->getResult(0));
 }
 
+static mlir::Value emitSignBit(mlir::Location loc, CIRGenFunction &cgf,
+                               mlir::Value val) {
+  return cir::SignBitOp::create(cgf.getBuilder(), loc, val)->getResult(0);
+}
+
 static RValue errorBuiltinNYI(CIRGenFunction &cgf, const CallExpr *e,
                               unsigned builtinID) {
 
@@ -946,6 +951,12 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     return RValue::get(result);
   }
 
+  case Builtin::BI__builtin_unpredictable:
+    // Just return the argument. LLVM does not handle this builtin directly.
+    // Metadata for this builtin should be added to branches/switches that use
+    // it.
+    return RValue::get(emitScalarExpr(e->getArg(0)));
+
   case Builtin::BI__builtin_bswap16:
   case Builtin::BI__builtin_bswap32:
   case Builtin::BI__builtin_bswap64:
@@ -1078,16 +1089,42 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     cir::PrefetchOp::create(builder, loc, address, locality, isWrite);
     return RValue::get(nullptr);
   }
-  case Builtin::BI__builtin_readcyclecounter:
-  case Builtin::BI__builtin_readsteadycounter:
-  case Builtin::BI__builtin___clear_cache:
-    return errorBuiltinNYI(*this, e, builtinID);
+  case Builtin::BI__builtin_readcyclecounter: {
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    auto op = cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("readcyclecounter"), u64Ty,
+        mlir::ValueRange{});
+    return RValue::get(op.getResult());
+  }
+  case Builtin::BI__builtin_readsteadycounter: {
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    auto op = cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("readsteadycounter"), u64Ty,
+        mlir::ValueRange{});
+    return RValue::get(op.getResult());
+  }
+  case Builtin::BI__builtin___clear_cache: {
+    // Emit call to llvm.clear_cache intrinsic with begin and end pointers
+    mlir::Value begin = emitScalarExpr(e->getArg(0));
+    mlir::Value end = emitScalarExpr(e->getArg(1));
+    cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("clear_cache"), mlir::Type{},
+        mlir::ValueRange{begin, end});
+    return RValue::get(nullptr);
+  }
   case Builtin::BI__builtin_trap:
     emitTrap(loc, /*createNewBlock=*/true);
     return RValue::getIgnored();
   case Builtin::BI__builtin_verbose_trap:
+    // TODO: Attach debug info message from the string arguments.
+    emitTrap(loc, /*createNewBlock=*/true);
+    return RValue::getIgnored();
   case Builtin::BI__debugbreak:
-    return errorBuiltinNYI(*this, e, builtinID);
+    // Emit llvm.debugtrap intrinsic
+    cir::LLVMIntrinsicCallOp::create(builder, loc,
+                                     builder.getStringAttr("debugtrap"),
+                                     mlir::Type{}, mlir::ValueRange{});
+    return RValue::get(nullptr);
   case Builtin::BI__builtin_unreachable:
     emitUnreachable(e->getExprLoc(), /*createNewBlock=*/true);
     return RValue::getIgnored();
@@ -1201,6 +1238,35 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
         builder.createIsFPClass(loc, v, cir::FPClassTest(test)),
         convertType(e->getType())));
   }
+  case Builtin::BI__builtin_isinf_sign: {
+    // __builtin_isinf_sign(x) returns:
+    //   -1 if x is negative infinity
+    //    0 if x is not infinity
+    //    1 if x is positive infinity
+    assert(!cir::MissingFeatures::cgFPOptionsRAII());
+    mlir::Location loc = getLoc(e->getBeginLoc());
+    mlir::Value arg = emitScalarExpr(e->getArg(0));
+
+    // Get absolute value for infinity check
+    mlir::Value absArg =
+        cir::FAbsOp::create(builder, loc, arg.getType(), arg)->getResult(0);
+
+    // Check if absolute value is infinity
+    mlir::Value isInf =
+        builder.createIsFPClass(loc, absArg, cir::FPClassTest::Infinity);
+
+    // Check sign bit of the original value
+    mlir::Value isNeg = emitSignBit(loc, *this, arg);
+
+    // Build the result: isInf ? (isNeg ? -1 : 1) : 0
+    mlir::Type intTy = convertType(e->getType());
+    mlir::Value zero = builder.getNullValue(intTy, loc);
+    mlir::Value one = builder.getConstInt(loc, intTy, 1);
+    mlir::Value negOne = builder.getConstInt(loc, intTy, -1);
+    mlir::Value signResult = builder.createSelect(loc, isNeg, negOne, one);
+    mlir::Value result = builder.createSelect(loc, isInf, signResult, zero);
+    return RValue::get(result);
+  }
   case Builtin::BI__builtin_nondeterministic_value:
   case Builtin::BI__builtin_elementwise_abs:
     return errorBuiltinNYI(*this, e, builtinID);
@@ -1269,7 +1335,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BI__builtin_masked_store:
   case Builtin::BI__builtin_masked_compress_store:
   case Builtin::BI__builtin_masked_scatter:
-  case Builtin::BI__builtin_isinf_sign:
   case Builtin::BI__builtin_flt_rounds:
   case Builtin::BI__builtin_set_flt_rounds:
   case Builtin::BI__builtin_fpclassify:
@@ -1287,11 +1352,30 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BIbcopy:
   case Builtin::BI__builtin_bcopy:
     return errorBuiltinNYI(*this, e, builtinID);
+  case Builtin::BI__builtin_memcpy_inline: {
+    Address dest = emitPointerWithAlignment(e->getArg(0));
+    Address src = emitPointerWithAlignment(e->getArg(1));
+    uint64_t size =
+        e->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
+    cir::MemCpyInlineOp::create(builder, getLoc(e->getExprLoc()),
+                                dest.getPointer(), src.getPointer(), size,
+                                /*isVolatile=*/false);
+    return RValue::get(nullptr);
+  }
+  case Builtin::BI__builtin_memset_inline: {
+    Address dest = emitPointerWithAlignment(e->getArg(0));
+    mlir::Value val = emitScalarExpr(e->getArg(1));
+    uint64_t size =
+        e->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
+    cir::MemSetInlineOp::create(builder, getLoc(e->getExprLoc()),
+                                dest.getPointer(), val, size,
+                                /*isVolatile=*/false);
+    return RValue::get(nullptr);
+  }
   case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy:
   case Builtin::BImempcpy:
   case Builtin::BI__builtin_mempcpy:
-  case Builtin::BI__builtin_memcpy_inline:
   case Builtin::BI__builtin_char_memchr:
   case Builtin::BI__builtin___memcpy_chk:
   case Builtin::BI__builtin_objc_memmove_collectable:
@@ -1301,7 +1385,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BI__builtin_memmove:
   case Builtin::BImemset:
   case Builtin::BI__builtin_memset:
-  case Builtin::BI__builtin_memset_inline:
   case Builtin::BI__builtin___memset_chk:
   case Builtin::BI__builtin_wmemchr:
   case Builtin::BI__builtin_wmemcmp:
@@ -1458,7 +1541,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BI__sync_lock_release_4:
   case Builtin::BI__sync_lock_release_8:
   case Builtin::BI__sync_lock_release_16:
-  case Builtin::BI__sync_synchronize:
   case Builtin::BI__builtin_nontemporal_load:
   case Builtin::BI__builtin_nontemporal_store:
   case Builtin::BI__c11_atomic_is_lock_free:
@@ -1476,10 +1558,28 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     emitAtomicFenceOp(*this, e, cir::SyncScopeKind::SingleThread);
     return RValue::get(nullptr);
   }
-  case Builtin::BI__scoped_atomic_thread_fence:
+  case Builtin::BI__sync_synchronize: {
+    // __sync_synchronize is always seq_cst with system scope.
+    mlir::Location loc = getLoc(e->getSourceRange());
+    cir::AtomicFenceOp::create(
+        builder, loc, cir::MemOrder::SequentiallyConsistent,
+        cir::SyncScopeKindAttr::get(&getMLIRContext(),
+                                    cir::SyncScopeKind::System));
+    return RValue::get(nullptr);
+  }
   case Builtin::BI__builtin_signbit:
   case Builtin::BI__builtin_signbitf:
-  case Builtin::BI__builtin_signbitl:
+  case Builtin::BI__builtin_signbitl: {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    mlir::Value value = emitScalarExpr(e->getArg(0));
+    mlir::Value isNeg = emitSignBit(loc, *this, value);
+
+    // Convert bool to the return type (int)
+    mlir::Type retTy = convertType(e->getType());
+    mlir::Value result = builder.createBoolToInt(isNeg, retTy);
+    return RValue::get(result);
+  }
+  case Builtin::BI__scoped_atomic_thread_fence:
   case Builtin::BI__warn_memset_zero_len:
   case Builtin::BI__annotation:
   case Builtin::BI__builtin_annotation:
@@ -1646,6 +1746,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BIaddressof:
   case Builtin::BI__addressof:
   case Builtin::BI__builtin_addressof:
+    return RValue::get(emitLValue(e->getArg(0)).getPointer());
   case Builtin::BI__builtin_function_start:
     return errorBuiltinNYI(*this, e, builtinID);
   case Builtin::BI__builtin_operator_new:
@@ -1823,10 +1924,21 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
       return RValue::get(nullptr);
 
     switch (evalKind) {
-    case cir::TEK_Scalar:
+    case cir::TEK_Scalar: {
       if (mlir::isa<cir::VoidType>(v.getType()))
         return RValue::get(nullptr);
+      // Ensure the returned value type matches the builtin's declared return
+      // type. Some builtins (e.g., NEON intrinsics) may return a value with
+      // a different signedness than the declared return type, which causes
+      // type mismatch errors when the result is stored.
+      mlir::Type expectedTy = convertType(e->getType());
+      if (v.getType() != expectedTy &&
+          mlir::isa<cir::VectorType>(v.getType()) &&
+          mlir::isa<cir::VectorType>(expectedTy)) {
+        v = builder.createBitcast(v, expectedTy);
+      }
       return RValue::get(v);
+    }
     case cir::TEK_Aggregate:
       cgm.errorNYI(e->getSourceRange(), "aggregate return value from builtin");
       return getUndefRValue(e->getType());

@@ -194,13 +194,6 @@ static void emitStoresForConstant(CIRGenModule &cgm, const VarDecl &d,
   assert(!cir::MissingFeatures::shouldUseBZeroPlusStoresToInitialize());
   assert(!cir::MissingFeatures::shouldUseMemSetToInitialize());
   assert(!cir::MissingFeatures::shouldSplitConstantStore());
-  assert(!cir::MissingFeatures::shouldCreateMemCpyFromGlobal());
-  // In CIR we want to emit a store for the whole thing, later lowering
-  // prepare to LLVM should unwrap this into the best policy (see asserts
-  // above).
-  //
-  // FIXME(cir): This is closer to memcpy behavior but less optimal, instead of
-  // copy from a global, we just create a cir.const out of it.
 
   if (addr.getElementType() != ty)
     addr = addr.withElementType(builder, ty);
@@ -218,7 +211,11 @@ static void emitStoresForConstant(CIRGenModule &cgm, const VarDecl &d,
   mlir::Location loc = builder.getUnknownLoc();
   if (d.getSourceRange().isValid())
     loc = cgm.getLoc(d.getSourceRange());
-  builder.createStore(loc, builder.getConstant(loc, constant), addr);
+
+  // Create a global constant and use cir.copy to initialize the local.
+  CharUnits align = addr.getAlignment();
+  Address src = cgm.createUnnamedGlobalFrom(d, constant, align);
+  cir::CopyOp::create(builder, loc, addr.getPointer(), src.getPointer());
 }
 
 void CIRGenFunction::emitAutoVarInit(
@@ -270,6 +267,15 @@ void CIRGenFunction::emitAutoVarInit(
   };
 
   if (isTrivialInitializer(init)) {
+    // Only set init for EXPLICIT initializers, not implicit constructor calls.
+    // CXXTemporaryObjectExpr represents explicit functional-notation like
+    // Type(), while plain CXXConstructExpr may be implicit from declarations
+    // like "Derived d;" which shouldn't have init.
+    if (init && isa<CXXTemporaryObjectExpr>(init)) {
+      mlir::Value val = addr.getPointer();
+      if (auto allocaOp = val.getDefiningOp<cir::AllocaOp>())
+        allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    }
     initializeWhatIsTechnicallyUninitialized(addr);
     return;
   }
@@ -301,15 +307,13 @@ void CIRGenFunction::emitAutoVarInit(
     emitExprAsInit(init, &d, lv);
 
     if (!emission.wasEmittedAsOffloadClause()) {
-      // In case lv has uses it means we indeed initialized something
-      // out of it while trying to build the expression, mark it as such.
+      // Mark as initialized - we have an init expression even if no code was
+      // generated (e.g., trivial constructor with zero-initialization).
       mlir::Value val = lv.getAddress().getPointer();
       assert(val && "Should have an address");
       auto allocaOp = val.getDefiningOp<cir::AllocaOp>();
       assert(allocaOp && "Address should come straight out of the alloca");
-
-      if (!allocaOp.use_empty())
-        allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+      allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
     }
 
     return;

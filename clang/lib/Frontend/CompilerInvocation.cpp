@@ -2771,6 +2771,7 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitAssembly, OPT_S},
       {frontend::EmitBC, OPT_emit_llvm_bc},
       {frontend::EmitCIR, OPT_emit_cir},
+      {frontend::EmitCIRFlat, OPT_emit_cir_flat},
       {frontend::EmitHTML, OPT_emit_html},
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
@@ -4673,6 +4674,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::EmitAssembly:
   case frontend::EmitBC:
   case frontend::EmitCIR:
+  case frontend::EmitCIRFlat:
   case frontend::EmitHTML:
   case frontend::EmitLLVM:
   case frontend::EmitLLVMOnly:
@@ -4715,6 +4717,7 @@ static bool isCodeGenAction(frontend::ActionKind Action) {
   case frontend::EmitAssembly:
   case frontend::EmitBC:
   case frontend::EmitCIR:
+  case frontend::EmitCIRFlat:
   case frontend::EmitHTML:
   case frontend::EmitLLVM:
   case frontend::EmitLLVMOnly:

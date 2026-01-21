@@ -24,12 +24,10 @@ int s3(int a, int b) {
   return x;
 }
 
-// CIR: #fn_attr = #cir<extra({nothrow = #cir.nothrow})>
-
-// CIR:   cir.func inline_hint linkonce_odr @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
-// CIR:   cir.func no_inline {{.*}} @_Z2s1ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
-// CIR:   cir.func always_inline {{.*}} @_Z2s2ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#fn_attr)
-// CIR:   cir.func {{.*}} @_Z2s3ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} {
+// CIR:   cir.func inline_hint comdat linkonce_odr @_Z2s0ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#cir<extra({{.*}})>)
+// CIR:   cir.func no_inline {{.*}} @_Z2s1ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#cir<extra({{.*}})>)
+// CIR:   cir.func always_inline {{.*}} @_Z2s2ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#cir<extra({{.*}})>)
+// CIR:   cir.func {{.*}} @_Z2s3ii(%arg0:{{.*}}, %arg1:{{.*}} -> {{.*}} extra(#cir<extra({{.*}})>)
 
 // LLVM: define dso_local i32 @_Z2s1ii(i32 %0, i32 %1) {{.*}} #[[#ATTR1:]]
 // LLVM: define dso_local i32 @_Z2s2ii(i32 %0, i32 %1) {{.*}} #[[#ATTR2:]]

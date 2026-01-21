@@ -17,7 +17,7 @@ uint8x16_t test_vaesmcq_u8(uint8x16_t data) {
   return vaesmcq_u8(data);
 
   // CIR-LABEL: vaesmcq_u8
-  // {{%.*}} = cir.llvm.intrinsic "aarch64.crypto.aesmc" {{%.*}} : (!cir.vector<!u8i x 16>) -> !cir.vector<!u8i x 16>
+  // {{%.*}} = cir.call_llvm_intrinsic "aarch64.crypto.aesmc" {{%.*}} : (!cir.vector<16 x !u8i>) -> !cir.vector<16 x !u8i>
 
   // LLVM: {{.*}}vaesmcq_u8(<16 x i8>{{.*}}[[DATA:%.*]])
   // LLVM: [[RES:%.*]] = call <16 x i8> @llvm.aarch64.crypto.aesmc(<16 x i8> [[DATA]])
@@ -28,7 +28,7 @@ uint8x16_t test_vaeseq_u8(uint8x16_t data, uint8x16_t key) {
   return vaeseq_u8(data, key);
 
   // CIR-LABEL: vaeseq_u8
-  // {{%.*}} = cir.llvm.intrinsic "aarch64.crypto.aese" {{%.*}} : (!cir.vector<!u8i x 16>) -> !cir.vector<!u8i x 16>
+  // {{%.*}} = cir.call_llvm_intrinsic "aarch64.crypto.aese" {{%.*}} : (!cir.vector<16 x !u8i>) -> !cir.vector<16 x !u8i>
 
   // LLVM: {{.*}}vaeseq_u8(<16 x i8>{{.*}}[[DATA:%.*]], <16 x i8>{{.*}}[[KEY:%.*]])
   // LLVM: [[RES:%.*]] = call <16 x i8> @llvm.aarch64.crypto.aese(<16 x i8> [[DATA]], <16 x i8> [[KEY]])

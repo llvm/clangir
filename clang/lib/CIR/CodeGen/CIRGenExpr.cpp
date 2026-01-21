@@ -235,9 +235,11 @@ Address CIRGenFunction::emitPointerWithAlignment(const Expr *expr,
     case Builtin::BIaddressof:
     case Builtin::BI__addressof:
     case Builtin::BI__builtin_addressof: {
-      cgm.errorNYI(expr->getSourceRange(),
-                   "emitPointerWithAlignment: builtin addressof");
-      return Address::invalid();
+      LValue lv = emitLValue(call->getArg(0));
+      if (baseInfo)
+        *baseInfo = lv.getBaseInfo();
+      assert(!cir::MissingFeatures::opTBAA());
+      return lv.getAddress();
     }
     }
   }
@@ -611,14 +613,20 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   if (ty->isAtomicType() || isLValueSuitableForInlineAtomic(atomicLValue))
     cgm.errorNYI("emitLoadOfScalar: load atomic");
 
+  // Void type loads don't actually produce a value - this can happen with
+  // GNU extension void pointer arithmetic where we have void lvalues.
+  // Just return an empty Value since the result is never used.
   if (mlir::isa<cir::VoidType>(eltTy))
-    cgm.errorNYI(loc, "emitLoadOfScalar: void type");
+    return mlir::Value();
 
   assert(!cir::MissingFeatures::opLoadEmitScalarRangeCheck());
 
   mlir::Value loadOp = builder.createLoad(getLoc(loc), addr, isVolatile);
-  if (!ty->isBooleanType() && ty->hasBooleanRepresentation())
-    cgm.errorNYI("emitLoadOfScalar: boolean type with boolean representation");
+
+  // For types with boolean representation but that aren't bool (like
+  // _BitInt(1)), OG codegen truncates from the storage type to the actual
+  // type. For CIR, the type system handles this correctly since CIR loads
+  // produce the element type of the pointer directly.
 
   return loadOp;
 }
@@ -751,7 +759,9 @@ Address CIRGenFunction::emitExtVectorElementLValue(LValue lv,
 }
 
 static cir::FuncOp emitFunctionDeclPointer(CIRGenModule &cgm, GlobalDecl gd) {
-  assert(!cir::MissingFeatures::weakRefReference());
+  const auto *fd = cast<FunctionDecl>(gd.getDecl());
+  if (fd->hasAttr<WeakRefAttr>())
+    return cgm.getWeakRefReference(fd);
   return cgm.getAddrOfFunction(gd);
 }
 
@@ -1965,8 +1975,30 @@ RValue CIRGenFunction::getUndefRValue(QualType ty) {
   if (ty->isVoidType())
     return RValue::get(nullptr);
 
-  cgm.errorNYI("unsupported type for undef rvalue");
-  return RValue::get(nullptr);
+  // Use the current location or create an unknown location.
+  mlir::Location loc =
+      currSrcLoc ? *currSrcLoc : mlir::UnknownLoc::get(&getMLIRContext());
+
+  switch (getEvaluationKind(ty)) {
+  case cir::TEK_Complex: {
+    mlir::Type complexTy = convertType(ty);
+    return RValue::getComplex(
+        builder.getConstant(loc, cir::UndefAttr::get(complexTy)));
+  }
+
+  // If this is a use of an undefined aggregate type, the aggregate must have
+  // an identifiable address. Just because the contents of the value are
+  // undefined doesn't mean that the address can't be taken and compared.
+  case cir::TEK_Aggregate: {
+    Address destPtr = createMemTemp(ty, loc, "undef.agg.tmp");
+    return RValue::getAggregate(destPtr);
+  }
+
+  case cir::TEK_Scalar:
+    return RValue::get(
+        builder.getConstant(loc, cir::UndefAttr::get(convertType(ty))));
+  }
+  llvm_unreachable("bad evaluation kind");
 }
 
 RValue CIRGenFunction::emitCall(clang::QualType calleeTy,

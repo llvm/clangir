@@ -19,23 +19,23 @@ unsigned long long tc() {
     // CHECK: cir.try {
     int a = 4;
     z = division(x, y);
-    // CHECK: %[[div_res:.*]] = cir.call exception @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
+    // CHECK: cir.call exception @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
     a++;
 
   } catch (int idx) {
-    // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i> {
-    // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param -> !cir.ptr<!s32i>
+    // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i>] {
+    // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param : !cir.ptr<!s32i>
     // CHECK:   %[[idx_load:.*]] = cir.load{{.*}} %[[catch_idx_addr]] : !cir.ptr<!s32i>, !s32i
     // CHECK:   cir.store{{.*}} %[[idx_load]], %[[idx]] : !s32i, !cir.ptr<!s32i>
     z = 98;
     idx++;
   } catch (const char* msg) {
-    // CHECK: }, type #cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i> {
-    // CHECK:   %[[msg_addr:.*]] = cir.catch_param -> !cir.ptr<!s8i>
+    // CHECK: } catch [type #cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i>] {
+    // CHECK:   %[[msg_addr:.*]] = cir.catch_param : !cir.ptr<!s8i>
     // CHECK:   cir.store{{.*}} %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
     z = 99;
     (void)msg[0];
-  } // CHECK: }, #cir.unwind {
+  } // CHECK: } unwind {
     // CHECK: cir.resume
     // CHECK-NEXT: }
 
@@ -58,9 +58,9 @@ unsigned long long tc2() {
     z = 99;
     (void)msg[0];
   } catch (...) {
-    // CHECK: }, type #cir.all {
+    // CHECK: } catch all {
     // CHECK:   cir.catch_param
-    // CHECK:   cir.const #cir.int<100> : !s32i
+    // CHECK:   cir.const #cir.int<100> : !u64i
     z = 100;
   }
 
@@ -75,9 +75,9 @@ unsigned long long tc3() {
   try {
     z = division(x, y);
   } catch (...) {
-    // CHECK: } catch [type #cir.all {
+    // CHECK: } catch all {
     // CHECK:   cir.catch_param
-    // CHECK:   cir.const #cir.int<100> : !s32i
+    // CHECK:   cir.const #cir.int<100> : !u64i
     z = 100;
   }
 
@@ -125,11 +125,11 @@ void tc5() {
 // CHECK: cir.try {
 // CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
 // CHECK: cir.yield
-// CHECK: } catch [type #cir.all {
-// CHECK:  {{.*}} = cir.catch_param -> !cir.ptr<!void>
-// CHECK:  cir.call exception @_Z3tc5v() : () -> ()
+// CHECK: } catch all {
+// CHECK:  {{.*}} = cir.catch_param : !cir.ptr<!void>
+// CHECK:  cir.call @_Z3tc5v() : () -> ()
 // CHECK:  cir.yield
-// CHECK: }]
+// CHECK: }
 
 // CHECK: cir.func {{.*}} @_Z3tc6v()
 void tc6() {

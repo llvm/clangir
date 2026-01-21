@@ -2318,7 +2318,8 @@ struct CallEndCatch final : EHScopeStack::Cleanup {
 static mlir::Value callBeginCatch(CIRGenFunction &cgf, mlir::Type paramTy,
                                   bool endMightThrow) {
   auto catchParam = cir::CatchParamOp::create(
-      cgf.getBuilder(), cgf.getBuilder().getUnknownLoc(), paramTy);
+      cgf.getBuilder(), cgf.getBuilder().getUnknownLoc(), paramTy,
+      /*exception_ptr=*/mlir::Value{}, /*kind=*/cir::CatchParamKindAttr{});
 
   cgf.ehStack.pushCleanup<CallEndCatch>(
       NormalAndEHCleanup,

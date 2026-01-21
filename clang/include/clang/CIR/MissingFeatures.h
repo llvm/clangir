@@ -15,6 +15,43 @@
 #ifndef CLANG_CIR_MISSINGFEATURES_H
 #define CLANG_CIR_MISSINGFEATURES_H
 
+#include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/raw_ostream.h>
+
+constexpr bool cirCConvAssertionMode =
+    true; // Change to `false` to use llvm_unreachable
+
+#define CIR_CCONV_NOTE                                                         \
+  " Target lowering is now required. To workaround use "                       \
+  "-fno-clangir-call-conv-lowering. This flag is going to be removed at some"  \
+  " point."
+
+// Special assertion to be used in the target lowering library.
+#define cir_cconv_assert(cond)                                                 \
+  do {                                                                         \
+    if (!(cond))                                                               \
+      llvm::errs() << CIR_CCONV_NOTE << "\n";                                  \
+    assert((cond));                                                            \
+  } while (0)
+
+// Special version of cir_cconv_unreachable to give more info to the user on how
+// to temporarily disable target lowering.
+#define cir_cconv_unreachable(msg)                                             \
+  do {                                                                         \
+    llvm_unreachable(msg CIR_CCONV_NOTE);                                      \
+  } while (0)
+
+// Some assertions knowingly generate incorrect code. This macro allows us to
+// switch between using `assert` and `llvm_unreachable` for these cases.
+#define cir_cconv_assert_or_abort(cond, msg)                                   \
+  do {                                                                         \
+    if (cirCConvAssertionMode) {                                               \
+      assert((cond) && msg CIR_CCONV_NOTE);                                    \
+    } else {                                                                   \
+      llvm_unreachable(msg CIR_CCONV_NOTE);                                    \
+    }                                                                          \
+  } while (0)
+
 namespace cir {
 
 // As a way to track features that haven't yet been implemented this class
@@ -108,7 +145,6 @@ struct MissingFeatures {
   static bool opCallMustTail() { return false; }
   static bool opCallInAlloca() { return false; }
   static bool opCallAttrs() { return false; }
-  static bool opCallSurroundingTry() { return false; }
   static bool opCallASTAttr() { return false; }
   static bool opCallObjCMethod() { return false; }
   static bool opCallExtParameterInfo() { return false; }
@@ -118,9 +154,6 @@ struct MissingFeatures {
   static bool opCallContinueBlock() { return false; }
   static bool opCallChain() { return false; }
   static bool opCallExceptionAttr() { return false; }
-
-  // CXXNewExpr
-  static bool exprNewNullCheck() { return false; }
 
   // FnInfoOpts -- This is used to track whether calls are chain calls or
   // instance methods. Classic codegen uses chain call to track and extra free
@@ -391,6 +424,91 @@ struct MissingFeatures {
 
   // Maybe only needed for Windows exception handling
   static bool currentFuncletPad() { return false; }
+
+  // Target lowering / CallConvLowering related
+  static bool ABIAlignmentAttribute() { return false; }
+  static bool ABIByValAttribute() { return false; }
+  static bool ABIClangTypeKind() { return false; }
+  static bool ABIFuncPtr() { return false; }
+  static bool ABIInRegAttribute() { return false; }
+  static bool ABINestedRecordLayout() { return false; }
+  static bool ABINoAliasAttribute() { return false; }
+  static bool ABINoProtoFunctions() { return false; }
+  static bool ABIParameterCoercion() { return false; }
+  static bool ABIPointerParameterAttrs() { return false; }
+  static bool ABIPotentialArgAccess() { return false; }
+  static bool ABITransparentUnionHandling() { return false; }
+  static bool argumentPadding() { return false; }
+  static bool astContextGetExternalSource() { return false; }
+  static bool bitFieldPaddingDiagnostics() { return false; }
+  static bool cacheRecordLayouts() { return false; }
+  static bool chainCall() { return false; }
+  static bool codeGenOpts() { return false; }
+  static bool csmeCall() { return false; }
+  static bool CUDA() { return false; }
+  static bool CXXRecordDeclIsEmptyCXX11() { return false; }
+  static bool CXXRecordDeclIsPOD() { return false; }
+  static bool CXXRecordIsDynamicClass() { return false; }
+  static bool declGetMaxAlignment() { return false; }
+  static bool declHasAlignMac68kAttr() { return false; }
+  static bool declHasAlignNaturalAttr() { return false; }
+  static bool declHasMaxFieldAlignmentAttr() { return false; }
+  static bool extParamInfo() { return false; }
+  static bool fieldDeclAbstraction() { return false; }
+  static bool fieldDeclGetMaxFieldAlignment() { return false; }
+  static bool fieldDeclIsBitfield() { return false; }
+  static bool fieldDeclIsPotentiallyOverlapping() { return false; }
+  static bool fixedWidthIntegers() { return false; }
+  static bool fixedSizeIntType() { return false; }
+  static bool funcDeclIsCXXConstructorDecl() { return false; }
+  static bool funcDeclIsCXXDestructorDecl() { return false; }
+  static bool funcDeclIsCXXMethodDecl() { return false; }
+  static bool funcDeclIsInlineBuiltinDeclaration() { return false; }
+  static bool funcDeclIsReplaceableGlobalAllocationFunction() { return false; }
+  static bool functionMemberPointerType() { return false; }
+  static bool getCXXRecordBases() { return false; }
+  static bool inallocaArgs() { return false; }
+  static bool isCXXRecordDecl() { return false; }
+  static bool isVarArg() { return false; }
+  static bool langOpts() { return false; }
+  static bool noFPClass() { return false; }
+  static bool noReturn() { return false; }
+  static bool objCIvarDecls() { return false; }
+  static bool qualifiedTypes() { return false; }
+  static bool qualTypeIsReferenceType() { return false; }
+  static bool recordDeclHasAlignmentAttr() { return false; }
+  static bool recordDeclHasFlexibleArrayMember() { return false; }
+  static bool recordDeclIsCXXDecl() { return false; }
+  static bool recordDeclIsMSStruct() { return false; }
+  static bool recordDeclIsPacked() { return false; }
+  static bool recordDeclMayInsertExtraPadding() { return false; }
+  static bool setCallingConv() { return false; }
+  static bool SPIRVABI() { return false; }
+  static bool sretArgs() { return false; }
+  static bool swift() { return false; }
+  static bool tagTypeClassAbstraction() { return false; }
+  static bool typeGetAsEnumType() { return false; }
+  static bool typeIsCXXRecordDecl() { return false; }
+  static bool X86DefaultABITypeConvertion() { return false; }
+  static bool X86GetFPTypeAtOffset() { return false; }
+  static bool X86TypeClassification() { return false; }
+  static bool X86RetTypeClassification() { return false; }
+  static bool X86ArgTypeClassification() { return false; }
+  static bool fieldDeclisUnnamedBitField() { return false; }
+  static bool regCall() { return false; }
+  static bool recordDeclCanPassInRegisters() { return false; }
+
+  // Additional CallConvLowering features from LowerFunction.cpp
+  static bool argHasMaybeUndefAttr() { return false; }
+  static bool cmseNonSecureCallAttr() { return false; }
+  static bool emitEmptyRecordCheck() { return false; }
+  static bool evaluationKind() { return false; }
+  static bool returnValueDominatingStoreOptmiization() { return false; }
+  static bool skipTempCopy() { return false; }
+  static bool supportisHomogeneousAggregateQueryForAArch64() { return false; }
+  static bool undef() { return false; }
+  static bool varDeclIsKNRPromoted() { return false; }
+  static bool volatileTypes() { return false; }
 };
 
 } // namespace cir

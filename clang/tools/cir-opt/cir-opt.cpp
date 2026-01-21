@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Conversion/Passes.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
   });
 
   mlir::registerTransformsPasses();
+  mlir::registerConversionPasses();
 
   return mlir::asMainReturnCode(MlirOptMain(
       argc, argv, "Clang IR analysis and optimization tool\n", registry));

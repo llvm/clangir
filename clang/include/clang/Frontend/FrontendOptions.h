@@ -68,6 +68,9 @@ enum ActionKind {
   /// Emit a .cir file
   EmitCIR,
 
+  /// Emit a .cir file with flattened CFG
+  EmitCIRFlat,
+
   /// Emit a .ll file.
   EmitLLVM,
 
@@ -154,11 +157,7 @@ enum ActionKind {
 class InputKind {
 public:
   /// The input file format.
-  enum Format {
-    Source,
-    ModuleMap,
-    Precompiled
-  };
+  enum Format { Source, ModuleMap, Precompiled };
 
   // If we are building a header unit, what kind it is; this affects whether
   // we look for the file in the user or system include search paths before
@@ -422,6 +421,14 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned ClangIRDisableCIRVerifier : 1;
 
+  /// Enable Clang IR calling convention lowering pass
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned ClangIRCallConvLowering : 1;
+
+  /// Lower directly from CIR to LLVM (vs through MLIR core dialects)
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned ClangIRDirectLowering : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -552,7 +559,8 @@ public:
         EmitSymbolGraphSymbolLabelsForTesting(false),
         EmitPrettySymbolGraphs(false), GenReducedBMI(false),
         UseClangIRPipeline(false), ClangIRDisablePasses(false),
-        ClangIRDisableCIRVerifier(false), TimeTraceGranularity(500),
+        ClangIRDisableCIRVerifier(false), ClangIRCallConvLowering(true),
+        ClangIRDirectLowering(true), TimeTraceGranularity(500),
         TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file

@@ -21,12 +21,14 @@ void f() {
 //       treat that as uninitialized? Should it even be happening?
 
 // Trivial default constructor call is lowered away since it does nothing.
+// Upstream uses global constant + cir.copy instead of cir.const + cir.store.
+// CHECK: cir.global "private" constant cir_private @__const._Z1fv.z1 = #cir.undef : !rec_Zero
 // CHECK: cir.func {{.*}} @_Z1fv()
 // CHECK:     %[[Z0:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z0", init]
 // CHECK:     %[[Z1:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z1", init]
 // CHECK-NOT: cir.call @_ZN4ZeroC1Ev
-// CHECK:     %[[UNDEF:.*]] = cir.const #cir.undef : !rec_Zero
-// CHECK:     cir.store{{.*}} %[[UNDEF]], %[[Z1]] : !rec_Zero, !cir.ptr<!rec_Zero>
+// CHECK:     %[[GLOBAL:.*]] = cir.get_global @__const._Z1fv.z1 : !cir.ptr<!rec_Zero>
+// CHECK:     cir.copy %[[GLOBAL]] to %[[Z1]] : !cir.ptr<!rec_Zero>
 // CHECK:     cir.return
 
 // LLVM-LABEL: define {{.*}} @_Z1fv()

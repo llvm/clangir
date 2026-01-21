@@ -906,7 +906,10 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     ctorRegion.getBlocks().clear();
     dtorRegion.getBlocks().clear();
 
-    assert(!cir::MissingFeatures::astVarDeclInterface());
+    // If the variable has init_priority, set it on the init function.
+    if (auto initPriority = op.getInitPriority())
+      f.setGlobalCtorPriority(*initPriority);
+
     dynamicInitializers.push_back(f);
   }
 
@@ -946,9 +949,21 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   if (dynamicInitializers.empty())
     return;
 
-  // TODO: handle globals with a user-specified initialzation priority.
-  // TODO: handle default priority more nicely.
-  assert(!cir::MissingFeatures::opGlobalCtorPriority());
+  // Separate initializers with custom priority from those without.
+  // Initializers with init_priority are registered directly in the global
+  // ctor list rather than being aggregated into the module init function.
+  llvm::SmallVector<cir::FuncOp> defaultPriorityInitializers;
+  for (cir::FuncOp &f : dynamicInitializers) {
+    if (auto priority = f.getGlobalCtorPriority()) {
+      globalCtorList.emplace_back(f.getSymName().str(), *priority);
+    } else {
+      defaultPriorityInitializers.push_back(f);
+    }
+  }
+
+  // If there are no default priority initializers, we're done.
+  if (defaultPriorityInitializers.empty())
+    return;
 
   SmallString<256> fnName;
   // Include the filename in the symbol name. Including "sub_" matches gcc
@@ -975,8 +990,8 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
       buildRuntimeFunction(builder, fnName, mlirModule.getLoc(), fnType,
                            cir::GlobalLinkageKind::ExternalLinkage);
   builder.setInsertionPointToStart(f.addEntryBlock());
-  for (cir::FuncOp &f : dynamicInitializers)
-    builder.createCallOp(f.getLoc(), f, {});
+  for (cir::FuncOp &init : defaultPriorityInitializers)
+    builder.createCallOp(init.getLoc(), init, {});
   // Add the global init function (not the individual ctor functions) to the
   // global ctor list.
   globalCtorList.emplace_back(fnName,

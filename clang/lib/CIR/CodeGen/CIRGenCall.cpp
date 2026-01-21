@@ -104,9 +104,10 @@ static void addAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
     return;
 
   if (!isUnresolvedExceptionSpec(fpt->getExceptionSpecType()) &&
-      fpt->isNothrow())
-    attrs.set(cir::CIRDialect::getNoThrowAttrName(),
-              mlir::UnitAttr::get(builder.getContext()));
+      fpt->isNothrow()) {
+    auto attr = cir::NoThrowAttr::get(builder.getContext());
+    attrs.set(attr.getMnemonic(), attr);
+  }
 }
 
 /// Construct the CIR attribute list of a function or call.
@@ -126,9 +127,10 @@ void CIRGenModule::constructAttributeList(llvm::StringRef name,
   const Decl *targetDecl = calleeInfo.getCalleeDecl().getDecl();
 
   if (targetDecl) {
-    if (targetDecl->hasAttr<NoThrowAttr>())
-      attrs.set(cir::CIRDialect::getNoThrowAttrName(),
-                mlir::UnitAttr::get(&getMLIRContext()));
+    if (targetDecl->hasAttr<NoThrowAttr>()) {
+      auto attr = cir::NoThrowAttr::get(&getMLIRContext());
+      attrs.set(attr.getMnemonic(), attr);
+    }
 
     if (const FunctionDecl *func = dyn_cast<FunctionDecl>(targetDecl)) {
       addAttributesFromFunctionProtoType(
@@ -152,9 +154,8 @@ void CIRGenModule::constructAttributeList(llvm::StringRef name,
   }
 
   assert(!cir::MissingFeatures::opCallAttrs());
-
-  attrs.set(cir::CIRDialect::getSideEffectAttrName(),
-            cir::SideEffectAttr::get(&getMLIRContext(), sideEffect));
+  // Note: side_effect is returned via output parameter and set as a property
+  // on CallOp, not as part of extra_attrs.
 }
 
 /// Returns the canonical formal type of the given C++ method.
@@ -177,7 +178,18 @@ static void appendParameterTypes(const CIRGenTypes &cgt,
     return;
   }
 
-  cgt.getCGModule().errorNYI("appendParameterTypes: hasExtParameterInfos");
+  // In the vast majority of cases, we'll have precisely fpt->getNumParams()
+  // parameters; the only thing that can change this is the presence of
+  // pass_object_size. So, we preallocate for the common case.
+  prefix.reserve(prefix.size() + fpt->getNumParams());
+
+  auto extInfos = fpt->getExtParameterInfos();
+  assert(extInfos.size() == fpt->getNumParams());
+  for (unsigned i = 0, e = fpt->getNumParams(); i != e; ++i) {
+    prefix.push_back(fpt->getParamType(i));
+    if (extInfos[i].hasPassObjectSize())
+      prefix.push_back(cgt.getASTContext().getCanonicalSizeType());
+  }
 }
 
 const CIRGenFunctionInfo &
@@ -463,15 +475,12 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *fd) {
   return arrangeFreeFunctionType(funcTy.castAs<FunctionProtoType>());
 }
 
-static cir::CIRCallOpInterface
-emitCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
-               cir::FuncType indirectFuncTy, mlir::Value indirectFuncVal,
-               cir::FuncOp directFuncOp,
-               const SmallVectorImpl<mlir::Value> &cirCallArgs, bool isInvoke,
-               const mlir::NamedAttrList &attrs) {
+static cir::CIRCallOpInterface emitCallLikeOp(
+    CIRGenFunction &cgf, mlir::Location callLoc, cir::FuncType indirectFuncTy,
+    mlir::Value indirectFuncVal, cir::FuncOp directFuncOp,
+    const SmallVectorImpl<mlir::Value> &cirCallArgs, bool isInvoke,
+    cir::SideEffect sideEffect, cir::ExtraFuncAttributesAttr extraFnAttrs) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
-
-  assert(!cir::MissingFeatures::opCallSurroundingTry());
 
   if (isInvoke) {
     // This call may throw and requires catch and/or cleanup handling.
@@ -498,27 +507,35 @@ emitCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
 
     cir::CallOp callOpWithExceptions;
     if (indirectFuncTy) {
-      cgf.cgm.errorNYI("emitCallLikeOp: indirect function type");
-      return {};
+      callOpWithExceptions = builder.createIndirectTryCallOp(
+          callLoc, indirectFuncVal, indirectFuncTy, cirCallArgs);
+    } else {
+      callOpWithExceptions =
+          builder.createTryCallOp(callLoc, directFuncOp, cirCallArgs);
     }
+    callOpWithExceptions->setAttr("extra_attrs", extraFnAttrs);
+    callOpWithExceptions.setSideEffect(sideEffect);
 
-    callOpWithExceptions =
-        builder.createCallOp(callLoc, directFuncOp, cirCallArgs);
-
+    // Set context for cleanup region population during EH scope traversal.
+    cgf.callWithExceptionCtx = callOpWithExceptions;
     cgf.populateCatchHandlersIfRequired(tryOp);
+    cgf.callWithExceptionCtx = nullptr;
+
     return callOpWithExceptions;
   }
 
   assert(builder.getInsertionBlock() && "expected valid basic block");
 
   cir::CallOp op;
+  cir::CallingConv callingConv = cir::CallingConv::C;
+  assert(!cir::MissingFeatures::opCallCallConv());
   if (indirectFuncTy) {
-    // TODO(cir): Set calling convention for indirect calls.
-    assert(!cir::MissingFeatures::opCallCallConv());
     op = builder.createIndirectCallOp(callLoc, indirectFuncVal, indirectFuncTy,
-                                      cirCallArgs, attrs);
+                                      cirCallArgs, callingConv, sideEffect,
+                                      extraFnAttrs);
   } else {
-    op = builder.createCallOp(callLoc, directFuncOp, cirCallArgs, attrs);
+    op = builder.createCallOp(callLoc, directFuncOp, cirCallArgs, callingConv,
+                              sideEffect, extraFnAttrs);
   }
 
   return op;
@@ -669,15 +686,23 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &funcInfo,
 
   assert(!cir::MissingFeatures::msvcCXXPersonality());
   assert(!cir::MissingFeatures::functionUsesSEHTry());
-  assert(!cir::MissingFeatures::nothrowAttr());
 
   bool cannotThrow = attrs.getNamed("nothrow").has_value();
   bool isInvoke = !cannotThrow && isCatchOrCleanupRequired();
 
+  // Create ExtraFuncAttributesAttr from the collected attributes.
+  // Note: side_effect is set directly on the call op, not in extra_attrs.
+  // Remove side_effect from attrs before wrapping in ExtraFuncAttributesAttr.
+  mlir::NamedAttrList extraAttrsOnly;
+  if (auto nothrow = attrs.getNamed("nothrow"))
+    extraAttrsOnly.set(nothrow->getName(), nothrow->getValue());
+  auto extraFnAttrs = cir::ExtraFuncAttributesAttr::get(
+      extraAttrsOnly.getDictionary(&cgm.getMLIRContext()));
+
   mlir::Location callLoc = loc;
   cir::CIRCallOpInterface theCall =
       emitCallLikeOp(*this, loc, indirectFuncTy, indirectFuncVal, directFuncOp,
-                     cirCallArgs, isInvoke, attrs);
+                     cirCallArgs, isInvoke, sideEffect, extraFnAttrs);
 
   if (callOp)
     *callOp = theCall;

@@ -30,7 +30,7 @@ struct HasScalarArrayMember {
 // LLVM-NEXT:    %[[#THIS_ARR:]] = getelementptr %struct.HasScalarArrayMember, ptr %[[#THIS_LOAD]], i32 0, i32 0
 // LLVM-NEXT:    %[[#OTHER_LOAD:]] = load ptr, ptr %[[#OTHER]]
 // LLVM-NEXT:    %[[#OTHER_ARR:]] = getelementptr %struct.HasScalarArrayMember, ptr %[[#OTHER_LOAD]], i32 0, i32 0
-// LLVM-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr %[[#THIS_ARR]], ptr %[[#OTHER_ARR]], i32 16, i1 false)
+// LLVM-NEXT:    call void @llvm.memcpy.p0.p0.i64(ptr %[[#THIS_ARR]], ptr %[[#OTHER_ARR]], i64 16, i1 false)
 // LLVM-NEXT:    ret void
 HasScalarArrayMember::HasScalarArrayMember(const HasScalarArrayMember &) = default;
 
@@ -51,10 +51,13 @@ struct ManyMembers {
 // CIR-NEXT:    %[[#THIS_I:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "i"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER:]]
 // CIR-NEXT:    %[[#OTHER_I:]] = cir.get_member %[[#OTHER_LOAD]][0] {name = "i"}
-// CIR-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<8>
-// CIR-NEXT:    %[[#THIS_I_CAST:]] = cir.cast bitcast %[[#THIS_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
-// CIR-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast bitcast %[[#OTHER_I]] : !cir.ptr<!s32i> -> !cir.ptr<!void>
-// CIR-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_I_CAST]] to %[[#THIS_I_CAST]]
+// CIR-NEXT:    %[[#I_VAL:]] = cir.load{{.*}} %[[#OTHER_I]]
+// CIR-NEXT:    cir.store{{.*}} %[[#I_VAL]], %[[#THIS_I]]
+// CIR-NEXT:    %[[#THIS_J:]] = cir.get_member %[[#THIS_LOAD]][1] {name = "j"}
+// CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
+// CIR-NEXT:    %[[#OTHER_J:]] = cir.get_member %[[#OTHER_LOAD]][1] {name = "j"}
+// CIR-NEXT:    %[[#J_VAL:]] = cir.load{{.*}} %[[#OTHER_J]]
+// CIR-NEXT:    cir.store{{.*}} %[[#J_VAL]], %[[#THIS_J]]
 // CIR-NEXT:    %[[#THIS_K:]] = cir.get_member %[[#THIS_LOAD]][2] {name = "k"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_K:]] = cir.get_member %[[#OTHER_LOAD]][2] {name = "k"}
@@ -62,10 +65,11 @@ struct ManyMembers {
 // CIR-NEXT:    %[[#THIS_L:]] = cir.get_member %[[#THIS_LOAD]][3] {name = "l"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_L:]] = cir.get_member %[[#OTHER_LOAD]][3] {name = "l"}
-// CIR-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<12>
-// CIR-NEXT:    %[[#THIS_L_CAST:]] = cir.cast bitcast %[[#THIS_L]] : !cir.ptr<!cir.array<!s32i x 1>> -> !cir.ptr<!void>
-// CIR-NEXT:    %[[#OTHER_L_CAST:]] = cir.cast bitcast %[[#OTHER_L]] : !cir.ptr<!cir.array<!s32i x 1>> -> !cir.ptr<!void>
-// CIR-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_L_CAST]] to %[[#THIS_L_CAST]]
+// CIR-NEXT:    cir.copy %[[#OTHER_L]] to %[[#THIS_L]] : !cir.ptr<!cir.array<!s32i x 1>>
+// CIR-NEXT:    %[[#THIS_M:]] = cir.get_member %[[#THIS_LOAD]][4] {name = "m"}
+// CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
+// CIR-NEXT:    %[[#OTHER_M:]] = cir.get_member %[[#OTHER_LOAD]][4] {name = "m"}
+// CIR-NEXT:    cir.copy %[[#OTHER_M]] to %[[#THIS_M]] : !cir.ptr<!cir.array<!s32i x 2>>
 // CIR-NEXT:    %[[#THIS_N:]] = cir.get_member %[[#THIS_LOAD]][5] {name = "n"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_N:]] = cir.get_member %[[#OTHER_LOAD]][5] {name = "n"}
@@ -73,10 +77,13 @@ struct ManyMembers {
 // CIR-NEXT:    %[[#THIS_O:]] = cir.get_member %[[#THIS_LOAD]][6] {name = "o"}
 // CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
 // CIR-NEXT:    %[[#OTHER_O:]] = cir.get_member %[[#OTHER_LOAD]][6] {name = "o"}
-// CIR-NEXT:    %[[#MEMCPY_SIZE:]] = cir.const #cir.int<16>
-// CIR-NEXT:    %[[#THIS_O_CAST:]] = cir.cast bitcast %[[#THIS_O]] : !cir.ptr<!cir.ptr<!s32i>> -> !cir.ptr<!void>
-// CIR-NEXT:    %[[#OTHER_O_CAST:]] = cir.cast bitcast %[[#OTHER_O]] : !cir.ptr<!cir.ptr<!s32i>> -> !cir.ptr<!void>
-// CIR-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_O_CAST]] to %[[#THIS_O_CAST]]
+// CIR-NEXT:    %[[#O_VAL:]] = cir.load{{.*}} %[[#OTHER_O]]
+// CIR-NEXT:    cir.store{{.*}} %[[#O_VAL]], %[[#THIS_O]]
+// CIR-NEXT:    %[[#THIS_P:]] = cir.get_member %[[#THIS_LOAD]][7] {name = "p"}
+// CIR-NEXT:    %[[#OTHER_LOAD:]] = cir.load{{.*}} %[[#OTHER]]
+// CIR-NEXT:    %[[#OTHER_P:]] = cir.get_member %[[#OTHER_LOAD]][7] {name = "p"}
+// CIR-NEXT:    %[[#P_VAL:]] = cir.load{{.*}} %[[#OTHER_P]]
+// CIR-NEXT:    cir.store{{.*}} %[[#P_VAL]], %[[#THIS_P]]
 // CIR-NEXT:    cir.return
 // CIR-NEXT:  }
 

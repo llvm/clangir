@@ -25,4 +25,4 @@ const struct nested data[] =
     },
 };
 
-// LLVM: @data = constant { { { ptr } }, { { ptr } } }
+// LLVM: @data = constant <{ { { ptr } }, { { ptr } } }>

@@ -68,6 +68,47 @@ using namespace cir;
 // General CIR parsing / printing
 //===----------------------------------------------------------------------===//
 
+Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
+                                     Type type) const {
+  llvm::SMLoc typeLoc = parser.getCurrentLocation();
+  llvm::StringRef mnemonic;
+  Attribute genAttr;
+
+  // First, try to parse the #cir<mnemonic ...> format where the mnemonic
+  // is inside angle brackets.
+  if (succeeded(parser.parseOptionalLess())) {
+    // We're in the #cir<...> format. Parse the mnemonic keyword.
+    if (failed(parser.parseKeyword(&mnemonic)))
+      return Attribute();
+
+    // Use the mnemonic to dispatch to the appropriate attribute parser.
+    OptionalParseResult parseResult =
+        generatedAttributeParser(parser, &mnemonic, type, genAttr);
+    if (parseResult.has_value()) {
+      // Parse the closing '>'
+      if (failed(parser.parseGreater()))
+        return Attribute();
+      return genAttr;
+    }
+    parser.emitError(typeLoc, "unknown attribute `")
+        << mnemonic << "` in dialect `cir`";
+    return Attribute();
+  }
+
+  // Standard #cir.mnemonic<...> format
+  OptionalParseResult parseResult =
+      generatedAttributeParser(parser, &mnemonic, type, genAttr);
+  if (parseResult.has_value())
+    return genAttr;
+  parser.emitError(typeLoc, "unknown attribute in CIR dialect");
+  return Attribute();
+}
+
+void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
+  if (failed(generatedAttributePrinter(attr, os)))
+    llvm_unreachable("unexpected CIR type kind");
+}
+
 static void printRecordMembers(mlir::AsmPrinter &printer,
                                mlir::ArrayAttr members) {
   printer << '{';
@@ -571,6 +612,43 @@ LogicalResult DynamicCastInfoAttr::verify(
   if (!isRttiPtr(destRtti.getType()))
     return emitError() << "destRtti must be an RTTI pointer";
 
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// GlobalAnnotationValuesAttr
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+GlobalAnnotationValuesAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                   mlir::ArrayAttr annotations) {
+  if (annotations.empty())
+    return emitError() << "GlobalAnnotationValuesAttr should at least have "
+                          "one annotation";
+
+  for (auto &entry : annotations) {
+    auto annoEntry = mlir::dyn_cast<mlir::ArrayAttr>(entry);
+    if (!annoEntry)
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations array"
+                " must be an array";
+
+    if (annoEntry.size() != 2)
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations array"
+             << " must be a 2-element array and you have " << annoEntry.size();
+
+    if (!mlir::isa<mlir::StringAttr>(annoEntry[0]))
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations"
+                "array must start with a string, which is the name of "
+                "global op or func it annotates";
+
+    if (!mlir::isa<cir::AnnotationAttr>(annoEntry[1]))
+      return emitError() << "The second element of GlobalAnnotationValuesAttr"
+                            "annotations array element must be of "
+                            "type AnnotationAttr";
+  }
   return success();
 }
 

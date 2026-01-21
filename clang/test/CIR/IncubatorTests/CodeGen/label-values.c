@@ -13,12 +13,12 @@ A:
 }
 // CIR:  cir.func {{.*}} @A
 // CIR:    [[PTR:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init] {alignment = 8 : i64}
-// CIR:    [[BLOCK:%.*]] = cir.blockaddress <@A, "A"> -> !cir.ptr<!void>
+// CIR:    [[BLOCK:%.*]] = cir.block_address <@A, "A"> : !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    [[BLOCKADD:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:    cir.br ^bb1([[BLOCKADD]] : !cir.ptr<!void>)
 // CIR:  ^bb1([[PHI:%.*]]: !cir.ptr<!void> {{.*}}):  // pred: ^bb0
-// CIR:    cir.indirectbr [[PHI]] : <!void>, [
+// CIR:    cir.indirect_br [[PHI]] : !cir.ptr<!void>, [
 // CIR:    ^bb2
 // CIR:    ]
 // CIR:  ^bb2:  // pred: ^bb1
@@ -58,12 +58,12 @@ B:
 // CIR:    cir.br ^bb1
 // CIR:   ^bb1: // 2 preds: ^bb0, ^bb2
 // CIR:    cir.label "B"
-// CIR:    [[BLOCK:%.*]] = cir.blockaddress <@B, "B"> -> !cir.ptr<!void>
+// CIR:    [[BLOCK:%.*]] = cir.block_address <@B, "B"> : !cir.ptr<!void>
 // CIR:    cir.store align(8) [[BLOCK]], [[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    [[BLOCKADD:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:    cir.br ^bb2([[BLOCKADD]] : !cir.ptr<!void>)
 // CIR:  ^bb2([[PHI:%.*]]: !cir.ptr<!void> {{.*}}):  // pred: ^bb1
-// CIR:    cir.indirectbr [[PHI]] : <!void>, [
+// CIR:    cir.indirect_br [[PHI]] : !cir.ptr<!void>, [
 // CIR-NEXT:    ^bb1
 // CIR:    ]
 
@@ -99,38 +99,38 @@ B:
 }
 
 // CIR:  cir.func {{.*}} @C
-// CIR:    [[BLOCK1:%.*]] = cir.blockaddress <@C, "A"> -> !cir.ptr<!void>
-// CIR:    [[BLOCK2:%.*]] = cir.blockaddress <@C, "B"> -> !cir.ptr<!void>
+// CIR:    [[BLOCK1:%.*]] = cir.block_address <@C, "A"> : !cir.ptr<!void>
+// CIR:    [[BLOCK2:%.*]] = cir.block_address <@C, "B"> : !cir.ptr<!void>
 // CIR:    [[COND:%.*]] = cir.select if [[CMP:%.*]] then [[BLOCK1]] else [[BLOCK2]] : (!cir.bool, !cir.ptr<!void>, !cir.ptr<!void>) -> !cir.ptr<!void>
 // CIR:    cir.store align(8) [[COND]], [[PTR:%.*]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    [[BLOCKADD:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
-// CIR:    cir.br ^bb2([[BLOCKADD]] : !cir.ptr<!void>)
-// CIR:  ^bb1:  // 2 preds: ^bb3, ^bb4
-// CIR:    cir.return
-// CIR:  ^bb2([[PHI:%.*]]: !cir.ptr<!void> {{.*}}):  // pred: ^bb0
-// CIR:    cir.indirectbr [[PHI]] : <!void>, [
-// CIR-NEXT:    ^bb3,
+// CIR:    cir.br ^bb1([[BLOCKADD]] : !cir.ptr<!void>)
+// CIR:  ^bb1([[PHI:%.*]]: !cir.ptr<!void> {{.*}}):  // pred: ^bb0
+// CIR:    cir.indirect_br [[PHI]] : !cir.ptr<!void>, [
+// CIR-NEXT:    ^bb2,
 // CIR-NEXT:    ^bb4
 // CIR:    ]
-// CIR:  ^bb3:  // pred: ^bb2
+// CIR:  ^bb2:  // pred: ^bb1
 // CIR:    cir.label "A"
-// CIR:    cir.br ^bb1
-// CIR:  ^bb4:  // pred: ^bb2
+// CIR:    cir.br ^bb3
+// CIR:  ^bb3:  // 2 preds: ^bb2, ^bb4
+// CIR:    cir.return
+// CIR:  ^bb4:  // pred: ^bb1
 // CIR:    cir.label "B"
-// CIR:    cir.br ^bb1
+// CIR:    cir.br ^bb3
 
 // LLVM: define dso_local void @C(i32 %0)
 // LLVM:   [[COND:%.*]] = select i1 [[CMP:%.*]], ptr blockaddress(@C, %[[A:.*]]), ptr blockaddress(@C, %[[B:.*]])
 // LLVM:   store ptr [[COND]], ptr [[PTR:%.*]], align 8
 // LLVM:   [[BLOCKADD:%.*]] = load ptr, ptr [[PTR]], align 8
 // LLVM:   br label %[[indirectgoto:.*]]
-// LLVM: [[RET:.*]]:
-// LLVM:   ret void
 // LLVM: [[indirectgoto]]:
 // LLVM:   [[PHI:%.*]] = phi ptr [ [[BLOCKADD]], %[[ENTRY:.*]] ]
 // LLVM:   indirectbr ptr [[PHI]], [label %[[A]], label %[[B]]]
 // LLVM: [[A]]:
-// LLVM:   br label %[[RET]]
+// LLVM:   br label %[[RET:.*]]
+// LLVM: [[RET]]:
+// LLVM:   ret void
 // LLVM: [[B]]:
 // LLVM:   br label %[[RET]]
 
@@ -162,21 +162,21 @@ A:
 // CIR:    %[[PTR:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr", init]
 // CIR:    %[[PTR2:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr2", init]
 // CIR:    %[[PTR3:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["ptr3", init]
-// CIR:    %[[BLK1:.*]] = cir.blockaddress <@D, "A"> -> !cir.ptr<!void>
+// CIR:    %[[BLK1:.*]] = cir.block_address <@D, "A"> : !cir.ptr<!void>
 // CIR:    cir.store align(8) %[[BLK1]], %[[PTR]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
-// CIR:    %[[BLK2:.*]] = cir.blockaddress <@D, "A"> -> !cir.ptr<!void>
+// CIR:    %[[BLK2:.*]] = cir.block_address <@D, "A"> : !cir.ptr<!void>
 // CIR:    cir.store align(8) %[[BLK2]], %[[PTR2]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    %[[BLOCKADD:.*]] = cir.load align(8) %[[PTR2]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // CIR:    cir.br ^bb1(%[[BLOCKADD]] : !cir.ptr<!void>)
 // CIR:  ^bb1([[PHI:%*.]]: !cir.ptr<!void> {{.*}}):  // pred: ^bb0
-// CIR:    cir.indirectbr [[PHI]] : <!void>, [
+// CIR:    cir.indirect_br [[PHI]] : !cir.ptr<!void>, [
 // CIR-DAG:    ^bb2,
 // CIR-DAG:    ^bb2,
 // CIR-DAG:    ^bb2
 // CIR:    ]
 // CIR:  ^bb2:  // 3 preds: ^bb1, ^bb1, ^bb1
 // CIR:    cir.label "A"
-// CIR:    %[[BLK3:.*]] = cir.blockaddress <@D, "A"> -> !cir.ptr<!void>
+// CIR:    %[[BLK3:.*]] = cir.block_address <@D, "A"> : !cir.ptr<!void>
 // CIR:    cir.store align(8) %[[BLK3]], %[[PTR3]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    cir.return
 
@@ -226,16 +226,16 @@ D:
 
 //CIR:  cir.func {{.*}} @E()
 //CIR:  ^bb1({{.*}}: !cir.ptr<!void> {{.*}}):  // no predecessors
-//CIR:    cir.indirectbr {{.*}} poison : <!void>, [
+//CIR:    cir.indirect_br {{.*}} poison : !cir.ptr<!void>, [
 //CIR-NEXT:    ^bb5,
 //CIR-NEXT:    ^bb4,
 //CIR-NEXT:    ^bb3,
 //CIR-NEXT:    ^bb2
 //CIR:    ]
 //CIR:  ^bb2:  // 2 preds: ^bb0, ^bb1
-//CIR:    cir.label "A" loc(#loc65)
+//CIR:    cir.label "A"
 //CIR:  ^bb3:  // 2 preds: ^bb1, ^bb2
-//CIR:    cir.label "B" loc(#loc66)
+//CIR:    cir.label "B"
 //CIR:  ^bb4:  // 2 preds: ^bb1, ^bb3
 //CIR:    cir.label "C"
 //CIR:  ^bb5:  // 2 preds: ^bb1, ^bb4
@@ -246,15 +246,16 @@ D:
 // LLVM:   store ptr blockaddress(@E, %[[C:.*]])
 // LLVM:   br label %[[A:.*]]
 // LLVM: [[indirectgoto:.*]]:                                                ; No predecessors!
+// LLVM:   %{{.*}} = phi ptr
 // LLVM:   indirectbr ptr poison, [label %[[D]], label %[[C]], label %[[B:.*]], label %[[A]]]
 // LLVM: [[A]]:
 // LLVM:   br label %[[B]]
 // LLVM: [[B]]:
 // LLVM:   store ptr blockaddress(@E, %[[B]]), ptr %3, align 8
 // LLVM:   store ptr blockaddress(@E, %[[A]]), ptr %4, align 8
-// LLVM:   br label %8
+// LLVM:   br label %[[C]]
 // LLVM: [[C]]:
-// LLVM:   br label %9
+// LLVM:   br label %[[D]]
 // LLVM: [[D]]:
 
 // OGCG: define dso_local void @E() #0 {

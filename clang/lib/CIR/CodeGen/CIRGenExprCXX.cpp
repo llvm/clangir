@@ -22,6 +22,13 @@
 using namespace clang;
 using namespace clang::CIRGen;
 
+static CXXRecordDecl *getCXXRecord(const Expr *E) {
+  QualType T = E->getType();
+  if (const PointerType *PTy = T->getAs<PointerType>())
+    T = PTy->getPointeeType();
+  return T->castAsCXXRecordDecl();
+}
+
 namespace {
 struct MemberCallInfo {
   RequiredArgs reqArgs;
@@ -127,8 +134,35 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
 
   // Compute the object pointer.
   bool canUseVirtualCall = md->isVirtual() && !hasQualifier;
+
   const CXXMethodDecl *devirtualizedMethod = nullptr;
-  assert(!cir::MissingFeatures::devirtualizeMemberFunction());
+  if (canUseVirtualCall &&
+      md->getDevirtualizedMethod(base, getLangOpts().AppleKext)) {
+    const CXXRecordDecl *bestDynamicDecl = base->getBestDynamicClassType();
+    devirtualizedMethod = md->getCorrespondingMethodInClass(bestDynamicDecl);
+    assert(devirtualizedMethod);
+    const CXXRecordDecl *devirtualizedClass = devirtualizedMethod->getParent();
+    const Expr *inner = base->IgnoreParenBaseCasts();
+    if (devirtualizedMethod->getReturnType().getCanonicalType() !=
+        md->getReturnType().getCanonicalType())
+      // If the return types are not the same, this might be a case where more
+      // code needs to run to compensate for it. For example, the derived
+      // method might return a type that inherits form from the return
+      // type of MD and has a prefix.
+      // For now we just avoid devirtualizing these covariant cases.
+      devirtualizedMethod = nullptr;
+    else if (getCXXRecord(inner) == devirtualizedClass)
+      // If the class of the Inner expression is where the dynamic method
+      // is defined, build the this pointer from it.
+      base = inner;
+    else if (getCXXRecord(base) != devirtualizedClass) {
+      // If the method is defined in a class that is not the best dynamic
+      // one or the one of the full expression, we would have to build
+      // a derived-to-base cast to compute the correct this pointer, but
+      // we don't have support for that yet, so do a virtual call.
+      devirtualizedMethod = nullptr;
+    }
+  }
 
   // Note on trivial assignment
   // --------------------------
@@ -933,9 +967,17 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *e) {
   // interesting initializer will be running sanitizers on the initialization.
   bool nullCheck = e->shouldNullCheckAllocation() &&
                    (!allocType.isPODType(getContext()) || e->hasInitializer());
-  assert(!cir::MissingFeatures::exprNewNullCheck());
-  if (nullCheck)
-    cgm.errorNYI(e->getSourceRange(), "emitCXXNewExpr: null check");
+
+  // Perform null check before bitcast if needed.
+  mlir::Value nullCheckCond;
+  if (nullCheck) {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    mlir::Value allocPtr = allocation.getPointer();
+    auto ptrTy = mlir::cast<cir::PointerType>(allocPtr.getType());
+    mlir::Value nullPtr = builder.getNullPtr(ptrTy, loc);
+    nullCheckCond =
+        builder.createCompare(loc, cir::CmpOpKind::ne, allocPtr, nullPtr);
+  }
 
   // If there's an operator delete, enter a cleanup to call it if an
   // exception is thrown.
@@ -969,6 +1011,18 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *e) {
     cgm.errorNYI(e->getSourceRange(), "emitCXXNewExpr: strict vtable pointers");
 
   assert(!cir::MissingFeatures::sanitizers());
+
+  if (nullCheck) {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    cir::IfOp::create(builder, loc, nullCheckCond, /*withElseRegion=*/false,
+                      [&](mlir::OpBuilder &, mlir::Location) {
+                        emitNewInitializer(*this, e, allocType, elementTy,
+                                           result, numElements,
+                                           allocSizeWithoutCookie);
+                        builder.createYield(loc);
+                      });
+    return result.getPointer();
+  }
 
   emitNewInitializer(*this, e, allocType, elementTy, result, numElements,
                      allocSizeWithoutCookie);

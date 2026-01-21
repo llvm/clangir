@@ -147,6 +147,7 @@ public:
   void handleCXXStaticMemberVarInstantiation(VarDecl *vd);
 
   llvm::DenseMap<const Decl *, cir::GlobalOp> staticLocalDeclMap;
+  llvm::DenseMap<const VarDecl *, cir::GlobalOp> initializerConstants;
 
   mlir::Operation *getGlobalValue(llvm::StringRef ref);
 
@@ -174,6 +175,12 @@ public:
                                       llvm::StringRef name, mlir::Type t,
                                       bool isConstant = false,
                                       mlir::Operation *insertPoint = nullptr);
+
+  /// Create an unnamed global constant with the given constant initializer.
+  /// If the variable already has a cached constant global, use that.
+  /// Returns an Address pointing to the global.
+  Address createUnnamedGlobalFrom(const VarDecl &d, mlir::Attribute constant,
+                                  CharUnits align);
 
   /// Add a global constructor or destructor to the module.
   /// The priority is optional, if not specified, the default priority is used.
@@ -423,6 +430,9 @@ public:
   getAddrOfFunction(clang::GlobalDecl gd, mlir::Type funcType = nullptr,
                     bool forVTable = false, bool dontDefer = false,
                     ForDefinition_t isForDefinition = NotForDefinition);
+
+  /// Get a reference to the target of a weak reference.
+  cir::FuncOp getWeakRefReference(const clang::ValueDecl *vd);
 
   mlir::Operation *
   getAddrOfGlobal(clang::GlobalDecl gd,

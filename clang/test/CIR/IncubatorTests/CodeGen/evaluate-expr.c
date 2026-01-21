@@ -10,11 +10,14 @@ void foo() {
 }
 // CHECK:  cir.func {{.*}} @foo()
 // CHECK:    cir.scope {
-// CHECK:      [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-// CHECK:      [[FALSE:%.*]] = cir.cast int_to_bool [[ZERO:%.*]] : !s32i -> !cir.bool
-// CHECK:      cir.if [[FALSE]] {
-// CHECK:        cir.return
-// CHECK:      }
+// CHECK:      %[[ZERO:.*]] = cir.const #cir.int<0> : !s32i
+// CHECK:      %[[COND1:.*]] = cir.cast int_to_bool %[[ZERO]]
+// CHECK:      cir.if %[[COND1]]
+// CHECK:    }
+// CHECK:    cir.scope {
+// CHECK:      %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK:      %[[COND2:.*]] = cir.cast int_to_bool %[[ONE]]
+// CHECK:      cir.if %[[COND2]]
 // CHECK:    }
 // CHECK:    cir.return
 

@@ -30,9 +30,13 @@ void yoyo(incomplete *i) {}
 //  CHECK-DAG: !rec_Bar = !cir.record<struct "Bar" {!s32i, !s8i}>
 
 //  CHECK-DAG: !rec_Foo = !cir.record<struct "Foo" {!s32i, !s8i, !rec_Bar}>
-//  CHECK-DAG: !rec_Mandalore = !cir.record<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i} #cir.record.decl.ast>
+//  CHECK-DAG: !rec_Mandalore = !cir.record<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i}
 //  CHECK-DAG: !rec_Adv = !cir.record<class "Adv" {!rec_Mandalore}>
 //  CHECK-DAG: !rec_Entry = !cir.record<struct "Entry" {!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>}>
+
+//  CHECK-DAG: cir.global external @simpleConstInit = #cir.const_record<{#cir.int<1> : !s32i}> : !rec_A {alignment = 4 : i64}
+//  CHECK-DAG: cir.global external @arrConstInit = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_A]> : !cir.array<!rec_A x 1> {alignment = 4 : i64}
+//  CHECK-DAG: cir.global external @nonTrivialConstexprConstructor = #cir.undef : !rec_NonTrivialConstexprConstructor {alignment = 1 : i64}
 
 //      CHECK: cir.func {{.*}} @_ZN3Bar6methodEv(%arg0: !cir.ptr<!rec_Bar>
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>, ["this", init] {alignment = 8 : i64}
@@ -117,18 +121,15 @@ struct A {
 
 // Should globally const-initialize struct members.
 struct A simpleConstInit = {1};
-// CHECK: cir.global external @simpleConstInit = #cir.const_record<{#cir.int<1> : !s32i}> : !rec_A
 
 // Should globally const-initialize arrays with struct members.
 struct A arrConstInit[1] = {{1}};
-// CHECK: cir.global external @arrConstInit = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_A]> : !cir.array<!rec_A x 1>
 
 // Should globally const-initialize empty structs with a non-trivial constexpr
 // constructor (as undef, to match existing clang CodeGen behavior).
 struct NonTrivialConstexprConstructor {
   constexpr NonTrivialConstexprConstructor() {}
 } nonTrivialConstexprConstructor;
-// CHECK: cir.global external @nonTrivialConstexprConstructor = #cir.undef : !rec_NonTrivialConstexprConstructor {alignment = 1 : i64}
 // CHECK-NOT: @__cxx_global_var_init
 
 // Should locally copy struct members.
@@ -151,10 +152,11 @@ void h() { S s; }
 // CHECK: cir.func {{.*}} @_Z1hv()
 // CHECK:   %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0"] {alignment = 4 : i64}
-// CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !rec_A
-// CHECK:   cir.store{{.*}} %2, %1 : !rec_A, !cir.ptr<!rec_A>
-// CHECK:   %3 = cir.load{{.*}} %1 : !cir.ptr<!rec_A>, !rec_A
-// CHECK:   cir.call @_ZN1SC1E1A(%0, %3) : (!cir.ptr<!rec_S>, !rec_A) -> ()
+// CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !u32i
+// CHECK:   %3 = cir.cast bitcast %1 : !cir.ptr<!rec_A> -> !cir.ptr<!u32i>
+// CHECK:   cir.store %2, %3 : !u32i, !cir.ptr<!u32i>
+// CHECK:   {{.*}} = cir.load{{.*}} %1 : !cir.ptr<!rec_A>, !rec_A
+// CHECK:   cir.call @_ZN1SC1E1A(%0, {{.*}}) : (!cir.ptr<!rec_S>, !u32i) -> ()
 // CHECK:   cir.return
 // CHECK: }
 
@@ -201,8 +203,8 @@ void unary_extension() {
 }
 
 // CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a", init]
-// CHECK: %[[ZERO_INIT:.*]] = cir.const #cir.zero : !rec_CompleteS
-// CHECK: cir.store{{.*}} %[[ZERO_INIT]], %[[A_ADDR]] : !rec_CompleteS, !cir.ptr<!rec_CompleteS>
+// CHECK: %[[GLOBAL:.*]] = cir.get_global @__const._Z15unary_extensionv.a : !cir.ptr<!rec_CompleteS>
+// CHECK: cir.copy %[[GLOBAL]] to %[[A_ADDR]] : !cir.ptr<!rec_CompleteS>
 
 void generic_selection() {
   CompleteS a;

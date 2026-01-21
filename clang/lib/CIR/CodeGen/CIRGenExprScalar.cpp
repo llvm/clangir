@@ -267,8 +267,11 @@ public:
   mlir::Value VisitOffsetOfExpr(OffsetOfExpr *e);
 
   mlir::Value VisitSizeOfPackExpr(SizeOfPackExpr *e) {
-    cgf.cgm.errorNYI(e->getSourceRange(), "ScalarExprEmitter: size of pack");
-    return {};
+    // sizeof... returns size_t
+    mlir::Type sizeTy =
+        cgf.cgm.getTypes().convertType(cgf.getContext().getSizeType());
+    return builder.getConstInt(cgf.getLoc(e->getSourceRange()), sizeTy,
+                               e->getPackLength());
   }
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *e) {
     cgf.cgm.errorNYI(e->getSourceRange(), "ScalarExprEmitter: pseudo object");
@@ -694,8 +697,16 @@ public:
 
       if (type->isHalfType() &&
           !cgf.getContext().getLangOpts().NativeHalfType) {
-        cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec half");
-        return {};
+        // Another special case: half FP increment should be done via float
+        if (cgf.getContext().getTargetInfo().useFP16ConversionIntrinsics()) {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec half via FP16 conversion intrinsics");
+          return {};
+        } else {
+          value = builder.createCast(cgf.getLoc(e->getExprLoc()),
+                                     cir::CastKind::floating, input,
+                                     cgf.cgm.floatTy);
+        }
       }
 
       if (mlir::isa<cir::SingleType, cir::DoubleType>(value.getType())) {
@@ -705,8 +716,44 @@ public:
                kind == cir::UnaryOpKind::Dec && "Invalid UnaryOp kind");
         value = emitUnaryOp(e, kind, value);
       } else {
-        cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec other fp type");
-        return {};
+        // Remaining types are Half, Bfloat16, LongDouble, __ibm128 or
+        // __float128. Use binop(add) with a constant.
+        int amount = (kind == cir::UnaryOpKind::Inc) ? 1 : -1;
+        llvm::APFloat f(static_cast<float>(amount));
+        bool ignored;
+        const llvm::fltSemantics *fs;
+        // Don't use getFloatTypeSemantics because Half isn't
+        // necessarily represented using the "half" LLVM type.
+        if (mlir::isa<cir::LongDoubleType>(value.getType()))
+          fs = &cgf.getTarget().getLongDoubleFormat();
+        else if (mlir::isa<cir::FP16Type>(value.getType()))
+          fs = &cgf.getTarget().getHalfFormat();
+        else if (mlir::isa<cir::BF16Type>(value.getType()))
+          fs = &cgf.getTarget().getBFloat16Format();
+        else {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec fp128 / ppc_fp128");
+          return {};
+        }
+        f.convert(*fs, llvm::APFloat::rmTowardZero, &ignored);
+
+        mlir::Location loc = cgf.getLoc(e->getExprLoc());
+        mlir::Value amt =
+            builder.getConstant(loc, cir::FPAttr::get(value.getType(), f));
+        value = builder.createBinop(loc, value, cir::BinOpKind::Add, amt);
+      }
+
+      if (type->isHalfType() &&
+          !cgf.getContext().getLangOpts().NativeHalfType) {
+        if (cgf.getContext().getTargetInfo().useFP16ConversionIntrinsics()) {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec half via FP16 conversion intrinsics");
+          return {};
+        } else {
+          value = builder.createCast(cgf.getLoc(e->getExprLoc()),
+                                     cir::CastKind::floating, value,
+                                     input.getType());
+        }
       }
     } else if (type->isFixedPointType()) {
       cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec other fixed point");
@@ -1287,6 +1334,20 @@ public:
     mlir::Type resTy = cgf.convertType(e->getType());
     mlir::Location loc = cgf.getLoc(e->getExprLoc());
 
+    // If we have 0 && RHS, see if we can elide RHS, if so, just return 0.
+    // If we have 1 && X, just emit X without inserting the control flow.
+    bool lhsCondVal;
+    if (cgf.constantFoldsToBool(e->getLHS(), lhsCondVal)) {
+      if (lhsCondVal) {
+        // If we have 1 && X, just emit X.
+        mlir::Value rhsCond = cgf.evaluateExprAsBool(e->getRHS());
+        return maybePromoteBoolResult(rhsCond, resTy);
+      }
+      // 0 && RHS: If it is safe, just elide the RHS, and return 0/false.
+      if (!cgf.containsLabel(e->getRHS()))
+        return builder.getNullValue(resTy, loc);
+    }
+
     CIRGenFunction::ConditionalEvaluation eval(cgf);
 
     mlir::Value lhsCondV = cgf.evaluateExprAsBool(e->getLHS());
@@ -1332,6 +1393,23 @@ public:
     assert(!cir::MissingFeatures::instrumentation());
     mlir::Type resTy = cgf.convertType(e->getType());
     mlir::Location loc = cgf.getLoc(e->getExprLoc());
+
+    // If we have 1 || RHS, see if we can elide RHS, if so, just return 1.
+    // If we have 0 || X, just emit X without inserting the control flow.
+    bool lhsCondVal;
+    if (cgf.constantFoldsToBool(e->getLHS(), lhsCondVal)) {
+      if (!lhsCondVal) {
+        // If we have 0 || X, just emit X.
+        mlir::Value rhsCond = cgf.evaluateExprAsBool(e->getRHS());
+        return maybePromoteBoolResult(rhsCond, resTy);
+      }
+      // 1 || RHS: If it is safe, just elide the RHS, and return 1/true.
+      if (!cgf.containsLabel(e->getRHS())) {
+        if (auto intTy = mlir::dyn_cast<cir::IntType>(resTy))
+          return builder.getConstInt(loc, intTy, 1);
+        return builder.getBool(true, loc);
+      }
+    }
 
     CIRGenFunction::ConditionalEvaluation eval(cgf);
 
@@ -1802,15 +1880,22 @@ static mlir::Value emitPointerArithmetic(CIRGenFunction &cgf,
     return nullptr;
   }
 
-  if (elementType->isVoidType() || elementType->isFunctionType()) {
-    cgf.cgm.errorNYI("void* or function pointer arithmetic");
-    return nullptr;
-  }
+  // Explicitly handle GNU void* and function pointer arithmetic extensions.
+  // These are treated as byte-sized for pointer arithmetic purposes.
+  // Note: We don't need to use elementType here since PtrStrideOp works
+  // directly with the pointer type.
 
   assert(!cir::MissingFeatures::sanitizers());
+
+  // Determine the GEP no-wrap flags.
+  bool signedIndices = mlir::cast<cir::IntType>(index.getType()).isSigned();
+  cir::GEPNoWrapFlags nwFlags = cir::GEPNoWrapFlags::inbounds;
+  if (!signedIndices && !isSubtraction)
+    nwFlags = nwFlags | cir::GEPNoWrapFlags::nuw;
+
   return cir::PtrStrideOp::create(cgf.getBuilder(),
                                   cgf.getLoc(op.e->getExprLoc()),
-                                  pointer.getType(), pointer, index);
+                                  pointer.getType(), pointer, index, nwFlags);
 }
 
 mlir::Value ScalarExprEmitter::emitMul(const BinOpInfo &ops) {
@@ -2144,12 +2229,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *ce) {
         cgf, Visit(subExpr), subExprAS, convertType(destTy));
   }
 
-  case CK_AtomicToNonAtomic: {
-    cgf.getCIRGenModule().errorNYI(subExpr->getSourceRange(),
-                                   "CastExpr: ", ce->getCastKindName());
-    mlir::Location loc = cgf.getLoc(subExpr->getSourceRange());
-    return cgf.createDummyValue(loc, destTy);
-  }
+  case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
   case CK_UserDefinedConversion:
     return Visit(const_cast<Expr *>(subExpr));
@@ -2366,6 +2446,25 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *ce) {
   }
   case CK_FunctionToPointerDecay:
     return cgf.emitLValue(subExpr).getPointer();
+
+  case CK_LValueBitCast:
+  case CK_ObjCObjectLValueCast:
+  case CK_LValueToRValueBitCast: {
+    LValue sourceLVal = cgf.emitLValue(subExpr);
+    Address sourceAddr = sourceLVal.getAddress();
+
+    mlir::Type destElemTy = cgf.convertTypeForMem(destTy);
+    mlir::Type destPtrTy = builder.getPointerTo(destElemTy);
+    mlir::Value destPtr = builder.createBitcast(
+        cgf.getLoc(subExpr->getExprLoc()), sourceAddr.getPointer(), destPtrTy);
+
+    Address destAddr(destPtr, destElemTy, sourceAddr.getAlignment(),
+                     sourceAddr.isKnownNonNull());
+    LValue destLVal = cgf.makeAddrLValue(destAddr, destTy);
+    // TODO(cir): set TBAA info on destLVal
+    assert(!cir::MissingFeatures::opLoadStoreTbaa());
+    return emitLoadOfLValue(destLVal, ce->getExprLoc());
+  }
 
   default:
     cgf.getCIRGenModule().errorNYI(subExpr->getSourceRange(),

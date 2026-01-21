@@ -49,9 +49,9 @@ void alloca_in_loop(int* ar, int n) {
 // BEFORE:          %5 = cir.const #cir.int<4> : !s32i
 // BEFORE:          cir.store{{.*}} %5, %4 : !s32i, !cir.ptr<!s32i>
 // BEFORE:          %6 = cir.load{{.*}} %4 : !cir.ptr<!s32i>, !s32i
-// BEFORE:          %7 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// BEFORE:          %8 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
-// BEFORE:          %9 = cir.ptr_stride %7, %8 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
+// BEFORE:          %7 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
+// BEFORE:          %8 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// BEFORE:          %9 = cir.ptr_stride %8, %7 : (!cir.ptr<!s32i>, !s32i) -> !cir.ptr<!s32i>
 // BEFORE:          cir.store{{.*}} %6, %9 : !s32i, !cir.ptr<!s32i>
 // BEFORE:        }
 // BEFORE:        cir.yield
@@ -180,10 +180,9 @@ void test_bitcast(size_t n) {
 // BEFORE:    %1 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["c1", init] {alignment = 8 : i64}
 // BEFORE:    cir.store{{.*}} %arg0, %0 : !u64i, !cir.ptr<!u64i>
 // BEFORE:    %2 = cir.load{{.*}} %0 : !cir.ptr<!u64i>, !u64i
-// BEFORE:    %3 = cir.alloca !u8i, !cir.ptr<!u8i>, %2 : !u64i, ["bi_alloca"] {alignment = 16 : i64}
-// BEFORE:    %4 = cir.cast bitcast %3 : !cir.ptr<!u8i> -> !cir.ptr<!void>
-// BEFORE:    %5 = cir.cast bitcast %4 : !cir.ptr<!void> -> !cir.ptr<!s32i>
-// BEFORE:    cir.store{{.*}} %5, %1 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// BEFORE:    %3 = cir.call @alloca(%2) nothrow : (!u64i) -> !cir.ptr<!void>
+// BEFORE:    %4 = cir.cast bitcast %3 : !cir.ptr<!void> -> !cir.ptr<!s32i>
+// BEFORE:    cir.store{{.*}} %4, %1 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // BEFORE:    cir.return
 
 // MEM2REG:  cir.func {{.*@test_bitcast}}

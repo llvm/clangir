@@ -11,12 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H
-#define CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H
+#ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H
+#define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H
 
+#include "LowerFunctionInfo.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Target/AArch64.h"
 
 namespace cir {
 
@@ -27,24 +35,56 @@ class CIRCXXABI {
   friend class LowerModule;
 
 protected:
-  LowerModule &lm;
+  LowerModule &LM;
 
-  CIRCXXABI(LowerModule &lm) : lm(lm) {}
+  CIRCXXABI(LowerModule &LM) : LM(LM) {}
 
 public:
   virtual ~CIRCXXABI();
 
-  /// Lower the given data member pointer type to its ABI type. The returned
-  /// type is also a CIR type.
+  /// If the C++ ABI requires the given type be returned in a particular way,
+  /// this method sets RetAI and returns true.
+  virtual bool classifyReturnType(LowerFunctionInfo &FI) const = 0;
+
+  /// Specify how one should pass an argument of a record type.
+  enum RecordArgABI {
+    /// Pass it using the normal C aggregate rules for the ABI, potentially
+    /// introducing extra copies and passing some or all of it in registers.
+    RAA_Default = 0,
+
+    /// Pass it on the stack using its defined layout.  The argument must be
+    /// evaluated directly into the correct stack position in the arguments
+    /// area,
+    /// and the call machinery must not move it or introduce extra copies.
+    RAA_DirectInMemory,
+
+    /// Pass it as a pointer to temporary memory.
+    RAA_Indirect
+  };
+
+  /// Returns how an argument of the given record type should be passed.
+  /// FIXME(cir): This expects a CXXRecordDecl! Not any record type.
+  virtual RecordArgABI getRecordArgABI(const RecordType RD) const = 0;
+
+  /// Get the ABI type for a pointer to data member.
+  virtual mlir::Type getDataMemberABIType() const = 0;
+
+  /// Get the lowered type for a cir.data_member type.
   virtual mlir::Type
   lowerDataMemberType(cir::DataMemberType type,
-                      const mlir::TypeConverter &typeConverter) const = 0;
+                      const mlir::TypeConverter &typeConverter) const {
+    return getDataMemberABIType();
+  }
 
-  /// Lower the given member function pointer type to its ABI type. The returned
-  /// type is also a CIR type.
+  /// Get the ABI type for a pointer to member function.
+  virtual mlir::Type getMethodABIType() const = 0;
+
+  /// Get the lowered type for a cir.method type.
   virtual mlir::Type
   lowerMethodType(cir::MethodType type,
-                  const mlir::TypeConverter &typeConverter) const = 0;
+                  const mlir::TypeConverter &typeConverter) const {
+    return getMethodABIType();
+  }
 
   /// Lower the given data member pointer constant to a constant of the ABI
   /// type. The returned constant is represented as an attribute as well.
@@ -70,7 +110,7 @@ public:
   /// operations that act on the ABI types. The lowered result values will be
   /// stored in the given loweredResults array.
   virtual void
-  lowerGetMethod(cir::GetMethodOp op, mlir::Value &callee, mlir::Value &thisArg,
+  lowerGetMethod(cir::GetMethodOp op, mlir::Value (&loweredResults)[2],
                  mlir::Value loweredMethod, mlir::Value loweredObjectPtr,
                  mlir::ConversionPatternRewriter &rewriter) const = 0;
 
@@ -85,6 +125,21 @@ public:
   virtual mlir::Value
   lowerDerivedDataMember(cir::DerivedDataMemberOp op, mlir::Value loweredSrc,
                          mlir::OpBuilder &builder) const = 0;
+
+  // TODO(cir): Add these back when BaseMethodOp and DerivedMethodOp are
+  // ported to upstream.
+  // /// Lower the given cir.base_method op to a sequence of more "primitive"
+  // CIR
+  // /// operations that act on the ABI types.
+  // virtual mlir::Value lowerBaseMethod(cir::BaseMethodOp op,
+  //                                     mlir::Value loweredSrc,
+  //                                     mlir::OpBuilder &builder) const = 0;
+  //
+  // /// Lower the given cir.derived_method op to a sequence of more "primitive"
+  // /// CIR operations that act on the ABI types.
+  // virtual mlir::Value lowerDerivedMethod(cir::DerivedMethodOp op,
+  //                                        mlir::Value loweredSrc,
+  //                                        mlir::OpBuilder &builder) const = 0;
 
   virtual mlir::Value lowerDataMemberCmp(cir::CmpOp op, mlir::Value loweredLhs,
                                          mlir::Value loweredRhs,
@@ -114,8 +169,8 @@ public:
 };
 
 /// Creates an Itanium-family ABI.
-std::unique_ptr<CIRCXXABI> createItaniumCXXABI(LowerModule &lm);
+CIRCXXABI *CreateItaniumCXXABI(LowerModule &CGM);
 
 } // namespace cir
 
-#endif // CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H
+#endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCXXABI_H

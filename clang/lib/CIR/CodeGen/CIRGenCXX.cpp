@@ -258,6 +258,10 @@ void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
 
   assert(!cir::MissingFeatures::astVarDeclInterface());
 
+  // Set init_priority if the variable has the attribute.
+  if (const auto *ipa = varDecl->getAttr<InitPriorityAttr>())
+    addr.setInitPriorityAttr(builder.getI32IntegerAttr(ipa->getPriority()));
+
   if (!ty->isReferenceType()) {
     assert(!cir::MissingFeatures::openMP());
 

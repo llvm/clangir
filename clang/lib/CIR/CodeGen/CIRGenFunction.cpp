@@ -836,7 +836,7 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &args) {
   // in fact emit references to them from other compilations, so emit them
   // as functions containing a trap instruction.
   if (dtorType != Dtor_Base && dtor->getParent()->isAbstract()) {
-    cgm.errorNYI(dtor->getSourceRange(), "abstract base class destructors");
+    emitTrap(getLoc(dtor->getSourceRange()), /*createNewBlock=*/true);
     return;
   }
 
@@ -1049,8 +1049,12 @@ LValue CIRGenFunction::emitLValue(const Expr *e) {
   case Expr::DeclRefExprClass:
     return emitDeclRefLValue(cast<DeclRefExpr>(e));
   case Expr::CStyleCastExprClass:
+  case Expr::CXXFunctionalCastExprClass:
   case Expr::CXXStaticCastExprClass:
   case Expr::CXXDynamicCastExprClass:
+  case Expr::CXXReinterpretCastExprClass:
+  case Expr::CXXConstCastExprClass:
+  case Expr::CXXAddrspaceCastExprClass:
   case Expr::ImplicitCastExprClass:
     return emitCastLValue(cast<CastExpr>(e));
   case Expr::MaterializeTemporaryExprClass:

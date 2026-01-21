@@ -16,7 +16,7 @@ struct HasDtor {
 // This should create endOfInit tracking for exception safety
 
 // CIR-LABEL: @_Z{{.*}}test_partial
-// CIR: arrayinit.endOfInit
+// CIR: arrayinit.temp
 // CIR: cir.call @_ZN7HasDtorC1Ei
 // CIR: cir.call @_ZN7HasDtorC1Ei
 // CIR: cir.call @_ZN7HasDtorC1Ei
@@ -28,12 +28,10 @@ struct HasDtor {
 // LLVM-LABEL: define {{.*}}void @_Z12test_partialv()
 // LLVM: %[[ENDOFINIT:.*]] = alloca ptr
 // LLVM: %[[ARR:.*]] = alloca [5 x %struct.HasDtor]
-// LLVM: store ptr %{{.*}}, ptr %[[ENDOFINIT]]
 // LLVM: call void @_ZN7HasDtorC1Ei(ptr %{{.*}}, i32 1)
-// LLVM: store ptr %{{.*}}, ptr %[[ENDOFINIT]]
 // LLVM: call void @_ZN7HasDtorC1Ei(ptr %{{.*}}, i32 2)
-// LLVM: store ptr %{{.*}}, ptr %[[ENDOFINIT]]
 // LLVM: call void @_ZN7HasDtorC1Ei(ptr %{{.*}}, i32 3)
+// LLVM: store ptr %{{.*}}, ptr %[[ENDOFINIT]]
 // LLVM: call void @_ZN7HasDtorC1Ev(ptr %{{.*}})
 // LLVM: call void @_ZN7HasDtorD1Ev(ptr %{{.*}})
 

@@ -9,12 +9,15 @@
 #include "clang/CIR/FrontendAction/CIRGenAction.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
+#include "mlir/Pass/PassManager.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/CIRToCIRPasses.h"
+#include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "llvm/Frontend/Debug/Options.h"
 #include "llvm/IR/Module.h"
 
 using namespace cir;
@@ -26,6 +29,7 @@ static BackendAction
 getBackendActionFromOutputType(CIRGenAction::OutputType Action) {
   switch (Action) {
   case CIRGenAction::OutputType::EmitCIR:
+  case CIRGenAction::OutputType::EmitCIRFlat:
     assert(false &&
            "Unsupported output type for getBackendActionFromOutputType!");
     break; // Unreachable, but fall through to report that
@@ -44,8 +48,10 @@ getBackendActionFromOutputType(CIRGenAction::OutputType Action) {
 }
 
 static std::unique_ptr<llvm::Module>
-lowerFromCIRToLLVMIR(mlir::ModuleOp MLIRModule, llvm::LLVMContext &LLVMCtx) {
-  return direct::lowerDirectlyFromCIRToLLVMIR(MLIRModule, LLVMCtx);
+lowerFromCIRToLLVMIR(mlir::ModuleOp MLIRModule, llvm::LLVMContext &LLVMCtx,
+                     bool DisableDebugInfo) {
+  return direct::lowerDirectlyFromCIRToLLVMIR(MLIRModule, LLVMCtx,
+                                              DisableDebugInfo);
 }
 
 class CIRGenConsumer : public clang::ASTConsumer {
@@ -115,9 +121,9 @@ public:
 
     if (!FEOptions.ClangIRDisablePasses) {
       // Setup and run CIR pipeline.
-      if (runCIRToCIRPasses(MlirModule, MlirCtx, C,
-                            !FEOptions.ClangIRDisableCIRVerifier,
-                            CGO.OptimizationLevel > 0)
+      if (runCIRToCIRPasses(
+              MlirModule, MlirCtx, C, !FEOptions.ClangIRDisableCIRVerifier,
+              CGO.OptimizationLevel > 0, FEOptions.ClangIRCallConvLowering)
               .failed()) {
         CI.getDiagnostics().Report(diag::err_cir_to_cir_transform_failed);
         return;
@@ -132,13 +138,31 @@ public:
         MlirModule->print(*OutputStream, Flags);
       }
       break;
+    case CIRGenAction::OutputType::EmitCIRFlat:
+      if (OutputStream && MlirModule) {
+        // Run the pre-lowering passes to flatten the CFG.
+        mlir::PassManager pm(&MlirCtx);
+        mlir::populateCIRPreLoweringPasses(pm);
+        pm.enableVerifier(!FEOptions.ClangIRDisableCIRVerifier);
+        if (pm.run(MlirModule).failed()) {
+          CI.getDiagnostics().Report(diag::err_cir_to_cir_transform_failed);
+          return;
+        }
+
+        mlir::OpPrintingFlags Flags;
+        Flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+        MlirModule->print(*OutputStream, Flags);
+      }
+      break;
     case CIRGenAction::OutputType::EmitLLVM:
     case CIRGenAction::OutputType::EmitBC:
     case CIRGenAction::OutputType::EmitObj:
     case CIRGenAction::OutputType::EmitAssembly: {
       llvm::LLVMContext LLVMCtx;
+      bool DisableDebugInfo =
+          CGO.getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
       std::unique_ptr<llvm::Module> LLVMModule =
-          lowerFromCIRToLLVMIR(MlirModule, LLVMCtx);
+          lowerFromCIRToLLVMIR(MlirModule, LLVMCtx, DisableDebugInfo);
 
       BackendAction BEAction = getBackendActionFromOutputType(Action);
       emitBackendOutput(
@@ -183,6 +207,8 @@ getOutputStream(CompilerInstance &CI, StringRef InFile,
     return CI.createDefaultOutputFile(false, InFile, "s");
   case CIRGenAction::OutputType::EmitCIR:
     return CI.createDefaultOutputFile(false, InFile, "cir");
+  case CIRGenAction::OutputType::EmitCIRFlat:
+    return CI.createDefaultOutputFile(false, InFile, "cir");
   case CIRGenAction::OutputType::EmitLLVM:
     return CI.createDefaultOutputFile(false, InFile, "ll");
   case CIRGenAction::OutputType::EmitBC:
@@ -213,6 +239,10 @@ EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *MLIRCtx)
 void EmitCIRAction::anchor() {}
 EmitCIRAction::EmitCIRAction(mlir::MLIRContext *MLIRCtx)
     : CIRGenAction(OutputType::EmitCIR, MLIRCtx) {}
+
+void EmitCIRFlatAction::anchor() {}
+EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *MLIRCtx)
+    : CIRGenAction(OutputType::EmitCIRFlat, MLIRCtx) {}
 
 void EmitLLVMAction::anchor() {}
 EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *MLIRCtx)

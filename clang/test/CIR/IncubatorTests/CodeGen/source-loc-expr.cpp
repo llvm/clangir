@@ -16,7 +16,7 @@ int global_line = __builtin_LINE();
 // Test __builtin_LINE
 int test_builtin_LINE() {
   // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_LINE
-  // CIR: %{{.*}} = cir.const #cir.int<25> : !u32i
+  // CIR: %{{.*}} = cir.const #cir.int<25> : !s32i
 
   // LLVM-LABEL: @{{.*}}test_builtin_LINE
   // LLVM: store i32 25
@@ -56,7 +56,7 @@ const char* test_builtin_FUNCTION() {
 int test_builtin_COLUMN() {
   // CIR-LABEL: cir.func{{.*}} @{{.*}}test_builtin_COLUMN
   // The column number is the position of '__builtin_COLUMN'
-  // CIR: %{{.*}} = cir.const #cir.int<10> : !u32i
+  // CIR: %{{.*}} = cir.const #cir.int<10> : !s32i
 
   // LLVM-LABEL: @{{.*}}test_builtin_COLUMN
   // LLVM: store i32 10
@@ -76,7 +76,7 @@ void test_default_arg() {
   // The LINE should be from the call site, not the default argument definition
   #line 111
   int x = get_line();
-  // CIR: %{{.*}} = cir.const #cir.int<111> : !u32i
+  // CIR: %{{.*}} = cir.const #cir.int<111> : !s32i
   // CIR: %{{.*}} = cir.call @{{.*}}get_line{{.*}}({{.*}}) :
 
   // LLVM-LABEL: @{{.*}}test_default_arg

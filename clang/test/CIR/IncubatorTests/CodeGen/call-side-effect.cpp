@@ -13,13 +13,13 @@ int test(int x) {
 }
 
 // CIR-LABEL: @_Z4testi
-// CIR:   %{{.+}} = cir.call @_Z9pure_funci(%{{.+}}) : (!s32i) -> !s32i side_effect(pure)
-// CIR:   %{{.+}} = cir.call @_Z10const_funci(%{{.+}}) : (!s32i) -> !s32i side_effect(const)
+// CIR:   %{{.+}} = cir.call @_Z9pure_funci(%{{.+}}) side_effect(pure) : (!s32i) -> !s32i
+// CIR:   %{{.+}} = cir.call @_Z10const_funci(%{{.+}}) side_effect(const) : (!s32i) -> !s32i
 // CIR: }
 
 // LLVM-LABEL: @_Z4testi(i32 %0)
 // LLVM:   %{{.+}} = call i32 @_Z9pure_funci(i32 %{{.+}}) #[[#meta_pure:]]
 // LLVM:   %{{.+}} = call i32 @_Z10const_funci(i32 %{{.+}}) #[[#meta_const:]]
 // LLVM: }
-// LLVM: attributes #[[#meta_pure]] = { nounwind willreturn memory(read, errnomem: none) }
+// LLVM: attributes #[[#meta_pure]] = { nounwind willreturn memory(read) }
 // LLVM: attributes #[[#meta_const]] = { nounwind willreturn memory(none) }
