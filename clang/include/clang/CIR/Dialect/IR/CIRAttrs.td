@@ -1323,4 +1323,65 @@ def CIR_GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
   let genVerifyDecl = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// ExtraFuncAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
+  let summary = "Represents aggregated attributes for a function";
+  let description = [{
+    This is a wrapper of attribute dictionary that contains extra attributes of
+    a function.
+  }];
+
+  let parameters = (ins "mlir::DictionaryAttr":$elements);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::DictionaryAttr":$elements), [{
+      return $_get(elements.getContext(), elements);
+    }]>
+  ];
+
+  let assemblyFormat = [{ `(` $elements `)` }];
+}
+
+//===----------------------------------------------------------------------===//
+// Unit Function Attributes
+//===----------------------------------------------------------------------===//
+
+def CIR_NoThrowAttr : CIR_UnitAttr<"NoThrow", "nothrow"> {
+  let storageType = [{ NoThrowAttr }];
+}
+
+def CIR_ConvergentAttr : CIR_UnitAttr<"Convergent", "convergent"> {
+  let storageType = [{ ConvergentAttr }];
+}
+
+def CIR_HotAttr : CIR_UnitAttr<"Hot", "hot"> {
+  let storageType = [{ HotAttr }];
+}
+
+//===----------------------------------------------------------------------===//
+// UWTableAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_UWTableKind : CIR_I32EnumAttr<"UWTableKind", "Unwind table kind", [
+  I32EnumAttrCase<"None", 0, "none">,
+  I32EnumAttrCase<"Sync", 1, "sync">,
+  I32EnumAttrCase<"Async", 2, "async">
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_UWTableAttr : CIR_EnumAttr<CIR_UWTableKind, "uwtable"> {
+  let summary = "Unwind table kind attribute";
+  let description = [{
+    The kind of unwind tables to generate for a function.
+    - None: No unwind tables
+    - Sync: Synchronous unwind tables (default)
+    - Async: Asynchronous unwind tables (for async exception handling)
+  }];
+  let cppClassName = "UWTableAttr";
+}
+
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD

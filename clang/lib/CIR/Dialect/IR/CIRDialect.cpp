@@ -132,6 +132,7 @@ template <typename Ty> struct EnumTraits {};
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(VisibilityKind);
 REGISTER_ENUM_TYPE(SideEffect);
+REGISTER_ENUM_TYPE(CallingConv);
 } // namespace
 
 /// Parse an enum from the keyword, or default to the provided default value.
@@ -818,6 +819,7 @@ parseTryCallDestinations(mlir::OpAsmParser &parser,
 
 static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
                                          mlir::OperationState &result,
+                                         llvm::StringRef extraAttrsAttrName,
                                          bool hasDestinationBlocks = false) {
   llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 4> ops;
   llvm::SMLoc opsLoc;
@@ -850,10 +852,12 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
     return ::mlir::failure();
   }
 
+  // Parse optional nothrow (before the type, upstream format)
   if (parser.parseOptionalKeyword("nothrow").succeeded())
     result.addAttribute(CIRDialect::getNoThrowAttrName(),
                         mlir::UnitAttr::get(parser.getContext()));
 
+  // Parse optional side_effect(...) (before the type, upstream format)
   if (parser.parseOptionalKeyword("side_effect").succeeded()) {
     if (parser.parseLParen().failed())
       return failure();
@@ -882,16 +886,47 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
   if (parser.resolveOperands(ops, opsFnTy.getInputs(), opsLoc, result.operands))
     return mlir::failure();
 
+  auto &builder = parser.getBuilder();
+
+  // Parse optional cc(...) (after the type, incubator format)
+  if (parser.parseOptionalKeyword("cc").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    cir::CallingConv callingConv;
+    if (parseCIRKeyword<cir::CallingConv>(parser, callingConv).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+    result.addAttribute("calling_conv", cir::CallingConvAttr::get(
+                                            builder.getContext(), callingConv));
+  }
+
+  // Parse optional extra(...) (after the type, incubator format)
+  Attribute extraAttrs;
+  if (parser.parseOptionalKeyword("extra").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseAttribute(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  } else {
+    NamedAttrList empty;
+    extraAttrs = cir::ExtraFuncAttributesAttr::get(
+        empty.getDictionary(builder.getContext()));
+  }
+  result.addAttribute(extraAttrsAttrName, extraAttrs);
+
   return mlir::success();
 }
 
-static void printCallCommon(mlir::Operation *op,
-                            mlir::FlatSymbolRefAttr calleeSym,
-                            mlir::Value indirectCallee,
-                            mlir::OpAsmPrinter &printer, bool isNothrow,
-                            cir::SideEffect sideEffect,
-                            mlir::Block *normalDest = nullptr,
-                            mlir::Block *unwindDest = nullptr) {
+static void
+printCallCommon(mlir::Operation *op, mlir::FlatSymbolRefAttr calleeSym,
+                mlir::Value indirectCallee, mlir::OpAsmPrinter &printer,
+                cir::ExtraFuncAttributesAttr extraAttrs,
+                cir::CallingConv callingConv, cir::SideEffect sideEffect,
+                bool nothrow, mlir::Block *normalDest = nullptr,
+                mlir::Block *unwindDest = nullptr) {
   printer << ' ';
 
   auto callLikeOp = mlir::cast<cir::CIRCallOpInterface>(op);
@@ -917,9 +952,11 @@ static void printCallCommon(mlir::Operation *op,
     printer << tryCall.getUnwindDest();
   }
 
-  if (isNothrow)
+  // Print optional nothrow before the colon (upstream format)
+  if (nothrow)
     printer << " nothrow";
 
+  // Print optional side_effect(...) before the colon (upstream format)
   if (sideEffect != cir::SideEffect::All) {
     printer << " side_effect(";
     printer << stringifySideEffect(sideEffect);
@@ -927,25 +964,50 @@ static void printCallCommon(mlir::Operation *op,
   }
 
   llvm::SmallVector<::llvm::StringRef> elidedAttrs = {
-      CIRDialect::getCalleeAttrName(), CIRDialect::getNoThrowAttrName(),
+      CIRDialect::getCalleeAttrName(),
       CIRDialect::getSideEffectAttrName(),
-      CIRDialect::getOperandSegmentSizesAttrName()};
+      CIRDialect::getNoThrowAttrName(),
+      CIRDialect::getOperandSegmentSizesAttrName(),
+      "calling_conv",
+      "extra_attrs"};
   printer.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
   printer << " : ";
   printer.printFunctionalType(op->getOperands().getTypes(),
                               op->getResultTypes());
+
+  // Print optional cc(...) after the type (incubator format)
+  if (callingConv != cir::CallingConv::C) {
+    printer << " cc(";
+    printer << stringifyCallingConv(callingConv);
+    printer << ")";
+  }
+
+  // Print optional extra(...) after the type (incubator format)
+  if (!extraAttrs.getElements().empty()) {
+    printer << " extra(";
+    printer.printAttributeWithoutType(extraAttrs);
+    printer << ")";
+  }
 }
 
 mlir::ParseResult cir::CallOp::parse(mlir::OpAsmParser &parser,
                                      mlir::OperationState &result) {
-  return parseCallCommon(parser, result);
+  return parseCallCommon(parser, result, getExtraAttrsAttrName(result.name));
 }
 
 void cir::CallOp::print(mlir::OpAsmPrinter &p) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  cir::CallingConv callingConv = getCallingConv();
   cir::SideEffect sideEffect = getSideEffect();
-  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, getNothrow(),
-                  sideEffect);
+  bool nothrow = getNothrowAttr() != nullptr;
+  cir::ExtraFuncAttributesAttr extraAttrs = getExtraAttrsAttr();
+  if (!extraAttrs) {
+    NamedAttrList empty;
+    extraAttrs =
+        cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
+  }
+  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
+                  callingConv, sideEffect, nothrow);
 }
 
 static LogicalResult
@@ -1054,14 +1116,24 @@ cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 mlir::ParseResult cir::TryCallOp::parse(mlir::OpAsmParser &parser,
                                         mlir::OperationState &result) {
-  return parseCallCommon(parser, result, /*hasDestinationBlocks=*/true);
+  return parseCallCommon(parser, result, getExtraAttrsAttrName(result.name),
+                         /*hasDestinationBlocks=*/true);
 }
 
 void cir::TryCallOp::print(::mlir::OpAsmPrinter &p) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  cir::CallingConv callingConv = getCallingConv();
   cir::SideEffect sideEffect = getSideEffect();
-  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, getNothrow(),
-                  sideEffect, getNormalDest(), getUnwindDest());
+  bool nothrow = getNothrowAttr() != nullptr;
+  cir::ExtraFuncAttributesAttr extraAttrs = getExtraAttrsAttr();
+  if (!extraAttrs) {
+    NamedAttrList empty;
+    extraAttrs =
+        cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
+  }
+  printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
+                  callingConv, sideEffect, nothrow, getNormalDest(),
+                  getUnwindDest());
 }
 
 //===----------------------------------------------------------------------===//

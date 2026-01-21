@@ -2869,9 +2869,16 @@ def CIR_OptionalPriorityAttr : OptionalAttr<
   >
 >;
 
-// TODO(CIR): CallingConv is a placeholder here so we can use it in
-// infrastructure calls, but it currently has no values.
-def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", []>;
+// TODO(CIR): CallingConv has been populated with values for GPU support.
+// Additional calling conventions should be added as needed.
+def CIR_CallingConv : CIR_I32EnumAttr<"CallingConv", "calling convention", [
+  I32EnumAttrCase<"C", 1, "c">,
+  I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">,
+  I32EnumAttrCase<"SpirFunction", 3, "spir_function">,
+  I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">,
+  I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">,
+  I32EnumAttrCase<"AMDGPUKernel", 6, "amdgpu_kernel">
+]>;
 
 def CIR_FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
@@ -2951,6 +2958,8 @@ def CIR_FuncOp : CIR_Op<"func", [
     OptionalAttr<CIR_InlineKind>:$inline_kind,
     UnitAttr:$lambda,
     UnitAttr:$no_proto,
+    UnitAttr:$opt_none,
+    UnitAttr:$cold,
     UnitAttr:$dso_local,
     DefaultValuedAttr<
       CIR_GlobalLinkageKind,
@@ -2965,7 +2974,9 @@ def CIR_FuncOp : CIR_Op<"func", [
     CIR_OptionalPriorityAttr:$global_ctor_priority,
     CIR_OptionalPriorityAttr:$global_dtor_priority,
     OptionalAttr<ArrayAttr>:$annotations,
-    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member
+    OptionalAttr<CIR_CXXSpecialMemberAttr>:$cxx_special_member,
+    DefaultValuedAttr<CIR_CallingConv, "cir::CallingConv::C">:$calling_conv,
+    OptionalAttr<CIR_ExtraFuncAttr>:$extra_attrs
   );
 
   let regions = (region AnyRegion:$body);
@@ -3172,7 +3183,9 @@ class CIR_CallOpBase<string mnemonic, list<Trait> extra_traits = []>
   dag commonArgs = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
       Variadic<CIR_AnyType>:$args,
       UnitAttr:$nothrow,
-      DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect);
+      DefaultValuedAttr<CIR_SideEffect, "SideEffect::All">:$side_effect,
+      DefaultValuedAttr<CIR_CallingConv, "cir::CallingConv::C">:$calling_conv,
+      OptionalAttr<CIR_ExtraFuncAttr>:$extra_attrs);
 }
 
 def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
