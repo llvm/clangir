@@ -2054,19 +2054,16 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       }).failed())
     return failure();
 
-  // Parse the rest of the attributes.
-  NamedAttrList parsedAttrs;
-  if (parser.parseOptionalAttrDictWithKeyword(parsedAttrs))
-    return failure();
-
-  for (StringRef disallowed : cir::FuncOp::getAttributeNames()) {
-    if (parsedAttrs.get(disallowed))
-      return parser.emitError(loc, "attribute '")
-             << disallowed
-             << "' should not be specified in the explicit attribute list";
+  // Parse optional annotations attribute: [#cir.annotation<...>, ...]
+  {
+    mlir::ArrayAttr annotations;
+    if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
+      state.addAttribute(getAnnotationsAttrName(state.name), annotations);
   }
 
-  state.attributes.append(parsedAttrs);
+  // Parse the rest of the attributes.
+  if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
+    return failure();
 
   // Parse the optional function body.
   auto *body = state.addRegion();
@@ -2194,6 +2191,11 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   cir::FuncType fnType = getFunctionType();
   function_interface_impl::printFunctionSignature(
       p, *this, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
+
+  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
+    p << ' ';
+    p.printAttribute(annotations);
+  }
 
   if (std::optional<StringRef> aliaseeName = getAliasee()) {
     p << " alias(";

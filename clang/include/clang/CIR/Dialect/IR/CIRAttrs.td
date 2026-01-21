@@ -1238,4 +1238,89 @@ def CIR_BlockAddrInfoAttr : CIR_Attr<"BlockAddrInfo", "block_addr_info"> {
   ];
 }
 
+//===----------------------------------------------------------------------===//
+// AnnotationAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
+  let summary = "Annotation attribute for global variables and functions";
+  let description = [{
+    Represent C/C++ attribute of annotate in CIR.
+    Example C code:
+    ```
+     int *a __attribute__((annotate("testptr", "21", 12 )));
+    ```
+    In this example code, the `AnnotationAttr` has annotation name "testptr",
+    and arguments "21" and 12 constitutes an `ArrayAttr` type parameter `args`
+    for global variable `a`.
+    In CIR, the attribute for above annotation looks like:
+    ```
+    [#cir.annotation<name = "withargs", args = ["21", 12 : i32]>]
+    ```
+  }];
+
+  // The parameter args is empty when there is no arg.
+  let parameters = (ins "mlir::StringAttr":$name,
+                        "mlir::ArrayAttr":$args);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::StringAttr":$name,
+                                        CArg<"mlir::ArrayAttr", "{}">:$args), [{
+      return $_get(name.getContext(), name, args);
+    }]>
+  ];
+
+  let assemblyFormat = "`<` struct($name, $args) `>`";
+
+  let extraClassDeclaration = [{
+    bool isNoArgs() const { return getArgs().empty(); };
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// GlobalAnnotationValuesAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
+  "global_annotations"
+> {
+  let summary = "Array of annotations, each element consists of name of"
+                "a global var or func and one of its annotations";
+  let description = [{
+    This is annotation value array, which holds the annotation
+    values for all global variables and functions in a module.
+    This array is used to create the initial value of a global annotation
+    metadata variable in LLVM IR.
+    Example C code:
+    ```
+    double *a __attribute__((annotate("withargs", "21", 12 )));
+    int *b __attribute__((annotate("withargs", "21", 12 )));
+    void *c __attribute__((annotate("noargvar")));
+    void foo(int i) __attribute__((annotate("noargfunc"))) {}
+    ```
+    After CIR lowering prepare pass, compiler generates a
+    `GlobalAnnotationValuesAttr` like the following:
+    ```
+    #cir<global_annotations [
+      ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+      ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+      ["c", #cir.annotation<name = "noargvar", args = []>],
+      ["foo", #cir.annotation<name = "noargfunc", args = []>]]>
+    ```
+  }];
+
+  let parameters = (ins "mlir::ArrayAttr":$annotations);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::ArrayAttr":$annotations), [{
+      return $_get(annotations.getContext(), annotations);
+    }]>
+  ];
+
+  let assemblyFormat = [{ $annotations }];
+
+  // Enable verifier.
+  let genVerifyDecl = 1;
+}
+
 #endif // CLANG_CIR_DIALECT_IR_CIRATTRS_TD
