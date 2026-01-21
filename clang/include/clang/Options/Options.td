@@ -3238,6 +3238,11 @@ defm clangir : BoolFOption<"clangir",
   BothFlags<[], [ClangOption, CC1Option], "">>;
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR">;
+defm clangir_call_conv_lowering : BoolFOption<"clangir-call-conv-lowering",
+  FrontendOpts<"ClangIRCallConvLowering">, DefaultTrue,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Enable CIR calling convention lowering pass">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option], "Disable CIR calling convention lowering pass">,
+  BothFlags<[], [ClangOption, CC1Option], "">>;
 /// ClangIR-specific options - END
 
 def flto_EQ : Joined<["-"], "flto=">,
