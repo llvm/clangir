@@ -422,6 +422,10 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned ClangIRCallConvLowering : 1;
 
+  /// Lower directly from CIR to LLVM (vs through MLIR core dialects)
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned ClangIRDirectLowering : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -553,7 +557,8 @@ public:
         EmitPrettySymbolGraphs(false), GenReducedBMI(false),
         UseClangIRPipeline(false), ClangIRDisablePasses(false),
         ClangIRDisableCIRVerifier(false), ClangIRCallConvLowering(true),
-        TimeTraceGranularity(500), TimeTraceVerbose(false) {}
+        ClangIRDirectLowering(true), TimeTraceGranularity(500),
+        TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.

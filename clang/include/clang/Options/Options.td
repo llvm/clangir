@@ -3243,6 +3243,11 @@ defm clangir_call_conv_lowering : BoolFOption<"clangir-call-conv-lowering",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Enable CIR calling convention lowering pass">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option], "Disable CIR calling convention lowering pass">,
   BothFlags<[], [ClangOption, CC1Option], "">>;
+defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
+  FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Lower directly from CIR to LLVM">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option], "Lower through MLIR core dialects to LLVM">,
+  BothFlags<[], [ClangOption, CC1Option], "">>;
 /// ClangIR-specific options - END
 
 def flto_EQ : Joined<["-"], "flto=">,
