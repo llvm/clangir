@@ -2120,10 +2120,26 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     fn.setOptimizeNone(true);
 
   // Handle extra function attributes
+  mlir::SmallVector<mlir::Attribute> passThroughAttrs;
   if (auto extraAttrs = op.getExtraAttrs()) {
     auto elements = extraAttrs->getElements();
     if (elements.get("nothrow"))
       fn.setNoUnwind(true);
+    if (elements.get("hot"))
+      passThroughAttrs.push_back(
+          mlir::StringAttr::get(getContext(), "hot"));
+  }
+
+  // Handle cold attribute
+  if (op.getCold())
+    passThroughAttrs.push_back(mlir::StringAttr::get(getContext(), "cold"));
+
+  // Apply collected passthrough attributes.
+  if (!passThroughAttrs.empty()) {
+    auto existingAttrs = fn.getPassthrough();
+    if (existingAttrs)
+      passThroughAttrs.append(existingAttrs->begin(), existingAttrs->end());
+    fn.setPassthroughAttr(mlir::ArrayAttr::get(getContext(), passThroughAttrs));
   }
 
   if (std::optional<llvm::StringRef> personality = op.getPersonality())

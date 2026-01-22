@@ -2325,7 +2325,13 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(
     }
   }
 
-  assert(!cir::MissingFeatures::opFuncColdHotAttr());
+  // Handle cold and hot attributes.
+  if (decl->hasAttr<ColdAttr>())
+    f.setCold(true);
+  if (decl->hasAttr<HotAttr>()) {
+    auto attr = cir::HotAttr::get(&getMLIRContext());
+    attrs.set(attr.getMnemonic(), attr);
+  }
 
   f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
       attrs.getDictionary(&getMLIRContext())));
