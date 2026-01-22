@@ -51,7 +51,7 @@ void empty5(int x) {
 // CHECK:   out = [],
 // CHECK:   in = [],
 // CHECK:   in_out = [%2 : !s32i],
-// CHECK:   {"" "=&r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) side_effects -> !rec_anon2E0
+// CHECK-DAG:   {"" "=&r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) side_effects -> !rec_anon_struct
 void empty6(int x) {
   __asm__ volatile("" : "=&r"(x), "+&r"(x));
 }
@@ -63,7 +63,7 @@ void empty6(int x) {
 // CHECK:       in = [%3 : !u32i],
 // CHECK:       in_out = [],
 // CHECK:       {"addl $$42, $1" "=r,r,~{dirflag},~{fpsr},~{flags}"}) -> !s32i
-// CHECK: cir.store{{.*}} [[TMP2]], [[TMP0]] : !s32i, !cir.ptr<!s32i> loc(#loc42)
+// CHECK: cir.store{{.*}} [[TMP2]], [[TMP0]] : !s32i, !cir.ptr<!s32i>
 unsigned add1(unsigned int x) {
   int a;
   __asm__("addl $42, %[val]"

@@ -3208,6 +3208,59 @@ mlir::LogicalResult CIRToLLVMObjSizeOpLowering::matchAndRewrite(
   return mlir::LogicalResult::success();
 }
 
+// Helper to compute the tag ID for a label in a function.
+// The tag ID is assigned based on the order of LabelOp appearances in the
+// function. This ensures deterministic and consistent IDs across multiple
+// block_address operations referencing the same label.
+static uint32_t getLabelTagId(cir::FuncOp funcOp, llvm::StringRef labelName) {
+  llvm::StringMap<uint32_t> labelToTagId;
+  uint32_t nextTagId = 0;
+
+  funcOp.walk([&](cir::LabelOp labelOp) {
+    llvm::StringRef name = labelOp.getLabel();
+    if (!labelToTagId.contains(name)) {
+      labelToTagId[name] = nextTagId++;
+    }
+  });
+
+  auto it = labelToTagId.find(labelName);
+  assert(it != labelToTagId.end() && "Label not found in function");
+  return it->second;
+}
+
+// Custom lowering for LabelOp since it has hasLLVMLowering = false.
+// Converts cir.label to llvm.blocktag with a consistent tag ID.
+class CIRToLLVMLabelOpLowering
+    : public mlir::OpConversionPattern<cir::LabelOp> {
+public:
+  using mlir::OpConversionPattern<cir::LabelOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::LabelOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    llvm::StringRef labelName = op.getLabel();
+
+    // Find the parent FuncOp to compute the tag ID
+    auto funcOp = op->getParentOfType<cir::FuncOp>();
+    uint32_t tagId;
+    if (funcOp) {
+      tagId = getLabelTagId(funcOp, labelName);
+    } else {
+      // Use hash-based approach for consistency with BlockAddressOp
+      // when the CIR function has already been converted to LLVM.
+      tagId = llvm::hash_value(labelName) & 0xFFFFFF;
+    }
+
+    // Create the BlockTagAttr with the computed ID
+    mlir::LLVM::BlockTagAttr tagAttr =
+        mlir::LLVM::BlockTagAttr::get(rewriter.getContext(), tagId);
+
+    // Replace cir.label with llvm.blocktag
+    rewriter.replaceOpWithNewOp<mlir::LLVM::BlockTagOp>(op, tagAttr);
+    return mlir::success();
+  }
+};
+
 void ConvertCIRToLLVMPass::processCIRAttrs(mlir::ModuleOp module) {
   // Lower the module attributes to LLVM equivalents.
   if (mlir::Attribute tripleAttr =
@@ -3237,6 +3290,10 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 #include "clang/CIR/Dialect/IR/CIRLowering.inc"
 #undef GET_LLVM_LOWERING_PATTERNS_LIST
       >(converter, patterns.getContext(), lowerModule.get(), dl);
+
+  // Add custom patterns for operations with hasLLVMLowering = false
+  patterns.insert(std::make_unique<CIRToLLVMLabelOpLowering>(
+      converter, patterns.getContext()));
 
   processCIRAttrs(module);
 
@@ -4282,13 +4339,84 @@ mlir::LogicalResult CIRToLLVMVAArgOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMBlockAddressOpLowering::matchAndRewrite(
     cir::BlockAddressOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  return mlir::failure();
+  cir::BlockAddrInfoAttr blockAddrInfo = op.getBlockAddrInfo();
+  mlir::FlatSymbolRefAttr funcRef = blockAddrInfo.getFunc();
+  llvm::StringRef labelName = blockAddrInfo.getLabel().getValue();
+
+  // Look up the function in the module. During conversion, the function
+  // body is being converted but the function symbol should still be findable.
+  mlir::ModuleOp moduleOp = op->getParentOfType<mlir::ModuleOp>();
+  if (!moduleOp) {
+    op.emitError("BlockAddressOp not within a module");
+    return mlir::failure();
+  }
+
+  // Try to find the CIR function first
+  cir::FuncOp funcOp = moduleOp.lookupSymbol<cir::FuncOp>(funcRef.getValue());
+
+  // If not found as CIR, the function might already be converted to LLVM.
+  // In that case, we need to compute the tag ID differently.
+  if (!funcOp) {
+    // The function has already been converted. We need to find the tag ID
+    // by looking at the block_address attribute's label name.
+    // For simplicity, we'll use a hash-based approach for the tag ID.
+    // This works because all block_address and label ops for the same label
+    // will get the same hash.
+    uint32_t tagId = llvm::hash_value(labelName) & 0xFFFFFF;
+
+    mlir::LLVM::BlockTagAttr tagAttr =
+        mlir::LLVM::BlockTagAttr::get(rewriter.getContext(), tagId);
+    mlir::LLVM::BlockAddressAttr blockAddrAttr =
+        mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(), funcRef,
+                                          tagAttr);
+    mlir::Type llvmPtrTy =
+        mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::BlockAddressOp>(op, llvmPtrTy,
+                                                            blockAddrAttr);
+    return mlir::success();
+  }
+
+  uint32_t tagId = getLabelTagId(funcOp, labelName);
+
+  // Create the LLVM BlockTagAttr and BlockAddressAttr
+  mlir::LLVM::BlockTagAttr tagAttr =
+      mlir::LLVM::BlockTagAttr::get(rewriter.getContext(), tagId);
+  mlir::LLVM::BlockAddressAttr blockAddrAttr =
+      mlir::LLVM::BlockAddressAttr::get(rewriter.getContext(), funcRef,
+                                        tagAttr);
+
+  // The result type is a pointer
+  mlir::Type llvmPtrTy =
+      mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+
+  rewriter.replaceOpWithNewOp<mlir::LLVM::BlockAddressOp>(op, llvmPtrTy,
+                                                          blockAddrAttr);
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMIndirectBrOpLowering::matchAndRewrite(
     cir::IndirectBrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  return mlir::failure();
+  mlir::Value addr = adaptor.getAddr();
+
+  // If the poison attribute is set, use llvm.mlir.poison as the address.
+  // This happens when the block has no predecessors and is essentially
+  // unreachable.
+  if (op.getPoison()) {
+    mlir::Type llvmPtrTy =
+        mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+    addr = rewriter.create<mlir::LLVM::PoisonOp>(op.getLoc(), llvmPtrTy);
+  }
+
+  // Get successor operands - need to convert the variadic operand groups
+  llvm::SmallVector<mlir::ValueRange> succOperandGroups;
+  for (unsigned i = 0; i < op.getSuccessors().size(); ++i) {
+    succOperandGroups.push_back(adaptor.getSuccOperands()[i]);
+  }
+
+  rewriter.replaceOpWithNewOp<mlir::LLVM::IndirectBrOp>(
+      op, addr, succOperandGroups, op.getSuccessors());
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMAwaitOpLowering::matchAndRewrite(
