@@ -7,7 +7,7 @@ typedef struct {
   const char* ptr;
 } A;
 
-// WRAP:   cir.binop(sub, {{.*}}, {{.*}}) : !s32i
+// WRAP:   cir.binop(sub, {{.*}}, {{.*}}) sat : !s32i
 // NOWRAP: cir.binop(sub, {{.*}}, {{.*}}) nsw : !s32i
 void foo(int* ar, int len) {
   int x = ar[len - N];
