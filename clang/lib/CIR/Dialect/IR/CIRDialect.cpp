@@ -1997,6 +1997,10 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword("optnone").succeeded())
     state.addAttribute(optNoneNameAttr, parser.getBuilder().getUnitAttr());
 
+  mlir::StringAttr coldNameAttr = getColdAttrName(state.name);
+  if (parser.parseOptionalKeyword("cold").succeeded())
+    state.addAttribute(coldNameAttr, parser.getBuilder().getUnitAttr());
+
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
                      GlobalLinkageKindAttr::get(
@@ -2261,6 +2265,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   if (getOptNone())
     p << " optnone";
+
+  if (getCold())
+    p << " cold";
 
   if (getComdat())
     p << " comdat";
