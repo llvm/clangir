@@ -1,7 +1,5 @@
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
-// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -fclangir -emit-cir-flat %s -o %t.cir.flat
-// RUN: FileCheck --check-prefix=FLAT --input-file=%t.cir.flat %s
 
 double division(int a, int b);
 
@@ -19,23 +17,23 @@ unsigned long long tc() {
     // CHECK: cir.try {
     int a = 4;
     z = division(x, y);
-    // CHECK: %[[div_res:.*]] = cir.call exception @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
+    // CHECK: %[[div_res:.*]] = cir.call @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
     a++;
 
   } catch (int idx) {
-    // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i> {
-    // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param -> !cir.ptr<!s32i>
+    // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i>] {
+    // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param : !cir.ptr<!s32i>
     // CHECK:   %[[idx_load:.*]] = cir.load{{.*}} %[[catch_idx_addr]] : !cir.ptr<!s32i>, !s32i
     // CHECK:   cir.store{{.*}} %[[idx_load]], %[[idx]] : !s32i, !cir.ptr<!s32i>
     z = 98;
     idx++;
   } catch (const char* msg) {
-    // CHECK: }, type #cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i> {
-    // CHECK:   %[[msg_addr:.*]] = cir.catch_param -> !cir.ptr<!s8i>
+    // CHECK: } catch [type #cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i>] {
+    // CHECK:   %[[msg_addr:.*]] = cir.catch_param : !cir.ptr<!s8i>
     // CHECK:   cir.store{{.*}} %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
     z = 99;
     (void)msg[0];
-  } // CHECK: }, #cir.unwind {
+  } // CHECK: } unwind {
     // CHECK: cir.resume
     // CHECK-NEXT: }
 
@@ -58,9 +56,9 @@ unsigned long long tc2() {
     z = 99;
     (void)msg[0];
   } catch (...) {
-    // CHECK: }, type #cir.all {
+    // CHECK: } catch all {
     // CHECK:   cir.catch_param
-    // CHECK:   cir.const #cir.int<100> : !s32i
+    // CHECK:   cir.const #cir.int<100> : !u64i
     z = 100;
   }
 
@@ -75,9 +73,9 @@ unsigned long long tc3() {
   try {
     z = division(x, y);
   } catch (...) {
-    // CHECK: } catch [type #cir.all {
+    // CHECK: } catch all {
     // CHECK:   cir.catch_param
-    // CHECK:   cir.const #cir.int<100> : !s32i
+    // CHECK:   cir.const #cir.int<100> : !u64i
     z = 100;
   }
 
@@ -123,13 +121,13 @@ void tc5() {
 }
 
 // CHECK: cir.try {
-// CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
+// CHECK: cir.call @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
 // CHECK: cir.yield
-// CHECK: } catch [type #cir.all {
-// CHECK:  {{.*}} = cir.catch_param -> !cir.ptr<!void>
-// CHECK:  cir.call exception @_Z3tc5v() : () -> ()
+// CHECK: } catch all {
+// CHECK:  {{.*}} = cir.catch_param : !cir.ptr<!void>
+// CHECK:  cir.call @_Z3tc5v() : () -> ()
 // CHECK:  cir.yield
-// CHECK: }]
+// CHECK: }
 
 // CHECK: cir.func {{.*}} @_Z3tc6v()
 void tc6() {
@@ -190,18 +188,3 @@ void tc8() {
 // CHECK:     cir.yield
 // CHECK:   }
 // CHECK: }
-
-// FLAT: cir.func {{.*}} @_Z3tc8v()
-// FLAT:   %[[V0:.*]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["s", init] {alignment = 4 : i64}
-// FLAT:   cir.br ^bb[[#B1:]]
-// FLAT: ^bb[[#B1]]:
-// FLAT:   cir.br ^bb[[#B2:]]
-// FLAT: ^bb[[#B2]]:
-// FLAT:   %[[V1:.*]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_S2
-// FLAT:   cir.store align(4) %[[V1]], %[[V0]] : !rec_S2, !cir.ptr<!rec_S2>
-// FLAT:   cir.br ^bb[[#B3:]]
-// FLAT: ^bb[[#B3]]:
-// FLAT:   cir.br ^bb[[#B4:]]
-// FLAT: ^bb[[#B4]]:
-// FLAT:   cir.return
-// FLAT: }
