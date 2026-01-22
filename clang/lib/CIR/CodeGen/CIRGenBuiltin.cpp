@@ -576,22 +576,19 @@ static mlir::Type getIntrinsicArgumentTypeFromAST(mlir::Type iitType,
 // emitting an addrspacecast for address-space mismatches only.
 static mlir::Value getCorrectedPtr(mlir::Value argValue, mlir::Type expectedTy,
                                    CIRGenBuilderTy &builder) {
-  mlir::Type argType = argValue.getType();
-  if (isa<cir::PointerType>(argType)) {
-    auto ptrType = mlir::dyn_cast<cir::PointerType>(argType);
-    assert(ptrType && "expected pointer type");
-    auto expectedPtrType = mlir::cast<cir::PointerType>(expectedTy);
-    assert(ptrType.getPointee() != expectedPtrType.getPointee() &&
-           "types should not match");
+  auto ptrType = mlir::dyn_cast<cir::PointerType>(argValue.getType());
+  assert(ptrType && "expected pointer type");
 
-    if (expectedPtrType.getAddrSpace() != ptrType.getAddrSpace()) {
-      auto newPtrType = cir::PointerType::get(ptrType.getPointee(),
-                                              expectedPtrType.getAddrSpace());
-      return builder.createAddrSpaceCast(argValue, newPtrType);
-    }
-  } else {
-    llvm_unreachable("NYI");
+  auto expectedPtrType = mlir::cast<cir::PointerType>(expectedTy);
+  assert(ptrType.getPointee() != expectedPtrType.getPointee() &&
+         "types should not match");
+
+  if (ptrType.getAddrSpace() != expectedPtrType.getAddrSpace()) {
+    auto newPtrType = cir::PointerType::get(ptrType.getPointee(),
+                                            expectedPtrType.getAddrSpace());
+    return builder.createAddrSpaceCast(argValue, newPtrType);
   }
+
   return argValue;
 }
 
