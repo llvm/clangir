@@ -7,8 +7,8 @@ typedef __attribute__((neon_vector_type(8))) short  c;
 void d() { c a[8]; }
 
 // CIR-LABEL: d
-// CIR: {{%.*}} = cir.alloca !cir.array<!cir.vector<!s16i x 8> x 8>,
-// CIR-SAME: !cir.ptr<!cir.array<!cir.vector<!s16i x 8> x 8>>, ["a"]
+// CIR: {{%.*}} = cir.alloca !cir.array<!cir.vector<8 x !s16i> x 8>,
+// CIR-SAME: !cir.ptr<!cir.array<!cir.vector<8 x !s16i> x 8>>, ["a"]
 // CIR-SAME: {alignment = 16 : i64}
 
 // LLVM-LABEL: d
