@@ -22,7 +22,7 @@ typedef union {
   int z : 2;
 } zero_bit;
 
-// CIR:  !rec_zero_bit = !cir.record<union "zero_bit" {!s32i, !u8i, !u8i} #cir.record.decl.ast>
+// CIR:  !rec_zero_bit = !cir.record<union "zero_bit" {!s32i, !u8i, !u8i}>
 // LLVM: %union.zero_bit = type { i32 }
 // OGCG: %union.zero_bit = type { i32 }
 
