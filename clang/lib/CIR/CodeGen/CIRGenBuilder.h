@@ -900,7 +900,7 @@ public:
     if (destType == addr.getElementType())
       return addr;
 
-    auto ptrTy = mlir::dyn_cast<cir::PointerType>(addr.getPointer().getType());
+    auto ptrTy = mlir::cast<cir::PointerType>(addr.getPointer().getType());
     auto dstPtrTy = getPointerTo(destType, ptrTy.getAddrSpace());
     return Address(createBitcast(loc, addr.getPointer(), dstPtrTy), destType,
                    addr.getAlignment());
