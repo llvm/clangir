@@ -8,13 +8,23 @@ void foo() {
   if ((g == 1) || (g == 1))
     return;
 }
+// Upstream generates full ternary operations instead of constant folding.
 // CHECK:  cir.func {{.*}} @foo()
 // CHECK:    cir.scope {
-// CHECK:      [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
-// CHECK:      [[FALSE:%.*]] = cir.cast int_to_bool [[ZERO:%.*]] : !s32i -> !cir.bool
-// CHECK:      cir.if [[FALSE]] {
-// CHECK:        cir.return
-// CHECK:      }
+// CHECK:      %[[G1:.*]] = cir.get_global @g
+// CHECK:      %[[VAL1:.*]] = cir.load{{.*}} %[[G1]]
+// CHECK:      %[[ONE1:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK:      %[[CMP1:.*]] = cir.cmp(ne, %[[VAL1]], %[[ONE1]])
+// CHECK:      %[[TERN1:.*]] = cir.ternary(%[[CMP1]], true
+// CHECK:      cir.if %[[TERN1]]
+// CHECK:    }
+// CHECK:    cir.scope {
+// CHECK:      %[[G2:.*]] = cir.get_global @g
+// CHECK:      %[[VAL2:.*]] = cir.load{{.*}} %[[G2]]
+// CHECK:      %[[ONE2:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK:      %[[CMP2:.*]] = cir.cmp(eq, %[[VAL2]], %[[ONE2]])
+// CHECK:      %[[TERN2:.*]] = cir.ternary(%[[CMP2]], true
+// CHECK:      cir.if %[[TERN2]]
 // CHECK:    }
 // CHECK:    cir.return
 
