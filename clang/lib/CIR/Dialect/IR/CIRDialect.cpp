@@ -1993,6 +1993,10 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
 
+  mlir::StringAttr optNoneNameAttr = getOptNoneAttrName(state.name);
+  if (parser.parseOptionalKeyword("optnone").succeeded())
+    state.addAttribute(optNoneNameAttr, parser.getBuilder().getUnitAttr());
+
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
                      GlobalLinkageKindAttr::get(
@@ -2126,6 +2130,22 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       }).failed())
     return failure();
 
+  // Parse optional extra(...) function attributes.
+  Attribute extraAttrs;
+  if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseAttribute(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  } else {
+    mlir::NamedAttrList empty;
+    extraAttrs = cir::ExtraFuncAttributesAttr::get(
+        empty.getDictionary(builder.getContext()));
+  }
+  state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
+
   // Parse optional annotations attribute: [#cir.annotation<...>, ...]
   {
     mlir::ArrayAttr annotations;
@@ -2239,6 +2259,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getNoProto())
     p << " no_proto";
 
+  if (getOptNone())
+    p << " optnone";
+
   if (getComdat())
     p << " comdat";
 
@@ -2301,6 +2324,14 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   function_interface_impl::printFunctionAttributes(
       p, *this, cir::FuncOp::getAttributeNames());
+
+  if (auto extraAttrs = getExtraAttrs()) {
+    if (!extraAttrs->getElements().empty()) {
+      p << " extra(";
+      p.printAttributeWithoutType(*extraAttrs);
+      p << ")";
+    }
+  }
 
   // Print the body if this is not an external function.
   Region &body = getOperation()->getRegion(0);

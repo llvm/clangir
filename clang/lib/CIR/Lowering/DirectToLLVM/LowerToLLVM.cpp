@@ -2116,6 +2116,16 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     fn.setAlwaysInline(*inlineKind == cir::InlineKind::AlwaysInline);
   }
 
+  if (op.getOptNone())
+    fn.setOptimizeNone(true);
+
+  // Handle extra function attributes
+  if (auto extraAttrs = op.getExtraAttrs()) {
+    auto elements = extraAttrs->getElements();
+    if (elements.get("nothrow"))
+      fn.setNoUnwind(true);
+  }
+
   if (std::optional<llvm::StringRef> personality = op.getPersonality())
     fn.setPersonality(*personality);
 
