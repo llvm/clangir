@@ -569,7 +569,13 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *op) {
   setCommonAttributes(gd, op);
 
   assert(!cir::MissingFeatures::opGlobalUsedOrCompilerUsed());
-  assert(!cir::MissingFeatures::opGlobalSection());
+
+  // Set section attribute if the declaration has one.
+  const Decl *d = gd.getDecl();
+  if (auto globalOp = mlir::dyn_cast<cir::GlobalOp>(op)) {
+    if (const auto *sa = d->getAttr<SectionAttr>())
+      globalOp.setSectionAttr(builder.getStringAttr(sa->getName()));
+  }
   assert(!cir::MissingFeatures::opFuncCPUAndFeaturesAttributes());
   assert(!cir::MissingFeatures::opFuncSection());
 
@@ -713,6 +719,10 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       errorNYI(d->getSourceRange(), "MS static data member inline definition");
 
     assert(!cir::MissingFeatures::opGlobalSection());
+    if (d->hasExternalStorage()) {
+      if (const auto *sa = d->getAttr<SectionAttr>())
+        gv.setSectionAttr(builder.getStringAttr(sa->getName()));
+    }
     gv.setGlobalVisibilityAttr(getGlobalVisibilityAttrFromDecl(d));
 
     // Handle XCore specific ABI requirements.
@@ -893,7 +903,9 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *vd,
                   vd->getType().isConstantStorage(astContext,
                                                   /*ExcludeCtor=*/true,
                                                   /*ExcludeDtor=*/true)));
-  assert(!cir::MissingFeatures::opGlobalSection());
+  // Set section attribute if the declaration has one.
+  if (const auto *sa = vd->getAttr<SectionAttr>())
+    gv.setSectionAttr(builder.getStringAttr(sa->getName()));
 
   // Set CIR's linkage type as appropriate.
   cir::GlobalLinkageKind linkage =

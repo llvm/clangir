@@ -2273,6 +2273,8 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
       op, llvmType, isConst, linkage, symbol, init.value_or(mlir::Attribute()),
       alignment, addrSpace, isDsoLocal, isThreadLocal, comdatAttr, attributes);
   newOp.setVisibility_(visibility);
+  if (op.getSection())
+    newOp.setSection(*op.getSection());
 
   return mlir::success();
 }

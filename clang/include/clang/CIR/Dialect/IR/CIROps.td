@@ -2224,6 +2224,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
                        UnitAttr:$constant,
                        UnitAttr:$dso_local,
                        OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<StrAttr>:$section,
                        OptionalAttr<ArrayAttr>:$annotations);
 
   let regions = (region MaxSizedRegion<1>:$ctorRegion,
