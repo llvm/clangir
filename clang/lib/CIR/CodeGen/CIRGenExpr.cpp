@@ -677,11 +677,16 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
   auto eltTy = addr.getElementType();
   if (const auto *clangVecTy = ty->getAs<clang::VectorType>()) {
     // Boolean vectors use `iN` as storage type.
+    if (clangVecTy->isPackedVectorBoolType(getContext())) {
+      llvm_unreachable("packed vector<bool> store NYI");
+    }
+
     if (clangVecTy->isExtVectorBoolType()) {
       llvm_unreachable("isExtVectorBoolType NYI");
     }
 
-    // Handle vectors of size 3 like size 4 for better performance.
+    // Handles vectors of sizes that are likely to be expanded to a larger size
+    // to optimize performance.
     const auto vTy = cast<cir::VectorType>(eltTy);
     auto newVecTy =
         CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
