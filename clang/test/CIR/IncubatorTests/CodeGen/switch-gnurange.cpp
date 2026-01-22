@@ -22,17 +22,17 @@ int sw1(enum letter c) {
 //      CIR:  cir.func {{.*}} @_Z3sw16letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
-// CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
-// CIR-NEXT:        cir.case(equal, [#cir.int<3> : !s32i]) {
-// CIR-NEXT:          cir.case(range, [#cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
-// CIR-NEXT:            cir.case(range, [#cir.int<6> : !s32i, #cir.int<10> : !s32i]) {
-//      CIR:              cir.int<1>
-//      CIR:              cir.return
-//      CIR:          cir.yield
-//      CIR:        cir.yield
-//      CIR:      cir.yield
+//      CIR:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
+// CIR-NEXT:        cir.yield
+//      CIR:      cir.case(equal, [#cir.int<3> : !s32i]) {
+// CIR-NEXT:        cir.yield
+//      CIR:      cir.case(range, [#cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
+// CIR-NEXT:        cir.yield
+//      CIR:      cir.case(range, [#cir.int<6> : !s32i, #cir.int<10> : !s32i]) {
+//      CIR:        cir.int<1>
+//      CIR:        cir.return
 //      CIR:      cir.case(default, []) {
-// CIR-NEXT:        cir.int<0>
+//      CIR:        cir.int<0>
 //      CIR:        cir.return
 
 //      LLVM:  @_Z3sw16letter
@@ -76,8 +76,9 @@ int sw2(enum letter c) {
 //      CIR:  cir.func {{.*}} @_Z3sw26letter
 //      CIR:    cir.scope {
 //      CIR:      cir.switch
-// CIR-NEXT:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
-//      CIR:          cir.case(range, [#cir.int<10> : !s32i, #cir.int<0> : !s32i]) {
+//      CIR:      cir.case(range, [#cir.int<0> : !s32i, #cir.int<2> : !s32i]) {
+// CIR-NEXT:        cir.yield
+//      CIR:      cir.case(range, [#cir.int<10> : !s32i, #cir.int<0> : !s32i]) {
 //      CIR:        cir.return
 // CIR-NEXT:      }
 //      CIR:      cir.case(default, []) {
