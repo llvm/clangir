@@ -1323,6 +1323,70 @@ mlir::Type CIRToLLVMCastOpLowering::convertTy(mlir::Type ty) const {
   return getTypeConverter()->convertType(ty);
 }
 
+// Lower a bool-to-integer cast for either scalar or vector types.
+// Mirrors LLVM IR semantics:
+//   - Same width: bitcast
+//   - Different width: zero-extend
+mlir::LogicalResult CIRToLLVMCastOpLowering::lowerBoolToIntCast(
+    cir::CastOp castOp, mlir::Value srcValue, mlir::Type dstType,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type srcType = srcValue.getType();
+
+  // Scalar case: i1 -> iN
+  if (auto srcIntTy = mlir::dyn_cast<mlir::IntegerType>(srcType)) {
+    auto dstIntTy = mlir::cast<mlir::IntegerType>(dstType);
+    if (srcIntTy.getWidth() == dstIntTy.getWidth()) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
+                                                         srcValue);
+    } else {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
+                                                      srcValue);
+    }
+    return mlir::success();
+  }
+
+  // Vector case: vector<i1> -> vector<iN>
+  if (auto srcVecTy = mlir::dyn_cast<mlir::VectorType>(srcType)) {
+    auto dstVecTy = mlir::dyn_cast<mlir::VectorType>(dstType);
+    if (!dstVecTy) {
+      return rewriter.notifyMatchFailure(
+          castOp,
+          "bool_to_int: Destination must be vector type for vector source");
+    }
+
+    // Verify shape compatibility
+    if (srcVecTy.getShape() != dstVecTy.getShape()) {
+      return rewriter.notifyMatchFailure(castOp,
+                                         "bool_to_int: Vector shape mismatch "
+                                         "between source and destination");
+    }
+
+    // Check vector element types
+    auto srcElemTy =
+        mlir::dyn_cast<mlir::IntegerType>(srcVecTy.getElementType());
+    auto dstElemTy =
+        mlir::dyn_cast<mlir::IntegerType>(dstVecTy.getElementType());
+
+    if (!srcElemTy || !dstElemTy)
+      return rewriter.notifyMatchFailure(
+          castOp, "bool_to_int: Vector element types must be integers");
+
+    if (srcElemTy.getWidth() == dstElemTy.getWidth()) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
+                                                         srcValue);
+    } else {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
+                                                      srcValue);
+    }
+    return mlir::success();
+  }
+
+  // Unsupported type combination
+  return rewriter.notifyMatchFailure(
+      castOp,
+      "bool_to_int: Unsupported source type (must be i1 or vector<i1>)");
+}
+
 mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     cir::CastOp castOp, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -1424,66 +1488,8 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::bool_to_int: {
     mlir::Value srcValue = adaptor.getSrc();
-    mlir::Type srcType = srcValue.getType();
     mlir::Type dstType = getTypeConverter()->convertType(castOp.getType());
-
-    // Helper function: Lower scalar bool-to-integer conversion
-    auto lowerScalarBoolToInt =
-        [&](mlir::IntegerType srcIntTy,
-            mlir::IntegerType dstIntTy) -> mlir::LogicalResult {
-      // For same-width types, use bitcast (no data change needed)
-      if (srcIntTy.getWidth() == dstIntTy.getWidth()) {
-        rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
-                                                           srcValue);
-      } else {
-        // For different widths, zero-extend from i1 to destination width
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
-                                                        srcValue);
-      }
-      return mlir::success();
-    };
-
-    // SCALAR CASE: i1 -> iN
-    if (auto srcIntTy = mlir::dyn_cast<mlir::IntegerType>(srcType)) {
-      auto dstIntTy = mlir::cast<mlir::IntegerType>(dstType);
-      return lowerScalarBoolToInt(srcIntTy, dstIntTy);
-    }
-
-    // VECTOR CASE: vector<i1> -> vector<iN>
-    if (auto srcVecTy = mlir::dyn_cast<mlir::VectorType>(srcType)) {
-      auto dstVecTy = mlir::dyn_cast<mlir::VectorType>(dstType);
-      if (!dstVecTy) {
-        return rewriter.notifyMatchFailure(
-            castOp,
-            "bool_to_int: Destination must be vector type for vector source");
-      }
-
-      // Verify shape compatibility
-      if (srcVecTy.getShape() != dstVecTy.getShape()) {
-        return rewriter.notifyMatchFailure(castOp,
-                                           "bool_to_int: Vector shape mismatch "
-                                           "between source and destination");
-      }
-
-      // Check vector element types
-      auto srcElemTy =
-          mlir::dyn_cast<mlir::IntegerType>(srcVecTy.getElementType());
-      auto dstElemTy =
-          mlir::dyn_cast<mlir::IntegerType>(dstVecTy.getElementType());
-
-      if (!srcElemTy || !dstElemTy) {
-        return rewriter.notifyMatchFailure(
-            castOp, "bool_to_int: Vector element types must be integers");
-      }
-
-      // Apply scalar conversion logic to each vector element
-      return lowerScalarBoolToInt(srcElemTy, dstElemTy);
-    }
-
-    // Unsupported type combination
-    return rewriter.notifyMatchFailure(
-        castOp,
-        "bool_to_int: Unsupported source type (must be i1 or vector<i1>)");
+    return lowerBoolToIntCast(castOp, srcValue, dstType, rewriter);
   }
   case cir::CastKind::bool_to_float: {
     auto dstTy = castOp.getType();

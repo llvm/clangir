@@ -260,6 +260,11 @@ class CIRToLLVMCastOpLowering : public mlir::OpConversionPattern<cir::CastOp> {
 
   mlir::Type convertTy(mlir::Type ty) const;
 
+  mlir::LogicalResult
+  lowerBoolToIntCast(cir::CastOp castOp, mlir::Value srcValue,
+                     mlir::Type dstType,
+                     mlir::ConversionPatternRewriter &rewriter) const;
+
 public:
   CIRToLLVMCastOpLowering(const mlir::TypeConverter &typeConverter,
                           mlir::MLIRContext *context,

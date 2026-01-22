@@ -812,7 +812,7 @@ public:
 
   mlir::Value VisitBinAssign(const BinaryOperator *E);
   mlir::Value emitVectorLogicalOp(const BinaryOperator *E,
-                                  cir::BinOpKind OpKind);
+                                  cir::BinOpKind opKind);
   mlir::Value VisitBinLAnd(const BinaryOperator *B);
   mlir::Value VisitBinLOr(const BinaryOperator *B);
   mlir::Value VisitBinComma(const BinaryOperator *E) {
@@ -1129,6 +1129,27 @@ public:
                                srcVal);
   }
 
+  // Convert a vector value to a vector<bool> by testing each element for
+  // non-zero.
+  mlir::Value emitVectorToBoolConversion(mlir::Value src, mlir::Location loc) {
+    auto vecType = mlir::cast<cir::VectorType>(src.getType());
+    auto elemType = vecType.getElementType();
+    uint64_t numElts = vecType.getSize();
+
+    // Build a zero vector of the same type
+    auto zeroElemAttr = cir::IntAttr::get(elemType, 0);
+    llvm::SmallVector<mlir::Attribute> zeroElems(numElts, zeroElemAttr);
+    auto zeroVecAttr =
+        cir::ConstVectorAttr::get(vecType, Builder.getArrayAttr(zeroElems));
+    auto zeroVec = cir::ConstantOp::create(Builder, loc, vecType, zeroVecAttr);
+
+    // Perform elementwise comparison: src != 0
+    auto boolElemType = cir::BoolType::get(Builder.getContext());
+    auto boolVecType = cir::VectorType::get(boolElemType, numElts);
+    return cir::VecCmpOp::create(Builder, loc, boolVecType, cir::CmpOpKind::ne,
+                                 src, zeroVec);
+  }
+
   /// Convert the specified expression value to a boolean (!cir.bool) truth
   /// value. This is equivalent to "Val != 0".
   mlir::Value emitConversionToBool(mlir::Value Src, QualType SrcType,
@@ -1144,27 +1165,9 @@ public:
     if (SrcType->isIntegerType())
       return emitIntToBoolConversion(Src, loc);
 
-    // Convert vector values to a vector<bool> by testing each element for
-    // non-zero.
-    if (SrcType->isVectorType()) {
-      auto vecType = mlir::cast<cir::VectorType>(Src.getType());
-      auto elemType = vecType.getElementType();
-      uint64_t numElts = vecType.getSize();
-
-      // Build a zero vector of the same type
-      auto zeroElemAttr = cir::IntAttr::get(elemType, 0);
-      llvm::SmallVector<mlir::Attribute> zeroElems(numElts, zeroElemAttr);
-      auto zeroVecAttr =
-          cir::ConstVectorAttr::get(vecType, Builder.getArrayAttr(zeroElems));
-      auto zeroVec =
-          cir::ConstantOp::create(Builder, loc, vecType, zeroVecAttr);
-
-      // Perform elementwise comparison: Src != 0
-      auto boolElemType = cir::BoolType::get(Builder.getContext());
-      auto boolVecType = cir::VectorType::get(boolElemType, numElts);
-      return cir::VecCmpOp::create(Builder, loc, boolVecType,
-                                   cir::CmpOpKind::ne, Src, zeroVec);
-    }
+    // Convert vector values to vector<bool>
+    if (SrcType->isVectorType())
+      return emitVectorToBoolConversion(Src, loc);
 
     assert(::mlir::isa<cir::PointerType>(Src.getType()) &&
            "expected pointer type for pointer-to-bool conversion");
@@ -2898,27 +2901,44 @@ mlir::Value CIRGenFunction::emitScalarPrePostIncDec(const UnaryOperator *E,
 
 // Emit elementwise vector logical operations
 mlir::Value ScalarExprEmitter::emitVectorLogicalOp(const BinaryOperator *E,
-                                                   cir::BinOpKind OpKind) {
-  mlir::Location Loc = CGF.getLoc(E->getExprLoc());
-  mlir::Type ResTy = convertType(E->getType());
-  mlir::Value LHSBool = CGF.evaluateExprAsBool(E->getLHS());
-  mlir::Value RHSBool = CGF.evaluateExprAsBool(E->getRHS());
+                                                   cir::BinOpKind opKind) {
+  mlir::Location loc = CGF.getLoc(E->getExprLoc());
+  mlir::Type resTy = convertType(E->getType());
 
-  auto LHSVecTy = mlir::cast<cir::VectorType>(LHSBool.getType());
-  uint64_t NumElts = LHSVecTy.getSize();
-  auto BoolElemTy = Builder.getBoolTy();
-  auto BoolVecTy = cir::VectorType::get(BoolElemTy, NumElts);
+  mlir::Value lhs = Visit(E->getLHS());
+  mlir::Value rhs = Visit(E->getRHS());
 
-  // Elementwise logical operation
-  auto LogicVal =
-      cir::BinOp::create(Builder, Loc, BoolVecTy, OpKind, LHSBool, RHSBool);
-  // Return vector<bool> or convert to integer vector
-  if (ResTy == BoolVecTy)
-    return LogicVal;
+  auto vecTy = mlir::cast<cir::VectorType>(lhs.getType());
+  auto elemTy = vecTy.getElementType();
+  uint64_t numElts = vecTy.getSize();
 
-  if (auto ResVecTy = mlir::dyn_cast<cir::VectorType>(ResTy))
-    if (mlir::isa<cir::IntType>(ResVecTy.getElementType()))
-      return Builder.createBoolToInt(LogicVal, ResVecTy);
+  // Build zero vector of the same type
+  auto zeroElemAttr = cir::IntAttr::get(elemTy, 0);
+  llvm::SmallVector<mlir::Attribute> zeroElems(numElts, zeroElemAttr);
+  auto zeroVecAttr =
+      cir::ConstVectorAttr::get(vecTy, Builder.getArrayAttr(zeroElems));
+  auto zeroVec = cir::ConstantOp::create(Builder, loc, vecTy, zeroVecAttr);
+
+  auto boolElemTy = Builder.getBoolTy();
+  auto boolVecTy = cir::VectorType::get(boolElemTy, numElts);
+
+  // Compare operands to zero to produce vector<bool>
+  auto lhsBool = cir::VecCmpOp::create(Builder, loc, boolVecTy,
+                                       cir::CmpOpKind::ne, lhs, zeroVec);
+  auto rhsBool = cir::VecCmpOp::create(Builder, loc, boolVecTy,
+                                       cir::CmpOpKind::ne, rhs, zeroVec);
+
+  // Elementwise logical operation on vector<bool>
+  auto logicVal =
+      cir::BinOp::create(Builder, loc, boolVecTy, opKind, lhsBool, rhsBool);
+
+  if (resTy == boolVecTy)
+    return logicVal;
+
+  // Convert back to result vector type
+  if (auto resVecTy = mlir::dyn_cast<cir::VectorType>(resTy))
+    if (mlir::isa<cir::IntType>(resVecTy.getElementType()))
+      return Builder.createBoolToInt(logicVal, resVecTy);
 
   llvm_unreachable("unsupported vector logical operation type conversion");
 }
