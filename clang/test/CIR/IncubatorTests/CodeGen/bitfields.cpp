@@ -29,9 +29,9 @@ typedef struct {
   int a : 3;  // one bitfield with size < 8
   unsigned b;
 } T;
-// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u8i, !u32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_T = !cir.record<struct "T" {!u8i, !u32i}
 // CHECK-DAG: #bfi_a1 = #cir.bitfield_info<name = "a", storage_type = !u8i, size = 3, offset = 0, is_signed = true>
-// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!u32i} #cir.record.decl.ast>
+// CHECK-DAG: !rec_anon2E0 = !cir.record<struct "anon.0" {!u32i}
 
 // CHECK: cir.func {{.*}} @_Z11store_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>

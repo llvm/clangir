@@ -30,9 +30,13 @@ void yoyo(incomplete *i) {}
 //  CHECK-DAG: !rec_Bar = !cir.record<struct "Bar" {!s32i, !s8i}>
 
 //  CHECK-DAG: !rec_Foo = !cir.record<struct "Foo" {!s32i, !s8i, !rec_Bar}>
-//  CHECK-DAG: !rec_Mandalore = !cir.record<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i} #cir.record.decl.ast>
+//  CHECK-DAG: !rec_Mandalore = !cir.record<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i}
 //  CHECK-DAG: !rec_Adv = !cir.record<class "Adv" {!rec_Mandalore}>
 //  CHECK-DAG: !rec_Entry = !cir.record<struct "Entry" {!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>}>
+
+//  CHECK-DAG: cir.global external @simpleConstInit = #cir.const_record<{#cir.int<1> : !s32i}> : !rec_A {alignment = 4 : i64}
+//  CHECK-DAG: cir.global external @arrConstInit = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_A]> : !cir.array<!rec_A x 1> {alignment = 4 : i64}
+//  CHECK-DAG: cir.global external @nonTrivialConstexprConstructor = #cir.undef : !rec_NonTrivialConstexprConstructor {alignment = 1 : i64}
 
 //      CHECK: cir.func {{.*}} @_ZN3Bar6methodEv(%arg0: !cir.ptr<!rec_Bar>
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!rec_Bar>, !cir.ptr<!cir.ptr<!rec_Bar>>, ["this", init] {alignment = 8 : i64}
@@ -117,18 +121,15 @@ struct A {
 
 // Should globally const-initialize struct members.
 struct A simpleConstInit = {1};
-// CHECK: cir.global external @simpleConstInit = #cir.const_record<{#cir.int<1> : !s32i}> : !rec_A
 
 // Should globally const-initialize arrays with struct members.
 struct A arrConstInit[1] = {{1}};
-// CHECK: cir.global external @arrConstInit = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_A]> : !cir.array<!rec_A x 1>
 
 // Should globally const-initialize empty structs with a non-trivial constexpr
 // constructor (as undef, to match existing clang CodeGen behavior).
 struct NonTrivialConstexprConstructor {
   constexpr NonTrivialConstexprConstructor() {}
 } nonTrivialConstexprConstructor;
-// CHECK: cir.global external @nonTrivialConstexprConstructor = #cir.undef : !rec_NonTrivialConstexprConstructor {alignment = 1 : i64}
 // CHECK-NOT: @__cxx_global_var_init
 
 // Should locally copy struct members.
