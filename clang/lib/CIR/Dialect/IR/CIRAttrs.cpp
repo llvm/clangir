@@ -258,7 +258,7 @@ Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
 
 void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
   if (failed(generatedAttributePrinter(attr, os)))
-    llvm_unreachable("unexpected CIR type kind");
+    llvm_unreachable("unexpected CIR attribute kind");
 }
 
 static void printRecordMembers(mlir::AsmPrinter &printer,
