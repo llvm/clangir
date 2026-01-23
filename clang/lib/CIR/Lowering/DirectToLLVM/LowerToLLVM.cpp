@@ -1335,13 +1335,12 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::lowerBoolToIntCast(
   // Scalar case: i1 -> iN
   if (auto srcIntTy = mlir::dyn_cast<mlir::IntegerType>(srcType)) {
     auto dstIntTy = mlir::cast<mlir::IntegerType>(dstType);
-    if (srcIntTy.getWidth() == dstIntTy.getWidth()) {
+    if (srcIntTy.getWidth() == dstIntTy.getWidth())
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
                                                          srcValue);
-    } else {
+    else
       rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
                                                       srcValue);
-    }
     return mlir::success();
   }
 
