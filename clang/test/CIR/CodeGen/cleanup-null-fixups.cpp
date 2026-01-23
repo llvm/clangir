@@ -105,6 +105,14 @@ c d::e() const {
 // LLVM-NEXT:   ret i32 %[[V4]]
 // LLVM-NEXT: }
 
+// OGCG-LABEL: {{.*}} @_Z3foov()
+// OGCG:        %[[a:.*]] = alloca %"class.std::basic_string", align 1
+// OGCG-NEXT:   %[[b:.*]] = alloca %"class.std::basic_string", align 1
+// OGCG-NEXT:   call void @_ZNSbIcEC1Ev(ptr noundef nonnull align 1 dereferenceable(1) %[[a]])
+// OGCG-NEXT:   call void @_ZNSbIcED1Ev(ptr noundef nonnull align 1 dereferenceable(1) %[[a]])
+// OGCG-NEXT:   ret i32 0
+// OGCG-NEXT: }
+
 int foo() {
   std::string a;
   return 0;
