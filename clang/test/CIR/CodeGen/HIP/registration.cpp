@@ -1,4 +1,4 @@
-#include "cuda.h"
+#include "../Inputs/cuda.h"
 
 // RUN: echo "sample fatbin" > %t.fatbin
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
@@ -26,14 +26,16 @@
 // CIR-HOST:   cir.global_ctors = [#cir.global_ctor<"__hip_module_ctor", {{[0-9]+}}>]
 // CIR-HOST: }
 
-// LLVM-HOST: @.stra0 = private constant [2 x i8] c"a\00"
+// LLVM-HOST: @.strb0 = private constant [2 x i8] c"b\00"
+// LLVM-HOST: @.stra1 = private constant [2 x i8] c"a\00"
 // LLVM-HOST: @.str_Z2fnv = private constant [7 x i8] c"_Z2fnv\00"
 // LLVM-HOST: @__hip_fatbin_str = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin"
 // LLVM-HOST: @__hip_fatbin_wrapper = internal constant {
 // LLVM-HOST:   i32 1212764230, i32 1, ptr @__hip_fatbin_str, ptr null
 // LLVM-HOST: }, section ".hipFatBinSegment"
 // LLVM-HOST: @_Z2fnv = constant ptr @_Z17__device_stub__fnv, align 8
-// LLVM-HOST: @a = global i32 undef, align 4
+// LLVM-HOST: @a = internal global i32 undef, align 4
+// LLVM-HOST: @b = internal global i32 undef, align 4
 // LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__hip_module_ctor
 
 // CIR-HOST:  cir.func internal private @__hip_module_dtor() {
@@ -70,6 +72,7 @@ __global__ void fn() {}
 
 
 __device__ int a;
+__constant__ int b;
 
 // CIR-HOST: cir.func internal private @__hip_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
@@ -85,22 +88,41 @@ __device__ int a;
 // CIR-HOST-SAME: %[[#DeviceFn]],
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
-// CIR-HOST: %[[#GVARNAME:]] = cir.get_global @".stra0"
-// CIR-HOST: %[[#GVARNAMEPTR:]] = cir.cast bitcast %[[#GVARNAME]]
-// CIR-HOST: %[[#GVAR:]] = cir.get_global @a
-// CIR-HOST: %[[#GVARPTR:]] = cir.cast bitcast %[[#GVAR]]
-// CIR-HOST: %[[#ZERO:]] = cir.const #cir.int<0>
-// CIR-HOST: %[[#FOUR:]] = cir.const #cir.int<4>
-// CIR-HOST: %[[#ZERON:]] = cir.const #cir.int<0>
-// CIR-HOST: %[[#ZERONN:]] = cir.const #cir.int<0>
-// CIR-HOST: cir.call @__hipRegisterVar(%[[FatbinHandle]], 
-// CIR-HOST-SAME: %[[#GVARPTR]], 
-// CIR-HOST-SAME: %[[#GVARNAMEPTR]], 
-// CIR-HOST-SAME: %[[#GVARNAMEPTR]], 
-// CIR-HOST-SAME: %[[#ZERO]], 
-// CIR-HOST-SAME: %[[#FOUR:]], 
-// CIR-HOST-SAME: %[[#ZERON]], 
-// CIR-HOST-SAME: %[[#ZERONN]])
+// Registration for __constant__ int b (isConstant=1):
+// CIR-HOST: %[[#T3:]] = cir.get_global @".strb0"
+// CIR-HOST: %[[#DeviceB:]] = cir.cast bitcast %[[#T3]]
+// CIR-HOST: %[[#T4:]] = cir.get_global @b
+// CIR-HOST: %[[#HostB:]] = cir.cast bitcast %[[#T4]]
+// CIR-HOST: %[[#ExtB:]] = cir.const #cir.int<0>
+// CIR-HOST: %[[#SzB:]] = cir.const #cir.int<4>
+// CIR-HOST: %[[#ConstB:]] = cir.const #cir.int<1>
+// CIR-HOST: %[[#ZeroB:]] = cir.const #cir.int<0>
+// CIR-HOST: cir.call @__hipRegisterVar(%[[FatbinHandle]],
+// CIR-HOST-SAME: %[[#HostB]],
+// CIR-HOST-SAME: %[[#DeviceB]],
+// CIR-HOST-SAME: %[[#DeviceB]],
+// CIR-HOST-SAME: %[[#ExtB]],
+// CIR-HOST-SAME: %[[#SzB]],
+// CIR-HOST-SAME: %[[#ConstB]],
+// CIR-HOST-SAME: %[[#ZeroB]])
+//
+// Registration for __device__ int a (isConstant=0):
+// CIR-HOST: %[[#T5:]] = cir.get_global @".stra1"
+// CIR-HOST: %[[#DeviceA:]] = cir.cast bitcast %[[#T5]]
+// CIR-HOST: %[[#T6:]] = cir.get_global @a
+// CIR-HOST: %[[#HostA:]] = cir.cast bitcast %[[#T6]]
+// CIR-HOST: %[[#ExtA:]] = cir.const #cir.int<0>
+// CIR-HOST: %[[#SzA:]] = cir.const #cir.int<4>
+// CIR-HOST: %[[#ConstA:]] = cir.const #cir.int<0>
+// CIR-HOST: %[[#ZeroA:]] = cir.const #cir.int<0>
+// CIR-HOST: cir.call @__hipRegisterVar(%[[FatbinHandle]],
+// CIR-HOST-SAME: %[[#HostA]],
+// CIR-HOST-SAME: %[[#DeviceA]],
+// CIR-HOST-SAME: %[[#DeviceA]],
+// CIR-HOST-SAME: %[[#ExtA]],
+// CIR-HOST-SAME: %[[#SzA]],
+// CIR-HOST-SAME: %[[#ConstA]],
+// CIR-HOST-SAME: %[[#ZeroA]])
 // CIR-HOST: cir.return loc(#loc)
 // CIR-HOST: }
 
@@ -112,15 +134,12 @@ __device__ int a;
 // LLVM-HOST-SAME: ptr @.str_Z2fnv,
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
-// LLVM-HOST: call void @__hipRegisterVar(
-// LLVM-HOST-SAME: ptr %[[#LLVMFatbin]], 
-// LLVM-HOST-SAME: ptr @a, 
-// LLVM-HOST-SAME: ptr @.stra0, 
-// LLVM-HOST-SAME: ptr @.stra0, 
-// LLVM-HOST-SAME: i32 0, 
-// LLVM-HOST-SAME: i64 4, 
-// LLVM-HOST-SAME: i32 0, 
-// LLVM-HOST-SAME: i32 0)
+// LLVM-HOST:   call void @__hipRegisterVar(
+// LLVM-HOST-SAME: ptr %0, ptr @b, ptr @.strb0, ptr @.strb0,
+// LLVM-HOST-SAME: i32 0, i64 4, i32 1, i32 0)
+// LLVM-HOST:   call void @__hipRegisterVar(
+// LLVM-HOST-SAME: ptr %0, ptr @a, ptr @.stra1, ptr @.stra1,
+// LLVM-HOST-SAME: i32 0, i64 4, i32 0, i32 0)
 // LLVM-HOST: }
 
 // The content in const array should be the same as echoed above,
@@ -177,10 +196,12 @@ __device__ int a;
 
 // OGCG-HOST: @_Z2fnv = constant ptr @_Z17__device_stub__fnv, align 8
 // OGCG-HOST: @a = internal global i32 undef, align 4
+// OGCG-HOST: @b = internal global i32 undef, align 4
 // OGCG-HOST: @0 = private unnamed_addr constant [7 x i8] c"_Z2fnv\00", align 1
 // OGCG-HOST: @1 = private unnamed_addr constant [2 x i8] c"a\00", align 1
-// OGCG-HOST: @2 = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin", align 4096
-// OGCG-HOST: @__hip_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1212764230, i32 1, ptr @2, ptr null }, section ".hipFatBinSegment", align 8
+// OGCG-HOST: @2 = private unnamed_addr constant [2 x i8] c"b\00", align 1
+// OGCG-HOST: @3 = private constant [14 x i8] c"sample fatbin\0A", section ".hip_fatbin", align 4096
+// OGCG-HOST: @__hip_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1212764230, i32 1, ptr @3, ptr null }, section ".hipFatBinSegment", align 8
 // OGCG-HOST: @__hip_gpubin_handle = internal global ptr null, align 8
 // OGCG-HOST: @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__hip_module_ctor, ptr null }]
 
@@ -201,7 +222,15 @@ __device__ int a;
 // OGCG-HOST-SAME: i32 0,
 // OGCG-HOST-SAME: i64 4,
 // OGCG-HOST-SAME: i32 0, i32 0)
-// OGCG-HOST: ret void 
+// OGCG-HOST:   call void @__hipRegisterVar(
+// OGCG-HOST-SAME: ptr %[[#LLVMFatbin]],
+// OGCG-HOST-SAME: ptr @b,
+// OGCG-HOST-SAME: ptr @2,
+// OGCG-HOST-SAME: ptr @2,
+// OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i64 4,
+// OGCG-HOST-SAME: i32 1, i32 0)
+// OGCG-HOST: ret void
 // OGCG-HOST: }
 
 // OGCG-HOST: define internal void @__hip_module_ctor() {

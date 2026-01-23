@@ -1,33 +1,33 @@
 #include "cuda.h"
 
-// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda -fclangir \
+// RUN: %clang_cc1 -triple amdgcn-amd-amdhsa -fclangir \
 // RUN:            -fcuda-is-device -emit-cir -target-sdk-version=12.3 \
-// RUN:            -I%S/../Inputs/ %s -o %t.cir
+// RUN:            -I%S/../Inputs/ -x hip %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
 
-// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda -fclangir \
+// RUN: %clang_cc1 -triple amdgcn-amd-amdhsa -fclangir \
 // RUN:            -fcuda-is-device -emit-llvm -target-sdk-version=12.3 \
-// RUN:            -I%S/../Inputs/ %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -x hip %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-DEVICE --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
-// RUN:            -x cuda -emit-cir -target-sdk-version=12.3 \
+// RUN:            -x hip -emit-cir -target-sdk-version=12.3 \
 // RUN:            -I%S/../Inputs/ %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-HOST --input-file=%t.cir %s
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir \
-// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN:            -x hip -emit-llvm -target-sdk-version=12.3 \
 // RUN:            -I%S/../Inputs/ %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu \
-// RUN:            -x cuda -emit-llvm -target-sdk-version=12.3 \
+// RUN:            -x hip -emit-llvm -target-sdk-version=12.3 \
 // RUN:            -I%S/../Inputs/ %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-HOST --input-file=%t.ll %s
 
-// RUN: %clang_cc1 -triple nvptx64-nvidia-cuda \
+// RUN: %clang_cc1 -triple amdgcn-amd-amdhsa \
 // RUN:            -fcuda-is-device -emit-llvm -target-sdk-version=12.3 \
-// RUN:            -I%S/../Inputs/ %s -o %t.ll
+// RUN:            -I%S/../Inputs/ -x hip %s -o %t.ll
 // RUN: FileCheck --check-prefix=OGCG-DEVICE --input-file=%t.ll %s
 
 __shared__ int shared;

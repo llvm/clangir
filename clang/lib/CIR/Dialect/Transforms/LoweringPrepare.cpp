@@ -1471,18 +1471,45 @@ void LoweringPreparePass::buildCUDARegisterVars(cir::CIRBaseBuilderTy &builder,
     auto globalVarValue =
         builder.createBitcast(builder.createGetGlobal(global), voidPtrTy);
 
-    // Every device variable that has a shadow on host will not be extern.
-    // See CIRGenModule::emitGlobalVarDefinition.
-    auto isExtern = ConstantOp::create(builder, loc, IntAttr::get(intTy, 0));
-    llvm::TypeSize size = datalayout->getTypeSizeInBits(global.getSymType());
-    auto varSize = ConstantOp::create(
-        builder, loc, IntAttr::get(sizeTy, size.getFixedValue() / 8));
-    auto isConstant = ConstantOp::create(
-        builder, loc, IntAttr::get(intTy, global.getConstant()));
-    auto zero = ConstantOp::create(builder, loc, IntAttr::get(intTy, 0));
-    builder.createCallOp(loc, cudaRegisterVar,
-                         {fatbinHandle, globalVarValue, varNameValue,
-                          varNameValue, isExtern, varSize, isConstant, zero});
+    auto deviceRegistrationAttr =
+        global->getAttrOfType<CUDAVarRegistrationInfoAttr>(
+            CUDAVarRegistrationInfoAttr::getMnemonic());
+
+    bool isExternFlag =
+        deviceRegistrationAttr ? deviceRegistrationAttr.getIsExtern() : false;
+    bool isConstantFlag = deviceRegistrationAttr
+                              ? deviceRegistrationAttr.getIsConstant()
+                              : global.getConstant();
+    bool isManagedFlag =
+        deviceRegistrationAttr ? deviceRegistrationAttr.getIsManaged() : false;
+
+    switch (deviceRegistrationAttr.getKind()) {
+    case cir::CUDADeviceVarKind::Variable: {
+
+      if (isManagedFlag) {
+        llvm_unreachable("Managed Variables NYI");
+      }
+
+      auto isExtern =
+          ConstantOp::create(builder, loc, IntAttr::get(intTy, isExternFlag));
+      llvm::TypeSize size = datalayout->getTypeSizeInBits(global.getSymType());
+      auto varSize = ConstantOp::create(
+          builder, loc, IntAttr::get(sizeTy, size.getFixedValue() / 8));
+      auto isConstant =
+          ConstantOp::create(builder, loc, IntAttr::get(intTy, isConstantFlag));
+      auto zero = ConstantOp::create(builder, loc, IntAttr::get(intTy, 0));
+      builder.createCallOp(loc, cudaRegisterVar,
+                           {fatbinHandle, globalVarValue, varNameValue,
+                            varNameValue, isExtern, varSize, isConstant, zero});
+    } break;
+    case cir::CUDADeviceVarKind::Surface:
+      llvm_unreachable("Surface Registration NYI");
+      break;
+
+    case cir::CUDADeviceVarKind::Texture:
+      llvm_unreachable("Texture Registration NYI");
+      break;
+    }
   }
 }
 

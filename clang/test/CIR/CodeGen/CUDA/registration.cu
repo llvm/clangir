@@ -58,6 +58,7 @@
 __global__ void fn() {}
 
 __device__ int a;
+__constant__ int b;
 
 // CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
 // CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
@@ -73,16 +74,29 @@ __device__ int a;
 // CIR-HOST-SAME: %[[#DeviceFn]],
 // CIR-HOST-SAME: %[[#MinusOne]],
 // CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
-// CIR-HOST:   %[[#T3:]] = cir.get_global @".stra0"
-// CIR-HOST:   %[[#Device:]] = cir.cast bitcast %[[#T3]]
-// CIR-HOST:   %[[#T4:]] = cir.get_global @a
-// CIR-HOST:   %[[#Host:]] = cir.cast bitcast %[[#T4]]
-// CIR-HOST:   %[[#Ext:]] = cir.const #cir.int<0>
-// CIR-HOST:   %[[#Sz:]] = cir.const #cir.int<4>
-// CIR-HOST:   %[[#Const:]] = cir.const #cir.int<0>
-// CIR-HOST:   %[[#Zero:]] = cir.const #cir.int<0>
-// CIR-HOST:   cir.call @__cudaRegisterVar(%arg0, %[[#Host]], %[[#Device]], %[[#Device]],
-// CIR-HOST-SAME: %[[#Ext]], %[[#Sz]], %[[#Const]], %[[#Zero]])
+// Registration for __constant__ int b (isConstant=1):
+// CIR-HOST:   %[[#T3:]] = cir.get_global @".strb0"
+// CIR-HOST:   %[[#DeviceB:]] = cir.cast bitcast %[[#T3]]
+// CIR-HOST:   %[[#T4:]] = cir.get_global @b
+// CIR-HOST:   %[[#HostB:]] = cir.cast bitcast %[[#T4]]
+// CIR-HOST:   %[[#ExtB:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#SzB:]] = cir.const #cir.int<4>
+// CIR-HOST:   %[[#ConstB:]] = cir.const #cir.int<1>
+// CIR-HOST:   %[[#ZeroB:]] = cir.const #cir.int<0>
+// CIR-HOST:   cir.call @__cudaRegisterVar(%arg0, %[[#HostB]], %[[#DeviceB]], %[[#DeviceB]],
+// CIR-HOST-SAME: %[[#ExtB]], %[[#SzB]], %[[#ConstB]], %[[#ZeroB]])
+//
+// Registration for __device__ int a (isConstant=0):
+// CIR-HOST:   %[[#T5:]] = cir.get_global @".stra1"
+// CIR-HOST:   %[[#DeviceA:]] = cir.cast bitcast %[[#T5]]
+// CIR-HOST:   %[[#T6:]] = cir.get_global @a
+// CIR-HOST:   %[[#HostA:]] = cir.cast bitcast %[[#T6]]
+// CIR-HOST:   %[[#ExtA:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#SzA:]] = cir.const #cir.int<4>
+// CIR-HOST:   %[[#ConstA:]] = cir.const #cir.int<0>
+// CIR-HOST:   %[[#ZeroA:]] = cir.const #cir.int<0>
+// CIR-HOST:   cir.call @__cudaRegisterVar(%arg0, %[[#HostA]], %[[#DeviceA]], %[[#DeviceA]],
+// CIR-HOST-SAME: %[[#ExtA]], %[[#SzA]], %[[#ConstA]], %[[#ZeroA]])
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__cuda_register_globals(ptr %[[#LLVMFatbin:]]) {
@@ -94,7 +108,10 @@ __device__ int a;
 // LLVM-HOST-SAME: i32 -1,
 // LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
 // LLVM-HOST:   call void @__cudaRegisterVar(
-// LLVM-HOST-SAME: ptr %0, ptr @a, ptr @.stra0, ptr @.stra0,
+// LLVM-HOST-SAME: ptr %0, ptr @b, ptr @.strb0, ptr @.strb0,
+// LLVM-HOST-SAME: i32 0, i64 4, i32 1, i32 0)
+// LLVM-HOST:   call void @__cudaRegisterVar(
+// LLVM-HOST-SAME: ptr %0, ptr @a, ptr @.stra1, ptr @.stra1,
 // LLVM-HOST-SAME: i32 0, i64 4, i32 0, i32 0)
 // LLVM-HOST: }
 
@@ -134,10 +151,12 @@ __device__ int a;
 // LLVM-HOST: }
 
 // OGCG-HOST: @a = internal global i32 undef, align 4
+// OGCG-HOST: @b = internal global i32 undef, align 4
 // OGCG-HOST: @0 = private unnamed_addr constant [7 x i8] c"_Z2fnv\00", align 1
 // OGCG-HOST: @1 = private unnamed_addr constant [2 x i8] c"a\00", align 1
-// OGCG-HOST: @2 = private constant [14 x i8] c"sample fatbin\0A", section ".nv_fatbin", align 8
-// OGCG-HOST: @__cuda_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1180844977, i32 1, ptr @2, ptr null }, section ".nvFatBinSegment", align 8
+// OGCG-HOST: @2 = private unnamed_addr constant [2 x i8] c"b\00", align 1
+// OGCG-HOST: @3 = private constant [14 x i8] c"sample fatbin\0A", section ".nv_fatbin", align 8
+// OGCG-HOST: @__cuda_fatbin_wrapper = internal constant { i32, i32, ptr, ptr } { i32 1180844977, i32 1, ptr @3, ptr null }, section ".nvFatBinSegment", align 8
 // OGCG-HOST: @__cuda_gpubin_handle = internal global ptr null, align 8
 // OGCG-HOST: @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__cuda_module_ctor, ptr null }]
 
@@ -160,6 +179,14 @@ __device__ int a;
 // OGCG-HOST-SAME: i32 0,
 // OGCG-HOST-SAME: i64 4,
 // OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i32 0)
+// OGCG-HOST:   call void @__cudaRegisterVar(ptr %[[#HANDLE]],
+// OGCG-HOST-SAME: ptr @b,
+// OGCG-HOST-SAME: ptr @2,
+// OGCG-HOST-SAME: ptr @2,
+// OGCG-HOST-SAME: i32 0,
+// OGCG-HOST-SAME: i64 4,
+// OGCG-HOST-SAME: i32 1,
 // OGCG-HOST-SAME: i32 0)
 // OGCG-HOST:   ret void
 // OGCG-HOST: }
