@@ -62,6 +62,7 @@ Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
     }
   }
 
+  ensureInsertPoint();
   return retAlloca;
 }
 
@@ -99,6 +100,27 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
                                              ArrayRef<const Attr *> Attrs) {
   if (mlir::succeeded(emitSimpleStmt(S, useCurrentScope)))
     return mlir::success();
+
+  // Check if we are generating unreachable code.
+  if (!HaveInsertPoint()) {
+    // If so, and the statement doesn't contain a label, then we do not need to
+    // generate actual code. This is safe because (1) the current point is
+    // unreachable, so we don't need to execute the code, and (2) we've already
+    // handled the statements which update internal data structures (like the
+    // local variable map) which could be used by subsequent statements.
+    if (!ContainsLabel(S)) {
+      // Verify that any decl statements were handled as simple, they may be in
+      // scope of subsequent reachable statements.
+      assert(!isa<DeclStmt>(*S) && "Unexpected DeclStmt!");
+      // TODO(cir): PGO->markStmtMaybeUsed(S);
+      return mlir::success();
+    }
+
+    // LLVM's codegen makes a new code block, but in CIR we reset
+    // `insertPointSet` to true, since we don't clear insertion points for
+    // unreachable code.
+    ensureInsertPoint();
+  }
 
   if (getContext().getLangOpts().OpenMP &&
       getContext().getLangOpts().OpenMPSimd)

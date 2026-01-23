@@ -278,8 +278,14 @@ void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
   // If this local has an initializer, emit it now.
   const Expr *Init = D.getInit();
 
-  // TODO: in LLVM codegen if we are at an unreachable point, the initializer
-  // isn't emitted unless it contains a label. What we want for CIR?
+  if (!HaveInsertPoint()) {
+    if (!Init || !ContainsLabel(Init)) {
+      // TODO(cir): PGO->markStmtMaybeUsed(Init);
+      return;
+    }
+    ensureInsertPoint();
+  }
+
   assert(builder.getInsertionBlock());
 
   // Initialize the variable here if it doesn't have a initializer and it is a
@@ -373,8 +379,9 @@ void CIRGenFunction::emitAutoVarCleanups(const AutoVarEmission &emission) {
   if (emission.wasEmittedAsGlobal())
     return;
 
-  // TODO: in LLVM codegen if we are at an unreachable point codgen
-  // is ignored. What we want for CIR?
+  if (!HaveInsertPoint())
+    return;
+
   assert(builder.getInsertionBlock());
   const VarDecl &D = *emission.Variable;
 
