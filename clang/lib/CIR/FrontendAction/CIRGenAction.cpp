@@ -17,6 +17,7 @@
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "llvm/Frontend/Debug/Options.h"
 #include "llvm/IR/Module.h"
 
 using namespace cir;
@@ -47,8 +48,10 @@ getBackendActionFromOutputType(CIRGenAction::OutputType Action) {
 }
 
 static std::unique_ptr<llvm::Module>
-lowerFromCIRToLLVMIR(mlir::ModuleOp MLIRModule, llvm::LLVMContext &LLVMCtx) {
-  return direct::lowerDirectlyFromCIRToLLVMIR(MLIRModule, LLVMCtx);
+lowerFromCIRToLLVMIR(mlir::ModuleOp MLIRModule, llvm::LLVMContext &LLVMCtx,
+                     bool DisableDebugInfo) {
+  return direct::lowerDirectlyFromCIRToLLVMIR(MLIRModule, LLVMCtx,
+                                              DisableDebugInfo);
 }
 
 class CIRGenConsumer : public clang::ASTConsumer {
@@ -156,8 +159,10 @@ public:
     case CIRGenAction::OutputType::EmitObj:
     case CIRGenAction::OutputType::EmitAssembly: {
       llvm::LLVMContext LLVMCtx;
+      bool DisableDebugInfo =
+          CGO.getDebugInfo() == llvm::codegenoptions::NoDebugInfo;
       std::unique_ptr<llvm::Module> LLVMModule =
-          lowerFromCIRToLLVMIR(MlirModule, LLVMCtx);
+          lowerFromCIRToLLVMIR(MlirModule, LLVMCtx, DisableDebugInfo);
 
       BackendAction BEAction = getBackendActionFromOutputType(Action);
       emitBackendOutput(

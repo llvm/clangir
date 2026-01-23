@@ -21,6 +21,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
+#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -2126,8 +2127,7 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     if (elements.get("nothrow"))
       fn.setNoUnwind(true);
     if (elements.get("hot"))
-      passThroughAttrs.push_back(
-          mlir::StringAttr::get(getContext(), "hot"));
+      passThroughAttrs.push_back(mlir::StringAttr::get(getContext(), "hot"));
   }
 
   // Handle cold attribute
@@ -4528,13 +4528,20 @@ void populateCIRToLLVMPasses(mlir::OpPassManager &pm) {
 }
 
 std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp mlirModule, LLVMContext &llvmCtx) {
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp mlirModule, LLVMContext &llvmCtx,
+                             bool disableDebugInfo) {
   llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
 
   mlir::MLIRContext *mlirCtx = mlirModule.getContext();
 
   mlir::PassManager pm(mlirCtx);
   populateCIRToLLVMPasses(pm);
+
+  // This is necessary to have line tables emitted and basic
+  // debugger working. In the future we will add proper debug information
+  // emission directly from our frontend.
+  if (!disableDebugInfo)
+    pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
   (void)mlir::applyPassManagerCLOptions(pm);
 
