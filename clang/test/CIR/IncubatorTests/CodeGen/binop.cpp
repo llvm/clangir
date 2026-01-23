@@ -51,26 +51,16 @@ void b2(bool a) {
  x = 1 || a;
 }
 
-// Upstream generates full ternary operations instead of constant folding.
-// CHECK: cir.func dso_local @_Z2b2b
 // CHECK: %0 = cir.alloca {{.*}} ["a", init]
 // CHECK: %1 = cir.alloca {{.*}} ["x", init]
-// 0 && a - generates ternary with int_to_bool cast
-// CHECK: %2 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT: %3 = cir.cast int_to_bool %2 : !s32i -> !cir.bool
-// CHECK-NEXT: %4 = cir.ternary(%3, true
-// 1 && a - generates ternary with int_to_bool cast
-// CHECK: %5 = cir.const #cir.int<1> : !s32i
-// CHECK-NEXT: %6 = cir.cast int_to_bool %5 : !s32i -> !cir.bool
-// CHECK-NEXT: %7 = cir.ternary(%6, true
-// 0 || a - generates ternary with int_to_bool cast
-// CHECK: %8 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT: %9 = cir.cast int_to_bool %8 : !s32i -> !cir.bool
-// CHECK-NEXT: %10 = cir.ternary(%9, true
-// 1 || a - generates ternary with int_to_bool cast
-// CHECK: %11 = cir.const #cir.int<1> : !s32i
-// CHECK-NEXT: %12 = cir.cast int_to_bool %11 : !s32i -> !cir.bool
-// CHECK-NEXT: %13 = cir.ternary(%12, true
+// CHECK: %2 = cir.const #false
+// CHECK-NEXT: cir.store{{.*}} %2, %1
+// CHECK-NEXT: %3 = cir.load{{.*}} %0
+// CHECK-NEXT: cir.store{{.*}} %3, %1
+// CHECK-NEXT: %4 = cir.load{{.*}} %0
+// CHECK-NEXT: cir.store{{.*}} %4, %1
+// CHECK-NEXT: %5 = cir.const #true
+// CHECK-NEXT: cir.store{{.*}} %5, %1
 
 void b3(int a, int b, int c, int d) {
   bool x = (a == b) && (c == d);
