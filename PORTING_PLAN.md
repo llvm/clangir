@@ -375,3 +375,48 @@ After each porting session:
 1. Address type mismatches - case-by-case investigation
 2. Continue with more CodeGen features
 3. Investigate why some incubator tests still fail after attribute wiring
+
+### Session 7 (2026-01-23) - Debug Info Lowering
+
+**Goal:** Fix `sourcelocation.cpp` test - the last XFAILed incubator test. XFAIL is not allowed.
+
+**Problem:**
+- `sourcelocation.cpp` has both CIR and LLVM checks
+- CIR checks pass, but LLVM checks fail because debug info is not being lowered
+- LLVM checks expect `!dbg ![[#SP:]]` metadata on functions/instructions
+- CIR locations (`loc(...)`) are preserved through lowering but not converted to LLVM debug metadata
+
+**Root Cause Found:**
+- `DIScopeForLLVMFuncOpPass` from MLIR creates debug info from MLIR locations
+- The pass wasn't being called in the upstream lowering pipeline
+- Incubator uses conditional enablement based on `disableDebugInfo` parameter
+
+**Solution Implemented:**
+1. Added `MLIRLLVMIRTransforms` to LINK_LIBS in `CMakeLists.txt`
+2. Added `DIScopeForLLVMFuncOpPass` to lowering pipeline (conditionally when debug info is enabled)
+3. Plumbed `disableDebugInfo` parameter through the call chain:
+   - `CIRGenAction.cpp` computes `DisableDebugInfo` from `CodeGenOpts.getDebugInfo()`
+   - Passes to `lowerFromCIRToLLVMIR()` wrapper
+   - Passes to `direct::lowerDirectlyFromCIRToLLVMIR()`
+   - Conditionally adds the pass: `if (!disableDebugInfo) pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass())`
+
+**Files Modified:**
+- `clang/lib/CIR/Lowering/DirectToLLVM/CMakeLists.txt` - Added MLIRLLVMIRTransforms
+- `clang/include/clang/CIR/LowerToLLVM.h` - Added disableDebugInfo parameter
+- `clang/lib/CIR/Lowering/DirectToLLVM/LowerToLLVM.cpp` - Added conditional pass
+- `clang/lib/CIR/FrontendAction/CIRGenAction.cpp` - Computed and passed disableDebugInfo
+
+**Test Results:**
+- Total: 1321 tests
+- Passed: 728 (55.11%)
+- Failed: 449 (33.99%)
+- Expectedly Failed: 116 (8.78%)
+
+**Progress:** 650 → 728 passing tests (+78 cumulative from baseline)
+
+**Tests Fixed This Session:**
+- `sourcelocation.cpp` - now correctly emits LLVM debug metadata
+
+**Next Steps:**
+1. Continue porting more CodeGen features
+2. Address remaining test failures
