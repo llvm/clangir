@@ -325,8 +325,34 @@ public:
     VisitInitListExpr(e->getUpdater());
   }
   void VisitAbstractConditionalOperator(const AbstractConditionalOperator *e) {
-    cgf.cgm.errorNYI(e->getSourceRange(),
-                     "AggExprEmitter: VisitAbstractConditionalOperator");
+    mlir::Location loc = cgf.getLoc(e->getSourceRange());
+
+    // Bind the common expression if necessary.
+    CIRGenFunction::OpaqueValueMapping binding(cgf, e);
+
+    // Ensure we have a destination slot to copy into.
+    ensureDest(loc, e->getType());
+
+    CIRGenFunction::ConditionalEvaluation eval(cgf);
+
+    mlir::Value condValue = cgf.evaluateExprAsBool(e->getCond());
+
+    cir::IfOp::create(
+        cgf.getBuilder(), loc, condValue, /*withElseRegion=*/true,
+        /*thenBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location) {
+          eval.beginEvaluation();
+          Visit(e->getTrueExpr());
+          eval.endEvaluation();
+          cgf.getBuilder().createYield(loc);
+        },
+        /*elseBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location) {
+          eval.beginEvaluation();
+          Visit(e->getFalseExpr());
+          eval.endEvaluation();
+          cgf.getBuilder().createYield(loc);
+        });
   }
   void VisitChooseExpr(const ChooseExpr *e) { Visit(e->getChosenSubExpr()); }
   void VisitCXXParenListInitExpr(CXXParenListInitExpr *e) {
