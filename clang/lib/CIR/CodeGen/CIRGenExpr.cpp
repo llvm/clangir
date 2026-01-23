@@ -753,7 +753,9 @@ Address CIRGenFunction::emitExtVectorElementLValue(LValue lv,
 }
 
 static cir::FuncOp emitFunctionDeclPointer(CIRGenModule &cgm, GlobalDecl gd) {
-  assert(!cir::MissingFeatures::weakRefReference());
+  const auto *fd = cast<FunctionDecl>(gd.getDecl());
+  if (fd->hasAttr<WeakRefAttr>())
+    return cgm.getWeakRefReference(fd);
   return cgm.getAddrOfFunction(gd);
 }
 

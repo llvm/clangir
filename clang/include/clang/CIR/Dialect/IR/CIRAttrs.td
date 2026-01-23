@@ -90,6 +90,71 @@ def CIR_SourceLanguageAttr : CIR_EnumAttr<CIR_SourceLanguage, "lang"> {
 }
 
 //===----------------------------------------------------------------------===//
+// SignedOverflowBehaviorAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_SignedOverflowBehavior : CIR_I32EnumAttr<
+    "SignedOverflowBehavior", "signed overflow behavior", [
+  I32EnumAttrCase<"Undefined", 0, "undefined">,
+  I32EnumAttrCase<"Defined", 1, "defined">,
+  I32EnumAttrCase<"Trapping", 2, "trapping">
+]> {
+  let genSpecializedAttr = 0;
+}
+
+def CIR_SignedOverflowBehaviorAttr
+    : CIR_EnumAttr<CIR_SignedOverflowBehavior, "signed_overflow_behavior"> {
+  let summary = "Signed overflow behavior for the module";
+  let description = [{
+    Represents the signed overflow behavior used for the module.
+
+    - `undefined`: Default C standard behavior, signed overflow is undefined.
+    - `defined`: Signed overflow wraps (as if using -fwrapv).
+    - `trapping`: Signed overflow traps (as if using -ftrapv).
+
+    Example:
+    ```
+    module attributes {cir.sob = #cir.signed_overflow_behavior<undefined>} {}
+    ```
+
+    Module signed overflow behavior attribute name is `cir.sob` and is defined by
+    `getSOBAttrName` method in CIRDialect class.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// TypeSizeInfoAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TypeSizeInfoAttr : CIR_Attr<"TypeSizeInfo", "type_size_info"> {
+  let summary = "A module-level attribute that holds type size information";
+  let description = [{
+    The `#cir.type_size_info` attribute holds type size information for the
+    target. This includes the size (in bits) of fundamental C types.
+
+    The `char_` parameter gives the size of `char` type in bits.
+    The `int_` parameter gives the size of `int` type in bits.
+    The `size_t` parameter gives the size of `size_t` type in bits.
+
+    Examples:
+
+    ```mlir
+    #cir.type_size_info<char = 8, int = 32, size_t = 64>
+    ```
+  }];
+
+  let parameters = (ins
+    "unsigned":$char_,
+    "unsigned":$int_,
+    "unsigned":$size_t
+  );
+
+  let assemblyFormat = [{
+    `<` `char` `=` $char_ `,` `int` `=` $int_ `,` `size_t` `=` $size_t `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // OptInfoAttr
 //===----------------------------------------------------------------------===//
 

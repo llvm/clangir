@@ -236,9 +236,19 @@ public:
     case CK_LValueToRValue:
       // If we're loading from a volatile type, force the destination
       // into existence.
-      if (e->getSubExpr()->getType().isVolatileQualified())
-        cgf.cgm.errorNYI(e->getSourceRange(),
-                         "AggExprEmitter: volatile lvalue-to-rvalue cast");
+      if (e->getSubExpr()->getType().isVolatileQualified()) {
+        bool destruct =
+            !dest.isExternallyDestructed() &&
+            e->getType().isDestructedType() == QualType::DK_nontrivial_c_struct;
+        if (destruct)
+          dest.setExternallyDestructed();
+        ensureDest(cgf.getLoc(e->getSourceRange()), e->getType());
+        Visit(e->getSubExpr());
+        if (destruct)
+          cgf.pushDestroy(QualType::DK_nontrivial_c_struct, dest.getAddress(),
+                          e->getType());
+        return;
+      }
       [[fallthrough]];
     case CK_NoOp:
     case CK_UserDefinedConversion:
@@ -248,6 +258,21 @@ public:
              "Implicit cast types must be compatible");
       Visit(e->getSubExpr());
       break;
+    case CK_ToUnion: {
+      // Evaluate even if the destination is ignored.
+      if (dest.isIgnored()) {
+        cgf.emitIgnoredExpr(e->getSubExpr());
+        break;
+      }
+
+      // GCC union extension
+      QualType ty = e->getSubExpr()->getType();
+      Address castPtr = dest.getAddress().withElementType(cgf.getBuilder(),
+                                                          cgf.convertType(ty));
+      emitInitializationToLValue(e->getSubExpr(),
+                                 cgf.makeAddrLValue(castPtr, ty));
+      break;
+    }
     default:
       cgf.cgm.errorNYI(e->getSourceRange(),
                        std::string("AggExprEmitter: VisitCastExpr: ") +
@@ -931,8 +956,34 @@ void AggExprEmitter::visitCXXParenListOrInitListExpr(
   LValue destLV = cgf.makeAddrLValue(dest.getAddress(), e->getType());
 
   if (record->isUnion()) {
-    cgf.cgm.errorNYI(e->getSourceRange(),
-                     "visitCXXParenListOrInitListExpr union type");
+    // Only initialize one field of a union. The field itself is
+    // specified by the initializer list.
+    if (!initializedFieldInUnion) {
+      // Empty union; we have nothing to do.
+
+#ifndef NDEBUG
+      // Make sure that it's really an empty and not a failure of
+      // semantic analysis.
+      for (const auto *field : record->fields())
+        assert(
+            (field->isUnnamedBitField() || field->isAnonymousStructOrUnion()) &&
+            "Only unnamed bitfields or anonymous class allowed");
+#endif
+      return;
+    }
+
+    // FIXME: volatility
+    FieldDecl *field = initializedFieldInUnion;
+
+    LValue fieldLoc =
+        cgf.emitLValueForFieldInitialization(destLV, field, field->getName());
+    if (numInitElements) {
+      // Store the initializer into the field
+      emitInitializationToLValue(args[0], fieldLoc);
+    } else {
+      // Default-initialize to null.
+      emitNullInitializationToLValue(cgf.getLoc(e->getSourceRange()), fieldLoc);
+    }
     return;
   }
 

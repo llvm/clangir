@@ -103,7 +103,6 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   const unsigned charSize = astContext.getTargetInfo().getCharWidth();
   uCharTy = cir::IntType::get(&getMLIRContext(), charSize, /*isSigned=*/false);
 
-  // TODO(CIR): Should be updated once TypeSizeInfoAttr is upstreamed
   const unsigned sizeTypeSize =
       astContext.getTypeSize(astContext.getSignedSizeType());
   SizeSizeInBytes = astContext.toCharUnitsFromBits(sizeTypeSize).getQuantity();
@@ -126,6 +125,30 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
                        cir::OptInfoAttr::get(&mlirContext,
                                              cgo.OptimizationLevel,
                                              cgo.OptimizeSize));
+
+  // Set signed overflow behavior attribute.
+  cir::SignedOverflowBehavior sob;
+  switch (langOpts.getSignedOverflowBehavior()) {
+  case LangOptions::SOB_Defined:
+    sob = cir::SignedOverflowBehavior::Defined;
+    break;
+  case LangOptions::SOB_Undefined:
+    sob = cir::SignedOverflowBehavior::Undefined;
+    break;
+  case LangOptions::SOB_Trapping:
+    sob = cir::SignedOverflowBehavior::Trapping;
+    break;
+  }
+  theModule->setAttr(cir::CIRDialect::getSOBAttrName(),
+                     cir::SignedOverflowBehaviorAttr::get(&mlirContext, sob));
+
+  // Set type size info attribute.
+  theModule->setAttr(
+      cir::CIRDialect::getTypeSizeInfoAttrName(),
+      cir::TypeSizeInfoAttr::get(&mlirContext, charSize,
+                                 astContext.getTypeSize(astContext.IntTy),
+                                 sizeTypeSize));
+
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -371,6 +394,10 @@ void CIRGenModule::emitGlobal(clang::GlobalDecl gd) {
   // throughout this function.
 
   const auto *global = cast<ValueDecl>(gd.getDecl());
+
+  // Weak references don't produce any output by themselves.
+  if (global->hasAttr<WeakRefAttr>())
+    return;
 
   if (const auto *fd = dyn_cast<FunctionDecl>(global)) {
     // Update deferred annotations with the latest declaration if the function
@@ -1731,6 +1758,34 @@ std::pair<cir::FuncType, cir::FuncOp> CIRGenModule::getAddrAndTypeOfCXXStructor(
                                    /*IsThunk=*/false, isForDefinition);
 
   return {fnType, fn};
+}
+
+cir::FuncOp CIRGenModule::getWeakRefReference(const ValueDecl *vd) {
+  const AliasAttr *aa = vd->getAttr<AliasAttr>();
+  assert(aa && "WeakRef without alias?");
+
+  // See if there is already something with the target's name in the module.
+  StringRef aliaseeName = aa->getAliasee();
+  mlir::Operation *entry = getGlobalValue(aliaseeName);
+  if (entry) {
+    cir::FuncOp func = dyn_cast<cir::FuncOp>(entry);
+    assert(func && "WeakRef aliasee is not a function");
+    return func;
+  }
+
+  // Create a new function declaration with the aliasee name.
+  const auto *fd = cast<FunctionDecl>(vd);
+  mlir::Type funcType = convertType(fd->getType());
+
+  cir::FuncOp func = getOrCreateCIRFunction(
+      aliaseeName, funcType, GlobalDecl(fd), /*ForVTable=*/false,
+      /*DontDefer=*/true, /*IsThunk=*/false, NotForDefinition);
+
+  // Set extern_weak linkage.
+  func.setLinkage(cir::GlobalLinkageKind::ExternalWeakLinkage);
+  func.setSymVisibility("private");
+
+  return func;
 }
 
 cir::FuncOp CIRGenModule::getAddrOfFunction(clang::GlobalDecl gd,

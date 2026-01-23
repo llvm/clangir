@@ -68,6 +68,9 @@ enum ActionKind {
   /// Emit a .cir file
   EmitCIR,
 
+  /// Emit a .cir file with flattened CFG
+  EmitCIRFlat,
+
   /// Emit a .ll file.
   EmitLLVM,
 

@@ -5,7 +5,6 @@
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm -o - %s \
 // RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 int go(int const& val);
 

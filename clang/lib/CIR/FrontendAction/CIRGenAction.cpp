@@ -9,9 +9,11 @@
 #include "clang/CIR/FrontendAction/CIRGenAction.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
+#include "mlir/Pass/PassManager.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/CIRToCIRPasses.h"
+#include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -26,6 +28,7 @@ static BackendAction
 getBackendActionFromOutputType(CIRGenAction::OutputType Action) {
   switch (Action) {
   case CIRGenAction::OutputType::EmitCIR:
+  case CIRGenAction::OutputType::EmitCIRFlat:
     assert(false &&
            "Unsupported output type for getBackendActionFromOutputType!");
     break; // Unreachable, but fall through to report that
@@ -132,6 +135,22 @@ public:
         MlirModule->print(*OutputStream, Flags);
       }
       break;
+    case CIRGenAction::OutputType::EmitCIRFlat:
+      if (OutputStream && MlirModule) {
+        // Run the pre-lowering passes to flatten the CFG.
+        mlir::PassManager pm(&MlirCtx);
+        mlir::populateCIRPreLoweringPasses(pm);
+        pm.enableVerifier(!FEOptions.ClangIRDisableCIRVerifier);
+        if (pm.run(MlirModule).failed()) {
+          CI.getDiagnostics().Report(diag::err_cir_to_cir_transform_failed);
+          return;
+        }
+
+        mlir::OpPrintingFlags Flags;
+        Flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+        MlirModule->print(*OutputStream, Flags);
+      }
+      break;
     case CIRGenAction::OutputType::EmitLLVM:
     case CIRGenAction::OutputType::EmitBC:
     case CIRGenAction::OutputType::EmitObj:
@@ -183,6 +202,8 @@ getOutputStream(CompilerInstance &CI, StringRef InFile,
     return CI.createDefaultOutputFile(false, InFile, "s");
   case CIRGenAction::OutputType::EmitCIR:
     return CI.createDefaultOutputFile(false, InFile, "cir");
+  case CIRGenAction::OutputType::EmitCIRFlat:
+    return CI.createDefaultOutputFile(false, InFile, "cir");
   case CIRGenAction::OutputType::EmitLLVM:
     return CI.createDefaultOutputFile(false, InFile, "ll");
   case CIRGenAction::OutputType::EmitBC:
@@ -213,6 +234,10 @@ EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *MLIRCtx)
 void EmitCIRAction::anchor() {}
 EmitCIRAction::EmitCIRAction(mlir::MLIRContext *MLIRCtx)
     : CIRGenAction(OutputType::EmitCIR, MLIRCtx) {}
+
+void EmitCIRFlatAction::anchor() {}
+EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *MLIRCtx)
+    : CIRGenAction(OutputType::EmitCIRFlat, MLIRCtx) {}
 
 void EmitLLVMAction::anchor() {}
 EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *MLIRCtx)
