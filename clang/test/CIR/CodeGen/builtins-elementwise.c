@@ -247,6 +247,27 @@ void test_builtin_elementwise_cos(float f, double d, vfloat4 vf4,
   vd4 = __builtin_elementwise_cos(vd4);
 }
 
+void test_builtin_elementwise_cosh(float f, double d, vfloat4 vf4,
+                                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_cosh
+  // LLVM-LABEL: test_builtin_elementwise_cosh
+  // CIR: {{%.*}} = cir.cosh {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.cosh.f32(float {{%.*}})
+  f = __builtin_elementwise_cosh(f);
+
+  // CIR: {{%.*}} = cir.cosh {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.cosh.f64(double {{%.*}})
+  d = __builtin_elementwise_cosh(d);
+
+  // CIR: {{%.*}} = cir.cosh {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.cosh.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_cosh(vf4);
+
+  // CIR: {{%.*}} = cir.cosh {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.cosh.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_cosh(vd4);
+}
+
 void test_builtin_elementwise_floor(float f, double d, vfloat4 vf4,
                    vdouble4 vd4) {
   // CIR-LABEL: test_builtin_elementwise_floor
@@ -352,6 +373,27 @@ void test_builtin_elementwise_sin(float f, double d, vfloat4 vf4,
   vd4 = __builtin_elementwise_sin(vd4);
 }
 
+void test_builtin_elementwise_sinh(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_sinh
+  // LLVM-LABEL: test_builtin_elementwise_sinh
+  // CIR: {{%.*}} = cir.sinh {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.sinh.f32(float {{%.*}})
+  f = __builtin_elementwise_sinh(f);
+
+  // CIR: {{%.*}} = cir.sinh {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.sinh.f64(double {{%.*}})
+  d = __builtin_elementwise_sinh(d);
+
+  // CIR: {{%.*}} = cir.sinh {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.sinh.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_sinh(vf4);
+
+  // CIR: {{%.*}} = cir.sinh {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.sinh.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_sinh(vd4);
+}
+
 void test_builtin_elementwise_sqrt(float f, double d, vfloat4 vf4,
                    vdouble4 vd4) {
   // CIR-LABEL: test_builtin_elementwise_sqrt
@@ -392,6 +434,27 @@ void test_builtin_elementwise_tan(float f, double d, vfloat4 vf4,
   // CIR: {{%.*}} = cir.tan {{%.*}} : !cir.vector<!cir.double x 4>
   // LLVM: {{%.*}} = call <4 x double> @llvm.tan.v4f64(<4 x double> {{%.*}})
   vd4 = __builtin_elementwise_tan(vd4);
+}
+
+void test_builtin_elementwise_tanh(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_tanh
+  // LLVM-LABEL: test_builtin_elementwise_tanh
+  // CIR: {{%.*}} = cir.tanh {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.tanh.f32(float {{%.*}})
+  f = __builtin_elementwise_tanh(f);
+
+  // CIR: {{%.*}} = cir.tanh {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.tanh.f64(double {{%.*}})
+  d = __builtin_elementwise_tanh(d);
+
+  // CIR: {{%.*}} = cir.tanh {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.tanh.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_tanh(vf4);
+
+  // CIR: {{%.*}} = cir.tanh {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.tanh.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_tanh(vd4);
 }
 
 void test_builtin_elementwise_trunc(float f, double d, vfloat4 vf4,

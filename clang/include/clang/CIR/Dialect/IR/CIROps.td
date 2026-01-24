@@ -5276,6 +5276,9 @@ def CIR_SinOp : CIR_UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def CIR_SqrtOp : CIR_UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
 def CIR_TanOp : CIR_UnaryFPToFPBuiltinOp<"tan", "TanOp">;
 def CIR_TruncOp : CIR_UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
+def CIR_CoshOp : CIR_UnaryFPToFPBuiltinOp<"cosh", "CoshOp">;
+def CIR_SinhOp : CIR_UnaryFPToFPBuiltinOp<"sinh", "SinhOp">;
+def CIR_TanhOp : CIR_UnaryFPToFPBuiltinOp<"tanh", "TanhOp">;
 
 def CIR_AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
   let summary = [{
