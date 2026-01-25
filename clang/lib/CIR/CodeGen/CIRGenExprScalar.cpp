@@ -2254,6 +2254,10 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     SmallVector<mlir::Value, 16> Elements;
 
     for (Expr *init : E->inits()) {
+      if (isa<ExtVectorElementExpr>(init))
+        llvm_unreachable(
+            "NYI: vector initializer with ExtVectorElementExpr (swizzle)");
+
       mlir::Value V = Visit(init);
       mlir::Type VTy = V.getType();
 
@@ -2264,19 +2268,18 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
       }
 
       // Subvector: flatten into scalar lanes
-      if (auto SubVecTy = mlir::dyn_cast<cir::VectorType>(VTy)) {
-        assert(SubVecTy.getElementType() == ElemTy &&
-               "vector element type mismatch in init");
+      auto SubVecTy = mlir::cast<cir::VectorType>(VTy);
+      if (SubVecTy.getElementType() != ElemTy)
+        llvm_unreachable("invalid vector initializer element type");
 
-        for (unsigned i = 0; i < SubVecTy.getSize(); ++i) {
-          auto Idx = CGF.getBuilder().getUInt32(i, CGF.getLoc(E->getExprLoc()));
-          Elements.push_back(cir::VecExtractOp::create(
-              CGF.getBuilder(), CGF.getLoc(E->getExprLoc()), ElemTy, V, Idx));
-        }
-        continue;
+      // Full vector replacement
+      for (unsigned i = 0; i < SubVecTy.getSize(); ++i) {
+        auto Idx = CGF.getBuilder().getUInt32(i, CGF.getLoc(E->getExprLoc()));
+        Elements.push_back(cir::VecExtractOp::create(
+            CGF.getBuilder(), CGF.getLoc(E->getExprLoc()), ElemTy, V, Idx));
       }
 
-      llvm_unreachable("invalid vector initializer element");
+      continue;
     }
 
     // Zero-initialize remaining lanes
