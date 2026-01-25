@@ -2908,19 +2908,12 @@ mlir::Value ScalarExprEmitter::emitVectorLogicalOp(const BinaryOperator *E,
   mlir::Value lhs = Visit(E->getLHS());
   mlir::Value rhs = Visit(E->getRHS());
 
-  auto vecTy = mlir::cast<cir::VectorType>(lhs.getType());
-  auto elemTy = vecTy.getElementType();
-  uint64_t numElts = vecTy.getSize();
-
   // Build zero vector of the same type
-  auto zeroElemAttr = cir::IntAttr::get(elemTy, 0);
-  llvm::SmallVector<mlir::Attribute> zeroElems(numElts, zeroElemAttr);
-  auto zeroVecAttr =
-      cir::ConstVectorAttr::get(vecTy, Builder.getArrayAttr(zeroElems));
-  auto zeroVec = cir::ConstantOp::create(Builder, loc, vecTy, zeroVecAttr);
+  cir::ConstantOp zeroVec = Builder.getNullValue(lhs.getType(), loc);
 
+  auto vecTy = mlir::cast<cir::VectorType>(lhs.getType());
   auto boolElemTy = Builder.getBoolTy();
-  auto boolVecTy = cir::VectorType::get(boolElemTy, numElts);
+  auto boolVecTy = cir::VectorType::get(boolElemTy, vecTy.getSize());
 
   // Compare operands to zero to produce vector<bool>
   auto lhsBool = cir::VecCmpOp::create(Builder, loc, boolVecTy,
@@ -2936,11 +2929,11 @@ mlir::Value ScalarExprEmitter::emitVectorLogicalOp(const BinaryOperator *E,
     return logicVal;
 
   // Convert back to result vector type
-  if (auto resVecTy = mlir::dyn_cast<cir::VectorType>(resTy))
-    if (mlir::isa<cir::IntType>(resVecTy.getElementType()))
-      return Builder.createBoolToInt(logicVal, resVecTy);
+  auto resVecTy = mlir::cast<cir::VectorType>(resTy);
+  if (mlir::isa<cir::IntType>(resVecTy.getElementType()))
+    return Builder.createBoolToInt(logicVal, resVecTy);
 
-  llvm_unreachable("unsupported vector logical operation type conversion");
+  llvm_unreachable("NYI");
 }
 
 mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {

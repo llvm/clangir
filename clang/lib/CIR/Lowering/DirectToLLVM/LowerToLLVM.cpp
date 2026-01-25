@@ -1331,59 +1331,70 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::lowerBoolToIntCast(
     cir::CastOp castOp, mlir::Value srcValue, mlir::Type dstType,
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::Type srcType = srcValue.getType();
+  mlir::Type dstElemTy = dstType;
+
+  // If it's a vector, get the element type to check signedness
+  if (auto vt = mlir::dyn_cast<mlir::VectorType>(dstType))
+    dstElemTy = vt.getElementType();
+
+  bool isSigned =
+      mlir::isa<cir::VectorType>(castOp.getType())
+          ? mlir::cast<cir::IntType>(elementTypeIfVector(castOp.getType()))
+                .isSigned()
+          : false;
 
   // Scalar case: i1 -> iN
   if (auto srcIntTy = mlir::dyn_cast<mlir::IntegerType>(srcType)) {
     auto dstIntTy = mlir::cast<mlir::IntegerType>(dstType);
-    if (srcIntTy.getWidth() == dstIntTy.getWidth())
+    if (srcIntTy.getWidth() == dstIntTy.getWidth()) {
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
                                                          srcValue);
-    else
-      rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
-                                                      srcValue);
+    } else {
+      if (isSigned)
+        rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(castOp, dstType,
+                                                        srcValue);
+      else
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
+                                                        srcValue);
+    }
     return mlir::success();
   }
 
   // Vector case: vector<i1> -> vector<iN>
   if (auto srcVecTy = mlir::dyn_cast<mlir::VectorType>(srcType)) {
     auto dstVecTy = mlir::dyn_cast<mlir::VectorType>(dstType);
-    if (!dstVecTy) {
-      return rewriter.notifyMatchFailure(
-          castOp,
-          "bool_to_int: Destination must be vector type for vector source");
-    }
+    if (!dstVecTy)
+      return rewriter.notifyMatchFailure(castOp, "Target must be vector");
 
-    // Verify shape compatibility
-    if (srcVecTy.getShape() != dstVecTy.getShape()) {
-      return rewriter.notifyMatchFailure(castOp,
-                                         "bool_to_int: Vector shape mismatch "
-                                         "between source and destination");
-    }
+    // Shape check
+    if (srcVecTy.getShape() != dstVecTy.getShape())
+      return rewriter.notifyMatchFailure(castOp, "Vector shape mismatch");
 
-    // Check vector element types
     auto srcElemTy =
         mlir::dyn_cast<mlir::IntegerType>(srcVecTy.getElementType());
     auto dstElemTy =
         mlir::dyn_cast<mlir::IntegerType>(dstVecTy.getElementType());
 
     if (!srcElemTy || !dstElemTy)
-      return rewriter.notifyMatchFailure(
-          castOp, "bool_to_int: Vector element types must be integers");
+      return rewriter.notifyMatchFailure(castOp, "Elements must be integers");
 
     if (srcElemTy.getWidth() == dstElemTy.getWidth()) {
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, dstType,
                                                          srcValue);
     } else {
-      rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
-                                                      srcValue);
+      // If destination is signed, use SExt to get -1 for true (matches OG)
+      // If destination is unsigned/bool, use ZExt to get 1 for true
+      if (isSigned)
+        rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(castOp, dstType,
+                                                        srcValue);
+      else
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, dstType,
+                                                        srcValue);
     }
     return mlir::success();
   }
 
-  // Unsupported type combination
-  return rewriter.notifyMatchFailure(
-      castOp,
-      "bool_to_int: Unsupported source type (must be i1 or vector<i1>)");
+  return rewriter.notifyMatchFailure(castOp, "Unsupported type combination");
 }
 
 mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
