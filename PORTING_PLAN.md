@@ -470,3 +470,77 @@ After each porting session:
 1. Port more exception handling features (synthetic try, cleanup regions)
 2. Continue porting CodeGen features for remaining test failures
 3. Address remaining NYI errors in exception handling path
+
+### Session 9 (2026-01-27) - Exception Handling: FlattenCFG Port
+
+**Goal:** Port the full `CIRTryOpFlattening` implementation to enable `-emit-cir-flat` for exception handling code.
+
+**Problem:**
+- Upstream's `CIRTryOpFlattening` had `llvm_unreachable` stubs instead of real implementation
+- Running `-emit-cir-flat` on try-catch code would crash
+- Missing helper methods: `buildTypeCase`, `buildUnwindCase`, `buildAllCase`, `buildLandingPad`, etc.
+
+**Solution Implemented:**
+
+1. **API Alignment in CIROps.td:**
+   - Added `extraClassDeclaration` to `TryOp` with incubator-compatible aliases:
+     - `getCatchTypesAttr()` → alias for `getHandlerTypesAttr()`
+     - `getCatchRegions()` → alias for `getHandlerRegions()`
+     - `isCatchAllOnly()` → new method declaration
+   - Enhanced `CatchParamOp` with:
+     - `CatchParamKind` enum (Begin, End) for post-flattening markers
+     - Optional `exception_ptr` operand
+     - `isBegin()`/`isEnd()` helper methods
+
+2. **CIRDialect.cpp Implementations:**
+   - Added `TryOp::isCatchAllOnly()` - checks if try has single catch-all handler
+   - Added `CatchParamOp::verify()` - validates exception_ptr requires 'begin' kind
+
+3. **FlattenCFG.cpp Full Port:**
+   - `buildTypeCase()` - handles typed catch clauses (catch(int), catch(char*))
+   - `buildUnwindCase()` - handles unwind/rethrow cases with `cir.resume.flat`
+   - `buildAllCase()` - handles catch(...) clauses
+   - `collectTypeSymbols()` - gathers type info symbols for landing pads
+   - `buildLandingPad()` - creates individual landing pad with `cir.eh.inflight_exception`
+   - `buildLandingPads()` - orchestrates landing pad creation for all calls
+   - `buildCatch()` - dispatches to appropriate catch handler using `cir.eh.typeid`
+   - `buildCatchers()` - main orchestrator for catch clause flattening
+   - Updated `matchAndRewrite()` to use `getException()` filter and call rewriting
+
+4. **Updated CIRGenItaniumCXXABI.cpp:**
+   - Fixed `CatchParamOp::create` call to include new optional parameters
+
+**Files Modified:**
+- `clang/include/clang/CIR/Dialect/IR/CIROps.td` - TryOp aliases, CatchParamKind enum
+- `clang/lib/CIR/Dialect/IR/CIRDialect.cpp` - isCatchAllOnly(), CatchParamOp::verify()
+- `clang/lib/CIR/Dialect/Transforms/FlattenCFG.cpp` - Full CIRTryOpFlattening port
+- `clang/lib/CIR/CodeGen/CIRGenItaniumCXXABI.cpp` - Updated CatchParamOp::create call
+
+**Test Results:**
+- Total: 1322 tests
+- Passed: 728 (55.07%)
+- Failed: 449 (33.96%)
+- Expectedly Failed: 116 (8.77%)
+
+**Progress:** 728 → 728 passing tests (maintained, no regressions)
+
+**New Capabilities:**
+- `-emit-cir-flat` now works on exception handling code without crashing
+- Flattened CIR shows proper `cir.try_call`, `cir.eh.inflight_exception`, `cir.eh.typeid`
+- `cir.catch_param` properly rewritten to begin/end markers post-flattening
+- `cir.resume` properly converted to `cir.resume.flat`
+
+**Commits:**
+- `c2208745c13b` - Catch params and friends (API changes)
+- `aef8447ad7d0` - [CIR] Add CatchParamOp::verify and TryOp::isCatchAllOnly implementations
+- `3a5fd7f83edb` - [CIR] Port CIRTryOpFlattening from incubator to upstream
+
+**NYI (Not Yet Implemented):**
+- Cleanup regions in CallOp (incubator has `getCleanup()`, upstream doesn't)
+- ASTCallExprInterface (incubator-only feature, skipped in port)
+
+**Next Steps:**
+1. Port cleanup region support to CallOp
+2. Add FLAT RUN lines to try-catch.cpp test for flattening verification
+3. Continue porting remaining exception handling features
+
