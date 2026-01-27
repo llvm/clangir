@@ -5673,6 +5673,15 @@ def CIR_TryOp : CIR_Op<"try",[
     }]>
   ];
 
+  let extraClassDeclaration = [{
+    // Incubator-compatible API aliases
+    mlir::ArrayAttr getCatchTypesAttr() { return getHandlerTypesAttr(); }
+    llvm::MutableArrayRef<mlir::Region> getCatchRegions() {
+      return getHandlerRegions();
+    }
+    bool isCatchAllOnly();
+  }];
+
   let hasLLVMLowering = false;
 }
 
@@ -5680,27 +5689,53 @@ def CIR_TryOp : CIR_Op<"try",[
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
-def CIR_CatchParamOp : CIR_Op<"catch_param", [HasParent<"cir::TryOp">]> {
+def CIR_CatchParamKind : CIR_I32EnumAttr<
+  "CatchParamKind", "Designate limits for begin/end of catch param handling", [
+    I32EnumAttrCase<"Begin", 0, "begin">,
+    I32EnumAttrCase<"End",  1, "end">
+]>;
+
+def CIR_CatchParamOp : CIR_Op<"catch_param"> {
   let summary = "Represents the catch clause formal parameter";
   let description = [{
-    The `cir.catch_param` is used to retrieves the exception object inside
-    the handler regions of `cir.try`.
+    The `cir.catch_param` can operate in two modes: within catch regions of
+    `cir.try` or anywhere else with the `begin` or `end` markers. The `begin`
+    version requires an exception pointer of `cir.ptr<!void>`.
 
-    This operation is used only before the CFG flatterning pass.
+    This operation is used only before the CFG flatterning pass (without kind),
+    or after flattening (with begin/end kind).
 
     Example:
 
     ```mlir
+    // Before flattening (within cir.try):
     %exception = cir.catch_param : !cir.ptr<!void>
+
+    // After flattening:
+    %exception = cir.catch_param begin %exception_ptr : !cir.ptr<!void>
+    cir.catch_param end
     ```
   }];
 
+  let arguments = (ins
+    Optional<CIR_VoidPtrType>:$exception_ptr,
+    OptionalAttr<CIR_CatchParamKind>:$kind
+  );
+
   let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
-    (`:` qualified(type($param))^)?
+    ($kind^)?
+    ($exception_ptr^)?
+    (`:`  qualified(type($param))^)?
     attr-dict
   }];
 
+  let extraClassDeclaration = [{
+    bool isBegin() { return getKind() == cir::CatchParamKind::Begin; }
+    bool isEnd() { return getKind() == cir::CatchParamKind::End; }
+  }];
+
+  let hasVerifier = 1;
   let hasLLVMLowering = false;
 }
 
