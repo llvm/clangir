@@ -420,3 +420,53 @@ After each porting session:
 **Next Steps:**
 1. Continue porting more CodeGen features
 2. Address remaining test failures
+
+### Session 8 (2026-01-26) - Exception Handling: Call Exception Attribute
+
+**Goal:** Port the `exception` attribute for calls in try blocks, needed for proper exception handling lowering.
+
+**Problem:**
+- Calls inside `cir.try` blocks were missing the `exception` attribute
+- Without this attribute, calls won't be converted to `invoke` instructions in LLVM IR
+- The `try.cir` IR test was failing due to roundtrip issues with the exception keyword
+
+**Root Cause:**
+- Upstream's exception handling for calls was NYI (Not Yet Implemented)
+- The incubator uses `createTryCallOp` to mark calls that may throw
+- Upstream was using plain `createCallOp` which doesn't set the exception attribute
+
+**Solution Implemented:**
+1. Added `exception` attribute to `CIR_CallOp` in CIROps.td using `!con((ins UnitAttr:$exception), commonArgs)`
+2. Added new builder with `callingConv`, `sideEffect`, and `exception` parameters
+3. Added `createTryCallOp` and `createIndirectTryCallOp` methods to CIRBaseBuilder.h
+4. Updated `CIRGenCall.cpp` to use `createTryCallOp` when `isInvoke` is true
+5. Added parsing of `exception` keyword in `parseCallCommon` (before the callee)
+6. Added printing of `exception` keyword in `printCallCommon`
+7. Removed `opCallSurroundingTry` NYI marker from MissingFeatures.h
+
+**Files Modified:**
+- `clang/include/clang/CIR/Dialect/IR/CIROps.td` - Added exception attribute and builder
+- `clang/include/clang/CIR/Dialect/Builder/CIRBaseBuilder.h` - Added createTryCallOp methods
+- `clang/lib/CIR/CodeGen/CIRGenCall.cpp` - Use createTryCallOp for invoke calls
+- `clang/lib/CIR/Dialect/IR/CIRDialect.cpp` - Parse/print exception keyword
+- `clang/include/clang/CIR/MissingFeatures.h` - Removed opCallSurroundingTry
+- `clang/test/CIR/IncubatorTests/CodeGen/try-catch.cpp` - Updated CHECK lines
+
+**Test Results:**
+- Total: 1321 tests
+- Passed: 728 (55.11%)
+- Failed: 449 (33.99%)
+- Expectedly Failed: 116 (8.78%)
+
+**Progress:** 727 → 728 passing tests (+1 this session, +78 cumulative from baseline)
+
+**Tests Fixed This Session:**
+- `try.cir` - IR roundtrip test for exception keyword now passes
+
+**Commits:**
+- `1be1e60fa779` - [CIR] Port exception attribute for calls in try blocks
+
+**Next Steps:**
+1. Port more exception handling features (synthetic try, cleanup regions)
+2. Continue porting CodeGen features for remaining test failures
+3. Address remaining NYI errors in exception handling path
