@@ -3761,6 +3761,12 @@ mlir::ValueRange cir::TryOp::getSuccessorInputs(RegionSuccessor successor) {
                               : ValueRange();
 }
 
+bool cir::TryOp::isCatchAllOnly() {
+  mlir::ArrayAttr handlerTypes = getHandlerTypesAttr();
+  return handlerTypes.size() == 1 &&
+         mlir::isa<cir::CatchAllAttr>(handlerTypes[0]);
+}
+
 static void
 printTryHandlerRegions(mlir::OpAsmPrinter &printer, cir::TryOp op,
                        mlir::MutableArrayRef<mlir::Region> handlerRegions,
@@ -3877,6 +3883,22 @@ cir::EhTypeIdOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   if (!isa_and_nonnull<GlobalOp>(op))
     return emitOpError("'")
            << getTypeSym() << "' does not reference a valid cir.global";
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CatchParamOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::CatchParamOp::verify() {
+  if (getExceptionPtr()) {
+    auto kind = getKind();
+    if (!kind || *kind != cir::CatchParamKind::Begin)
+      return emitOpError("needs 'begin' to work with exception pointer");
+    return success();
+  }
+  if (!getKind() && !(*this)->getParentOfType<cir::TryOp>())
+    return emitOpError("without 'kind' requires 'cir.try' surrounding scope");
   return success();
 }
 
