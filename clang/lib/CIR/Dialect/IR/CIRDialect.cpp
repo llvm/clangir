@@ -1000,7 +1000,18 @@ static void printCallCommon(
 
 mlir::ParseResult cir::CallOp::parse(mlir::OpAsmParser &parser,
                                      mlir::OperationState &result) {
-  return parseCallCommon(parser, result, getExtraAttrsAttrName(result.name));
+  if (parseCallCommon(parser, result, getExtraAttrsAttrName(result.name)))
+    return failure();
+
+  // Parse optional cleanup region
+  if (succeeded(parser.parseOptionalKeyword("cleanup"))) {
+    if (parser.parseRegion(*result.addRegion()))
+      return failure();
+  } else {
+    result.addRegion(); // Add empty region placeholder
+  }
+
+  return mlir::success();
 }
 
 void cir::CallOp::print(mlir::OpAsmPrinter &p) {
@@ -1017,6 +1028,13 @@ void cir::CallOp::print(mlir::OpAsmPrinter &p) {
   }
   printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
                   callingConv, sideEffect, nothrow, exception);
+
+  // Print cleanup region if not empty
+  if (!getCleanup().empty()) {
+    p << " cleanup ";
+    p.printRegion(getCleanup(), /*printEntryBlockArgs=*/false,
+                  /*printBlockTerminators=*/true);
+  }
 }
 
 static LogicalResult

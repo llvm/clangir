@@ -849,7 +849,7 @@ def CIR_ConditionOp : CIR_Op<"condition", [
 //===----------------------------------------------------------------------===//
 
 defvar CIR_YieldableScopes = [
-  "ArrayCtor", "ArrayDtor", "AwaitOp", "CaseOp", "DoWhileOp", "ForOp",
+  "ArrayCtor", "ArrayDtor", "AwaitOp", "CallOp", "CaseOp", "DoWhileOp", "ForOp",
   "GlobalOp", "IfOp", "ScopeOp", "SwitchOp", "TernaryOp", "WhileOp", "TryOp"
 ];
 
@@ -3218,6 +3218,7 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
 
   let results = (outs Optional<CIR_AnyType>:$result);
   let arguments = !con((ins UnitAttr:$exception), commonArgs);
+  let regions = (region AnyRegion:$cleanup);
 
   let skipDefaultBuilders = 1;
 
@@ -3229,6 +3230,8 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
         $_state.addAttribute("callee", callee);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>,
     OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
                    "mlir::ValueRange":$operands,
@@ -3246,6 +3249,8 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
         $_state.addAttribute("exception", exception);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>
   ];
 }

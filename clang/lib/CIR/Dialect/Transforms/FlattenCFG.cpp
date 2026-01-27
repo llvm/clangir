@@ -694,9 +694,15 @@ public:
     auto selector = inflightEh.getTypeId();
     auto exceptionPtr = inflightEh.getExceptionPtr();
 
-    // TODO(cir): Handle cleanup regions when they are ported to upstream.
-    // cir::CallOp callOp = callsToRewrite[callIdx];
-    // if (!callOp.getCleanup().empty()) { ... }
+    // Time to emit cleanup's.
+    cir::CallOp callOp = callsToRewrite[callIdx];
+    if (!callOp.getCleanup().empty()) {
+      mlir::Block *cleanupBlock = &callOp.getCleanup().getBlocks().back();
+      auto cleanupYield = cast<cir::YieldOp>(cleanupBlock->getTerminator());
+      rewriter.eraseOp(cleanupYield);
+      rewriter.mergeBlocks(cleanupBlock, landingPadBlock);
+      rewriter.setInsertionPointToEnd(landingPadBlock);
+    }
 
     // Branch out to the catch clauses dispatcher.
     assert(catchDispatcher->getNumArguments() >= 1 &&
