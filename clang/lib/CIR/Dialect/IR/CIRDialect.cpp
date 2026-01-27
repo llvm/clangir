@@ -826,6 +826,10 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
   mlir::FlatSymbolRefAttr calleeAttr;
   llvm::ArrayRef<mlir::Type> allResultTypes;
 
+  // Parse optional 'exception' keyword before the callee
+  if (parser.parseOptionalKeyword("exception").succeeded())
+    result.addAttribute("exception", mlir::UnitAttr::get(parser.getContext()));
+
   // If we cannot parse a string callee, it means this is an indirect call.
   if (!parser
            .parseOptionalAttribute(calleeAttr, CIRDialect::getCalleeAttrName(),
@@ -920,17 +924,20 @@ static mlir::ParseResult parseCallCommon(mlir::OpAsmParser &parser,
   return mlir::success();
 }
 
-static void
-printCallCommon(mlir::Operation *op, mlir::FlatSymbolRefAttr calleeSym,
-                mlir::Value indirectCallee, mlir::OpAsmPrinter &printer,
-                cir::ExtraFuncAttributesAttr extraAttrs,
-                cir::CallingConv callingConv, cir::SideEffect sideEffect,
-                bool nothrow, mlir::Block *normalDest = nullptr,
-                mlir::Block *unwindDest = nullptr) {
+static void printCallCommon(
+    mlir::Operation *op, mlir::FlatSymbolRefAttr calleeSym,
+    mlir::Value indirectCallee, mlir::OpAsmPrinter &printer,
+    cir::ExtraFuncAttributesAttr extraAttrs, cir::CallingConv callingConv,
+    cir::SideEffect sideEffect, bool nothrow, bool exception = false,
+    mlir::Block *normalDest = nullptr, mlir::Block *unwindDest = nullptr) {
   printer << ' ';
 
   auto callLikeOp = mlir::cast<cir::CIRCallOpInterface>(op);
   auto ops = callLikeOp.getArgOperands();
+
+  // Print 'exception' keyword before the callee
+  if (exception)
+    printer << "exception ";
 
   if (calleeSym) {
     // Direct calls
@@ -969,7 +976,8 @@ printCallCommon(mlir::Operation *op, mlir::FlatSymbolRefAttr calleeSym,
       CIRDialect::getNoThrowAttrName(),
       CIRDialect::getOperandSegmentSizesAttrName(),
       "calling_conv",
-      "extra_attrs"};
+      "extra_attrs",
+      "exception"};
   printer.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
   printer << " : ";
   printer.printFunctionalType(op->getOperands().getTypes(),
@@ -1000,6 +1008,7 @@ void cir::CallOp::print(mlir::OpAsmPrinter &p) {
   cir::CallingConv callingConv = getCallingConv();
   cir::SideEffect sideEffect = getSideEffect();
   bool nothrow = getNothrowAttr() != nullptr;
+  bool exception = getExceptionAttr() != nullptr;
   cir::ExtraFuncAttributesAttr extraAttrs = getExtraAttrsAttr();
   if (!extraAttrs) {
     NamedAttrList empty;
@@ -1007,7 +1016,7 @@ void cir::CallOp::print(mlir::OpAsmPrinter &p) {
         cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
   }
   printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
-                  callingConv, sideEffect, nothrow);
+                  callingConv, sideEffect, nothrow, exception);
 }
 
 static LogicalResult
@@ -1132,8 +1141,8 @@ void cir::TryCallOp::print(::mlir::OpAsmPrinter &p) {
         cir::ExtraFuncAttributesAttr::get(empty.getDictionary(getContext()));
   }
   printCallCommon(*this, getCalleeAttr(), indirectCallee, p, extraAttrs,
-                  callingConv, sideEffect, nothrow, getNormalDest(),
-                  getUnwindDest());
+                  callingConv, sideEffect, nothrow, /*exception=*/false,
+                  getNormalDest(), getUnwindDest());
 }
 
 //===----------------------------------------------------------------------===//

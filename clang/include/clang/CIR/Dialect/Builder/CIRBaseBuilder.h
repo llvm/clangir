@@ -420,6 +420,42 @@ public:
                         resOperands, attrs);
   }
 
+  /// Create a call that may throw an exception.
+  /// This sets the `exception` attribute to mark the call as potentially
+  /// throwing.
+  cir::CallOp
+  createTryCallOp(mlir::Location loc, mlir::SymbolRefAttr callee,
+                  mlir::Type returnType, mlir::ValueRange operands,
+                  cir::CallingConv callingConv = cir::CallingConv::C,
+                  cir::SideEffect sideEffect = cir::SideEffect::All) {
+    return cir::CallOp::create(*this, loc, callee, returnType, operands,
+                               callingConv, sideEffect,
+                               /*exception=*/getUnitAttr());
+  }
+
+  /// Create a call that may throw an exception (convenience overload).
+  cir::CallOp
+  createTryCallOp(mlir::Location loc, cir::FuncOp callee,
+                  mlir::ValueRange operands,
+                  cir::CallingConv callingConv = cir::CallingConv::C,
+                  cir::SideEffect sideEffect = cir::SideEffect::All) {
+    return createTryCallOp(loc, mlir::SymbolRefAttr::get(callee),
+                           callee.getFunctionType().getReturnType(), operands,
+                           callingConv, sideEffect);
+  }
+
+  /// Create an indirect call that may throw an exception.
+  cir::CallOp
+  createIndirectTryCallOp(mlir::Location loc, mlir::Value indirectTarget,
+                          cir::FuncType funcType, mlir::ValueRange operands,
+                          cir::CallingConv callingConv = cir::CallingConv::C,
+                          cir::SideEffect sideEffect = cir::SideEffect::All) {
+    llvm::SmallVector<mlir::Value> resOperands{indirectTarget};
+    resOperands.append(operands.begin(), operands.end());
+    return createTryCallOp(loc, mlir::SymbolRefAttr(), funcType.getReturnType(),
+                           resOperands, callingConv, sideEffect);
+  }
+
   cir::CallOp createCallOp(mlir::Location loc, mlir::SymbolRefAttr callee,
                            mlir::ValueRange operands = mlir::ValueRange(),
                            llvm::ArrayRef<mlir::NamedAttribute> attrs = {}) {

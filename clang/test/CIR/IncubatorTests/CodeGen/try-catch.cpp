@@ -17,7 +17,7 @@ unsigned long long tc() {
     // CHECK: cir.try {
     int a = 4;
     z = division(x, y);
-    // CHECK: %[[div_res:.*]] = cir.call @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
+    // CHECK: cir.call exception @_Z8divisionii({{.*}}) : (!s32i, !s32i) -> !cir.double
     a++;
 
   } catch (int idx) {
@@ -121,7 +121,7 @@ void tc5() {
 }
 
 // CHECK: cir.try {
-// CHECK: cir.call @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
+// CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
 // CHECK: cir.yield
 // CHECK: } catch all {
 // CHECK:  {{.*}} = cir.catch_param : !cir.ptr<!void>

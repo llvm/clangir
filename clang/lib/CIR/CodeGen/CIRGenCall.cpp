@@ -471,8 +471,6 @@ emitCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
                const mlir::NamedAttrList &attrs) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
 
-  assert(!cir::MissingFeatures::opCallSurroundingTry());
-
   if (isInvoke) {
     // This call may throw and requires catch and/or cleanup handling.
     // If this call does not appear within the `try` region of an existing
@@ -498,12 +496,12 @@ emitCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
 
     cir::CallOp callOpWithExceptions;
     if (indirectFuncTy) {
-      cgf.cgm.errorNYI("emitCallLikeOp: indirect function type");
-      return {};
+      callOpWithExceptions = builder.createIndirectTryCallOp(
+          callLoc, indirectFuncVal, indirectFuncTy, cirCallArgs);
+    } else {
+      callOpWithExceptions =
+          builder.createTryCallOp(callLoc, directFuncOp, cirCallArgs);
     }
-
-    callOpWithExceptions =
-        builder.createCallOp(callLoc, directFuncOp, cirCallArgs);
 
     cgf.populateCatchHandlersIfRequired(tryOp);
     return callOpWithExceptions;
