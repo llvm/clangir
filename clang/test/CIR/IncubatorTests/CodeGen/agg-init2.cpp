@@ -21,9 +21,8 @@ void f() {
 //       treat that as uninitialized? Should it even be happening?
 
 // Trivial default constructor call is lowered away since it does nothing.
-// z0 doesn't get init because no code is generated (trivial constructor elided).
 // CHECK: cir.func {{.*}} @_Z1fv()
-// CHECK:     %[[Z0:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z0"]
+// CHECK:     %[[Z0:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z0", init]
 // CHECK:     %[[Z1:.*]] = cir.alloca !rec_Zero, !cir.ptr<!rec_Zero>, ["z1", init]
 // CHECK-NOT: cir.call @_ZN4ZeroC1Ev
 // CHECK:     %[[UNDEF:.*]] = cir.const #cir.undef : !rec_Zero

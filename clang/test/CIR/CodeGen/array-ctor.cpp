@@ -85,12 +85,12 @@ void zero_sized() {
 }
 
 // CIR-BEFORE-LPP:     cir.func {{.*}} @_Z10zero_sizedv()
-// CIR-BEFORE-LPP:       cir.alloca !cir.array<!rec_S x 0>, !cir.ptr<!cir.array<!rec_S x 0>>, ["s"]
+// CIR-BEFORE-LPP:       cir.alloca !cir.array<!rec_S x 0>, !cir.ptr<!cir.array<!rec_S x 0>>, ["s", init]
 // CIR-BEFORE-LPP-NOT:   cir.array.ctor
 // CIR-BEFORE-LPP:       cir.return
 
 // CIR:     cir.func {{.*}} @_Z10zero_sizedv()
-// CIR:       cir.alloca !cir.array<!rec_S x 0>, !cir.ptr<!cir.array<!rec_S x 0>>, ["s"]
+// CIR:       cir.alloca !cir.array<!rec_S x 0>, !cir.ptr<!cir.array<!rec_S x 0>>, ["s", init]
 // CIR-NOT:   cir.do
 // CIR-NOT:   cir.call @_ZN1SC1Ev
 // CIR:       cir.return

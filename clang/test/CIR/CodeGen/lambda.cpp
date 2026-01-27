@@ -53,7 +53,7 @@ void fn() {
 // CIR:   cir.return
 
 // CIR: cir.func {{.*}} @_Z2fnv()
-// CIR:   %[[A:.*]] = cir.alloca ![[REC_LAM_FN_A]], !cir.ptr<![[REC_LAM_FN_A]]>, ["a"]
+// CIR:   %[[A:.*]] = cir.alloca ![[REC_LAM_FN_A]], !cir.ptr<![[REC_LAM_FN_A]]>, ["a", init]
 // CIR:   cir.call @_ZZ2fnvENK3$_0clEv(%[[A]])
 
 // LLVM: define internal void @"_ZZ2fnvENK3$_0clEv"(ptr %[[THIS_ARG:.*]])

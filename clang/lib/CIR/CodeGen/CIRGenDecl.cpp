@@ -270,6 +270,15 @@ void CIRGenFunction::emitAutoVarInit(
   };
 
   if (isTrivialInitializer(init)) {
+    // Only set init for EXPLICIT initializers, not implicit constructor calls.
+    // CXXTemporaryObjectExpr represents explicit functional-notation like
+    // Type(), while plain CXXConstructExpr may be implicit from declarations
+    // like "Derived d;" which shouldn't have init.
+    if (init && isa<CXXTemporaryObjectExpr>(init)) {
+      mlir::Value val = addr.getPointer();
+      if (auto allocaOp = val.getDefiningOp<cir::AllocaOp>())
+        allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+    }
     initializeWhatIsTechnicallyUninitialized(addr);
     return;
   }
@@ -301,15 +310,13 @@ void CIRGenFunction::emitAutoVarInit(
     emitExprAsInit(init, &d, lv);
 
     if (!emission.wasEmittedAsOffloadClause()) {
-      // In case lv has uses it means we indeed initialized something
-      // out of it while trying to build the expression, mark it as such.
+      // Mark as initialized - we have an init expression even if no code was
+      // generated (e.g., trivial constructor with zero-initialization).
       mlir::Value val = lv.getAddress().getPointer();
       assert(val && "Should have an address");
       auto allocaOp = val.getDefiningOp<cir::AllocaOp>();
       assert(allocaOp && "Address should come straight out of the alloca");
-
-      if (!allocaOp.use_empty())
-        allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
+      allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
     }
 
     return;
