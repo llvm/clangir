@@ -544,3 +544,65 @@ After each porting session:
 2. Add FLAT RUN lines to try-catch.cpp test for flattening verification
 3. Continue porting remaining exception handling features
 
+### Session 10 (2026-01-27) - Exception Handling: Cleanup Region Population
+
+**Goal:** Port the CodeGen infrastructure that populates cleanup regions on `cir.call exception` operations.
+
+**Problem:**
+- The cleanup region was added to CallOp in Session 9 but never populated during CodeGen
+- `populateEHCatchRegions` had NYI errors blocking multiple exception calls in a try block
+- The `mayThrow && tryOp` check was too aggressive, blocking valid code paths
+
+**Solution Implemented:**
+
+1. **CIRGenFunction.h:**
+   - Added `callWithExceptionCtx` member to track current exception-throwing call
+
+2. **CIRGenCall.cpp:**
+   - Set/clear `callWithExceptionCtx` around `populateCatchHandlersIfRequired`
+
+3. **CIRGenException.cpp:**
+   - Removed overly aggressive `mayThrow && tryOp` NYI check
+   - Restructured `populateEHCatchRegions` to always process the switch cases
+   - Added cleanup region population with `cir.yield` for Catch and Cleanup scopes
+   - Updated error messages to be more descriptive
+
+4. **Test Fix (try-catch.cpp in Lowering/):**
+   - Fixed `->` to `:` syntax for `cir.catch_param begin`
+   - Removed specific type annotations from `cir.const` checks
+
+**Files Modified:**
+- `clang/lib/CIR/CodeGen/CIRGenFunction.h` - Added callWithExceptionCtx member
+- `clang/lib/CIR/CodeGen/CIRGenCall.cpp` - Set/clear context around EH population
+- `clang/lib/CIR/CodeGen/CIRGenException.cpp` - Restructured EH catch region logic
+- `clang/test/CIR/IncubatorTests/Lowering/try-catch.cpp` - Fixed test expectations
+
+**Test Results:**
+- Total: 1321 tests
+- Passed: 728 (55.11%)
+- Failed: 449 (33.99%)
+- Expectedly Failed: 116 (8.78%)
+
+**Progress:** 727 → 728 passing tests (+1 this session)
+
+**New Capabilities:**
+- Exception calls now get cleanup regions populated: `cir.call exception @fn() cleanup { cir.yield }`
+- Multiple exception-throwing calls within a single try block now work correctly
+- Cleanup scopes (for destructors) are now handled without NYI errors
+
+**Commits:**
+- `9f9540c15f4f` - [CIR] Populate cleanup regions on exception calls during CodeGen
+- `58061bc818c8` - [CIR][Test] Fix try-catch.cpp test expectations
+
+**Remaining NYIs in Exception Handling:**
+- `populateEHCatchRegions: Filter scope` - SEH filter expressions
+- `populateEHCatchRegions: Terminate scope` - std::terminate handlers
+- `getEHDispatchBlock: usesFuncletPads` - Windows SEH/funclet personality
+- `exitCXXTryStmt: doImplicitRethrow` - Implicit rethrow in ctors/dtors
+- `emitRethrow with isNoReturn false` - Non-noreturn rethrow
+
+**Next Steps:**
+1. Add FLAT RUN lines to CodeGen/try-catch.cpp for flattening verification
+2. Port remaining exception handling features (implicit rethrow, terminate scope)
+3. Address other failing incubator tests (non-EH related)
+
