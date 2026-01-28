@@ -10,7 +10,7 @@ class Base {
   // CIR: cir.store [[ARG0]], [[ALLOCA_0]]
   // CIR: cir.store [[ARG1]], [[ALLOCA_1]]
   // CIR: [[LD_0:%.*]] = cir.load deref [[ALLOCA_0]]
-  // CIR: cir.store [[LD_0]], [[ALLOCA_2]]
+  // CIR: cir.store align(8) [[LD_0]], [[ALLOCA_2]]
   // CIR: [[LD_1:%.*]] = cir.load [[ALLOCA_2]]
   // CIR: cir.return [[LD_1]]
 
@@ -46,7 +46,7 @@ Derived &Derived::operator=(Derived &B) {
   // CIR: [[BASE_ADDR_1:%.*]] = cir.base_class_addr [[LD_1]]
   // CIR: [[CALL:%.*]] = cir.call @_ZN4BaseaSERS_
   // CIR: [[DERIVED_ADDR:%.*]] = cir.derived_class_addr [[CALL]]
-  // CIR: cir.store [[DERIVED_ADDR]], [[ALLOCA_2:%.*]] :
+  // CIR: cir.store align(8) [[DERIVED_ADDR]], [[ALLOCA_2:%.*]] :
   // CIR: [[LD_2:%.*]] = cir.load [[ALLOCA_2]]
   // CIR: cir.return [[LD_2]]
 
