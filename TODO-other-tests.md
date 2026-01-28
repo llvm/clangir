@@ -46,9 +46,9 @@ Collection of other failing incubator tests with their root causes, organized by
 - `temporaries.cpp` - NYI: `materialize temporary expr` and `global with reference type`
 
 ### Variadic Arguments
-- `var-arg.c` - Basic varargs
-- `var-arg-scope.c` - Varargs with scope
-- `var-arg-float.c` - Varargs with floats
+- ~~`var-arg.c`~~ - ✅ FIXED: Updated test expectations (va_start/va_arg/va_end naming)
+- ~~`var-arg-scope.c`~~ - ✅ FIXED: Updated test expectations (va_arg naming)
+- ~~`var-arg-float.c`~~ - ✅ FIXED: Updated test expectations (va_arg naming)
 
 ### Miscellaneous
 - `clear_cache.c` - `__builtin___clear_cache`
