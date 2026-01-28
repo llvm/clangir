@@ -694,8 +694,16 @@ public:
 
       if (type->isHalfType() &&
           !cgf.getContext().getLangOpts().NativeHalfType) {
-        cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec half");
-        return {};
+        // Another special case: half FP increment should be done via float
+        if (cgf.getContext().getTargetInfo().useFP16ConversionIntrinsics()) {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec half via FP16 conversion intrinsics");
+          return {};
+        } else {
+          value = builder.createCast(cgf.getLoc(e->getExprLoc()),
+                                     cir::CastKind::floating, input,
+                                     cgf.cgm.floatTy);
+        }
       }
 
       if (mlir::isa<cir::SingleType, cir::DoubleType>(value.getType())) {
@@ -705,8 +713,44 @@ public:
                kind == cir::UnaryOpKind::Dec && "Invalid UnaryOp kind");
         value = emitUnaryOp(e, kind, value);
       } else {
-        cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec other fp type");
-        return {};
+        // Remaining types are Half, Bfloat16, LongDouble, __ibm128 or
+        // __float128. Use binop(add) with a constant.
+        int amount = (kind == cir::UnaryOpKind::Inc) ? 1 : -1;
+        llvm::APFloat f(static_cast<float>(amount));
+        bool ignored;
+        const llvm::fltSemantics *fs;
+        // Don't use getFloatTypeSemantics because Half isn't
+        // necessarily represented using the "half" LLVM type.
+        if (mlir::isa<cir::LongDoubleType>(value.getType()))
+          fs = &cgf.getTarget().getLongDoubleFormat();
+        else if (mlir::isa<cir::FP16Type>(value.getType()))
+          fs = &cgf.getTarget().getHalfFormat();
+        else if (mlir::isa<cir::BF16Type>(value.getType()))
+          fs = &cgf.getTarget().getBFloat16Format();
+        else {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec fp128 / ppc_fp128");
+          return {};
+        }
+        f.convert(*fs, llvm::APFloat::rmTowardZero, &ignored);
+
+        mlir::Location loc = cgf.getLoc(e->getExprLoc());
+        mlir::Value amt =
+            builder.getConstant(loc, cir::FPAttr::get(value.getType(), f));
+        value = builder.createBinop(loc, value, cir::BinOpKind::Add, amt);
+      }
+
+      if (type->isHalfType() &&
+          !cgf.getContext().getLangOpts().NativeHalfType) {
+        if (cgf.getContext().getTargetInfo().useFP16ConversionIntrinsics()) {
+          cgf.cgm.errorNYI(e->getSourceRange(),
+                           "Unary inc/dec half via FP16 conversion intrinsics");
+          return {};
+        } else {
+          value = builder.createCast(cgf.getLoc(e->getExprLoc()),
+                                     cir::CastKind::floating, value,
+                                     input.getType());
+        }
       }
     } else if (type->isFixedPointType()) {
       cgf.cgm.errorNYI(e->getSourceRange(), "Unary inc/dec other fixed point");
