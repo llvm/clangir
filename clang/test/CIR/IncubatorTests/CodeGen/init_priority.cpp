@@ -8,7 +8,7 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=OGCG
 
 // CIR: attributes {cir.global_ctors = [#cir.global_ctor<"__cxx_global_var_init", 101>]
-// LLVM: @llvm.global_ctors = appending constant{{.*}}{ i32 101, ptr @__cxx_global_var_init, ptr null }
+// LLVM: @llvm.global_ctors = appending global{{.*}}{ i32 101, ptr @__cxx_global_var_init, ptr null }
 // OGCG: @llvm.global_ctors = appending global{{.*}}{ i32 101, ptr @_GLOBAL__I_000101, ptr null }
 class A {
 public:

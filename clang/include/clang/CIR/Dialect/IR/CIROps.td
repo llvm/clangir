@@ -2225,7 +2225,8 @@ def CIR_GlobalOp : CIR_Op<"global", [
                        UnitAttr:$dso_local,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<StrAttr>:$section,
-                       OptionalAttr<ArrayAttr>:$annotations);
+                       OptionalAttr<ArrayAttr>:$annotations,
+                       OptionalAttr<I32Attr>:$init_priority);
 
   let regions = (region MaxSizedRegion<1>:$ctorRegion,
                         MaxSizedRegion<1>:$dtorRegion);
@@ -2242,6 +2243,7 @@ def CIR_GlobalOp : CIR_Op<"global", [
     custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value,
                                         $ctorRegion, $dtorRegion)
     ($annotations^)?
+    (`init_priority` `(` $init_priority^ `)`)?
     attr-dict
   }];
 
