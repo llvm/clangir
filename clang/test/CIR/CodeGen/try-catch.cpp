@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -fclangir -emit-cir-flat %s -o %t.flat.cir
+// RUN: FileCheck --input-file=%t.flat.cir %s -check-prefix=CIR_FLAT
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -fclangir -emit-llvm %s -o %t-cir.ll
 // RUN: FileCheck --input-file=%t-cir.ll %s -check-prefix=LLVM
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -emit-llvm %s -o %t.ll
@@ -11,6 +13,9 @@ void empty_try_block_with_catch_all() {
 
 // CIR: cir.func{{.*}} @_Z30empty_try_block_with_catch_allv()
 // CIR:   cir.return
+
+// CIR_FLAT: cir.func{{.*}} @_Z30empty_try_block_with_catch_allv()
+// CIR_FLAT:   cir.return
 
 // LLVM: define{{.*}} void @_Z30empty_try_block_with_catch_allv()
 // LLVM:  ret void
@@ -24,6 +29,9 @@ void empty_try_block_with_catch_with_int_exception() {
 
 // CIR: cir.func{{.*}} @_Z45empty_try_block_with_catch_with_int_exceptionv()
 // CIR:   cir.return
+
+// CIR_FLAT: cir.func{{.*}} @_Z45empty_try_block_with_catch_with_int_exceptionv()
+// CIR_FLAT:   cir.return
 
 // LLVM: define{{.*}} void @_Z45empty_try_block_with_catch_with_int_exceptionv()
 // LLVM:  ret void
@@ -53,6 +61,16 @@ void try_catch_with_empty_catch_all() {
 // CIR:     cir.yield
 // CIR:   }
 // CIR: }
+
+// CIR_FLAT: cir.func{{.*}} @_Z30try_catch_with_empty_catch_allv()
+// CIR_FLAT:   %[[A_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
+// CIR_FLAT:   %[[CONST_1:.*]] = cir.const #cir.int<1> : !s32i
+// CIR_FLAT:   cir.store{{.*}} %[[CONST_1]], %[[A_ADDR]]
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_ENTRY:]]
+// CIR_FLAT: ^bb[[#SCOPE_ENTRY]]:
+// CIR_FLAT:   cir.br ^bb[[#TRY_ENTRY:]]
+// CIR_FLAT: ^bb[[#TRY_ENTRY]]:
+// CIR_FLAT:   cir.return
 
 // LLVM:   %[[A_ADDR:.*]] = alloca i32, i64 1, align 4
 // LLVM:   store i32 1, ptr %[[A_ADDR]], align 4
@@ -95,6 +113,19 @@ void try_catch_with_empty_catch_all_2() {
 // CIR:     cir.return
 // CIR:   }
 // CIR: }
+
+// CIR_FLAT: cir.func{{.*}} @_Z32try_catch_with_empty_catch_all_2v()
+// CIR_FLAT:   %[[A_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
+// CIR_FLAT:   %[[CONST_1:.*]] = cir.const #cir.int<1> : !s32i
+// CIR_FLAT:   cir.store{{.*}} %[[CONST_1]], %[[A_ADDR]]
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_ENTRY:]]
+// CIR_FLAT: ^bb[[#SCOPE_ENTRY]]:
+// CIR_FLAT:   cir.br ^bb[[#TRY_ENTRY:]]
+// CIR_FLAT: ^bb[[#TRY_ENTRY]]:
+// CIR_FLAT:   %[[TMP_A:.*]] = cir.load{{.*}} %[[A_ADDR]]
+// CIR_FLAT:   %[[RESULT:.*]] = cir.unary(inc, %[[TMP_A]]) nsw
+// CIR_FLAT:   cir.store{{.*}} %[[RESULT]], %[[A_ADDR]]
+// CIR_FLAT:   cir.return
 
 // LLVM:   %[[A_ADDR]] = alloca i32, i64 1, align 4
 // LLVM:   store i32 1, ptr %[[A_ADDR]], align 4
@@ -140,6 +171,24 @@ void try_catch_with_alloca() {
 // CIR:   }
 // CIR: }
 
+// CIR_FLAT: cir.func{{.*}} @_Z21try_catch_with_allocav()
+// CIR_FLAT:   %[[A_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a"]
+// CIR_FLAT:   %[[B_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b"]
+// CIR_FLAT:   %[[C_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["c", init]
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_ENTRY:]]
+// CIR_FLAT: ^bb[[#SCOPE_ENTRY]]:
+// CIR_FLAT:   cir.br ^bb[[#TRY_ENTRY:]]
+// CIR_FLAT: ^bb[[#TRY_ENTRY]]:
+// CIR_FLAT:   %[[TMP_A:.*]] = cir.load{{.*}} %[[A_ADDR]]
+// CIR_FLAT:   %[[TMP_B:.*]] = cir.load{{.*}} %[[B_ADDR]]
+// CIR_FLAT:   %[[RESULT:.*]] = cir.binop(add, %[[TMP_A]], %[[TMP_B]]) nsw
+// CIR_FLAT:   cir.store{{.*}} %[[RESULT]], %[[C_ADDR]]
+// CIR_FLAT:   cir.br ^bb[[#TRY_CONT:]]
+// CIR_FLAT: ^bb[[#TRY_CONT]]:
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_EXIT:]]
+// CIR_FLAT: ^bb[[#SCOPE_EXIT]]:
+// CIR_FLAT:   cir.return
+
 // LLVM:  %[[A_ADDR:.*]] = alloca i32, i64 1, align 4
 // LLVM:  %[[B_ADDR:.*]] = alloca i32, i64 1, align 4
 // LLVM:  %[[C_ADDR:.*]] = alloca i32, i64 1, align 4
@@ -180,6 +229,18 @@ void calling_noexcept_function_inside_try_block() {
 // CIR:     cir.yield
 // CIR:   }
 // CIR: }
+
+// CIR_FLAT: cir.func{{.*}} @_Z42calling_noexcept_function_inside_try_blockv()
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_ENTRY:]]
+// CIR_FLAT: ^bb[[#SCOPE_ENTRY]]:
+// CIR_FLAT:   cir.br ^bb[[#TRY_ENTRY:]]
+// CIR_FLAT: ^bb[[#TRY_ENTRY]]:
+// CIR_FLAT:   cir.call @_Z22function_with_noexceptv() nothrow
+// CIR_FLAT:   cir.br ^bb[[#TRY_CONT:]]
+// CIR_FLAT: ^bb[[#TRY_CONT]]:
+// CIR_FLAT:   cir.br ^bb[[#SCOPE_EXIT:]]
+// CIR_FLAT: ^bb[[#SCOPE_EXIT]]:
+// CIR_FLAT:   cir.return
 
 // LLVM:   br label %[[LABEL_1:.*]]
 // LLVM: [[LABEL_1]]:
