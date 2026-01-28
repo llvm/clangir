@@ -21,7 +21,7 @@ A A::B(A) {
   // CIR-NEXT:           %[[VPTR:.*]] = cir.load align(8) %[[VPTR_PTR]] : !cir.ptr<!cir.vptr>, !cir.vptr
   // CIR-NEXT:           %[[DTOR_PTR:.*]] = cir.vtable.get_virtual_fn_addr %[[VPTR]][0] : !cir.vptr -> !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_A>)>>>
   // CIR-NEXT:           %[[DTOR:.*]] = cir.load align(8) %[[DTOR_PTR]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_A>)>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_A>)>>
-  // CIR-NEXT:           cir.call %[[DTOR]](%[[THIS]]) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_A>)>>, !cir.ptr<!rec_A>) -> ()
+  // CIR-NEXT:           cir.call %[[DTOR]](%[[THIS]]) nothrow : (!cir.ptr<!cir.func<(!cir.ptr<!rec_A>)>>, !cir.ptr<!rec_A>) -> ()
   // CIR-NEXT:           cir.trap
   // CIR-NEXT:         }
 
