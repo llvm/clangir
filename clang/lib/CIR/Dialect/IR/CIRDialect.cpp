@@ -222,6 +222,22 @@ void parseVisibilityAttr(OpAsmParser &parser, cir::VisibilityAttr &visibility) {
   visibility = cir::VisibilityAttr::get(parser.getContext(), visibilityKind);
 }
 
+// Custom directive for GlobalOp's visibility attribute
+static void printCIRVisibilityAttr(OpAsmPrinter &printer, mlir::Operation *,
+                                   cir::VisibilityAttr visibility) {
+  if (visibility && !visibility.isDefault()) {
+    printer << stringifyVisibilityKind(visibility.getValue()) << ' ';
+  }
+}
+
+static ParseResult parseCIRVisibilityAttr(OpAsmParser &parser,
+                                          cir::VisibilityAttr &visibility) {
+  cir::VisibilityKind visibilityKind =
+      parseOptionalCIRKeyword(parser, cir::VisibilityKind::Default);
+  visibility = cir::VisibilityAttr::get(parser.getContext(), visibilityKind);
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // InlineKindAttr (FIXME: remove once FuncOp uses assembly format)
 //===----------------------------------------------------------------------===//
