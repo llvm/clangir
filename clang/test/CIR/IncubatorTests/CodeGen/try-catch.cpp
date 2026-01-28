@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fcxx-exceptions -fexceptions -mconstructor-aliases -fclangir -emit-cir-flat %s -o %t.cir.flat
+// RUN: FileCheck --check-prefix=FLAT --input-file=%t.cir.flat %s
 
 double division(int a, int b);
 
@@ -188,3 +190,18 @@ void tc8() {
 // CHECK:     cir.yield
 // CHECK:   }
 // CHECK: }
+
+// FLAT: cir.func {{.*}} @_Z3tc8v()
+// FLAT:   %[[V0:.*]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["s", init] {alignment = 4 : i64}
+// FLAT:   cir.br ^bb[[#B1:]]
+// FLAT: ^bb[[#B1]]:
+// FLAT:   cir.br ^bb[[#B2:]]
+// FLAT: ^bb[[#B2]]:
+// FLAT:   %[[V1:.*]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_S2
+// FLAT:   cir.store align(4) %[[V1]], %[[V0]] : !rec_S2, !cir.ptr<!rec_S2>
+// FLAT:   cir.br ^bb[[#B3:]]
+// FLAT: ^bb[[#B3]]:
+// FLAT:   cir.br ^bb[[#B4:]]
+// FLAT: ^bb[[#B4]]:
+// FLAT:   cir.return
+// FLAT: }
