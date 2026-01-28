@@ -503,7 +503,11 @@ emitCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
           builder.createTryCallOp(callLoc, directFuncOp, cirCallArgs);
     }
 
+    // Set context for cleanup region population during EH scope traversal.
+    cgf.callWithExceptionCtx = callOpWithExceptions;
     cgf.populateCatchHandlersIfRequired(tryOp);
+    cgf.callWithExceptionCtx = nullptr;
+
     return callOpWithExceptions;
   }
 
