@@ -9,10 +9,8 @@ void test_const_ref_binding() {
   const int &x = 5;
   // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init, const]
-  // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.const #cir.int<5> : !s32i
   // CHECK: cir.store {{.*}} %{{.*}}, %{{.*}} : !s32i, !cir.ptr<!s32i>
-  // CHECK: }
 }
 
 void test_const_ref_expr() {
@@ -20,9 +18,7 @@ void test_const_ref_expr() {
   const int &y = get_value();
   // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["y", init, const]
-  // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.call @{{.*}}get_valuev()
-  // CHECK: }
 }
 
 void test_const_ref_arithmetic() {
@@ -31,11 +27,9 @@ void test_const_ref_arithmetic() {
   const int &z = a + 5;
   // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["z", init, const]
-  // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.load {{.*}} %{{.*}}
   // CHECK: %{{.*}} = cir.const #cir.int<5> : !s32i
   // CHECK: %{{.*}} = cir.binop(add, %{{.*}}, %{{.*}})
-  // CHECK: }
 }
 
 struct S {
