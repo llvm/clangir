@@ -273,6 +273,24 @@ public:
                                  cgf.makeAddrLValue(castPtr, ty));
       break;
     }
+    case CK_LValueToRValueBitCast: {
+      if (dest.isIgnored()) {
+        cgf.emitAnyExpr(e->getSubExpr(), AggValueSlot::ignored(),
+                        /*ignoreResult=*/true);
+        break;
+      }
+
+      LValue sourceLV = cgf.emitLValue(e->getSubExpr());
+      Address sourceAddress = sourceLV.getAddress();
+      Address destAddress = dest.getAddress();
+
+      // Bitcast the source pointer to the destination type and copy.
+      mlir::Value srcPtr = cgf.getBuilder().createBitcast(
+          cgf.getLoc(e->getExprLoc()), sourceAddress.getPointer(),
+          destAddress.getPointer().getType());
+      cgf.getBuilder().createCopy(destAddress.getPointer(), srcPtr);
+      break;
+    }
     default:
       cgf.cgm.errorNYI(e->getSourceRange(),
                        std::string("AggExprEmitter: VisitCastExpr: ") +

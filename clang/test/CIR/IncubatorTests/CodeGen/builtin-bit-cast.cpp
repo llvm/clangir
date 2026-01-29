@@ -49,16 +49,14 @@ two_floats test_aggregate_record(two_ints& ti) {
 
 // CIR-LABEL: cir.func {{.*}} @_Z21test_aggregate_recordR8two_ints
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_two_ints>>, !cir.ptr<!rec_two_ints>
-//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_floats> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
-//  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints> -> !cir.ptr<!rec_two_floats>
+//  CIR-NEXT:   cir.copy %[[#DST_PTR]] to %{{.+}} : !cir.ptr<!rec_two_floats>
 //       CIR: }
 
 // LLVM-LABEL: define dso_local %struct.two_floats @_Z21test_aggregate_recordR8two_ints
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_floats, i64 1, align 4
 //       LLVM:   %[[#SRC_PTR:]] = load ptr, ptr %2, align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i64 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i32 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_floats, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -68,16 +66,14 @@ two_floats test_aggregate_array(int (&ary)[2]) {
 
 // CIR-LABEL: cir.func {{.*}} @_Z20test_aggregate_arrayRA2_i
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 2>>>, !cir.ptr<!cir.array<!s32i x 2>>
-//  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_floats> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
-//  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+//  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast bitcast %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>> -> !cir.ptr<!rec_two_floats>
+//  CIR-NEXT:   cir.copy %[[#DST_PTR]] to %{{.+}} : !cir.ptr<!rec_two_floats>
 //       CIR: }
 
 // LLVM-LABEL: define dso_local %struct.two_floats @_Z20test_aggregate_arrayRA2_i
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_floats, i64 1, align 4
 //       LLVM:   %[[#SRC_PTR:]] = load ptr, ptr %2, align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i64 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i32 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_floats, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -86,15 +82,13 @@ two_ints test_scalar_to_aggregate(unsigned long ul) {
 }
 
 // CIR-LABEL: cir.func {{.*}} @_Z24test_scalar_to_aggregatem
-//       CIR:   %[[#SRC_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!u64i> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
-//  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
-//  CIR-NEXT:   cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+//       CIR:   %[[#SRC_PTR:]] = cir.cast bitcast %{{.+}} : !cir.ptr<!u64i> -> !cir.ptr<!rec_two_ints>
+//  CIR-NEXT:   cir.copy %[[#SRC_PTR]] to %{{.+}} : !cir.ptr<!rec_two_ints>
 //       CIR: }
 
 // LLVM-LABEL: define dso_local %struct.two_ints @_Z24test_scalar_to_aggregatem
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_ints, i64 1, align 4
-//       LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %{{.+}}, i64 8, i1 false)
+//       LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %{{.+}}, i32 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_ints, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -122,15 +116,13 @@ two_ints test_rvalue_aggregate() {
 //  CIR-NEXT:     %[[#TMP_SLOT:]] = cir.alloca !u64i, !cir.ptr<!u64i>
 //  CIR-NEXT:     %[[#A:]] = cir.const #cir.int<42> : !u64i
 //  CIR-NEXT:     cir.store{{.*}} %[[#A]], %[[#TMP_SLOT]] : !u64i, !cir.ptr<!u64i>
-//  CIR-NEXT:     %[[#SRC_VOID_PTR:]] = cir.cast bitcast %[[#TMP_SLOT]] : !cir.ptr<!u64i> -> !cir.ptr<!void>
-//  CIR-NEXT:     %[[#DST_VOID_PTR:]] = cir.cast bitcast %0 : !cir.ptr<!rec_two_ints> -> !cir.ptr<!void>
-//  CIR-NEXT:     %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
-//  CIR-NEXT:     cir.libc.memcpy %[[#SIZE]] bytes from %[[#SRC_VOID_PTR]] to %[[#DST_VOID_PTR]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+//  CIR-NEXT:     %[[#SRC_PTR:]] = cir.cast bitcast %[[#TMP_SLOT]] : !cir.ptr<!u64i> -> !cir.ptr<!rec_two_ints>
+//  CIR-NEXT:     cir.copy %[[#SRC_PTR]] to %{{.+}} : !cir.ptr<!rec_two_ints>
 //  CIR-NEXT:   }
 //       CIR: }
 
 // LLVM-LABEL: define dso_local %struct.two_ints @_Z21test_rvalue_aggregatev
 //  LLVM:   %[[#SRC_SLOT:]] = alloca i64, i64 1, align 8
 //  LLVM:   store i64 42, ptr %[[#SRC_SLOT]], align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %{{.+}}, ptr %[[#SRC_SLOT]], i64 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %{{.+}}, ptr %[[#SRC_SLOT]], i32 8, i1 false)
 //       LLVM: }

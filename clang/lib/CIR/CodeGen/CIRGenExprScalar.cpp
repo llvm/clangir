@@ -2442,6 +2442,25 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *ce) {
   case CK_FunctionToPointerDecay:
     return cgf.emitLValue(subExpr).getPointer();
 
+  case CK_LValueBitCast:
+  case CK_ObjCObjectLValueCast:
+  case CK_LValueToRValueBitCast: {
+    LValue sourceLVal = cgf.emitLValue(subExpr);
+    Address sourceAddr = sourceLVal.getAddress();
+
+    mlir::Type destElemTy = cgf.convertTypeForMem(destTy);
+    mlir::Type destPtrTy = builder.getPointerTo(destElemTy);
+    mlir::Value destPtr = builder.createBitcast(
+        cgf.getLoc(subExpr->getExprLoc()), sourceAddr.getPointer(), destPtrTy);
+
+    Address destAddr(destPtr, destElemTy, sourceAddr.getAlignment(),
+                     sourceAddr.isKnownNonNull());
+    LValue destLVal = cgf.makeAddrLValue(destAddr, destTy);
+    // TODO(cir): set TBAA info on destLVal
+    assert(!cir::MissingFeatures::opLoadStoreTbaa());
+    return emitLoadOfLValue(destLVal, ce->getExprLoc());
+  }
+
   default:
     cgf.getCIRGenModule().errorNYI(subExpr->getSourceRange(),
                                    "CastExpr: ", ce->getCastKindName());
