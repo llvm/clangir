@@ -1711,6 +1711,8 @@ public:
   mlir::LogicalResult emitDeclStmt(const clang::DeclStmt &s);
   LValue emitDeclRefLValue(const clang::DeclRefExpr *e);
 
+  mlir::LogicalResult emitAttributedStmt(const clang::AttributedStmt &s);
+
   mlir::LogicalResult emitDefaultStmt(const clang::DefaultStmt &s,
                                       mlir::Type condType,
                                       bool buildingTopLevelCase);
