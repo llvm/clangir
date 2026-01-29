@@ -2902,6 +2902,7 @@ mlir::Value CIRGenFunction::emitScalarPrePostIncDec(const UnaryOperator *E,
 // Emit elementwise vector logical operations
 mlir::Value ScalarExprEmitter::emitVectorLogicalOp(const BinaryOperator *E,
                                                    cir::BinOpKind opKind) {
+  assert(!cir::MissingFeatures::incrementProfileCounter());
   mlir::Location loc = CGF.getLoc(E->getExprLoc());
   mlir::Type resTy = convertType(E->getType());
 
