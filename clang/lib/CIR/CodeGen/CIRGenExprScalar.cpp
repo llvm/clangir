@@ -1877,10 +1877,10 @@ static mlir::Value emitPointerArithmetic(CIRGenFunction &cgf,
     return nullptr;
   }
 
-  if (elementType->isVoidType() || elementType->isFunctionType()) {
-    cgf.cgm.errorNYI("void* or function pointer arithmetic");
-    return nullptr;
-  }
+  // Explicitly handle GNU void* and function pointer arithmetic extensions.
+  // These are treated as byte-sized for pointer arithmetic purposes.
+  // Note: We don't need to use elementType here since PtrStrideOp works
+  // directly with the pointer type.
 
   assert(!cir::MissingFeatures::sanitizers());
   return cir::PtrStrideOp::create(cgf.getBuilder(),
