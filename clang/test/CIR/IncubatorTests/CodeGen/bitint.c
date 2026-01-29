@@ -10,7 +10,7 @@ void VLATest(_BitInt(3) A, _BitInt(42) B, _BitInt(17) C) {
 //      CHECK: cir.func {{.*}} @VLATest
 //      CHECK:   %[[#A:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<s, 3>>, !cir.int<s, 3>
 // CHECK-NEXT:   %[[#A_PROMOTED:]] = cir.cast integral %[[#A]] : !cir.int<s, 3> -> !u64i
-// CHECK-NEXT:   %[[#SP:]] = cir.stack_save : !cir.ptr<!u8i>
+// CHECK-NEXT:   %[[#SP:]] = cir.stacksave : !cir.ptr<!u8i>
 // CHECK-NEXT:   cir.store{{.*}} %[[#SP]], %{{.+}} : !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, %[[#A_PROMOTED]] : !u64i
 // CHECK-NEXT:   %[[#B:]] = cir.load{{.*}} %1 : !cir.ptr<!cir.int<s, 42>>, !cir.int<s, 42>

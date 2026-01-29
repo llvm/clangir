@@ -35,6 +35,6 @@ A *B::getAsA() {
 // LLVM:  %[[VAL_1:.*]] = alloca ptr, i64 1, align 8
 // LLVM:  store ptr %[[VAL_2:.*]], ptr %[[VAL_0:.*]], align 8
 // LLVM:  %[[VAL_3:.*]] = load ptr, ptr %[[VAL_0]], align 8
-// LLVM:  %[[VAL_4:.*]] = getelementptr i8, ptr %[[VAL_3]], i32 -4
+// LLVM:  %[[VAL_4:.*]] = getelementptr inbounds i8, ptr %[[VAL_3]], i32 -4
 // LLVM-NOT: select i1
 // LLVM:  ret ptr
