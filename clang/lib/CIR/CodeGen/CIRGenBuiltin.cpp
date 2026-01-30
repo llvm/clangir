@@ -1287,11 +1287,30 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BIbcopy:
   case Builtin::BI__builtin_bcopy:
     return errorBuiltinNYI(*this, e, builtinID);
+  case Builtin::BI__builtin_memcpy_inline: {
+    Address dest = emitPointerWithAlignment(e->getArg(0));
+    Address src = emitPointerWithAlignment(e->getArg(1));
+    uint64_t size =
+        e->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
+    cir::MemCpyInlineOp::create(builder, getLoc(e->getExprLoc()),
+                                dest.getPointer(), src.getPointer(), size,
+                                /*isVolatile=*/false);
+    return RValue::get(nullptr);
+  }
+  case Builtin::BI__builtin_memset_inline: {
+    Address dest = emitPointerWithAlignment(e->getArg(0));
+    mlir::Value val = emitScalarExpr(e->getArg(1));
+    uint64_t size =
+        e->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
+    cir::MemSetInlineOp::create(builder, getLoc(e->getExprLoc()),
+                                dest.getPointer(), val, size,
+                                /*isVolatile=*/false);
+    return RValue::get(nullptr);
+  }
   case Builtin::BImemcpy:
   case Builtin::BI__builtin_memcpy:
   case Builtin::BImempcpy:
   case Builtin::BI__builtin_mempcpy:
-  case Builtin::BI__builtin_memcpy_inline:
   case Builtin::BI__builtin_char_memchr:
   case Builtin::BI__builtin___memcpy_chk:
   case Builtin::BI__builtin_objc_memmove_collectable:
@@ -1301,7 +1320,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BI__builtin_memmove:
   case Builtin::BImemset:
   case Builtin::BI__builtin_memset:
-  case Builtin::BI__builtin_memset_inline:
   case Builtin::BI__builtin___memset_chk:
   case Builtin::BI__builtin_wmemchr:
   case Builtin::BI__builtin_wmemcmp:

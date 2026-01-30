@@ -188,6 +188,30 @@ mlir::LogicalResult CIRToLLVMCopyOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMMemCpyInlineOpLowering::matchAndRewrite(
+    cir::MemCpyInlineOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto lengthAttr =
+      mlir::IntegerAttr::get(rewriter.getI64Type(), op.getLength());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyInlineOp>(
+      op, adaptor.getDst(), adaptor.getSrc(), lengthAttr, op.getIsVolatile());
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMMemSetInlineOpLowering::matchAndRewrite(
+    cir::MemSetInlineOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto lengthAttr =
+      mlir::IntegerAttr::get(rewriter.getI64Type(), op.getLength());
+  // Truncate the value to i8 as required by llvm.memset.inline
+  mlir::Value val = adaptor.getVal();
+  mlir::Value truncVal = mlir::LLVM::TruncOp::create(
+      rewriter, op.getLoc(), rewriter.getI8Type(), val);
+  rewriter.replaceOpWithNewOp<mlir::LLVM::MemsetInlineOp>(
+      op, adaptor.getDst(), truncVal, lengthAttr, op.getIsVolatile());
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMSqrtOpLowering::matchAndRewrite(
     cir::SqrtOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {

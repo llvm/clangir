@@ -3491,6 +3491,73 @@ def CIR_CopyOp : CIR_Op<"copy",[
 }
 
 //===----------------------------------------------------------------------===//
+// MemCpyInlineOp
+//===----------------------------------------------------------------------===//
+
+def CIR_MemCpyInlineOp : CIR_Op<"memcpy_inline"> {
+  let summary = "Copies a constant number of bytes from source to destination";
+  let description = [{
+    The `cir.memcpy_inline` operation copies a compile-time constant number of
+    bytes from a source pointer to a destination pointer. This maps to the
+    `__builtin_memcpy_inline` builtin and lowers to `llvm.memcpy.inline`.
+
+    Unlike `cir.copy`, this operation takes an explicit byte count and the
+    pointers can be of any type (including void*).
+
+    Examples:
+
+    ```mlir
+      // Copy 16 bytes from src to dst:
+      cir.memcpy_inline 16 bytes from %src to %dst : !cir.ptr<!void> -> !cir.ptr<!void>
+    ```
+  }];
+
+  let arguments = (ins
+      Arg<CIR_PointerType, "", [MemWrite]>:$dst,
+      Arg<CIR_PointerType, "", [MemRead]>:$src,
+      I64Attr:$length,
+      UnitAttr:$is_volatile
+  );
+
+  let assemblyFormat = [{
+    $length `bytes` `from` $src `to` $dst (`volatile` $is_volatile^)?
+    attr-dict `:` qualified(type($src)) `->` qualified(type($dst))
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// MemSetInlineOp
+//===----------------------------------------------------------------------===//
+
+def CIR_MemSetInlineOp : CIR_Op<"memset_inline"> {
+  let summary = "Sets a constant number of bytes to a value";
+  let description = [{
+    The `cir.memset_inline` operation sets a compile-time constant number of
+    bytes at a destination pointer to a specified value. This maps to the
+    `__builtin_memset_inline` builtin and lowers to `llvm.memset.inline`.
+
+    Examples:
+
+    ```mlir
+      // Set 16 bytes at dst to val:
+      cir.memset_inline 16 bytes from %dst set to %val : !cir.ptr<!void>, !s32i
+    ```
+  }];
+
+  let arguments = (ins
+      Arg<CIR_PointerType, "", [MemWrite]>:$dst,
+      CIR_IntType:$val,
+      I64Attr:$length,
+      UnitAttr:$is_volatile
+  );
+
+  let assemblyFormat = [{
+    $length `bytes` `from` $dst `set` `to` $val (`volatile` $is_volatile^)?
+    attr-dict `:` qualified(type($dst)) `,` qualified(type($val))
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // ReturnAddrOp and FrameAddrOp
 //===----------------------------------------------------------------------===//
 
