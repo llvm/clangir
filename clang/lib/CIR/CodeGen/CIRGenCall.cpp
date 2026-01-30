@@ -177,7 +177,18 @@ static void appendParameterTypes(const CIRGenTypes &cgt,
     return;
   }
 
-  cgt.getCGModule().errorNYI("appendParameterTypes: hasExtParameterInfos");
+  // In the vast majority of cases, we'll have precisely fpt->getNumParams()
+  // parameters; the only thing that can change this is the presence of
+  // pass_object_size. So, we preallocate for the common case.
+  prefix.reserve(prefix.size() + fpt->getNumParams());
+
+  auto extInfos = fpt->getExtParameterInfos();
+  assert(extInfos.size() == fpt->getNumParams());
+  for (unsigned i = 0, e = fpt->getNumParams(); i != e; ++i) {
+    prefix.push_back(fpt->getParamType(i));
+    if (extInfos[i].hasPassObjectSize())
+      prefix.push_back(cgt.getASTContext().getCanonicalSizeType());
+  }
 }
 
 const CIRGenFunctionInfo &
