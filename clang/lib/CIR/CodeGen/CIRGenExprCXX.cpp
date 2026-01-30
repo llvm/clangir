@@ -967,9 +967,17 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *e) {
   // interesting initializer will be running sanitizers on the initialization.
   bool nullCheck = e->shouldNullCheckAllocation() &&
                    (!allocType.isPODType(getContext()) || e->hasInitializer());
-  assert(!cir::MissingFeatures::exprNewNullCheck());
-  if (nullCheck)
-    cgm.errorNYI(e->getSourceRange(), "emitCXXNewExpr: null check");
+
+  // Perform null check before bitcast if needed.
+  mlir::Value nullCheckCond;
+  if (nullCheck) {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    mlir::Value allocPtr = allocation.getPointer();
+    auto ptrTy = mlir::cast<cir::PointerType>(allocPtr.getType());
+    mlir::Value nullPtr = builder.getNullPtr(ptrTy, loc);
+    nullCheckCond =
+        builder.createCompare(loc, cir::CmpOpKind::ne, allocPtr, nullPtr);
+  }
 
   // If there's an operator delete, enter a cleanup to call it if an
   // exception is thrown.
@@ -1003,6 +1011,18 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *e) {
     cgm.errorNYI(e->getSourceRange(), "emitCXXNewExpr: strict vtable pointers");
 
   assert(!cir::MissingFeatures::sanitizers());
+
+  if (nullCheck) {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    cir::IfOp::create(builder, loc, nullCheckCond, /*withElseRegion=*/false,
+                      [&](mlir::OpBuilder &, mlir::Location) {
+                        emitNewInitializer(*this, e, allocType, elementTy,
+                                           result, numElements,
+                                           allocSizeWithoutCookie);
+                        builder.createYield(loc);
+                      });
+    return result.getPointer();
+  }
 
   emitNewInitializer(*this, e, allocType, elementTy, result, numElements,
                      allocSizeWithoutCookie);
