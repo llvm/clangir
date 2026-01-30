@@ -16,6 +16,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Location.h"
 #include "mlir/Support/LLVM.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtOpenACC.h"
@@ -464,10 +465,15 @@ CIRGenFunction::emitAttributedStmt(const AttributedStmt &s) {
     case attr::MustTail:
       cgm.errorNYI(s.getSourceRange(), "statement attributes");
       return mlir::failure();
-    case attr::CXXAssume:
-      // TODO: handle CXXAssume with cir::AssumeOp
-      cgm.errorNYI(s.getSourceRange(), "CXXAssume attribute");
-      return mlir::failure();
+    case attr::CXXAssume: {
+      const Expr *assumption = cast<CXXAssumeAttr>(a)->getAssumption();
+      if (getLangOpts().CXXAssumptions &&
+          !assumption->HasSideEffects(getContext())) {
+        mlir::Value argValue = emitCheckedArgForAssume(assumption);
+        cir::AssumeOp::create(builder, getLoc(s.getSourceRange()), argValue);
+      }
+      break;
+    }
     default:
       // For fallthrough and other attributes that don't need special handling,
       // just continue to emit the substatement.
