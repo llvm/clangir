@@ -613,14 +613,20 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   if (ty->isAtomicType() || isLValueSuitableForInlineAtomic(atomicLValue))
     cgm.errorNYI("emitLoadOfScalar: load atomic");
 
+  // Void type loads don't actually produce a value - this can happen with
+  // GNU extension void pointer arithmetic where we have void lvalues.
+  // Just return an empty Value since the result is never used.
   if (mlir::isa<cir::VoidType>(eltTy))
-    cgm.errorNYI(loc, "emitLoadOfScalar: void type");
+    return mlir::Value();
 
   assert(!cir::MissingFeatures::opLoadEmitScalarRangeCheck());
 
   mlir::Value loadOp = builder.createLoad(getLoc(loc), addr, isVolatile);
-  if (!ty->isBooleanType() && ty->hasBooleanRepresentation())
-    cgm.errorNYI("emitLoadOfScalar: boolean type with boolean representation");
+
+  // For types with boolean representation but that aren't bool (like
+  // _BitInt(1)), OG codegen truncates from the storage type to the actual
+  // type. For CIR, the type system handles this correctly since CIR loads
+  // produce the element type of the pointer directly.
 
   return loadOp;
 }

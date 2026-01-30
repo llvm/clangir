@@ -272,6 +272,11 @@ static RValue emitUnaryFPBuiltin(CIRGenFunction &cgf, const CallExpr &e) {
   return RValue::get(call->getResult(0));
 }
 
+static mlir::Value emitSignBit(mlir::Location loc, CIRGenFunction &cgf,
+                               mlir::Value val) {
+  return cir::SignBitOp::create(cgf.getBuilder(), loc, val)->getResult(0);
+}
+
 static RValue errorBuiltinNYI(CIRGenFunction &cgf, const CallExpr *e,
                               unsigned builtinID) {
 
@@ -1084,10 +1089,29 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     cir::PrefetchOp::create(builder, loc, address, locality, isWrite);
     return RValue::get(nullptr);
   }
-  case Builtin::BI__builtin_readcyclecounter:
-  case Builtin::BI__builtin_readsteadycounter:
-  case Builtin::BI__builtin___clear_cache:
-    return errorBuiltinNYI(*this, e, builtinID);
+  case Builtin::BI__builtin_readcyclecounter: {
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    auto op = cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("readcyclecounter"), u64Ty,
+        mlir::ValueRange{});
+    return RValue::get(op.getResult());
+  }
+  case Builtin::BI__builtin_readsteadycounter: {
+    mlir::Type u64Ty = builder.getUInt64Ty();
+    auto op = cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("readsteadycounter"), u64Ty,
+        mlir::ValueRange{});
+    return RValue::get(op.getResult());
+  }
+  case Builtin::BI__builtin___clear_cache: {
+    // Emit call to llvm.clear_cache intrinsic with begin and end pointers
+    mlir::Value begin = emitScalarExpr(e->getArg(0));
+    mlir::Value end = emitScalarExpr(e->getArg(1));
+    cir::LLVMIntrinsicCallOp::create(
+        builder, loc, builder.getStringAttr("clear_cache"), mlir::Type{},
+        mlir::ValueRange{begin, end});
+    return RValue::get(nullptr);
+  }
   case Builtin::BI__builtin_trap:
     emitTrap(loc, /*createNewBlock=*/true);
     return RValue::getIgnored();
@@ -1096,7 +1120,11 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     emitTrap(loc, /*createNewBlock=*/true);
     return RValue::getIgnored();
   case Builtin::BI__debugbreak:
-    return errorBuiltinNYI(*this, e, builtinID);
+    // Emit llvm.debugtrap intrinsic
+    cir::LLVMIntrinsicCallOp::create(builder, loc,
+                                     builder.getStringAttr("debugtrap"),
+                                     mlir::Type{}, mlir::ValueRange{});
+    return RValue::get(nullptr);
   case Builtin::BI__builtin_unreachable:
     emitUnreachable(e->getExprLoc(), /*createNewBlock=*/true);
     return RValue::getIgnored();
@@ -1210,6 +1238,35 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
         builder.createIsFPClass(loc, v, cir::FPClassTest(test)),
         convertType(e->getType())));
   }
+  case Builtin::BI__builtin_isinf_sign: {
+    // __builtin_isinf_sign(x) returns:
+    //   -1 if x is negative infinity
+    //    0 if x is not infinity
+    //    1 if x is positive infinity
+    assert(!cir::MissingFeatures::cgFPOptionsRAII());
+    mlir::Location loc = getLoc(e->getBeginLoc());
+    mlir::Value arg = emitScalarExpr(e->getArg(0));
+
+    // Get absolute value for infinity check
+    mlir::Value absArg =
+        cir::FAbsOp::create(builder, loc, arg.getType(), arg)->getResult(0);
+
+    // Check if absolute value is infinity
+    mlir::Value isInf =
+        builder.createIsFPClass(loc, absArg, cir::FPClassTest::Infinity);
+
+    // Check sign bit of the original value
+    mlir::Value isNeg = emitSignBit(loc, *this, arg);
+
+    // Build the result: isInf ? (isNeg ? -1 : 1) : 0
+    mlir::Type intTy = convertType(e->getType());
+    mlir::Value zero = builder.getNullValue(intTy, loc);
+    mlir::Value one = builder.getConstInt(loc, intTy, 1);
+    mlir::Value negOne = builder.getConstInt(loc, intTy, -1);
+    mlir::Value signResult = builder.createSelect(loc, isNeg, negOne, one);
+    mlir::Value result = builder.createSelect(loc, isInf, signResult, zero);
+    return RValue::get(result);
+  }
   case Builtin::BI__builtin_nondeterministic_value:
   case Builtin::BI__builtin_elementwise_abs:
     return errorBuiltinNYI(*this, e, builtinID);
@@ -1278,7 +1335,6 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
   case Builtin::BI__builtin_masked_store:
   case Builtin::BI__builtin_masked_compress_store:
   case Builtin::BI__builtin_masked_scatter:
-  case Builtin::BI__builtin_isinf_sign:
   case Builtin::BI__builtin_flt_rounds:
   case Builtin::BI__builtin_set_flt_rounds:
   case Builtin::BI__builtin_fpclassify:
@@ -1511,10 +1567,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
                                     cir::SyncScopeKind::System));
     return RValue::get(nullptr);
   }
-  case Builtin::BI__scoped_atomic_thread_fence:
   case Builtin::BI__builtin_signbit:
   case Builtin::BI__builtin_signbitf:
-  case Builtin::BI__builtin_signbitl:
+  case Builtin::BI__builtin_signbitl: {
+    mlir::Location loc = getLoc(e->getSourceRange());
+    mlir::Value value = emitScalarExpr(e->getArg(0));
+    mlir::Value isNeg = emitSignBit(loc, *this, value);
+
+    // Convert bool to the return type (int)
+    mlir::Type retTy = convertType(e->getType());
+    mlir::Value result = builder.createBoolToInt(isNeg, retTy);
+    return RValue::get(result);
+  }
+  case Builtin::BI__scoped_atomic_thread_fence:
   case Builtin::BI__warn_memset_zero_len:
   case Builtin::BI__annotation:
   case Builtin::BI__builtin_annotation:

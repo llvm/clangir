@@ -210,7 +210,7 @@ void l4() {
 // CIR:     %[[BEGIN:.*]] = cir.load{{.*}} %[[RANGE_ADDR]]
 // CIR:     %[[BEGIN_CAST:.*]] = cir.cast array_to_ptrdecay %[[BEGIN]] : {{.*}}
 // CIR:     %[[TEN:.*]] = cir.const #cir.int<10>
-// CIR:     %[[END_PTR:.*]] = cir.ptr_stride %[[BEGIN_CAST]], %[[TEN]] : ({{.*}}, {{.*}})
+// CIR:     %[[END_PTR:.*]] = cir.ptr_stride inbounds %[[BEGIN_CAST]], %[[TEN]] : ({{.*}}, {{.*}})
 // CIR:     cir.store{{.*}} %[[END_PTR]], %[[END_ADDR]]
 // CIR:     cir.for : cond {
 // CIR:       %[[CUR:.*]] = cir.load{{.*}} %[[BEGIN_ADDR]]
@@ -245,7 +245,7 @@ void l4() {
 // LLVM:   store ptr %[[BEGIN_CAST]], ptr %[[BEGIN_ADDR]]
 // LLVM:   %[[RANGE:.*]] = load ptr, ptr %[[RANGE_ADDR]]
 // LLVM:   %[[RANGE_CAST:.*]] = getelementptr i32, ptr %[[RANGE]], i32 0
-// LLVM:   %[[END_PTR:.*]] = getelementptr i32, ptr %[[RANGE_CAST]], i64 10
+// LLVM:   %[[END_PTR:.*]] = getelementptr inbounds i32, ptr %[[RANGE_CAST]], i64 10
 // LLVM:   store ptr %[[END_PTR]], ptr %[[END_ADDR]]
 // LLVM:   br label %[[COND:.*]]
 // LLVM: [[COND]]:
@@ -321,7 +321,7 @@ void l5() {
 // CIR:     %[[BEGIN:.*]] = cir.load{{.*}} %[[RANGE_ADDR]]
 // CIR:     %[[BEGIN_CAST:.*]] = cir.cast array_to_ptrdecay %[[BEGIN]] : {{.*}}
 // CIR:     %[[FOUR:.*]] = cir.const #cir.int<4> : !s64i
-// CIR:     %[[END_PTR:.*]] = cir.ptr_stride %[[BEGIN_CAST]], %[[FOUR]] : ({{.*}}, {{.*}})
+// CIR:     %[[END_PTR:.*]] = cir.ptr_stride inbounds %[[BEGIN_CAST]], %[[FOUR]] : ({{.*}}, {{.*}})
 // CIR:     cir.store{{.*}} %[[END_PTR]], %[[END_ADDR]]
 // CIR:     cir.for : cond {
 // CIR:       %[[CUR:.*]] = cir.load{{.*}} %[[BEGIN_ADDR]]
@@ -357,7 +357,7 @@ void l5() {
 // LLVM:   store ptr %[[BEGIN_CAST]], ptr %[[BEGIN_ADDR]]
 // LLVM:   %[[RANGE:.*]] = load ptr, ptr %[[RANGE_ADDR]]
 // LLVM:   %[[RANGE_CAST:.*]] = getelementptr i32, ptr %[[RANGE]], i32 0
-// LLVM:   %[[END_PTR:.*]] = getelementptr i32, ptr %[[RANGE_CAST]], i64 4
+// LLVM:   %[[END_PTR:.*]] = getelementptr inbounds i32, ptr %[[RANGE_CAST]], i64 4
 // LLVM:   store ptr %[[END_PTR]], ptr %[[END_ADDR]]
 // LLVM:   br label %[[COND:.*]]
 // LLVM: [[COND]]:

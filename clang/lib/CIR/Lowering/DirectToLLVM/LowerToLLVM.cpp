@@ -81,6 +81,22 @@ static mlir::Type convertTypeForMemory(const mlir::TypeConverter &converter,
   return converter.convertType(type);
 }
 
+/// Convert from a CIR PtrStrideOp kind to an LLVM IR equivalent of GEP.
+static mlir::LLVM::GEPNoWrapFlags
+convertPtrStrideKindToGEPFlags(cir::GEPNoWrapFlags flags) {
+  using CIRFlags = cir::GEPNoWrapFlags;
+  using LLVMFlags = mlir::LLVM::GEPNoWrapFlags;
+
+  LLVMFlags x = LLVMFlags::none;
+  if ((flags & CIRFlags::inboundsFlag) == CIRFlags::inboundsFlag)
+    x = x | LLVMFlags::inboundsFlag;
+  if ((flags & CIRFlags::nusw) == CIRFlags::nusw)
+    x = x | LLVMFlags::nusw;
+  if ((flags & CIRFlags::nuw) == CIRFlags::nuw)
+    x = x | LLVMFlags::nuw;
+  return x;
+}
+
 static mlir::Value createIntCast(mlir::OpBuilder &bld, mlir::Value src,
                                  mlir::IntegerType dstTy,
                                  bool isSigned = false) {
@@ -205,8 +221,8 @@ mlir::LogicalResult CIRToLLVMMemSetInlineOpLowering::matchAndRewrite(
       mlir::IntegerAttr::get(rewriter.getI64Type(), op.getLength());
   // Truncate the value to i8 as required by llvm.memset.inline
   mlir::Value val = adaptor.getVal();
-  mlir::Value truncVal = mlir::LLVM::TruncOp::create(
-      rewriter, op.getLoc(), rewriter.getI8Type(), val);
+  mlir::Value truncVal = mlir::LLVM::TruncOp::create(rewriter, op.getLoc(),
+                                                     rewriter.getI8Type(), val);
   rewriter.replaceOpWithNewOp<mlir::LLVM::MemsetInlineOp>(
       op, adaptor.getDst(), truncVal, lengthAttr, op.getIsVolatile());
   return mlir::success();
@@ -385,10 +401,16 @@ static mlir::LLVM::CallIntrinsicOp replaceOpWithCallLLVMIntrinsicOp(
 mlir::LogicalResult CIRToLLVMLLVMIntrinsicCallOpLowering::matchAndRewrite(
     cir::LLVMIntrinsicCallOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  mlir::Type llvmResTy =
-      getTypeConverter()->convertType(op->getResultTypes()[0]);
-  if (!llvmResTy)
-    return op.emitError("expected LLVM result type");
+  mlir::Type llvmResTy;
+  bool hasResult = op->getNumResults() > 0;
+  if (hasResult) {
+    llvmResTy = getTypeConverter()->convertType(op->getResultTypes()[0]);
+    if (!llvmResTy)
+      return op.emitError("expected LLVM result type");
+  } else {
+    // Void-returning intrinsic
+    llvmResTy = mlir::LLVM::LLVMVoidType::get(op->getContext());
+  }
   StringRef name = op.getIntrinsicName();
 
   // Some LLVM intrinsics require ElementType attribute to be attached to
@@ -401,8 +423,17 @@ mlir::LogicalResult CIRToLLVMLLVMIntrinsicCallOpLowering::matchAndRewrite(
   // TODO(cir): MLIR LLVM dialect should handle this part as CIR has no way
   // to set LLVM IR attribute.
   assert(!cir::MissingFeatures::intrinsicElementTypeSupport());
-  replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm." + name, llvmResTy,
-                                   adaptor.getOperands());
+
+  if (hasResult) {
+    replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm." + name, llvmResTy,
+                                     adaptor.getOperands());
+  } else {
+    // For void-returning intrinsics, create the call but erase the original op
+    // instead of replacing it (since there are no results to replace).
+    createCallLLVMIntrinsicOp(rewriter, op->getLoc(), "llvm." + name, llvmResTy,
+                              adaptor.getOperands());
+    rewriter.eraseOp(op);
+  }
   return mlir::success();
 }
 
@@ -752,6 +783,32 @@ mlir::LogicalResult CIRToLLVMIsFPClassOpLowering::matchAndRewrite(
 
   rewriter.replaceOpWithNewOp<mlir::LLVM::IsFPClass>(
       op, retTy, src, static_cast<uint32_t>(flags));
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMSignBitOpLowering::matchAndRewrite(
+    cir::SignBitOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+  int width = layout.getTypeSizeInBits(op.getInput().getType());
+  if (auto longDoubleType =
+          mlir::dyn_cast<cir::LongDoubleType>(op.getInput().getType())) {
+    if (mlir::isa<cir::FP80Type>(longDoubleType.getUnderlying())) {
+      // If the underlying type of LongDouble is FP80Type,
+      // DataLayout::getTypeSizeInBits returns 128.
+      // See https://github.com/llvm/clangir/issues/1057.
+      // Set the width to 80 manually.
+      width = 80;
+    }
+  }
+  auto intTy = mlir::IntegerType::get(rewriter.getContext(), width);
+  auto bitcast = mlir::LLVM::BitcastOp::create(rewriter, op->getLoc(), intTy,
+                                               adaptor.getInput());
+  auto zero = mlir::LLVM::ConstantOp::create(rewriter, op->getLoc(), intTy, 0);
+  auto cmpResult = mlir::LLVM::ICmpOp::create(rewriter, op.getLoc(),
+                                              mlir::LLVM::ICmpPredicate::slt,
+                                              bitcast.getResult(), zero);
+  rewriter.replaceOp(op, cmpResult);
   return mlir::success();
 }
 
@@ -1451,7 +1508,8 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
       dyn_cast<cir::IntType>(ptrStrideOp.getOperand(1).getType()));
 
   rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
-      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
+      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index,
+      convertPtrStrideKindToGEPFlags(adaptor.getNoWrapFlags()));
   return mlir::success();
 }
 

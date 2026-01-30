@@ -347,6 +347,28 @@ def CIR_DynamicCastOp : CIR_Op<"dyn_cast"> {
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
 
+// These mirror the GEPNoWrapFlags in LLVM IR Dialect.
+def CIR_GEPNone : I32BitEnumCaseNone<"none">;
+def CIR_GEPInboundsFlag : I32BitEnumCaseBit<"inboundsFlag", 0, "inbounds_flag">;
+def CIR_GEPNusw : I32BitEnumCaseBit<"nusw", 1>;
+def CIR_GEPNuw : I32BitEnumCaseBit<"nuw", 2>;
+def CIR_GEPInbounds : BitEnumCaseGroup<"inbounds", [
+  CIR_GEPInboundsFlag, CIR_GEPNusw]>;
+
+def CIR_GEPNoWrapFlags : CIR_I32BitEnum<"GEPNoWrapFlags", "no-wrap flags", [
+  CIR_GEPNone,
+  CIR_GEPInboundsFlag,
+  CIR_GEPNusw,
+  CIR_GEPNuw,
+  CIR_GEPInbounds
+]> {
+  let printBitEnumPrimaryGroups = 1;
+}
+
+def CIR_GEPNoWrapFlagsProp : EnumProp<CIR_GEPNoWrapFlags> {
+  let defaultValue = enum.cppType # "::" # "none";
+}
+
 def CIR_PtrStrideOp : CIR_Op<"ptr_stride", [
   Pure, AllTypesMatch<["base", "result"]>
 ]> {
@@ -356,21 +378,29 @@ def CIR_PtrStrideOp : CIR_Op<"ptr_stride", [
     and an integer stride, similar to a single-index `getelementptr` in LLVM IR.
     It moves the pointer by `stride * sizeof(element_type)` bytes.
 
+    Optional no-wrap flags refine pointer arithmetic semantics, that mirror
+    LLVM's GEP no-wrap semantics.
+
+    Example:
+
     ```mlir
-    %3 = cir.const 0 : i32
     %3 = cir.ptr_stride %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
+    %4 = cir.ptr_stride inbounds %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
+    %5 = cir.ptr_stride inbounds|nuw %1, %2 : (!cir.ptr<i32>, i32) -> !cir.ptr<i32>
     ```
   }];
 
   let arguments = (ins
     CIR_PointerType:$base,
-    CIR_AnyFundamentalIntType:$stride
+    CIR_AnyFundamentalIntType:$stride,
+    CIR_GEPNoWrapFlagsProp:$noWrapFlags
   );
 
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    $base`,` $stride `:` functional-type(operands, results) attr-dict
+    ($noWrapFlags^)? $base`,` $stride `:` functional-type(operands, results)
+    attr-dict
   }];
 
   let extraClassDeclaration = [{
@@ -5028,6 +5058,29 @@ def CIR_IsFPClassOp : CIR_Op<"is_fp_class"> {
   let results = (outs CIR_BoolType:$result);
   let assemblyFormat = [{
     $src `,` $flags `:` functional-type($src, $result) attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// SignBitOp
+//===----------------------------------------------------------------------===//
+
+def CIR_SignBitOp : CIR_Op<"signbit", [Pure]> {
+  let summary = "Checks the sign of a floating-point number";
+  let description = [{
+    The `cir.signbit` operation returns whether the sign bit (i.e. the highest
+    bit) of the floating-point operand is set.
+
+    Example:
+
+    ```mlir
+    %is_neg = cir.signbit %x : !cir.float -> !cir.bool
+    ```
+  }];
+  let arguments = (ins CIR_AnyFloatType:$input);
+  let results = (outs CIR_BoolType:$result);
+  let assemblyFormat = [{
+    $input attr-dict `:` type($input) `->` qualified(type($result))
   }];
 }
 

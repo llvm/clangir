@@ -1886,9 +1886,16 @@ static mlir::Value emitPointerArithmetic(CIRGenFunction &cgf,
   // directly with the pointer type.
 
   assert(!cir::MissingFeatures::sanitizers());
+
+  // Determine the GEP no-wrap flags.
+  bool signedIndices = mlir::cast<cir::IntType>(index.getType()).isSigned();
+  cir::GEPNoWrapFlags nwFlags = cir::GEPNoWrapFlags::inbounds;
+  if (!signedIndices && !isSubtraction)
+    nwFlags = nwFlags | cir::GEPNoWrapFlags::nuw;
+
   return cir::PtrStrideOp::create(cgf.getBuilder(),
                                   cgf.getLoc(op.e->getExprLoc()),
-                                  pointer.getType(), pointer, index);
+                                  pointer.getType(), pointer, index, nwFlags);
 }
 
 mlir::Value ScalarExprEmitter::emitMul(const BinOpInfo &ops) {

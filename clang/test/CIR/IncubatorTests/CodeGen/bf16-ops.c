@@ -139,12 +139,11 @@ void foo(void) {
 
   h1 = h0 * (__bf16) -2.0f;
   //      NONATIVE: %[[#A:]] = cir.cast floating %{{.+}} : !cir.bf16 -> !cir.float
-  // NONATIVE-NEXT: %[[#B:]] = cir.const #cir.fp<2.000000e+00> : !cir.float
-  // NONATIVE-NEXT: %[[#C:]] = cir.unary(minus, %[[#B]]) : !cir.float, !cir.float
-  // NONATIVE-NEXT: %[[#D:]] = cir.cast floating %[[#C]] : !cir.float -> !cir.bf16
-  // NONATIVE-NEXT: %[[#E:]] = cir.cast floating %[[#D]] : !cir.bf16 -> !cir.float
-  // NONATIVE-NEXT: %[[#F:]] = cir.binop(mul, %[[#A]], %[[#E]]) : !cir.float
-  // NONATIVE-NEXT: %{{.+}} = cir.cast floating %[[#F]] : !cir.float -> !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.const #cir.fp<-2.000000e+00> : !cir.float
+  // NONATIVE-NEXT: %[[#C:]] = cir.cast floating %[[#B]] : !cir.float -> !cir.bf16
+  // NONATIVE-NEXT: %[[#D:]] = cir.cast floating %[[#C]] : !cir.bf16 -> !cir.float
+  // NONATIVE-NEXT: %[[#E:]] = cir.binop(mul, %[[#A]], %[[#D]]) : !cir.float
+  // NONATIVE-NEXT: %{{.+}} = cir.cast floating %[[#E]] : !cir.float -> !cir.bf16
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<2.000000e+00> : !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.unary(minus, %[[#A]]) : !cir.float, !cir.float
@@ -227,12 +226,11 @@ void foo(void) {
 
   h1 = (h0 / (__bf16) -2.0f);
   //      NONATIVE: %[[#A:]] = cir.cast floating %{{.+}} : !cir.bf16 -> !cir.float
-  // NONATIVE-NEXT: %[[#B:]] = cir.const #cir.fp<2.000000e+00> : !cir.float
-  // NONATIVE-NEXT: %[[#C:]] = cir.unary(minus, %[[#B]]) : !cir.float, !cir.float
-  // NONATIVE-NEXT: %[[#D:]] = cir.cast floating %[[#C]] : !cir.float -> !cir.bf16
-  // NONATIVE-NEXT: %[[#E:]] = cir.cast floating %[[#D]] : !cir.bf16 -> !cir.float
-  // NONATIVE-NEXT: %[[#F:]] = cir.binop(div, %[[#A]], %[[#E]]) : !cir.float
-  // NONATIVE-NEXT: %{{.+}} = cir.cast floating %[[#F]] : !cir.float -> !cir.bf16
+  // NONATIVE-NEXT: %[[#B:]] = cir.const #cir.fp<-2.000000e+00> : !cir.float
+  // NONATIVE-NEXT: %[[#C:]] = cir.cast floating %[[#B]] : !cir.float -> !cir.bf16
+  // NONATIVE-NEXT: %[[#D:]] = cir.cast floating %[[#C]] : !cir.bf16 -> !cir.float
+  // NONATIVE-NEXT: %[[#E:]] = cir.binop(div, %[[#A]], %[[#D]]) : !cir.float
+  // NONATIVE-NEXT: %{{.+}} = cir.cast floating %[[#E]] : !cir.float -> !cir.bf16
 
   //      NATIVE: %[[#A:]] = cir.const #cir.fp<2.000000e+00> : !cir.float
   // NATIVE-NEXT: %[[#B:]] = cir.unary(minus, %[[#A]]) : !cir.float, !cir.float

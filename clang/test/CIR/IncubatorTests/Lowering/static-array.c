@@ -5,4 +5,4 @@ int test(int x) {
   static int arr[10] = {0, 1, 0, 0};
   return arr[x];
 }
-// LLVM: internal global [10 x i32] [i32 0, i32 1, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0]
+// LLVM: @test.arr = internal global <{ i32, i32, [8 x i32] }> <{ i32 0, i32 1, [8 x i32] zeroinitializer }>

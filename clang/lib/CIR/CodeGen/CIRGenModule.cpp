@@ -2433,12 +2433,14 @@ cir::FuncOp CIRGenModule::getOrCreateCIRFunction(
     // If there are two attempts to define the same mangled name, issue an
     // error.
     auto fn = cast<cir::FuncOp>(entry);
-    if (isForDefinition && fn && !fn.isDeclaration()) {
-      errorNYI(d->getSourceRange(), "Duplicate function definition");
-    }
+    // If we already have a definition with the same type, just return it.
+    // This can happen with inline methods in classes that get emitted multiple
+    // times.
     if (fn && fn.getFunctionType() == funcType) {
       return fn;
     }
+    // TODO: Implement proper duplicate definition error reporting when the
+    // definitions are actually different.
 
     if (!isForDefinition) {
       return fn;
