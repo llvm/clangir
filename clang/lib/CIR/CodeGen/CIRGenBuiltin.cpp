@@ -946,6 +946,12 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
     return RValue::get(result);
   }
 
+  case Builtin::BI__builtin_unpredictable:
+    // Just return the argument. LLVM does not handle this builtin directly.
+    // Metadata for this builtin should be added to branches/switches that use
+    // it.
+    return RValue::get(emitScalarExpr(e->getArg(0)));
+
   case Builtin::BI__builtin_bswap16:
   case Builtin::BI__builtin_bswap32:
   case Builtin::BI__builtin_bswap64:
