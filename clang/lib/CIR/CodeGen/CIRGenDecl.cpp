@@ -194,13 +194,6 @@ static void emitStoresForConstant(CIRGenModule &cgm, const VarDecl &d,
   assert(!cir::MissingFeatures::shouldUseBZeroPlusStoresToInitialize());
   assert(!cir::MissingFeatures::shouldUseMemSetToInitialize());
   assert(!cir::MissingFeatures::shouldSplitConstantStore());
-  assert(!cir::MissingFeatures::shouldCreateMemCpyFromGlobal());
-  // In CIR we want to emit a store for the whole thing, later lowering
-  // prepare to LLVM should unwrap this into the best policy (see asserts
-  // above).
-  //
-  // FIXME(cir): This is closer to memcpy behavior but less optimal, instead of
-  // copy from a global, we just create a cir.const out of it.
 
   if (addr.getElementType() != ty)
     addr = addr.withElementType(builder, ty);
@@ -218,7 +211,11 @@ static void emitStoresForConstant(CIRGenModule &cgm, const VarDecl &d,
   mlir::Location loc = builder.getUnknownLoc();
   if (d.getSourceRange().isValid())
     loc = cgm.getLoc(d.getSourceRange());
-  builder.createStore(loc, builder.getConstant(loc, constant), addr);
+
+  // Create a global constant and use cir.copy to initialize the local.
+  CharUnits align = addr.getAlignment();
+  Address src = cgm.createUnnamedGlobalFrom(d, constant, align);
+  cir::CopyOp::create(builder, loc, addr.getPointer(), src.getPointer());
 }
 
 void CIRGenFunction::emitAutoVarInit(
