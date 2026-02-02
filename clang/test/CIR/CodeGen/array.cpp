@@ -156,7 +156,7 @@ void func2() {
 
 // LLVM: define{{.*}} void @_Z5func2v(){{.*}}
 // LLVM:   %[[ARR:.*]] = alloca [2 x i32], i64 1, align 4
-// LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %[[ARR]], ptr @__const._Z5func2v.arr, i32 8, i1 false)
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[ARR]], ptr @__const._Z5func2v.arr, i64 8, i1 false)
 
 // OGCG: %[[ARR:.*]] = alloca [2 x i32], align 4
 // OGCG: call void @llvm.memcpy.p0.p0.i64(ptr align 4 %[[ARR]], ptr align 4 @[[FUN2_ARR]], i64 8, i1 false)
@@ -184,7 +184,7 @@ void func3() {
 // LLVM:  %[[ARR:.*]] = alloca [2 x i32], i64 1, align 4
 // LLVM:  %[[IDX:.*]] = alloca i32, i64 1, align 4
 // LLVM:  %[[INIT:.*]] = alloca i32, i64 1, align 4
-// LLVM:  call void @llvm.memcpy.p0.p0.i32(ptr %[[ARR]], ptr @__const._Z5func3v.arr, i32 8, i1 false)
+// LLVM:  call void @llvm.memcpy.p0.p0.i64(ptr %[[ARR]], ptr @__const._Z5func3v.arr, i64 8, i1 false)
 // LLVM:  store i32 1, ptr %[[IDX]], align 4
 // LLVM:  %[[TMP1:.*]] = load i32, ptr %[[IDX]], align 4
 // LLVM:  %[[IDX_I64:.*]] = sext i32 %[[TMP1]] to i64
@@ -222,7 +222,7 @@ void func4() {
 // LLVM: define{{.*}} void @_Z5func4v(){{.*}}
 // LLVM:  %[[ARR:.*]] = alloca [2 x [1 x i32]], i64 1, align 4
 // LLVM:  %[[INIT:.*]] = alloca i32, i64 1, align 4
-// LLVM:  call void @llvm.memcpy.p0.p0.i32(ptr %[[ARR]], ptr @__const._Z5func4v.arr, i32 8, i1 false)
+// LLVM:  call void @llvm.memcpy.p0.p0.i64(ptr %[[ARR]], ptr @__const._Z5func4v.arr, i64 8, i1 false)
 // LLVM:  %[[ARR_1:.*]] = getelementptr [2 x [1 x i32]], ptr %[[ARR]], i32 0, i64 1
 // LLVM:  %[[ELE_PTR:.*]] = getelementptr [1 x i32], ptr %[[ARR_1]], i32 0, i64 0
 // LLVM:  %[[TMP:.*]] = load i32, ptr %[[ELE_PTR]], align 4

@@ -164,7 +164,7 @@ void pass_gt_128(GT_128 s) {}
 // LLVM: %[[#V3:]] = alloca ptr, i64 1, align 8
 // LLVM: store ptr %[[#V1]], ptr %[[#V3]], align 8
 // LLVM: %[[#V4:]] = load ptr, ptr %[[#V3]], align 8
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V0]], ptr %[[#V4]], i32 24, i1 false)
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V0]], ptr %[[#V4]], i64 24, i1 false)
 // LLVM: ret void
 GT_128 get_gt_128(GT_128 s) {
   return s;

@@ -100,7 +100,7 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CHECK:    store i64 1, ptr %[[GEP]], align 8
 // CHECK:    br label %[[EXIT:[a-z0-9]+]]
 // CHECK:  [[TRUE]]:
-// CHECK:    call void @llvm.memcpy.p0.p0.i32(ptr %[[ADDR]], ptr {{.*}}, i32 8, i1 false)
+// CHECK:    call void @llvm.memcpy.p0.p0.i64(ptr %[[ADDR]], ptr {{.*}}, i64 8, i1 false)
 // CHECK:    br label %[[EXIT]]
 // CHECK:  [[EXIT]]:
 // CHECK:    ret void

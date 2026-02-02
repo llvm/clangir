@@ -24,7 +24,7 @@ void test1() {
 // LLVM:   %[[ALLOC:.*]] = call ptr @__cxa_allocate_exception(i64 8)
 
 // FIXME: this is a llvm.memcpy.p0.p0.i64 once we fix isTrivialCtorOrDtor().
-// LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %1, ptr @d1, i32 8, i1 false)
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr @d1, i64 8, i1 false)
 // LLVM:   call void @__cxa_throw(ptr %[[ALLOC]], ptr @_ZTI7test1_D, ptr null)
 // LLVM:   unreachable
 // LLVM: }

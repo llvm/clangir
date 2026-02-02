@@ -56,7 +56,7 @@ two_floats test_aggregate_record(two_ints& ti) {
 // LLVM-LABEL: define dso_local %struct.two_floats @_Z21test_aggregate_recordR8two_ints
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_floats, i64 1, align 4
 //       LLVM:   %[[#SRC_PTR:]] = load ptr, ptr %2, align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i32 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i64 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_floats, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -73,7 +73,7 @@ two_floats test_aggregate_array(int (&ary)[2]) {
 // LLVM-LABEL: define dso_local %struct.two_floats @_Z20test_aggregate_arrayRA2_i
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_floats, i64 1, align 4
 //       LLVM:   %[[#SRC_PTR:]] = load ptr, ptr %2, align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i32 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %[[#SRC_PTR]], i64 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_floats, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -88,7 +88,7 @@ two_ints test_scalar_to_aggregate(unsigned long ul) {
 
 // LLVM-LABEL: define dso_local %struct.two_ints @_Z24test_scalar_to_aggregatem
 //       LLVM:   %[[#DST_SLOT:]] = alloca %struct.two_ints, i64 1, align 4
-//       LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %[[#DST_SLOT]], ptr %{{.+}}, i32 8, i1 false)
+//       LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#DST_SLOT]], ptr %{{.+}}, i64 8, i1 false)
 //  LLVM-NEXT:   %{{.+}} = load %struct.two_ints, ptr %[[#DST_SLOT]], align 4
 //       LLVM: }
 
@@ -124,5 +124,5 @@ two_ints test_rvalue_aggregate() {
 // LLVM-LABEL: define dso_local %struct.two_ints @_Z21test_rvalue_aggregatev
 //  LLVM:   %[[#SRC_SLOT:]] = alloca i64, i64 1, align 8
 //  LLVM:   store i64 42, ptr %[[#SRC_SLOT]], align 8
-//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i32(ptr %{{.+}}, ptr %[[#SRC_SLOT]], i32 8, i1 false)
+//  LLVM-NEXT:   call void @llvm.memcpy.p0.p0.i64(ptr %{{.+}}, ptr %[[#SRC_SLOT]], i64 8, i1 false)
 //       LLVM: }

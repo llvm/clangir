@@ -115,7 +115,7 @@ void paren_expr() {
 // LLVM:   %[[A_ADDR:.*]] = alloca %struct.Point, i64 1, align 4
 // LLVM:   %[[B_ADDR:.*]] = alloca %struct.Point, i64 1, align 4
 // LLVM:   store %struct.Point zeroinitializer, ptr %[[A_ADDR]], align 4
-// LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %[[B_ADDR]], ptr %[[A_ADDR]], i32 8, i1 false)
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[B_ADDR]], ptr %[[A_ADDR]], i64 8, i1 false)
 
 // OGCG: define{{.*}} void @_Z10paren_exprv()
 // OGCG:   %[[A_ADDR:.*]] = alloca %struct.Point, align 4
@@ -139,7 +139,7 @@ void choose_expr() {
 // LLVM:   %[[A_ADDR:.*]] = alloca %struct.CompleteS, i64 1, align 4
 // LLVM:   %[[B_ADDR:.*]] = alloca %struct.CompleteS, i64 1, align 4
 // LLVM:   %[[C_ADDR:.*]] = alloca %struct.CompleteS, i64 1, align 4
-// LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %[[C_ADDR]], ptr %[[A_ADDR]], i32 8, i1 false)
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[C_ADDR]], ptr %[[A_ADDR]], i64 8, i1 false)
 
 // OGCG: define{{.*}} void @_Z11choose_exprv()
 // OGCG:   %[[A_ADDR:.*]] = alloca %struct.CompleteS, align 4
@@ -166,7 +166,7 @@ void generic_selection() {
 // LLVM:   %2 = alloca %struct.CompleteS, i64 1, align 4
 // LLVM:   %3 = alloca i32, i64 1, align 4
 // LLVM:   %4 = alloca %struct.CompleteS, i64 1, align 4
-// LLVM:   call void @llvm.memcpy.p0.p0.i32(ptr %4, ptr %1, i32 8, i1 false)
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %4, ptr %1, i64 8, i1 false)
 
 // OGCG: define{{.*}} void @_Z17generic_selectionv()
 // OGCG:   %[[A_ADDR:.*]] = alloca %struct.CompleteS, align 4
@@ -195,7 +195,7 @@ void designated_init_update_expr() {
 // LLVM: %[[A_ADDR:.*]] = alloca %struct.CompleteS, i64 1, align 4
 // LLVM: %[[B_ADDR:.*]] = alloca %struct.Container, i64 1, align 4
 // LLVM: %[[C_ADDR:.*]] = getelementptr %struct.Container, ptr %[[B_ADDR]], i32 0, i32 0
-// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[C_ADDR]], ptr %[[A_ADDR]], i32 8, i1 false)
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[C_ADDR]], ptr %[[A_ADDR]], i64 8, i1 false)
 // LLVM: %[[ELEM_0_PTR:.*]] = getelementptr %struct.CompleteS, ptr %[[C_ADDR]], i32 0, i32 0
 // LLVM: store i32 1, ptr %[[ELEM_0_PTR]], align 4
 // LLVM: %[[ELEM_1_PTR:.*]] = getelementptr %struct.CompleteS, ptr %[[C_ADDR]], i32 0, i32 1
