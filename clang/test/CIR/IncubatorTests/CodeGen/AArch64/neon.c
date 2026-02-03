@@ -1044,8 +1044,6 @@ int8x8_t test_vbsl_s16(uint16x4_t v1, int16x4_t v2, int16x4_t v3) {
   // LLVM:   [[TMP3:%.*]] = xor <4 x i16> {{.*}}, splat (i16 -1)
   // LLVM:   [[VBSL4_I:%.*]] = and <4 x i16> [[TMP3]],
   // LLVM:   [[VBSL5_I:%.*]] = or <4 x i16> [[VBSL3_I]], [[VBSL4_I]]
-  // LLVM:   [[TMP4:%.*]] = bitcast <4 x i16> {{.*}} to <8 x i8>
-  // LLVM:   ret <8 x i8> [[TMP4]]
 }
 
 int32x2_t test_vbsl_s32(uint32x2_t v1, int32x2_t v2, int32x2_t v3) {
@@ -5280,7 +5278,6 @@ uint16x4_t test_vshr_n_u16_16(uint16x4_t a) {
   return vshr_n_u16(a, 16);
 
   // CIR-LABEL: vshr_n_u16
-  // CIR: {{%.*}} = cir.const #cir.int<16> : !s32i
   // CIR: {{%.*}} = cir.const #cir.zero : !cir.vector<4 x !u16i>
   // CIR-NOT: cir.shift
 
@@ -9309,11 +9306,11 @@ int64_t test_vsubd_s64(int64_t a, int64_t b) {
   return vsubd_s64(a, b);
 
   // CIR-LABEL: vsubd_s64
-  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !s64i
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) sat : !s64i
 
   // LLVM-LABEL: @test_vsubd_s64
   // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
-  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 {{.*}}, {{.*}}
+  // LLVM:   [[VSUBD_I:%.*]] = call i64 @llvm.ssub.sat.i64(i64 {{.*}}, i64 {{.*}})
   // LLVM:   ret i64 [[VSUBD_I]]
 }
 
@@ -9321,11 +9318,11 @@ uint64_t test_vsubd_u64(uint64_t a, uint64_t b) {
   return vsubd_u64(a, b);
 
   // CIR-LABEL: vsubd_u64
-  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !u64i
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) sat : !u64i
 
   // LLVM-LABEL: @test_vsubd_u64
   // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
-  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 {{.*}}, {{.*}}
+  // LLVM:   [[VSUBD_I:%.*]] = call i64 @llvm.usub.sat.i64(i64 {{.*}}, i64 {{.*}})
   // LLVM:   ret i64 [[VSUBD_I]]
 }
 
@@ -14705,11 +14702,9 @@ int64_t test_vrsrad_n_s64(int64_t a, int64_t b) {
   return (int64_t)vrsrad_n_s64(a, b, 63);
 
   // CIR-LABEL: vrsrad_n_s64
-  // CIR: [[TMP0:%.*]] = cir.const #cir.int<63> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.unary(minus, [[TMP0]]) : !s32i, !s32i
-  // CIR: [[TMP2:%.*]] = cir.cast integral [[TMP1]] : !s32i -> !s64i
-  // CIR: [[TMP3:%.*]] = cir.call_llvm_intrinsic "aarch64.neon.srshl" {{.*}}, [[TMP2]] : (!s64i, !s64i) -> !s64i
-  // CIR: [[TMP4:%.*]] = cir.binop(add, {{.*}}, [[TMP3]]) : !s64i
+  // CIR: [[TMP0:%.*]] = cir.const #cir.int<-63> : !s64i
+  // CIR: [[TMP1:%.*]] = cir.call_llvm_intrinsic "aarch64.neon.srshl" {{.*}}, [[TMP0]] : (!s64i, !s64i) -> !s64i
+  // CIR: [[TMP2:%.*]] = cir.binop(add, {{.*}}, [[TMP1]]) : !s64i
 
   // LLVM-LABEL: @test_vrsrad_n_s64(
   // LLVM: [[TMP0:%.*]] = call i64 @llvm.aarch64.neon.srshl.i64(i64 %1, i64 -63)
@@ -14737,11 +14732,9 @@ uint64_t test_vrsrad_n_u64(uint64_t a, uint64_t b) {
   return (uint64_t)vrsrad_n_u64(a, b, 63);
 
   // CIR-LABEL:vrsrad_n_u64
-  // CIR: [[TMP0:%.*]] = cir.const #cir.int<63> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.unary(minus, [[TMP0]]) : !s32i, !s32i
-  // CIR: [[TMP2:%.*]] = cir.cast integral [[TMP1]] : !s32i -> !u64i
-  // CIR: [[TMP3:%.*]] = cir.call_llvm_intrinsic "aarch64.neon.urshl" {{.*}}, [[TMP2]] : (!u64i, !u64i) -> !u64i
-  // CIR: [[TMP4:%.*]] = cir.binop(add, {{.*}}, [[TMP3]]) : !u64i
+  // CIR: [[TMP0:%.*]] = cir.const #cir.int<18446744073709551553> : !u64i
+  // CIR: [[TMP1:%.*]] = cir.call_llvm_intrinsic "aarch64.neon.urshl" {{.*}}, [[TMP0]] : (!u64i, !u64i) -> !u64i
+  // CIR: [[TMP2:%.*]] = cir.binop(add, {{.*}}, [[TMP1]]) : !u64i
 
   // LLVM-LABEL: @test_vrsrad_n_u64(
   // LLVM: [[TMP0:%.*]] = call i64 @llvm.aarch64.neon.urshl.i64(i64 %1, i64 -63)
@@ -19282,7 +19275,7 @@ uint8x16x2_t test_vld2q_u8(uint8_t const *a) {
   // LLVM-LABEL: @test_vld2q_u8
   // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld2.v16i8.p0(ptr {{%.*}})
   // LLVM: store { <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
-  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i32 32, i1 false)
+  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i64 32, i1 false)
   // LLVM: {{%.*}} = load %struct.uint8x16x2_t, ptr {{%.*}}, align 1
   // LLVM: ret %struct.uint8x16x2_t
 
@@ -19305,7 +19298,7 @@ uint8x16x3_t test_vld3q_u8(uint8_t const *a) {
   // LLVM-LABEL: @test_vld3q_u8
   // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld3.v16i8.p0(ptr {{%.*}})
   // LLVM: store { <16 x i8>, <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
-  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i32 48, i1 false)
+  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i64 48, i1 false)
   // LLVM: {{%.*}} = load %struct.uint8x16x3_t, ptr {{%.*}}, align 1
   // LLVM: ret %struct.uint8x16x3_t
 
@@ -19328,7 +19321,7 @@ uint8x16x4_t test_vld4q_u8(uint8_t const *a) {
   // LLVM-LABEL: @test_vld4q_u8
   // LLVM: {{%.*}} = call { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld4.v16i8.p0(ptr {{%.*}})
   // LLVM: store { <16 x i8>, <16 x i8>, <16 x i8>, <16 x i8> } {{%.*}}, ptr {{%.*}}, align 16
-  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i32 64, i1 false)
+  // LLVM: call void @llvm.memcpy.{{.*}}(ptr {{%.*}}, ptr {{%.*}}, i64 64, i1 false)
   // LLVM: {{%.*}} = load %struct.uint8x16x4_t, ptr {{%.*}}, align 1
   // LLVM: ret %struct.uint8x16x4_t
 
