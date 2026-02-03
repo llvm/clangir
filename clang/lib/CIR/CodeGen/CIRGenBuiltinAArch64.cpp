@@ -4682,8 +4682,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     Ops[0] = builder.createBitcast(Ops[0], ty);
     Ops[1] = builder.createBitcast(Ops[1], ty);
     if (cir::isFPOrVectorOfFPType(ty)) {
-      // Use LLVM intrinsic for floating point max
-      return emitNeonCall(builder, {ty, ty}, Ops, "aarch64.neon.fmax", ty, loc);
+      // Use cir.fmaximum for floating point max (IEEE 754-2019 semantics)
+      return cir::FMaximumOp::create(builder, loc, Ops[0], Ops[1]);
     }
     return cir::BinOp::create(builder, loc, cir::BinOpKind::Max, Ops[0],
                               Ops[1]);
@@ -4693,11 +4693,15 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vmin_v:
   case NEON::BI__builtin_neon_vminq_v: {
+    mlir::Location loc = getLoc(E->getExprLoc());
+    Ops[0] = builder.createBitcast(Ops[0], ty);
+    Ops[1] = builder.createBitcast(Ops[1], ty);
+    if (cir::isFPOrVectorOfFPType(ty)) {
+      // Use cir.fminimum for floating point min (IEEE 754-2019 semantics)
+      return cir::FMinimumOp::create(builder, loc, Ops[0], Ops[1]);
+    }
     llvm::StringRef name = usgn ? "aarch64.neon.umin" : "aarch64.neon.smin";
-    if (cir::isFPOrVectorOfFPType(ty))
-      name = "aarch64.neon.fmin";
-    return emitNeonCall(builder, {ty, ty}, Ops, name, ty,
-                        getLoc(E->getExprLoc()));
+    return emitNeonCall(builder, {ty, ty}, Ops, name, ty, loc);
   }
   case NEON::BI__builtin_neon_vminh_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vminh_f16 NYI");
@@ -4842,15 +4846,12 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     // vrndn: round to nearest with ties to even
     Ops[0] = builder.createBitcast(Ops[0], ty);
-    return emitNeonCall(builder, {ty}, Ops, "aarch64.neon.frintn", ty,
-                        getLoc(E->getExprLoc()));
+    return cir::RoundEvenOp::create(builder, getLoc(E->getExprLoc()), Ops[0]);
   }
   case NEON::BI__builtin_neon_vrndns_f32: {
     mlir::Value arg0 = emitScalarExpr(E->getArg(0));
-    args.push_back(arg0);
     // vrndns_f32: round to nearest with ties to even (scalar)
-    return emitNeonCall(builder, {arg0.getType()}, args, "aarch64.neon.frintn",
-                        getCIRGenModule().floatTy, getLoc(E->getExprLoc()));
+    return cir::RoundEvenOp::create(builder, getLoc(E->getExprLoc()), arg0);
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vrndph_f16 NYI");
@@ -4880,8 +4881,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     // vrnd: round towards zero (truncate)
     Ops[0] = builder.createBitcast(Ops[0], ty);
-    return emitNeonCall(builder, {ty}, Ops, "aarch64.neon.frintz", ty,
-                        getLoc(E->getExprLoc()));
+    return cir::TruncOp::create(builder, getLoc(E->getExprLoc()), Ops[0]);
   }
   case NEON::BI__builtin_neon_vcvt_f64_v:
   case NEON::BI__builtin_neon_vcvtq_f64_v: {

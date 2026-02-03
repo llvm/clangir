@@ -2093,6 +2093,60 @@ mlir::LogicalResult CIRToLLVMFAbsOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMRoundOpLowering::matchAndRewrite(
+    cir::RoundOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::RoundOp>(op, resTy,
+                                                   adaptor.getOperands()[0]);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMRoundEvenOpLowering::matchAndRewrite(
+    cir::RoundEvenOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::RoundEvenOp>(
+      op, resTy, adaptor.getOperands()[0]);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMAbsOpLowering::matchAndRewrite(
+    cir::AbsOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::AbsOp>(
+      op, resTy, adaptor.getOperands()[0], op.getPoison());
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMTruncOpLowering::matchAndRewrite(
+    cir::TruncOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::FTruncOp>(op, resTy,
+                                                    adaptor.getOperands()[0]);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMFMaximumOpLowering::matchAndRewrite(
+    cir::FMaximumOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::MaximumOp>(
+      op, resTy, adaptor.getLhs(), adaptor.getRhs());
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMFMinimumOpLowering::matchAndRewrite(
+    cir::FMinimumOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  mlir::Type resTy = typeConverter->convertType(op.getType());
+  rewriter.replaceOpWithNewOp<mlir::LLVM::MinimumOp>(
+      op, resTy, adaptor.getLhs(), adaptor.getRhs());
+  return mlir::success();
+}
+
 /// Convert the `cir.func` attributes to `llvm.func` attributes.
 /// Only retain those attributes that are not constructed by
 /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out
