@@ -321,6 +321,46 @@ public:
   // Fetch the type representing a pointer to unsigned int8 values.
   cir::PointerType getUInt8PtrTy() { return typeCache.uInt8PtrTy; }
 
+  // Get an integer type with double the width (extended)
+  cir::IntType getExtendedIntTy(cir::IntType ty, bool isSigned) {
+    switch (ty.getWidth()) {
+    case 8:
+      return isSigned ? typeCache.sInt16Ty : typeCache.uInt16Ty;
+    case 16:
+      return isSigned ? typeCache.sInt32Ty : typeCache.uInt32Ty;
+    case 32:
+      return isSigned ? typeCache.sInt64Ty : typeCache.uInt64Ty;
+    default:
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Get an integer type with half the width (truncated)
+  cir::IntType getTruncatedIntTy(cir::IntType ty, bool isSigned) {
+    switch (ty.getWidth()) {
+    case 16:
+      return isSigned ? typeCache.sInt8Ty : typeCache.uInt8Ty;
+    case 32:
+      return isSigned ? typeCache.sInt16Ty : typeCache.uInt16Ty;
+    case 64:
+      return isSigned ? typeCache.sInt32Ty : typeCache.uInt32Ty;
+    default:
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Get a vector type with extended or truncated element type
+  cir::VectorType
+  getExtendedOrTruncatedElementVectorType(cir::VectorType vt, bool isExtended,
+                                          bool isSigned = false) {
+    auto elementTy = mlir::dyn_cast_or_null<cir::IntType>(vt.getElementType());
+    assert(elementTy && "expected int vector");
+    return cir::VectorType::get(isExtended
+                                    ? getExtendedIntTy(elementTy, isSigned)
+                                    : getTruncatedIntTy(elementTy, isSigned),
+                                vt.getSize());
+  }
+
   /// Get a CIR anonymous record type.
   cir::RecordType getAnonRecordTy(llvm::ArrayRef<mlir::Type> members,
                                   bool packed = false, bool padded = false) {
@@ -370,6 +410,14 @@ public:
     return cir::ConstantOp::create(*this, loc, getNullDataMemberAttr(ty));
   }
 
+  cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
+    // TODO: dispatch creation for primitive types.
+    assert((mlir::isa<cir::RecordType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
+            mlir::isa<cir::VectorType>(ty)) &&
+           "NYI for other types");
+    return cir::ConstantOp::create(*this, loc, cir::ZeroAttr::get(ty));
+  }
+
   // TODO: split this to createFPExt/createFPTrunc when we have dedicated cast
   // operations.
   mlir::Value createFloatingCast(mlir::Value v, mlir::Type destType) {
@@ -407,6 +455,45 @@ public:
     assert(!cir::MissingFeatures::fastMathFlags());
 
     return cir::BinOp::create(*this, loc, cir::BinOpKind::Div, lhs, rhs);
+  }
+
+  /// Create a logical shift right (lshr) operation.
+  /// For vector integer types, this ensures logical (not arithmetic)
+  /// shift by using unsigned types internally if needed.
+  mlir::Value createLShr(mlir::Location loc, mlir::Value value,
+                         mlir::Value shiftAmt) {
+    mlir::Type valueTy = value.getType();
+
+    // Check if we have a vector type
+    if (auto vecTy = mlir::dyn_cast<cir::VectorType>(valueTy)) {
+      auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
+
+      // If already unsigned, just shift
+      if (!elemTy.isSigned()) {
+        return cir::ShiftOp::create(*this, loc, valueTy, value, shiftAmt,
+                                    false);
+      }
+
+      // Convert to unsigned for logical shift
+      auto unsignedElemTy = getUIntNTy(elemTy.getWidth());
+      auto unsignedVecTy =
+          cir::VectorType::get(unsignedElemTy, vecTy.getSize());
+
+      value = createBitcast(value, unsignedVecTy);
+      auto result = cir::ShiftOp::create(*this, loc, unsignedVecTy, value,
+                                         shiftAmt, false);
+
+      // Convert back to original signedness
+      return createBitcast(result, valueTy);
+    }
+
+    // Scalar case
+    if (auto intTy = mlir::dyn_cast<cir::IntType>(valueTy)) {
+      // For scalar integers, use ShiftOp directly with isShiftLeft=false
+      return cir::ShiftOp::create(*this, loc, valueTy, value, shiftAmt, false);
+    }
+
+    llvm_unreachable("createLShr expects integer or vector of integer type");
   }
 
   mlir::Value createDynCast(mlir::Location loc, mlir::Value src,
@@ -514,6 +601,14 @@ public:
       align = getAlignmentAttr(dst.getAlignment());
     return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), isVolatile,
                                          align, scope, order);
+  }
+
+  cir::StoreOp
+  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
+                     clang::CharUnits align = clang::CharUnits::One(),
+                     bool isVolatile = false) {
+    mlir::IntegerAttr alignAttr = getAlignmentAttr(align);
+    return CIRBaseBuilderTy::createStore(loc, val, dst, isVolatile, alignAttr);
   }
 
   /// Create a cir.complex.real_ptr operation that derives a pointer to the real

@@ -23,7 +23,7 @@ int8x8_t test_vld1_lane_s8(int8_t const * ptr, int8x8_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<7> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s8i>
 // CIR: [[VAL:%.*]] = cir.load align(1) [[PTR]] : !cir.ptr<!s8i>, !s8i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s8i x 8>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<8 x !s8i>
 
 // LLVM: {{.*}}test_vld1_lane_s8(ptr{{.*}}[[PTR:%.*]], <8 x i8>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VAL:%.*]] = load i8, ptr [[PTR]], align 1
@@ -38,7 +38,7 @@ int8x16_t test_vld1q_lane_s8(int8_t const * ptr, int8x16_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<15> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s8i>
 // CIR: [[VAL:%.*]] = cir.load align(1) [[PTR]] : !cir.ptr<!s8i>, !s8i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s8i x 16>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<16 x !s8i>
 
 // LLVM: {{.*}}test_vld1q_lane_s8(ptr{{.*}}[[PTR:%.*]], <16 x i8>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VAL:%.*]] = load i8, ptr [[PTR]], align 1
@@ -53,7 +53,7 @@ uint8x16_t test_vld1q_lane_u8(uint8_t const * ptr, uint8x16_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<15> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u8i>
 // CIR: [[VAL:%.*]] = cir.load align(1) [[PTR]] : !cir.ptr<!u8i>, !u8i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 16>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<16 x !u8i>
 
 // LLVM: {{.*}}test_vld1q_lane_u8(ptr{{.*}}[[PTR:%.*]], <16 x i8>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VAL:%.*]] = load i8, ptr [[PTR]], align 1
@@ -68,7 +68,7 @@ uint8x8_t test_vld1_lane_u8(uint8_t const * ptr, uint8x8_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<7> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u8i>
 // CIR: [[VAL:%.*]] = cir.load align(1) [[PTR]] : !cir.ptr<!u8i>, !u8i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 8>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<8 x !u8i>
 
 // LLVM: {{.*}}test_vld1_lane_u8(ptr{{.*}}[[PTR:%.*]], <8 x i8>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VAL:%.*]] = load i8, ptr [[PTR]], align 1
@@ -83,7 +83,7 @@ int16x4_t test_vld1_lane_s16(int16_t const * ptr, int16x4_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<3> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s16i>
 // CIR: [[VAL:%.*]] = cir.load align(2) [[PTR]] : !cir.ptr<!s16i>, !s16i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s16i x 4>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<4 x !s16i>
 
 // LLVM: {{.*}}test_vld1_lane_s16(ptr{{.*}}[[PTR:%.*]], <4 x i16>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -100,7 +100,7 @@ uint16x4_t test_vld1_lane_u16(uint16_t const * ptr, uint16x4_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<3> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u16i>
 // CIR: [[VAL:%.*]] = cir.load align(2) [[PTR]] : !cir.ptr<!u16i>, !u16i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 4>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<4 x !u16i>
 
 // LLVM: {{.*}}test_vld1_lane_u16(ptr{{.*}}[[PTR:%.*]], <4 x i16>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -117,7 +117,7 @@ int16x8_t test_vld1q_lane_s16(int16_t const * ptr, int16x8_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<7> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s16i>
 // CIR: [[VAL:%.*]] = cir.load align(2) [[PTR]] : !cir.ptr<!s16i>, !s16i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s16i x 8>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<8 x !s16i>
 
 // LLVM: {{.*}}test_vld1q_lane_s16(ptr{{.*}}[[PTR:%.*]], <8 x i16>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -134,7 +134,7 @@ uint16x8_t test_vld1q_lane_u16(uint16_t const * ptr, uint16x8_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<7> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u16i>
 // CIR: [[VAL:%.*]] = cir.load align(2) [[PTR]] : !cir.ptr<!u16i>, !u16i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 8>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<8 x !u16i>
 
 // LLVM: {{.*}}test_vld1q_lane_u16(ptr{{.*}}[[PTR:%.*]], <8 x i16>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -151,7 +151,7 @@ int32x2_t test_vld1_lane_s32(int32_t const * ptr, int32x2_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // CIR: [[VAL:%.*]] = cir.load align(4) [[PTR]] : !cir.ptr<!s32i>, !s32i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s32i x 2>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<2 x !s32i>
 
 // LLVM: {{.*}}test_vld1_lane_s32(ptr{{.*}}[[PTR:%.*]], <2 x i32>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -168,7 +168,7 @@ uint32x2_t test_vld1_lane_u32(uint32_t const * ptr, uint32x2_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u32i>
 // CIR: [[VAL:%.*]] = cir.load align(4) [[PTR]] : !cir.ptr<!u32i>, !u32i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 2>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<2 x !u32i>
 
 // LLVM: {{.*}}test_vld1_lane_u32(ptr{{.*}}[[PTR:%.*]], <2 x i32>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -186,7 +186,7 @@ int32x4_t test_vld1q_lane_s32(int32_t const * ptr, int32x4_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<3> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // CIR: [[VAL:%.*]] = cir.load align(4) [[PTR]] : !cir.ptr<!s32i>, !s32i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s32i x 4>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<4 x !s32i>
 
 // LLVM: {{.*}}test_vld1q_lane_s32(ptr{{.*}}[[PTR:%.*]], <4 x i32>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -204,7 +204,7 @@ uint32x4_t test_vld1q_lane_u32(uint32_t const * ptr, uint32x4_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<3> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u32i>
 // CIR: [[VAL:%.*]] = cir.load align(4) [[PTR]] : !cir.ptr<!u32i>, !u32i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 4>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<4 x !u32i>
 
 // LLVM: {{.*}}test_vld1q_lane_u32(ptr{{.*}}[[PTR:%.*]], <4 x i32>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -221,7 +221,7 @@ int64x1_t test_vld1_lane_s64(int64_t const * ptr, int64x1_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!s64i>, !s64i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<1 x !s64i>
 
 // LLVM: {{.*}}test_vld1_lane_s64(ptr{{.*}}[[PTR:%.*]], <1 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -238,7 +238,7 @@ uint64x1_t test_vld1_lane_u64(uint64_t const * ptr, uint64x1_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!u64i>, !u64i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 1>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<1 x !u64i>
 
 // LLVM: {{.*}}test_vld1_lane_u64(ptr{{.*}}[[PTR:%.*]], <1 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -255,7 +255,7 @@ int64x2_t test_vld1q_lane_s64(int64_t const * ptr, int64x2_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!s64i>, !s64i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<2 x !s64i>
 
 // LLVM: {{.*}}test_vld1q_lane_s64(ptr{{.*}}[[PTR:%.*]], <2 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -272,7 +272,7 @@ uint64x2_t test_vld1q_lane_u64(uint64_t const * ptr, uint64x2_t src) {
 // CIR: [[IDX:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) [[PTR]] : !cir.ptr<!u64i>, !u64i
-// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 2>
+// CIR: {{%.*}} = cir.vec.insert [[VAL]], {{%.*}}[[[IDX]] : !s32i] : !cir.vector<2 x !u64i>
 
 // LLVM: {{.*}}test_vld1q_lane_u64(ptr{{.*}}[[PTR:%.*]], <2 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[INTRN_VEC_CAST0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -287,7 +287,7 @@ void test_vst1_lane_s8(int8_t * ptr, int8x8_t src) {
 
 // CIR-LABEL: test_vst1_lane_s8
 // CIR: [[LANE:%.*]] = cir.const #cir.int<7> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s8i x 8>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<8 x !s8i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s8i>
 // CIR: cir.store align(1) [[VAL]], [[PTR]] : !s8i, !cir.ptr<!s8i>
 
@@ -301,7 +301,7 @@ void test_vst1_lane_s16(int16_t * ptr, int16x4_t src) {
 
 // CIR-LABEL: test_vst1_lane_s16
 // CIR: [[LANE:%.*]] = cir.const #cir.int<3> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s16i x 4>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<4 x !s16i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s16i>
 // CIR: cir.store align(2) [[VAL]], [[PTR]] : !s16i, !cir.ptr<!s16i>
 
@@ -317,7 +317,7 @@ void test_vst1_lane_u16(uint16_t * ptr, uint16x4_t src) {
 
 // CIR-LABEL: test_vst1_lane_u16
 // CIR: [[LANE:%.*]] = cir.const #cir.int<3> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!u16i x 4>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<4 x !u16i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u16i>
 // CIR: cir.store align(2) [[VAL]], [[PTR]] : !u16i, !cir.ptr<!u16i>
 
@@ -333,7 +333,7 @@ void test_vst1_lane_s32(int32_t * ptr, int32x2_t src) {
 
 // CIR-LABEL: test_vst1_lane_s32
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s32i x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s32i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // CIR: cir.store align(4) [[VAL]], [[PTR]] : !s32i, !cir.ptr<!s32i>
 
@@ -349,7 +349,7 @@ void test_vst1_lane_f32(float32_t * ptr, float32x2_t src) {
 
 // CIR-LABEL: test_vst1_lane_f32
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.float x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !cir.float>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.float>
 // CIR: cir.store align(4) [[VAL]], [[PTR]] : !cir.float, !cir.ptr<!cir.float>
 
@@ -365,7 +365,7 @@ void test_vst1_lane_s64(int64_t * ptr, int64x1_t src) {
 
 // CIR-LABEL: test_vst1_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -381,7 +381,7 @@ void test_vst1_lane_f64(float64_t * ptr, float64x1_t src) {
 
 // CIR-LABEL: test_vst1_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !cir.double>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: cir.store align(8) [[VAL]], [[PTR]] : !cir.double, !cir.ptr<!cir.double>
 
@@ -397,7 +397,7 @@ void test_vst1q_lane_s8(int8_t * ptr, int8x16_t src) {
 
 // CIR-LABEL: test_vst1q_lane_s8
 // CIR: [[LANE:%.*]] = cir.const #cir.int<15> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s8i x 16>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<16 x !s8i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s8i>
 // CIR: cir.store align(1) [[VAL]], [[PTR]] : !s8i, !cir.ptr<!s8i>
 
@@ -412,7 +412,7 @@ void test_vst1q_lane_s16(int16_t * ptr, int16x8_t src) {
 
 // CIR-LABEL: test_vst1q_lane_s16
 // CIR: [[LANE:%.*]] = cir.const #cir.int<7> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s16i x 8>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<8 x !s16i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s16i>
 // CIR: cir.store align(2) [[VAL]], [[PTR]] : !s16i, !cir.ptr<!s16i>
 
@@ -428,7 +428,7 @@ void test_vst1q_lane_u16(uint16_t * ptr, uint16x8_t src) {
 
 // CIR-LABEL: test_vst1q_lane_u16
 // CIR: [[LANE:%.*]] = cir.const #cir.int<7> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!u16i x 8>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<8 x !u16i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u16i>
 // CIR: cir.store align(2) [[VAL]], [[PTR]] : !u16i, !cir.ptr<!u16i>
 
@@ -444,7 +444,7 @@ void test_vst1q_lane_s32(int32_t * ptr, int32x4_t src) {
 
 // CIR-LABEL: test_vst1q_lane_s32
 // CIR: [[LANE:%.*]] = cir.const #cir.int<3> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s32i x 4>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<4 x !s32i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s32i>
 // CIR: cir.store align(4) [[VAL]], [[PTR]] : !s32i, !cir.ptr<!s32i>
 
@@ -460,7 +460,7 @@ void test_vst1q_lane_s64(int64_t * ptr, int64x2_t src) {
 
 // CIR-LABEL: test_vst1q_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -476,7 +476,7 @@ void test_vst1q_lane_f32(float32_t * ptr, float32x4_t src) {
 
 // CIR-LABEL: test_vst1q_lane_f32
 // CIR: [[LANE:%.*]] = cir.const #cir.int<3> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.float x 4>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<4 x !cir.float>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.float>
 // CIR: cir.store align(4) [[VAL]], [[PTR]] : !cir.float, !cir.ptr<!cir.float>
 
@@ -492,7 +492,7 @@ void test_vst1q_lane_f64(float64_t * ptr, float64x2_t src) {
 
 // CIR-LABEL: test_vst1q_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !cir.double>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: cir.store align(8) [[VAL]], [[PTR]] : !cir.double, !cir.ptr<!cir.double>
 
@@ -508,7 +508,7 @@ void test_vstl1q_lane_u64(uint64_t  *a, uint64x2_t b) {
 
 // CIR-LABEL: test_vstl1q_lane_u64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !u64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !u64i, !cir.ptr<!u64i>
 
@@ -524,7 +524,7 @@ void test_vstl1q_lane_s64(int64_t  *a, int64x2_t b) {
 
 // CIR-LABEL: test_vstl1q_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -540,7 +540,7 @@ void test_vstl1q_lane_f64(float64_t  *a, float64x2_t b) {
 
 // CIR-LABEL: test_vstl1q_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !cir.double>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !cir.double, !cir.ptr<!cir.double>
 
@@ -556,7 +556,7 @@ void test_vstl1q_lane_p64(poly64_t  *a, poly64x2_t b) {
 
 // CIR-LABEL: test_vstl1q_lane_p64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -572,7 +572,7 @@ void test_vstl1_lane_u64(uint64_t  *a, uint64x1_t b) {
 
 // CIR-LABEL: test_vstl1_lane_u64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !u64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !u64i, !cir.ptr<!u64i>
 
@@ -588,7 +588,7 @@ void test_vstl1_lane_s64(int64_t  *a, int64x1_t b) {
 
 // CIR-LABEL:test_vstl1_lane_s64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -604,7 +604,7 @@ void test_vstl1_lane_f64(float64_t  *a, float64x1_t b) {
 
 // CIR-LABEL:test_vstl1_lane_f64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !cir.double>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !cir.double, !cir.ptr<!cir.double>
 
@@ -620,7 +620,7 @@ void test_vstl1_lane_p64(poly64_t  *a, poly64x1_t b) {
 
 // CIR-LABEL: test_vstl1_lane_p64
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
-// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: [[VAL:%.*]] = cir.vec.extract {{%.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !s64i>
 // CIR: [[PTR:%.*]] = cir.cast bitcast {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: cir.store align(8) atomic(release) [[VAL]], [[PTR]] : !s64i, !cir.ptr<!s64i>
 
@@ -638,8 +638,8 @@ uint64x2_t test_vldap1q_lane_u64(uint64_t  *a, uint64x2_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!u64i x 2>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 2>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<16 x !s8i> -> !cir.vector<2 x !u64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !u64i>
 
 // LLVM: {{.*}}test_vldap1q_lane_u64(ptr{{.*}}[[PTR:%.*]], <2 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -655,8 +655,8 @@ int64x2_t test_vldap1q_lane_s64(int64_t  *a, int64x2_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<16 x !s8i> -> !cir.vector<2 x !s64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s64i>
 
 // LLVM: {{.*}}test_vldap1q_lane_s64(ptr{{.*}}[[PTR:%.*]], <2 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -672,8 +672,8 @@ float64x2_t test_vldap1q_lane_f64(float64_t  *a, float64x2_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!cir.double x 2>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 2>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<16 x !s8i> -> !cir.vector<2 x !cir.double>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !cir.double>
 
 // LLVM: {{.*}}test_vldap1q_lane_f64(ptr{{.*}}[[PTR:%.*]], <2 x double>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -689,8 +689,8 @@ poly64x2_t test_vldap1q_lane_p64(poly64_t  *a, poly64x2_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 16> -> !cir.vector<!s64i x 2>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 2>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<16 x !s8i> -> !cir.vector<2 x !s64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<2 x !s64i>
 
 // LLVM: {{.*}}test_vldap1q_lane_p64(ptr{{.*}}[[PTR:%.*]], <2 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <16 x i8>, ptr %{{.*}}
@@ -706,8 +706,8 @@ uint64x1_t test_vldap1_lane_u64(uint64_t  *a, uint64x1_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!u64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!u64i>, !u64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!u64i x 1>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!u64i x 1>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<8 x !s8i> -> !cir.vector<1 x !u64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !u64i>
 
 // LLVM: {{.*}}test_vldap1_lane_u64(ptr{{.*}}[[PTR:%.*]], <1 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -723,8 +723,8 @@ int64x1_t test_vldap1_lane_s64(int64_t  *a, int64x1_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<8 x !s8i> -> !cir.vector<1 x !s64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !s64i>
 
 // LLVM: {{.*}}test_vldap1_lane_s64(ptr{{.*}}[[PTR:%.*]], <1 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -741,8 +741,8 @@ float64x1_t test_vldap1_lane_f64(float64_t  *a, float64x1_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!cir.double>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!cir.double x 1>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!cir.double x 1>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<8 x !s8i> -> !cir.vector<1 x !cir.double>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !cir.double>
 
 // LLVM: {{.*}}test_vldap1_lane_f64(ptr{{.*}}[[PTR:%.*]], <1 x double>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <8 x i8>, ptr %{{.*}}
@@ -758,8 +758,8 @@ poly64x1_t test_vldap1_lane_p64(poly64_t  *a, poly64x1_t b) {
 // CIR: [[LANE:%.*]] = cir.const #cir.int<0> : !s32i
 // CIR: [[TMP0:%.*]] = cir.cast bitcast {{.*}} : !cir.ptr<!void> -> !cir.ptr<!s64i>
 // CIR: [[VAL:%.*]] = cir.load align(8) syncscope(system) atomic(acquire) [[TMP0]] : !cir.ptr<!s64i>, !s64
-// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<!s8i x 8> -> !cir.vector<!s64i x 1>
-// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<!s64i x 1>
+// CIR: [[VEC:%.*]] = cir.cast bitcast {{.*}} : !cir.vector<8 x !s8i> -> !cir.vector<1 x !s64i>
+// CIR: [[TMP:%.*]]  = cir.vec.insert [[VAL]], {{.*}}[[[LANE]] : !s32i] : !cir.vector<1 x !s64i>
 
 // LLVM: {{.*}}test_vldap1_lane_p64(ptr{{.*}}[[PTR:%.*]], <1 x i64>{{.*}}[[SRC:%.*]])
 // LLVM: [[TMP0:%.*]] = load <8 x i8>, ptr %{{.*}}

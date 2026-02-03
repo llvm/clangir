@@ -132,7 +132,7 @@ bfloat16_t test_vget_lane_bf16(bfloat16x4_t v) {
 
   // CIR-LABEL: vget_lane_bf16
   // CIR: [[TMP0:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<!cir.bf16 x 4>
+  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<4 x !cir.bf16>
 
   // LLVM-LABEL: test_vget_lane_bf16
   // LLVM-SAME: (<4 x bfloat> [[VEC:%.*]])
@@ -145,7 +145,7 @@ bfloat16_t test_vgetq_lane_bf16(bfloat16x8_t v) {
 
   // CIR-LABEL: vgetq_lane_bf16
   // CIR: [[TMP0:%.*]] = cir.const #cir.int<7> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<!cir.bf16 x 8>
+  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<8 x !cir.bf16>
 
   // LLVM-LABEL: test_vgetq_lane_bf16
   // LLVM-SAME: (<8 x bfloat> [[VEC:%.*]])
@@ -176,7 +176,7 @@ bfloat16_t test_vduph_lane_bf16(bfloat16x4_t v) {
 
   // CIR-LABEL: vduph_lane_bf16
   // CIR: [[TMP0:%.*]] = cir.const #cir.int<1> : !s32i
-  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<!cir.bf16 x 4>
+  // CIR: [[TMP1:%.*]] = cir.vec.extract {{.*}}[{{.*}} : !s32i] : !cir.vector<4 x !cir.bf16>
 
   // LLVM-LABEL: test_vduph_lane_bf16
   // LLVM-SAME: (<4 x bfloat> [[VEC:%.*]])

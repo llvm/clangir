@@ -507,7 +507,7 @@ uint16x8_t test_vcvtq_u16_f16(float16x8_t a) {
   return vcvtq_u16_f16(a);
 
   // CIR-LABEL: vcvtq_u16_f16
-  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fcvtzu" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<8 x !u16i>
 
   // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzu.v8i16.v8f16(<8 x half> {{%.*}})
 
@@ -520,7 +520,7 @@ int16x8_t test_vcvtq_s16_f16(float16x8_t a) {
   return vcvtq_s16_f16(a);
 
   // CIR-LABEL: vcvtq_s16_f16
-  // CIR: {{%.*}} = cir.llvm.intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<!s16i x 8>
+  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fcvtzs" {{%.*}} : (!cir.vector<!cir.f16 x 8>) -> !cir.vector<8 x !s16i>
 
   // LLVM: {{%.*}} = call <8 x i16> @llvm.aarch64.neon.fcvtzs.v8i16.v8f16(<8 x half> {{%.*}})
 

@@ -1924,10 +1924,21 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl &gd, unsigned builtinID,
       return RValue::get(nullptr);
 
     switch (evalKind) {
-    case cir::TEK_Scalar:
+    case cir::TEK_Scalar: {
       if (mlir::isa<cir::VoidType>(v.getType()))
         return RValue::get(nullptr);
+      // Ensure the returned value type matches the builtin's declared return
+      // type. Some builtins (e.g., NEON intrinsics) may return a value with
+      // a different signedness than the declared return type, which causes
+      // type mismatch errors when the result is stored.
+      mlir::Type expectedTy = convertType(e->getType());
+      if (v.getType() != expectedTy &&
+          mlir::isa<cir::VectorType>(v.getType()) &&
+          mlir::isa<cir::VectorType>(expectedTy)) {
+        v = builder.createBitcast(v, expectedTy);
+      }
       return RValue::get(v);
+    }
     case cir::TEK_Aggregate:
       cgm.errorNYI(e->getSourceRange(), "aggregate return value from builtin");
       return getUndefRValue(e->getType());

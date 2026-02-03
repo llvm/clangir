@@ -22,10 +22,10 @@ int8x8_t test_vext_s8(int8x8_t a, int8x8_t b) {
   return vext_s8(a, b, 2);
 
   // CIR-LABEL: vext_s8
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s8i x 8>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<8 x !s8i>) 
   // CIR-SAME: [#cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, 
   // CIR-SAME:  #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i, 
-  // CIR-SAME:  #cir.int<8> : !s32i, #cir.int<9> : !s32i] : !cir.vector<!s8i x 8>
+  // CIR-SAME:  #cir.int<8> : !s32i, #cir.int<9> : !s32i] : !cir.vector<8 x !s8i>
 
   // LLVM: {{.*}}test_vext_s8(<8 x i8>{{.*}}[[A:%.*]], <8 x i8>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i8> [[A]], <8 x i8> [[B]], 
@@ -37,13 +37,13 @@ int8x16_t test_vextq_s8(int8x16_t a, int8x16_t b) {
   return vextq_s8(a, b, 2);
 
   // CIR-LABEL: vextq_s8
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s8i x 16>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<16 x !s8i>) 
   // CIR-SAME: [#cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i, 
   // CIR-SAME:  #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i, 
   // CIR-SAME:  #cir.int<8> : !s32i, #cir.int<9> : !s32i, #cir.int<10> : !s32i, 
   // CIR-SAME:  #cir.int<11> : !s32i, #cir.int<12> : !s32i, #cir.int<13> : !s32i,
   // CIR-SAME:  #cir.int<14> : !s32i, #cir.int<15> : !s32i, #cir.int<16> : !s32i,  
-  // CIR-SAME:  #cir.int<17> : !s32i] : !cir.vector<!s8i x 16>
+  // CIR-SAME:  #cir.int<17> : !s32i] : !cir.vector<16 x !s8i>
 
   // LLVM: {{.*}}test_vextq_s8(<16 x i8>{{.*}}[[A:%.*]], <16 x i8>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <16 x i8> [[A]], <16 x i8> [[B]], 
@@ -56,9 +56,9 @@ int16x4_t test_vext_s16(int16x4_t a, int16x4_t b) {
   return vext_s16(a, b, 3);
 
   // CIR-LABEL: vext_s16
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s16i x 4>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<4 x !s16i>) 
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i,
-  // CIR-SAME:  #cir.int<6> : !s32i] : !cir.vector<!s16i x 4>
+  // CIR-SAME:  #cir.int<6> : !s32i] : !cir.vector<4 x !s16i>
 
   // LLVM: {{.*}}test_vext_s16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[A]], <4 x i16> [[B]], 
@@ -70,10 +70,10 @@ int16x8_t test_vextq_s16(int16x8_t a, int16x8_t b) {
   return vextq_s16(a, b, 3);
 
   // CIR-LABEL: vextq_s16
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s16i x 8>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<8 x !s16i>) 
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, 
   // CIR-SAME:  #cir.int<6> : !s32i, #cir.int<7> : !s32i, #cir.int<8> : !s32i, 
-  // CIR-SAME:  #cir.int<9> : !s32i, #cir.int<10> : !s32i] : !cir.vector<!s16i x 8>
+  // CIR-SAME:  #cir.int<9> : !s32i, #cir.int<10> : !s32i] : !cir.vector<8 x !s16i>
 
   // LLVM: {{.*}}test_vextq_s16(<8 x i16>{{.*}}[[A:%.*]], <8 x i16>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[A]], <8 x i16> [[B]], 
@@ -86,9 +86,9 @@ uint16x4_t test_vext_u16(uint16x4_t a, uint16x4_t b) {
   return vext_u16(a, b, 3);
 
   // CIR-LABEL: vext_u16
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!u16i x 4>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<4 x !u16i>) 
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i,
-  // CIR-SAME:  #cir.int<6> : !s32i] : !cir.vector<!u16i x 4>
+  // CIR-SAME:  #cir.int<6> : !s32i] : !cir.vector<4 x !u16i>
 
   // LLVM: {{.*}}test_vext_u16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[A]], <4 x i16> [[B]], 
@@ -100,10 +100,10 @@ uint16x8_t test_vextq_u16(uint16x8_t a, uint16x8_t b) {
   return vextq_u16(a, b, 3);
 
   // CIR-LABEL: vextq_u16
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!u16i x 8>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<8 x !u16i>) 
   // CIR-SAME: [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i, 
   // CIR-SAME:  #cir.int<6> : !s32i, #cir.int<7> : !s32i, #cir.int<8> : !s32i, 
-  // CIR-SAME:  #cir.int<9> : !s32i, #cir.int<10> : !s32i] : !cir.vector<!u16i x 8>
+  // CIR-SAME:  #cir.int<9> : !s32i, #cir.int<10> : !s32i] : !cir.vector<8 x !u16i>
 
   // LLVM: {{.*}}test_vextq_u16(<8 x i16>{{.*}}[[A:%.*]], <8 x i16>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[A]], <8 x i16> [[B]], 
@@ -115,8 +115,8 @@ int32x2_t test_vext_s32(int32x2_t a, int32x2_t b) {
   return vext_s32(a, b, 1);
 
   // CIR-LABEL: vext_s32
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s32i x 2>) 
-  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<2 x !s32i>) 
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<2 x !s32i>
 
   // LLVM: {{.*}}test_vext_s32(<2 x i32>{{.*}}[[A:%.*]], <2 x i32>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <2 x i32> [[A]], <2 x i32> [[B]], 
@@ -128,9 +128,9 @@ int32x4_t test_vextq_s32(int32x4_t a, int32x4_t b) {
   return vextq_s32(a, b, 1);
 
   // CIR-LABEL: vextq_s32
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s32i x 4>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<4 x !s32i>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i,
-  // CIR-SAME:  #cir.int<3> : !s32i, #cir.int<4> : !s32i] : !cir.vector<!s32i x 4>
+  // CIR-SAME:  #cir.int<3> : !s32i, #cir.int<4> : !s32i] : !cir.vector<4 x !s32i>
 
   // LLVM: {{.*}}test_vextq_s32(<4 x i32>{{.*}}[[A:%.*]], <4 x i32>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <4 x i32> [[A]], <4 x i32> [[B]], 
@@ -142,8 +142,8 @@ int64x1_t test_vext_s64(int64x1_t a, int64x1_t b) {
   return vext_s64(a, b, 0);
   
   // CIR-LABEL: vext_s64
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s64i x 1>) 
-  // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<!s64i x 1>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<1 x !s64i>) 
+  // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<1 x !s64i>
 
   // LLVM: {{.*}}test_vext_s64(<1 x i64>{{.*}}[[A:%.*]], <1 x i64>{{.*}}[[B:%.*]])
   // LLVM: ret <1 x i64> [[A]]
@@ -153,8 +153,8 @@ int64x2_t test_vextq_s64(int64x2_t a, int64x2_t b) {
   return vextq_s64(a, b, 1);
 
   // CIR-LABEL: vextq_s64
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!s64i x 2>) 
-  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s64i x 2>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<2 x !s64i>) 
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<2 x !s64i>
 
   // LLVM: {{.*}}test_vextq_s64(<2 x i64>{{.*}}[[A:%.*]], <2 x i64>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <2 x i64> [[A]], <2 x i64> [[B]], 
@@ -166,8 +166,8 @@ float32x2_t test_vext_f32(float32x2_t a, float32x2_t b) {
   return vext_f32(a, b, 1);
 
   // CIR-LABEL: vext_f32
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!cir.float x 2>) 
-  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!cir.float x 2>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<2 x !cir.float>) 
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<2 x !cir.float>
 
   // LLVM: {{.*}}test_vext_f32(<2 x float>{{.*}}[[A:%.*]], <2 x float>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <2 x float> [[A]], <2 x float> [[B]], 
@@ -179,9 +179,9 @@ float32x4_t test_vextq_f32(float32x4_t a, float32x4_t b) {
   return vextq_f32(a, b, 1);
 
   // CIR-LABEL: vextq_f32
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!cir.float x 4>) 
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<4 x !cir.float>) 
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, 
-  // CIR-SAME:  #cir.int<4> : !s32i] : !cir.vector<!cir.float x 4>
+  // CIR-SAME:  #cir.int<4> : !s32i] : !cir.vector<4 x !cir.float>
 
   // LLVM: {{.*}}test_vextq_f32(<4 x float>{{.*}}[[A:%.*]], <4 x float>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <4 x float> [[A]], <4 x float> [[B]], 
@@ -194,8 +194,8 @@ float64x1_t test_vext_f64(float64x1_t a, float64x1_t b) {
   return vext_f64(a, b, 0);
   
   // CIR-LABEL: vext_f64
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!cir.double x 1>) 
-  // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<!cir.double x 1>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<1 x !cir.double>) 
+  // CIR-SAME: [#cir.int<0> : !s32i] : !cir.vector<1 x !cir.double>
 
   // LLVM: {{.*}}test_vext_f64(<1 x double>{{.*}}[[A:%.*]], <1 x double>{{.*}}[[B:%.*]])
   // LLVM: ret <1 x double> [[A]]
@@ -205,8 +205,8 @@ float64x2_t test_vextq_f64(float64x2_t a, float64x2_t b) {
   return vextq_f64(a, b, 1);
 
   // CIR-LABEL: vextq_f64
-  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<!cir.double x 2>) 
-  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!cir.double x 2>
+  // CIR: {{%.*}}= cir.vec.shuffle({{%.*}}, {{%.*}} : !cir.vector<2 x !cir.double>) 
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<2 x !cir.double>
 
   // LLVM: {{.*}}test_vextq_f64(<2 x double>{{.*}}[[A:%.*]], <2 x double>{{.*}}[[B:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <2 x double> [[A]], <2 x double> [[B]], 
