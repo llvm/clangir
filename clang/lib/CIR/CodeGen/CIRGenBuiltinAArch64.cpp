@@ -2761,8 +2761,8 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     if (mlir::isa<cir::SingleType, cir::DoubleType>(vTy.getElementType())) {
       return cir::FAbsOp::create(builder, loc, ops[0]);
     }
-    // Integer abs - use LLVM intrinsic
-    return emitNeonCall(builder, {vTy}, ops, "aarch64.neon.abs", vTy, loc);
+    // Integer abs - use cir.abs with poison=false (NEON abs is well-defined)
+    return cir::AbsOp::create(builder, loc, ops[0], /*poison=*/false);
   }
   case NEON::BI__builtin_neon_vaddhn_v: {
     // vaddhn_v: Add and narrow high - adds two wide vectors and returns
@@ -4825,8 +4825,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     // vrnda: round to nearest with ties away from zero
     Ops[0] = builder.createBitcast(Ops[0], ty);
-    return emitNeonCall(builder, {ty}, Ops, "aarch64.neon.frintn", ty,
-                        getLoc(E->getExprLoc()));
+    return cir::RoundOp::create(builder, getLoc(E->getExprLoc()), Ops[0]);
   }
   case NEON::BI__builtin_neon_vrndih_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vrndih_f16 NYI");

@@ -4252,22 +4252,20 @@ float32x2_t test_vmin_f32(float32x2_t a, float32x2_t b) {
   return vmin_f32(a, b);
 
   // CIR-LABEL: vmin_f32
-  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fmin" {{%.*}}, {{%.*}} :
-  // CIR-SAME: (!cir.vector<2 x !cir.float>, !cir.vector<2 x !cir.float>) -> !cir.vector<2 x !cir.float>
+  // CIR: {{%.*}} = cir.fminimum {{%.*}}, {{%.*}} : !cir.vector<2 x !cir.float>
 
   // LLVM: {{.*}}@test_vmin_f32(<2 x float>{{.*}}[[A:%.*]], <2 x float>{{.*}}[[B:%.*]])
-  // LLVM: [[VMIN2_I:%.*]] = call <2 x float> @llvm.aarch64.neon.fmin.v2f32(<2 x float>
+  // LLVM: [[VMIN2_I:%.*]] = call <2 x float> @llvm.minimum.v2f32(<2 x float>
 }
 
 float64x1_t test_vmin_f64(float64x1_t a, float64x1_t b) {
   return vmin_f64(a, b);
 
   // CIR-LABEL: vmin_f64
-  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fmin" {{%.*}}, {{%.*}} :
-  // CIR-SAME: (!cir.vector<1 x !cir.double>, !cir.vector<1 x !cir.double>) -> !cir.vector<1 x !cir.double>
+  // CIR: {{%.*}} = cir.fminimum {{%.*}}, {{%.*}} : !cir.vector<1 x !cir.double>
 
   // LLVM: {{.*}}@test_vmin_f64(<1 x double>{{.*}}[[A:%.*]], <1 x double>{{.*}}[[B:%.*]])
-  // LLVM: [[VMIN2_I:%.*]] = call <1 x double> @llvm.aarch64.neon.fmin.v1f64(<1 x double>
+  // LLVM: [[VMIN2_I:%.*]] = call <1 x double> @llvm.minimum.v1f64(<1 x double>
 }
 
 int8x16_t test_vminq_s8(int8x16_t a, int8x16_t b) {
@@ -4342,11 +4340,10 @@ float64x2_t test_vminq_f64(float64x2_t a, float64x2_t b) {
   return vminq_f64(a, b);
 
   // CIR-LABEL: vminq_f64
-  // CIR: {{%.*}} = cir.call_llvm_intrinsic "aarch64.neon.fmin" {{%.*}}, {{%.*}} :
-  // CIR-SAME: (!cir.vector<2 x !cir.double>, !cir.vector<2 x !cir.double>) -> !cir.vector<2 x !cir.double>
+  // CIR: {{%.*}} = cir.fminimum {{%.*}}, {{%.*}} : !cir.vector<2 x !cir.double>
 
   // LLVM: {{.*}}@test_vminq_f64(<2 x double>{{.*}}[[A:%.*]], <2 x double>{{.*}}[[B:%.*]])
-  // LLVM: [[VMIN2_I:%.*]] = call <2 x double> @llvm.aarch64.neon.fmin.v2f64(<2 x double>
+  // LLVM: [[VMIN2_I:%.*]] = call <2 x double> @llvm.minimum.v2f64(<2 x double>
 }
 
 // NYI-LABEL: @test_vmaxnm_f32(
