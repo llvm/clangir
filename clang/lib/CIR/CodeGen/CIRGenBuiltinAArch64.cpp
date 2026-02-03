@@ -5286,25 +5286,50 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
-    // The builtin's return type is always signed char vector (as declared by
-    // Clang), regardless of the NEON type flags. The arm_neon.h macro uses
-    // __builtin_bit_cast to convert to the actual type. We need to match the
-    // builtin's declared return type.
-    mlir::Type builtinRetTy = convertType(E->getType());
-    cir::VectorType retVecTy = mlir::cast<cir::VectorType>(builtinRetTy);
-
-    Ops[1] = builder.createBitcast(Ops[1], retVecTy);
-    Ops[0] =
-        builder.createAlignedLoad(Ops[0].getLoc(), retVecTy.getElementType(),
-                                  Ops[0], PtrOp0.getAlignment());
+    // Use the actual NEON element type (from vTy) for the load, not the
+    // builtin's declared return type (which is always signed char vector).
+    // Bitcast source vector to actual NEON type FIRST (must come before scalar
+    // load to match expected LLVM IR order)
+    Ops[1] = builder.createBitcast(Ops[1], vTy);
+    // Bitcast pointer to the actual element type
+    mlir::Value ptr = Ops[0];
+    if (vTy.getElementType() !=
+        mlir::cast<cir::PointerType>(ptr.getType()).getPointee())
+      ptr = builder.createPtrBitcast(ptr, vTy.getElementType());
+    // Load using actual element type
+    mlir::Value loadedVal = builder.createAlignedLoad(
+        ptr.getLoc(), vTy.getElementType(), ptr, PtrOp0.getAlignment());
+    // Insert into actual NEON type (will be bitcasted to return type in
+    // emitBuiltinExpr)
     return cir::VecInsertOp::create(builder, getLoc(E->getExprLoc()), Ops[1],
-                                    Ops[0], Ops[2]);
+                                    loadedVal, Ops[2]);
   }
   case NEON::BI__builtin_neon_vldap1_lane_s64:
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {
-    // TODO: Need atomic load support in upstream CIR
-    cgm.errorNYI(E->getSourceRange(), "NEON vldap1_lane with atomic load");
-    return nullptr;
+    // Load with acquire ordering (LDAPUR instruction)
+    // Order: ptr bitcast → atomic load → vec bitcast → vec.insert
+    // Bitcast pointer to the actual element type
+    mlir::Value ptr = Ops[0];
+    if (vTy.getElementType() !=
+        mlir::cast<cir::PointerType>(ptr.getType()).getPointee())
+      ptr = builder.createPtrBitcast(ptr, vTy.getElementType());
+    // Create atomic load with acquire ordering
+    mlir::IntegerAttr alignAttr =
+        builder.getAlignmentAttr(PtrOp0.getAlignment());
+    auto acquireOrder =
+        cir::MemOrderAttr::get(builder.getContext(), cir::MemOrder::Acquire);
+    auto systemScope = cir::SyncScopeKindAttr::get(builder.getContext(),
+                                                   cir::SyncScopeKind::System);
+    cir::LoadOp load =
+        cir::LoadOp::create(builder, getLoc(E->getExprLoc()), ptr,
+                            /*isDeref=*/false, /*isVolatile=*/false, alignAttr,
+                            systemScope, acquireOrder);
+    // Bitcast source vector to actual NEON type (after atomic load)
+    Ops[1] = builder.createBitcast(Ops[1], vTy);
+    // Insert into actual NEON type (will be bitcasted to return type in
+    // emitBuiltinExpr)
+    return cir::VecInsertOp::create(builder, getLoc(E->getExprLoc()), Ops[1],
+                                    load, Ops[2]);
   }
   case NEON::BI__builtin_neon_vld1_dup_v:
   case NEON::BI__builtin_neon_vld1q_dup_v: {
@@ -5328,9 +5353,21 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vstl1_lane_s64:
   case NEON::BI__builtin_neon_vstl1q_lane_s64: {
-    // TODO: Need atomic store support in upstream CIR
-    cgm.errorNYI(E->getSourceRange(), "NEON vstl1_lane with atomic store");
-    return nullptr;
+    // Store with release ordering (STLUR instruction)
+    Ops[1] = builder.createBitcast(Ops[1], ty);
+    Ops[1] =
+        cir::VecExtractOp::create(builder, Ops[1].getLoc(), Ops[1], Ops[2]);
+    // Bitcast pointer to match the element type
+    Address storeAddr = PtrOp0.withElementType(builder, ty.getElementType());
+    // Create atomic store with release ordering
+    mlir::IntegerAttr alignAttr =
+        builder.getAlignmentAttr(PtrOp0.getAlignment());
+    auto releaseOrder =
+        cir::MemOrderAttr::get(builder.getContext(), cir::MemOrder::Release);
+    (void)builder.CIRBaseBuilderTy::createStore(
+        getLoc(E->getExprLoc()), Ops[1], storeAddr.getPointer(),
+        /*isVolatile=*/false, alignAttr, /*scope=*/{}, releaseOrder);
+    return Ops[1];
   }
   case NEON::BI__builtin_neon_vld2_v:
   case NEON::BI__builtin_neon_vld2q_v: {
