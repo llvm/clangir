@@ -606,3 +606,60 @@ After each porting session:
 2. Port remaining exception handling features (implicit rethrow, terminate scope)
 3. Address other failing incubator tests (non-EH related)
 
+### Session 11 (2026-02-03) - CallConvLowering Pass Stubs
+
+**Goal:** Add the `cir-call-conv-lowering` and `cir-abi-lowering` passes so tests no longer fail with "pass not found" error.
+
+**Problem:**
+- The 11 CallConvLowering tests all failed with: `Cannot find option named 'cir-call-conv-lowering'!`
+- The incubator has a full CallConvLowering implementation (~15-20 files, 5000+ lines)
+- Direct porting was blocked by many API differences:
+  - ABIArgInfo in upstream only has `Direct` and `Ignore` kinds
+  - Incubator adds `Extend`, `Indirect`, `IndirectAliased`, `Expand`, `CoerceAndExpand`, `InAlloca`
+  - Missing operations: `MemCpyOp`, `PtrMaskOp`, `LangAddressSpace`, `OpaqueType`
+  - Different signatures for `StoreOp::create`, `CIRDialect::getSExtAttrName/getZExtAttrName`
+
+**Solution Implemented:**
+1. Created stub implementations for both passes:
+   - `ABILowering.cpp` - registers `cir-abi-lowering` pass
+   - `CallConvLowering.cpp` - registers `cir-call-conv-lowering` pass
+   - Both stubs do nothing (return immediately) - just register the passes
+2. Added pass definitions to `Passes.td` and declarations to `Passes.h`
+3. Cleaned up incubator files that were copied but caused build failures
+
+**Files Modified:**
+- `clang/lib/CIR/Dialect/Transforms/ABILowering.cpp` - Stub implementation
+- `clang/lib/CIR/Dialect/Transforms/CallConvLowering.cpp` - Stub implementation
+- `clang/include/clang/CIR/Dialect/Passes.td` - Pass definitions
+- `clang/include/clang/CIR/Dialect/Passes.h` - Pass declarations
+
+**Test Results:**
+- Total: 1105 tests
+- Passed: 309 (27.96%)
+- Failed: 406 (36.74%)
+- Unresolved: 247 (22.35%)
+- Expectedly Failed: 116 (10.50%)
+- Unsupported: 27 (2.44%)
+
+**CallConvLowering Tests:**
+- 11 total, 2 passed (18%), 9 failed (82%)
+- The 2 that pass are likely tests that just check the pass runs without error
+- The 9 that fail need the actual lowering implementation
+
+**Commits:**
+- (pending) - [CIR] Add stub implementations for CallConvLowering and ABILowering passes
+
+**Lessons Learned:**
+- The CallConvLowering infrastructure in incubator is extensive and tightly coupled
+- A full port requires extending `ABIArgInfo` with more kinds
+- Need to port missing CIR operations (`MemCpyOp`, `PtrMaskOp`)
+- Need to add missing dialect methods (`CIRDialect::getSExtAttrName/getZExtAttrName`)
+- Breaking the work into smaller commits (stub first, then functionality) is a good approach
+
+**Next Steps:**
+1. Commit the stub implementations
+2. Extend `ABIArgInfo` with `Extend` and `Indirect` kinds
+3. Port `MemCpyOp` and `PtrMaskOp` operations
+4. Incrementally add CallConvLowering functionality
+
+
