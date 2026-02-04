@@ -1318,7 +1318,7 @@ int8x8_t test_splat_lane_s8(int8x8_t v) {
 
   // LLVM: {{.*}}@test_splat_lane_s8(<8 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i8> [[V]], <8 x i8> poison, <8 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <8 x i8> [[RES]]
+  // LLVM: ret <8 x i8>
 }
 
 int16x4_t test_splat_lane_s16(int16x4_t v) {
@@ -1334,7 +1334,7 @@ int16x4_t test_splat_lane_s16(int16x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <4 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[TMP1]], <4 x i16> poison, <4 x i32> <i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <4 x i16> [[RES]]
+  // LLVM: ret <4 x i16>
 }
 
 int32x2_t test_splat_lane_s32(int32x2_t v) {
@@ -1350,7 +1350,7 @@ int32x2_t test_splat_lane_s32(int32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i32> [[TMP1]], <2 x i32> poison, <2 x i32> <i32 1, i32 1>
-  // LLVM: ret <2 x i32> [[RES]]
+  // LLVM: ret <2 x i32>
 }  
 
 int64x1_t test_splat_lane_s64(int64x1_t v) {
@@ -1365,7 +1365,7 @@ int64x1_t test_splat_lane_s64(int64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x i64> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <1 x i64> [[TMP1]], <1 x i64> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x i64> [[RES]]
+  // LLVM: ret <1 x i64>
 }
 
 uint8x8_t test_splat_lane_u8(uint8x8_t v) {
@@ -1380,7 +1380,7 @@ uint8x8_t test_splat_lane_u8(uint8x8_t v) {
 
   // LLVM: {{.*}}@test_splat_lane_u8(<8 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i8> [[V]], <8 x i8> poison, <8 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <8 x i8> [[RES]]
+  // LLVM: ret <8 x i8>
 }
 uint16x4_t test_splat_lane_u16(uint16x4_t v) {
   return (uint16x4_t) __builtin_neon_splat_lane_v((int8x8_t)v, 3, 17);
@@ -1395,7 +1395,7 @@ uint16x4_t test_splat_lane_u16(uint16x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <4 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[TMP1]], <4 x i16> poison, <4 x i32> <i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <4 x i16> [[RES]]
+  // LLVM: ret <4 x i16>
 }
 
 uint32x2_t test_splat_lane_u32(uint32x2_t v) {
@@ -1411,7 +1411,7 @@ uint32x2_t test_splat_lane_u32(uint32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i32> [[TMP1]], <2 x i32> poison, <2 x i32> <i32 1, i32 1>
-  // LLVM: ret <2 x i32> [[RES]]
+  // LLVM: ret <2 x i32>
 }
 
 uint64x1_t test_splat_lane_u64(uint64x1_t v) {
@@ -1426,7 +1426,7 @@ uint64x1_t test_splat_lane_u64(uint64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x i64> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <1 x i64> [[TMP1]], <1 x i64> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x i64> [[RES]]
+  // LLVM: ret <1 x i64>
 }
 
 float32x2_t test_splat_lane_f32(float32x2_t v) {
@@ -1442,7 +1442,7 @@ float32x2_t test_splat_lane_f32(float32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x float> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x float>
   // LLVM: [[RES:%.*]] = shufflevector <2 x float> [[TMP1]], <2 x float> poison, <2 x i32> <i32 1, i32 1>
-  // LLVM: ret <2 x float> [[RES]]
+  // LLVM: ret <2 x float>
 }
 
 float64x1_t test_splat_lane_f64(float64x1_t v) {
@@ -1457,7 +1457,7 @@ float64x1_t test_splat_lane_f64(float64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x double> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x double>
   // LLVM: [[RES:%.*]] = shufflevector <1 x double> [[TMP1]], <1 x double> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x double> [[RES]]
+  // LLVM: ret <1 x double>
 }
 
 int8x16_t test_splatq_lane_s8(int8x8_t v) {
@@ -1475,7 +1475,7 @@ int8x16_t test_splatq_lane_s8(int8x8_t v) {
   // LLVM: {{.*}}@test_splatq_lane_s8(<8 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i8> [[V]], <8 x i8> poison, 
   // LLVM-SAME: <16 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <16 x i8> [[RES]]
+  // LLVM: ret <16 x i8>
 } 
 
 int16x8_t test_splatq_lane_s16(int16x4_t v) {
@@ -1492,7 +1492,7 @@ int16x8_t test_splatq_lane_s16(int16x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <4 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[TMP1]], <4 x i16> poison, <8 x i32> <i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: ret <8 x i16>
 }
 
 int32x4_t test_splatq_lane_s32(int32x2_t v) {
@@ -1508,7 +1508,7 @@ int32x4_t test_splatq_lane_s32(int32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i32> [[TMP1]], <2 x i32> poison, <4 x i32> <i32 1, i32 1, i32 1, i32 1>
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: ret <4 x i32>
 }  
 
 int64x2_t test_splatq_lane_s64(int64x1_t v) {
@@ -1524,7 +1524,7 @@ int64x2_t test_splatq_lane_s64(int64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x i64> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <1 x i64> [[TMP1]], <1 x i64> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: ret <2 x i64>
 }
 
 uint8x16_t test_splatq_lane_u8(uint8x8_t v) {
@@ -1542,7 +1542,7 @@ uint8x16_t test_splatq_lane_u8(uint8x8_t v) {
   // LLVM: {{.*}}@test_splatq_lane_u8(<8 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <8 x i8> [[V]], <8 x i8> poison, 
   // LLVM-SAME: <16 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <16 x i8> [[RES]]
+  // LLVM: ret <16 x i8>
 }
 
 uint16x8_t test_splatq_lane_u16(uint16x4_t v) {
@@ -1559,7 +1559,7 @@ uint16x8_t test_splatq_lane_u16(uint16x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <4 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i16> [[TMP1]], <4 x i16> poison, <8 x i32> <i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: ret <8 x i16>
 }
 
 uint32x4_t test_splatq_lane_u32(uint32x2_t v) {
@@ -1575,7 +1575,7 @@ uint32x4_t test_splatq_lane_u32(uint32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i32> [[TMP1]], <2 x i32> poison, <4 x i32> <i32 1, i32 1, i32 1, i32 1>
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: ret <4 x i32>
 }
 
 uint64x2_t test_splatq_lane_u64(uint64x1_t v) {
@@ -1591,7 +1591,7 @@ uint64x2_t test_splatq_lane_u64(uint64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x i64> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <1 x i64> [[TMP1]], <1 x i64> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: ret <2 x i64>
 }
 
 float32x4_t test_splatq_lane_f32(float32x2_t v) {
@@ -1607,7 +1607,7 @@ float32x4_t test_splatq_lane_f32(float32x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x float> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <2 x float>
   // LLVM: [[RES:%.*]] = shufflevector <2 x float> [[TMP1]], <2 x float> poison, <4 x i32> <i32 1, i32 1, i32 1, i32 1>
-  // LLVM: ret <4 x float> [[RES]]
+  // LLVM: ret <4 x float>
 }
 
 float64x2_t test_splatq_lane_f64(float64x1_t v) {
@@ -1623,7 +1623,7 @@ float64x2_t test_splatq_lane_f64(float64x1_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <1 x double> [[V]] to <8 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x double>
   // LLVM: [[RES:%.*]] = shufflevector <1 x double> [[TMP1]], <1 x double> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x double> [[RES]]
+  // LLVM: ret <2 x double>
 }
 
 int8x8_t test_splat_laneq_s8(int8x16_t v) {
@@ -1639,7 +1639,7 @@ int8x8_t test_splat_laneq_s8(int8x16_t v) {
   // LLVM: {{.*}}@test_splat_laneq_s8(<16 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <16 x i8> [[V]], <16 x i8> poison, 
   // LLVM-SAME: <8 x i32> <i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15>
-  // LLVM: ret <8 x i8> [[RES]]
+  // LLVM: ret <8 x i8>
 }
 
 int16x4_t test_splat_laneq_s16(int16x8_t v) {
@@ -1655,7 +1655,7 @@ int16x4_t test_splat_laneq_s16(int16x8_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <8 x i16> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <8 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[TMP1]], <8 x i16> poison, <4 x i32> <i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <4 x i16> [[RES]]
+  // LLVM: ret <4 x i16>
 }
 
 int32x2_t test_splat_laneq_s32(int32x4_t v) {
@@ -1671,7 +1671,7 @@ int32x2_t test_splat_laneq_s32(int32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i32> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <2 x i32> <i32 3, i32 3>
-  // LLVM: ret <2 x i32> [[RES]]
+  // LLVM: ret <2 x i32>
 }
 
 int64x1_t test_splat_laneq_s64(int64x2_t v) {
@@ -1687,7 +1687,7 @@ int64x1_t test_splat_laneq_s64(int64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i64> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i64> [[TMP1]], <2 x i64> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x i64> [[RES]]
+  // LLVM: ret <1 x i64>
 }
 
 float32x2_t test_splat_laneq_f32(float32x4_t v) {
@@ -1703,7 +1703,7 @@ float32x2_t test_splat_laneq_f32(float32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x float> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x float>
   // LLVM: [[RES:%.*]] = shufflevector <4 x float> [[TMP1]], <4 x float> poison, <2 x i32> <i32 1, i32 1>
-  // LLVM: ret <2 x float> [[RES]]
+  // LLVM: ret <2 x float>
 }
 
 float64x1_t test_splat_laneq_f64(float64x2_t v) {
@@ -1719,7 +1719,7 @@ float64x1_t test_splat_laneq_f64(float64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x double> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x double>
   // LLVM: [[RES:%.*]] = shufflevector <2 x double> [[TMP1]], <2 x double> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x double> [[RES]]
+  // LLVM: ret <1 x double>
 }
 
 uint8x8_t test_splat_laneq_u8(uint8x16_t v) {
@@ -1735,7 +1735,7 @@ uint8x8_t test_splat_laneq_u8(uint8x16_t v) {
   // LLVM: {{.*}}@test_splat_laneq_u8(<16 x i8>{{.*}}[[V:%.*]])
   // LLVM: [[RES:%.*]] = shufflevector <16 x i8> [[V]], <16 x i8> poison, 
   // LLVM-SAME: <8 x i32> <i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15>
-  // LLVM: ret <8 x i8> [[RES]]
+  // LLVM: ret <8 x i8>
 }
 
 uint16x4_t test_splat_laneq_u16(uint16x8_t v) {
@@ -1751,7 +1751,7 @@ uint16x4_t test_splat_laneq_u16(uint16x8_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <8 x i16> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <8 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[TMP1]], <8 x i16> poison, <4 x i32> <i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <4 x i16> [[RES]]
+  // LLVM: ret <4 x i16>
 }
 
 uint32x2_t test_splat_laneq_u32(uint32x4_t v) {
@@ -1767,7 +1767,7 @@ uint32x2_t test_splat_laneq_u32(uint32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i32> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <2 x i32> <i32 3, i32 3>
-  // LLVM: ret <2 x i32> [[RES]]
+  // LLVM: ret <2 x i32>
 }
 
 uint64x1_t test_splat_laneq_u64(uint64x2_t v) {
@@ -1783,7 +1783,7 @@ uint64x1_t test_splat_laneq_u64(uint64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i64> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i64> [[TMP1]], <2 x i64> poison, <1 x i32> zeroinitializer
-  // LLVM: ret <1 x i64> [[RES]]
+  // LLVM: ret <1 x i64>
 }
 
 int8x16_t test_splatq_laneq_s8(int8x16_t v) {
@@ -1802,7 +1802,7 @@ int8x16_t test_splatq_laneq_s8(int8x16_t v) {
   // LLVM: [[RES:%.*]] = shufflevector <16 x i8> [[V]], <16 x i8> poison, 
   // LLVM-SAME: <16 x i32> <i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15,
   // LLVM-SAME:  i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15>
-  // LLVM: ret <16 x i8> [[RES]]
+  // LLVM: ret <16 x i8>
 }
 
 int16x8_t test_splatq_laneq_s16(int16x8_t v) {
@@ -1819,7 +1819,7 @@ int16x8_t test_splatq_laneq_s16(int16x8_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <8 x i16> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <8 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[TMP1]], <8 x i16> poison, <8 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: ret <8 x i16>
 }
 
 int32x4_t test_splatq_laneq_s32(int32x4_t v) {
@@ -1835,7 +1835,7 @@ int32x4_t test_splatq_laneq_s32(int32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i32> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <4 x i32> <i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: ret <4 x i32>
 }
 
 int64x2_t test_splatq_laneq_s64(int64x2_t v) {
@@ -1851,7 +1851,7 @@ int64x2_t test_splatq_laneq_s64(int64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i64> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i64> [[TMP1]], <2 x i64> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: ret <2 x i64>
 }
 
 float32x4_t test_splatq_laneq_f32(float32x4_t v) {
@@ -1867,7 +1867,7 @@ float32x4_t test_splatq_laneq_f32(float32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x float> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x float>
   // LLVM: [[RES:%.*]] = shufflevector <4 x float> [[TMP1]], <4 x float> poison, <4 x i32> <i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <4 x float> [[RES]]
+  // LLVM: ret <4 x float>
 }
 
 float64x2_t test_splatq_laneq_f64(float64x2_t v) {
@@ -1883,7 +1883,7 @@ float64x2_t test_splatq_laneq_f64(float64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x double> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x double>
   // LLVM: [[RES:%.*]] = shufflevector <2 x double> [[TMP1]], <2 x double> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x double> [[RES]]
+  // LLVM: ret <2 x double>
 }
 
 uint8x16_t test_splatq_laneq_u8(uint8x16_t v) {
@@ -1902,7 +1902,7 @@ uint8x16_t test_splatq_laneq_u8(uint8x16_t v) {
   // LLVM: [[RES:%.*]] = shufflevector <16 x i8> [[V]], <16 x i8> poison, 
   // LLVM-SAME: <16 x i32> <i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15,
   // LLVM-SAME:  i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15, i32 15>
-  // LLVM: ret <16 x i8> [[RES]]
+  // LLVM: ret <16 x i8>
 }
 
 uint16x8_t test_splatq_laneq_u16(uint16x8_t v) {
@@ -1919,7 +1919,7 @@ uint16x8_t test_splatq_laneq_u16(uint16x8_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <8 x i16> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <8 x i16>
   // LLVM: [[RES:%.*]] = shufflevector <8 x i16> [[TMP1]], <8 x i16> poison, <8 x i32> <i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7, i32 7>
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: ret <8 x i16>
 }
 
 uint32x4_t test_splatq_laneq_u32(uint32x4_t v) {
@@ -1935,7 +1935,7 @@ uint32x4_t test_splatq_laneq_u32(uint32x4_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <4 x i32> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <4 x i32>
   // LLVM: [[RES:%.*]] = shufflevector <4 x i32> [[TMP1]], <4 x i32> poison, <4 x i32> <i32 3, i32 3, i32 3, i32 3>
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: ret <4 x i32>
 }
 
 uint64x2_t test_splatq_laneq_u64(uint64x2_t v) {
@@ -1951,7 +1951,7 @@ uint64x2_t test_splatq_laneq_u64(uint64x2_t v) {
   // LLVM: [[TMP0:%.*]] = bitcast <2 x i64> [[V]] to <16 x i8>
   // LLVM: [[TMP1:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
   // LLVM: [[RES:%.*]] = shufflevector <2 x i64> [[TMP1]], <2 x i64> poison, <2 x i32> zeroinitializer
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: ret <2 x i64>
 }
 
 int16x4_t test_vpadal_s8(int16x4_t a, int8x8_t b) {
