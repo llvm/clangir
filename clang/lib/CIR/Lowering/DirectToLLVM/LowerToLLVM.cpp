@@ -2160,13 +2160,20 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
     if (attr.getName() == mlir::SymbolTable::getSymbolAttrName() ||
         attr.getName() == func.getFunctionTypeAttrName() ||
         attr.getName() == getLinkageAttrNameString() ||
-        attr.getName() == func.getGlobalVisibilityAttrName() ||
         attr.getName() == func.getDsoLocalAttrName() ||
         attr.getName() == func.getInlineKindAttrName() ||
         (filterArgAndResAttrs &&
          (attr.getName() == func.getArgAttrsAttrName() ||
           attr.getName() == func.getResAttrsAttrName())))
       continue;
+
+    // `CIRDialectLLVMIRTranslationInterface` requires "cir." prefix for
+    // dialect specific attributes, rename extra_attrs to cir.extra_attrs.
+    if (attr.getName() == func.getExtraAttrsAttrName()) {
+      std::string cirName = "cir." + func.getExtraAttrsAttrName().str();
+      attr = mlir::NamedAttribute(mlir::StringAttr::get(getContext(), cirName),
+                                  attr.getValue());
+    }
 
     assert(!cir::MissingFeatures::opFuncExtraAttrs());
     result.push_back(attr);
