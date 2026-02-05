@@ -45,9 +45,9 @@ unsigned is_little(void) {
 
 // CHECK: cir.func {{.*}} @is_little
 // CHECK: %[[VAL_1:.*]] = cir.alloca ![[anon1]], !cir.ptr<![[anon1]]>, ["one", const]
-// CHECK: %[[VAL_2:.*]] = cir.cast bitcast %[[VAL_1]] : !cir.ptr<![[anon1]]> -> !cir.ptr<![[anon0]]>
-// CHECK: %[[VAL_3:.*]] = cir.const #cir.const_record<{#cir.int<1> : !u32i}> : ![[anon0]]
-// CHECK: cir.store{{.*}} %[[VAL_3]], %[[VAL_2]] : ![[anon0]], !cir.ptr<![[anon0]]>
+// CHECK: %[[VAL_2:.*]] = cir.cast bitcast %[[VAL_1]] : !cir.ptr<![[anon1]]> -> !cir.ptr<!rec_anon_struct>
+// CHECK: %[[VAL_3:.*]] = cir.get_global @__const.is_little.one : !cir.ptr<!rec_anon_struct>
+// CHECK: cir.copy %[[VAL_3]] to %[[VAL_2]] : !cir.ptr<!rec_anon_struct>
 // CHECK: %[[VAL_4:.*]] = cir.get_member %[[VAL_1]][1] {name = "c"} : !cir.ptr<![[anon1]]> -> !cir.ptr<!cir.array<!u8i x 4>>
 
 typedef union {

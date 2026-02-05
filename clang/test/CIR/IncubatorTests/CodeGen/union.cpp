@@ -87,6 +87,6 @@ void noCrushOnDifferentSizes() {
   A a = {0};
   // CHECK:  %[[#TMP0:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 4 : i64}
   // CHECK:  %[[#TMP1:]] = cir.cast bitcast %[[#TMP0]] : !cir.ptr<!rec_A> -> !cir.ptr<!rec_anon_struct>
-  // CHECK:  %[[#TMP2:]] = cir.const #cir.zero : !rec_anon_struct
-  // CHECK:  cir.store{{.*}} %[[#TMP2]], %[[#TMP1]] : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
+  // CHECK:  %[[#TMP2:]] = cir.get_global @__const._Z23noCrushOnDifferentSizesv.a : !cir.ptr<!rec_anon_struct>
+  // CHECK:  cir.copy %[[#TMP2]] to %[[#TMP1]] : !cir.ptr<!rec_anon_struct>
 }

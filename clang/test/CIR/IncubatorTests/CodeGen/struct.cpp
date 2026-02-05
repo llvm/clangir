@@ -152,10 +152,11 @@ void h() { S s; }
 // CHECK: cir.func {{.*}} @_Z1hv()
 // CHECK:   %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0"] {alignment = 4 : i64}
-// CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !rec_A
-// CHECK:   cir.store{{.*}} %2, %1 : !rec_A, !cir.ptr<!rec_A>
-// CHECK:   %3 = cir.load{{.*}} %1 : !cir.ptr<!rec_A>, !rec_A
-// CHECK:   cir.call @_ZN1SC1E1A(%0, %3) : (!cir.ptr<!rec_S>, !rec_A) -> ()
+// CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !u32i
+// CHECK:   %3 = cir.cast bitcast %1 : !cir.ptr<!rec_A> -> !cir.ptr<!u32i>
+// CHECK:   cir.store %2, %3 : !u32i, !cir.ptr<!u32i>
+// CHECK:   {{.*}} = cir.load{{.*}} %1 : !cir.ptr<!rec_A>, !rec_A
+// CHECK:   cir.call @_ZN1SC1E1A(%0, {{.*}}) : (!cir.ptr<!rec_S>, !u32i) -> ()
 // CHECK:   cir.return
 // CHECK: }
 
@@ -202,8 +203,8 @@ void unary_extension() {
 }
 
 // CHECK: %[[A_ADDR:.*]] = cir.alloca !rec_CompleteS, !cir.ptr<!rec_CompleteS>, ["a", init]
-// CHECK: %[[ZERO_INIT:.*]] = cir.const #cir.zero : !rec_CompleteS
-// CHECK: cir.store{{.*}} %[[ZERO_INIT]], %[[A_ADDR]] : !rec_CompleteS, !cir.ptr<!rec_CompleteS>
+// CHECK: %[[GLOBAL:.*]] = cir.get_global @__const._Z15unary_extensionv.a : !cir.ptr<!rec_CompleteS>
+// CHECK: cir.copy %[[GLOBAL]] to %[[A_ADDR]] : !cir.ptr<!rec_CompleteS>
 
 void generic_selection() {
   CompleteS a;

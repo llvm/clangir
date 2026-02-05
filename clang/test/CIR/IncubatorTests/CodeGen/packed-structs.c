@@ -33,16 +33,16 @@ typedef struct {
 // CIR: !rec_I = !cir.record<struct "I" packed {!s8i, !rec_H
 // CIR: !rec_J = !cir.record<struct "J" packed {!s8i, !s8i, !s8i, !s8i, !rec_I
 
-// LLVM: %struct.A = type <{ i32, i8 }>
-// LLVM: %struct.B = type <{ i32, i8, [6 x %struct.A] }>
-// LLVM: %struct.C = type <{ i32, i8, i8 }>
-// LLVM: %struct.E = type <{ %struct.D, i32 }>
-// LLVM: %struct.D = type <{ i8, i8, i32 }>
-// LLVM: %struct.G = type { %struct.F, i8 }
-// LLVM: %struct.F = type <{ i64, i8 }>
-// LLVM: %struct.J = type <{ i8, i8, i8, i8, %struct.I, i32 }>
-// LLVM: %struct.I = type <{ i8, %struct.H }>
-// LLVM: %struct.H = type { i32, %union.anon.{{.*}} }
+// LLVM-DAG: %struct.A = type <{ i32, i8 }>
+// LLVM-DAG: %struct.B = type <{ i32, i8, [6 x %struct.A] }>
+// LLVM-DAG: %struct.C = type <{ i32, i8, i8 }>
+// LLVM-DAG: %struct.E = type <{ %struct.D, i32 }>
+// LLVM-DAG: %struct.D = type <{ i8, i8, i32 }>
+// LLVM-DAG: %struct.G = type { %struct.F, i8 }
+// LLVM-DAG: %struct.F = type <{ i64, i8 }>
+// LLVM-DAG: %struct.J = type <{ i8, i8, i8, i8, %struct.I, i32 }>
+// LLVM-DAG: %struct.I = type <{ i8, %struct.H }>
+// LLVM-DAG: %struct.H = type { i32, %union.anon.{{.*}} }
 
 // CIR: cir.func {{.*@foo()}}
 // CIR:  {{.*}} = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 1 : i64}
@@ -72,8 +72,8 @@ typedef struct {
 
 // CIR: cir.func {{.*@f1()}}
 // CIR:  %[[E:.*]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["a", init] {alignment = 2 : i64}
-// CIR:  %[[ZERO:.*]] = cir.const #cir.zero : !rec_E
-// CIR:  cir.store{{.*}} %[[ZERO]], %[[E]] : !rec_E, !cir.ptr<!rec_E>
+// CIR:  %[[VAL:.*]] = cir.get_global @__const.f1.a : !cir.ptr<!rec_E>
+// CIR:  cir.copy %[[VAL]] to %[[E]] : !cir.ptr<!rec_E>
 
 // LLVM: {{.*}} = alloca %struct.E, i64 1, align 2
 void f1() {

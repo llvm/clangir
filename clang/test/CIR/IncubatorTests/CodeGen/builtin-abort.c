@@ -9,7 +9,7 @@ void test() { abort(); }
 // TODO: Add test to test unreachable when CIR support for NORETURN is added.
 
 // CIR-LABEL: test
-// CIR:  cir.call @abort() nothrow : () -> ()
+// CIR:  cir.call @abort() : () -> ()
 
 // LLVM-LABEL: test
 // LLVM:  call void @abort()

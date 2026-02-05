@@ -1446,8 +1446,11 @@ void CIRGenModule::replaceUsesOfNonProtoTypeWithRealFunction(
       builder.setInsertionPoint(noProtoCallOp);
 
       // Patch call type with the real function type.
+      // Preserve side_effect and other attributes from the original call.
       cir::CallOp realCallOp = builder.createCallOp(
-          noProtoCallOp.getLoc(), newFn, noProtoCallOp.getOperands());
+          noProtoCallOp.getLoc(), newFn, noProtoCallOp.getOperands(),
+          noProtoCallOp.getCallingConv(), noProtoCallOp.getSideEffect(),
+          noProtoCallOp.getExtraAttrsAttr());
 
       // Replace old no proto call with fixed call.
       noProtoCallOp.replaceAllUsesWith(realCallOp);

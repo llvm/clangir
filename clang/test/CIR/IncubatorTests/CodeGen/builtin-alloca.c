@@ -13,7 +13,7 @@ void my_alloca(size_t n)
 // CIR:       cir.func {{.*}} @my_alloca([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
-// CIR:       cir.call @alloca([[TMP_ALLOCA_SIZE]]) {{.*}} : (!u64i) -> !cir.ptr<!void>
+// CIR:       {{.*}} = cir.call @alloca([[TMP_ALLOCA_SIZE]]) : (!u64i) -> !cir.ptr<!void>
 // CIR: }
 
 

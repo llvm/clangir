@@ -16,7 +16,7 @@ void sw1(int a) {
   }
 }
 // CHECK: cir.func {{.*}} @_Z3sw1i
-// CHECK: cir.switch (%3 : !s32i) {
+// CHECK: cir.switch(%3 : !s32i) {
 // CHECK-NEXT: cir.case(equal, [#cir.int<0> : !s32i]) {
 // CHECK: cir.break
 // CHECK: cir.case(equal, [#cir.int<1> : !s32i]) {
@@ -40,7 +40,7 @@ void sw2(int a) {
 // CHECK: cir.scope {
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["yolo", init]
 // CHECK-NEXT:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["fomo", init]
-// CHECK:        cir.switch (%4 : !s32i) {
+// CHECK:        cir.switch(%4 : !s32i) {
 // CHECK-NEXT:   cir.case(equal, [#cir.int<3> : !s32i]) {
 // CHECK-NEXT:     %5 = cir.const #cir.int<0> : !s32i
 // CHECK-NEXT:     cir.store{{.*}} %5, %2 : !s32i, !cir.ptr<!s32i>
@@ -55,7 +55,7 @@ void sw3(int a) {
 // CHECK: cir.func {{.*}} @_Z3sw3i
 // CHECK: cir.scope {
 // CHECK-NEXT:   %1 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
-// CHECK-NEXT:   cir.switch (%1 : !s32i) {
+// CHECK-NEXT:   cir.switch(%1 : !s32i) {
 // CHECK-NEXT:   cir.case(default, []) {
 // CHECK-NEXT:     cir.break
 // CHECK-NEXT:   }
@@ -74,7 +74,7 @@ int sw4(int a) {
 }
 
 // CHECK: cir.func {{.*}} @_Z3sw4i
-// CHECK:       cir.switch (%4 : !s32i) {
+// CHECK:       cir.switch(%4 : !s32i) {
 // CHECK-NEXT:       cir.case(equal, [#cir.int<42> : !s32i]) {
 // CHECK-NEXT:         cir.scope {
 // CHECK-NEXT:           %5 = cir.const #cir.int<3> : !s32i
@@ -100,7 +100,7 @@ void sw5(int a) {
 }
 
 // CHECK: cir.func {{.*}} @_Z3sw5i
-// CHECK: cir.switch (%1 : !s32i) {
+// CHECK: cir.switch(%1 : !s32i) {
 // CHECK-NEXT:   cir.case(equal, [#cir.int<1> : !s32i]) {
 // CHECK-NEXT:     cir.yield
 // CHECK-NEXT:   }
@@ -120,12 +120,25 @@ void sw6(int a) {
   }
 }
 
+// Upstream doesn't optimize consecutive case labels into anyof yet.
 // CHECK: cir.func {{.*}} @_Z3sw6i
-// CHECK: cir.switch (%1 : !s32i) {
-// CHECK-NEXT: cir.case(anyof, [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i]) {
+// CHECK: cir.switch(%1 : !s32i) {
+// CHECK-NEXT: cir.case(equal, [#cir.int<0> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<1> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<2> : !s32i]) {
 // CHECK-NEXT:   cir.break
 // CHECK-NEXT: }
-// CHECK-NEXT: cir.case(anyof, [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
+// CHECK-NEXT: cir.case(equal, [#cir.int<3> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<4> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<5> : !s32i]) {
 // CHECK-NEXT:   cir.break
 // CHECK-NEXT: }
 
@@ -143,10 +156,22 @@ void sw7(int a) {
 }
 
 // CHECK: cir.func {{.*}} @_Z3sw7i
-// CHECK: cir.case(anyof, [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i]) {
+// CHECK: cir.case(equal, [#cir.int<0> : !s32i]) {
 // CHECK-NEXT:   cir.yield
 // CHECK-NEXT: }
-// CHECK-NEXT: cir.case(anyof, [#cir.int<3> : !s32i, #cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
+// CHECK-NEXT: cir.case(equal, [#cir.int<1> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<2> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<3> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<4> : !s32i]) {
+// CHECK-NEXT:   cir.yield
+// CHECK-NEXT: }
+// CHECK-NEXT: cir.case(equal, [#cir.int<5> : !s32i]) {
 // CHECK-NEXT:   cir.break
 // CHECK-NEXT: }
 
@@ -238,13 +263,19 @@ void sw11(int a) {
 //CHECK:      cir.case(equal, [#cir.int<3> : !s32i]) {
 //CHECK-NEXT:   cir.break
 //CHECK-NEXT: }
-//CHECK-NEXT: cir.case(anyof, [#cir.int<4> : !s32i, #cir.int<5> : !s32i]) {
+//CHECK-NEXT: cir.case(equal, [#cir.int<4> : !s32i]) {
+//CHECK-NEXT:   cir.yield
+//CHECK-NEXT: }
+//CHECK-NEXT: cir.case(equal, [#cir.int<5> : !s32i]) {
 //CHECK-NEXT:   cir.yield
 //CHECK-NEXT: }
 //CHECK-NEXT: cir.case(default, []) {
 //CHECK-NEXT:   cir.yield
 //CHECK-NEXT: }
-//CHECK-NEXT: cir.case(anyof, [#cir.int<6> : !s32i, #cir.int<7> : !s32i]) {
+//CHECK-NEXT: cir.case(equal, [#cir.int<6> : !s32i]) {
+//CHECK-NEXT:   cir.yield
+//CHECK-NEXT: }
+//CHECK-NEXT: cir.case(equal, [#cir.int<7> : !s32i]) {
 //CHECK-NEXT:   cir.break
 //CHECK-NEXT: }
 
@@ -305,7 +336,7 @@ void fallthrough(int x) {
 
 //      CHECK:  cir.func {{.*}} @_Z11fallthroughi
 //      CHECK:    cir.scope {
-//      CHECK:      cir.switch (%1 : !s32i) {
+//      CHECK:      cir.switch(%1 : !s32i) {
 // CHECK-NEXT:      cir.case(equal, [#cir.int<1> : !s32i]) {
 // CHECK-NEXT:        cir.yield
 // CHECK-NEXT:      }
@@ -362,7 +393,7 @@ int nested_switch(int a) {
   return 0;
 }
 
-// CHECK: cir.switch (%6 : !s32i) {
+// CHECK: cir.switch(%6 : !s32i) {
 // CHECK:   cir.case(equal, [#cir.int<0> : !s32i]) {
 // CHECK:     cir.yield
 // CHECK:   }

@@ -3120,10 +3120,11 @@ def CIR_CallOp : CIR_CallOpBase<"call", [NoRegionArguments]> {
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
-      $_state.addAttribute("calling_conv",
-        CallingConvAttr::get($_builder.getContext(), callingConv));
-      $_state.addAttribute("side_effect",
-        SideEffectAttr::get($_builder.getContext(), sideEffect));
+      // Set properties directly instead of using addAttribute
+      $_state.getOrAddProperties<Properties>().calling_conv =
+        CallingConvAttr::get($_builder.getContext(), callingConv);
+      $_state.getOrAddProperties<Properties>().side_effect =
+        SideEffectAttr::get($_builder.getContext(), sideEffect);
       if (exception)
         $_state.addAttribute("exception", exception);
       if (resType && !isa<VoidType>(resType))

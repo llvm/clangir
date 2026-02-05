@@ -1276,6 +1276,11 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
   CallOp newCallOp;
 
+  // Preserve call properties from the original call.
+  cir::CallingConv callingConv = Caller.getCallingConv();
+  cir::SideEffect sideEffect = Caller.getSideEffect();
+  mlir::UnitAttr exception = Caller.getExceptionAttr();
+
   if (Caller.isIndirect()) {
     rewriter.setInsertionPoint(Caller);
     auto val = Caller.getIndirectCall();
@@ -1286,15 +1291,24 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     llvm::SmallVector<mlir::Value, 16> indirectArgs{callee};
     indirectArgs.append(IRCallArgs.begin(), IRCallArgs.end());
     newCallOp = CallOp::create(rewriter, loc, mlir::SymbolRefAttr(),
-                               IRFuncTy.getReturnType(), indirectArgs);
+                               IRFuncTy.getReturnType(), indirectArgs,
+                               callingConv, sideEffect, exception);
   } else {
     newCallOp = CallOp::create(rewriter, loc, Caller.getCalleeAttr(),
-                               IRFuncTy.getReturnType(), IRCallArgs);
+                               IRFuncTy.getReturnType(), IRCallArgs,
+                               callingConv, sideEffect, exception);
   }
 
-  auto extraAttrs =
-      rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
+  // Preserve extra_attrs from the original call, or create empty if none.
+  auto extraAttrs = Caller.getExtraAttrsAttr();
+  if (!extraAttrs)
+    extraAttrs = rewriter.getAttr<ExtraFuncAttributesAttr>(
+        rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
+
+  // Preserve nothrow attribute.
+  if (Caller.getNothrowAttr())
+    newCallOp.setNothrow(true);
 
   cir_cconv_assert(!cir::MissingFeatures::vectorType());
 
