@@ -56,6 +56,8 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
     typeKind = clang::Type::Builtin;
   } else if (mlir::isa<RecordType>(T)) {
     typeKind = clang::Type::Record;
+  } else if (mlir::isa<VectorType>(T)) {
+    typeKind = clang::Type::Vector;
   } else {
     cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIClangTypeKind(),
                               "Unhandled type class");
@@ -122,6 +124,17 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
     Width = toBits(Layout.getSize());
     Align = toBits(Layout.getAlignment());
     cir_cconv_assert(!cir::MissingFeatures::recordDeclHasAlignmentAttr());
+    break;
+  }
+  case clang::Type::Vector: {
+    const auto VT = mlir::cast<VectorType>(T);
+    // Get the element type info
+    clang::TypeInfo EltInfo = getTypeInfo(VT.getElementType());
+    uint64_t EltSize = EltInfo.Width;
+    uint64_t NumElements = VT.getSize();
+    Width = EltSize * NumElements;
+    // Vector alignment is typically the same as its size, capped at a maximum
+    Align = std::min<unsigned>(Width, 128);
     break;
   }
   default:
