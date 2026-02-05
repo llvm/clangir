@@ -424,6 +424,91 @@ struct MissingFeatures {
 
   // Maybe only needed for Windows exception handling
   static bool currentFuncletPad() { return false; }
+
+  // Target lowering / CallConvLowering related
+  static bool ABIAlignmentAttribute() { return false; }
+  static bool ABIByValAttribute() { return false; }
+  static bool ABIClangTypeKind() { return false; }
+  static bool ABIFuncPtr() { return false; }
+  static bool ABIInRegAttribute() { return false; }
+  static bool ABINestedRecordLayout() { return false; }
+  static bool ABINoAliasAttribute() { return false; }
+  static bool ABINoProtoFunctions() { return false; }
+  static bool ABIParameterCoercion() { return false; }
+  static bool ABIPointerParameterAttrs() { return false; }
+  static bool ABIPotentialArgAccess() { return false; }
+  static bool ABITransparentUnionHandling() { return false; }
+  static bool argumentPadding() { return false; }
+  static bool astContextGetExternalSource() { return false; }
+  static bool bitFieldPaddingDiagnostics() { return false; }
+  static bool cacheRecordLayouts() { return false; }
+  static bool chainCall() { return false; }
+  static bool codeGenOpts() { return false; }
+  static bool csmeCall() { return false; }
+  static bool CUDA() { return false; }
+  static bool CXXRecordDeclIsEmptyCXX11() { return false; }
+  static bool CXXRecordDeclIsPOD() { return false; }
+  static bool CXXRecordIsDynamicClass() { return false; }
+  static bool declGetMaxAlignment() { return false; }
+  static bool declHasAlignMac68kAttr() { return false; }
+  static bool declHasAlignNaturalAttr() { return false; }
+  static bool declHasMaxFieldAlignmentAttr() { return false; }
+  static bool extParamInfo() { return false; }
+  static bool fieldDeclAbstraction() { return false; }
+  static bool fieldDeclGetMaxFieldAlignment() { return false; }
+  static bool fieldDeclIsBitfield() { return false; }
+  static bool fieldDeclIsPotentiallyOverlapping() { return false; }
+  static bool fixedWidthIntegers() { return false; }
+  static bool fixedSizeIntType() { return false; }
+  static bool funcDeclIsCXXConstructorDecl() { return false; }
+  static bool funcDeclIsCXXDestructorDecl() { return false; }
+  static bool funcDeclIsCXXMethodDecl() { return false; }
+  static bool funcDeclIsInlineBuiltinDeclaration() { return false; }
+  static bool funcDeclIsReplaceableGlobalAllocationFunction() { return false; }
+  static bool functionMemberPointerType() { return false; }
+  static bool getCXXRecordBases() { return false; }
+  static bool inallocaArgs() { return false; }
+  static bool isCXXRecordDecl() { return false; }
+  static bool isVarArg() { return false; }
+  static bool langOpts() { return false; }
+  static bool noFPClass() { return false; }
+  static bool noReturn() { return false; }
+  static bool objCIvarDecls() { return false; }
+  static bool qualifiedTypes() { return false; }
+  static bool qualTypeIsReferenceType() { return false; }
+  static bool recordDeclHasAlignmentAttr() { return false; }
+  static bool recordDeclHasFlexibleArrayMember() { return false; }
+  static bool recordDeclIsCXXDecl() { return false; }
+  static bool recordDeclIsMSStruct() { return false; }
+  static bool recordDeclIsPacked() { return false; }
+  static bool recordDeclMayInsertExtraPadding() { return false; }
+  static bool setCallingConv() { return false; }
+  static bool SPIRVABI() { return false; }
+  static bool sretArgs() { return false; }
+  static bool swift() { return false; }
+  static bool tagTypeClassAbstraction() { return false; }
+  static bool typeGetAsEnumType() { return false; }
+  static bool typeIsCXXRecordDecl() { return false; }
+  static bool X86DefaultABITypeConvertion() { return false; }
+  static bool X86GetFPTypeAtOffset() { return false; }
+  static bool X86TypeClassification() { return false; }
+  static bool X86RetTypeClassification() { return false; }
+  static bool X86ArgTypeClassification() { return false; }
+  static bool fieldDeclisUnnamedBitField() { return false; }
+  static bool regCall() { return false; }
+  static bool recordDeclCanPassInRegisters() { return false; }
+
+  // Additional CallConvLowering features from LowerFunction.cpp
+  static bool argHasMaybeUndefAttr() { return false; }
+  static bool cmseNonSecureCallAttr() { return false; }
+  static bool emitEmptyRecordCheck() { return false; }
+  static bool evaluationKind() { return false; }
+  static bool returnValueDominatingStoreOptmiization() { return false; }
+  static bool skipTempCopy() { return false; }
+  static bool supportisHomogeneousAggregateQueryForAArch64() { return false; }
+  static bool undef() { return false; }
+  static bool varDeclIsKNRPromoted() { return false; }
+  static bool volatileTypes() { return false; }
 };
 
 } // namespace cir

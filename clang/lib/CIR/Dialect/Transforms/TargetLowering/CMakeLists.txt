@@ -1,8 +1,22 @@
 add_clang_library(MLIRCIRTargetLowering
+  ABIInfo.cpp
+  ABIInfoImpl.cpp
   CIRCXXABI.cpp
+  CIRLowerContext.cpp
+  CIRRecordLayout.cpp
+  ItaniumCXXABI.cpp
+  LowerCall.cpp
+  LowerFunction.cpp
   LowerModule.cpp
-  LowerItaniumCXXABI.cpp
+  LowerTypes.cpp
+  RecordLayoutBuilder.cpp
+  TargetInfo.cpp
   TargetLoweringInfo.cpp
+  Targets/AArch64.cpp
+  Targets/AMDGPU.cpp
+  Targets/NVPTX.cpp
+  Targets/SPIR.cpp
+  Targets/X86.cpp
 
   DEPENDS
   clangBasic

@@ -26,4 +26,5 @@ add_clang_library(MLIRCIRTransforms
 
   MLIRCIR
   MLIRCIRInterfaces
+  MLIRCIRTargetLowering
 )

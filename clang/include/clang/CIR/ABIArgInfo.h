@@ -41,12 +41,28 @@ public:
     /// alignment (0 indicates default alignment) and address space.
     Indirect,
 
+    /// Similar to Indirect, but the pointer may be to an object that is
+    /// otherwise referenced.  The object is known to not be modified through
+    /// any other references for the duration of the call, and the callee must
+    /// not itself modify the object.
+    IndirectAliased,
+
     /// Ignore the argument (treat as void). Useful for void and empty
     /// structs.
     Ignore,
 
-    // TODO: more argument kinds (IndirectAliased, Expand, CoerceAndExpand,
-    // InAlloca) will be added as the upstreaming proceeds.
+    /// CoerceAndExpand - Only valid for aggregate argument types. The structure
+    /// should be expanded into consecutive arguments, but at the same time,
+    /// the type should be coerced to a new type with the same layout.
+    CoerceAndExpand,
+
+    /// InAlloca - Pass the argument directly using the LLVM inalloca attribute.
+    /// This is similar to indirect with byval, except it only applies to
+    /// arguments stored in memory.
+    InAlloca,
+
+    // TODO: more argument kinds (Expand) will be added as the upstreaming
+    // proceeds.
   };
 
 private:
@@ -65,6 +81,7 @@ private:
     IndirectAttrInfo indirectAttr; // isIndirect()
   };
   Kind theKind;
+  bool canBeFlattened : 1;  // isDirect()
   bool inReg : 1;           // isDirect() || isExtend() || isIndirect()
   bool signExt : 1;         // isExtend()
   bool indirectByVal : 1;   // isIndirect()
@@ -83,8 +100,8 @@ private:
 public:
   ABIArgInfo(Kind k = Direct)
       : typeData(nullptr), paddingType(nullptr), directAttr{0, 0}, theKind(k),
-        inReg(false), signExt(false), indirectByVal(false),
-        indirectRealign(false), sRetAfterThis(false) {}
+        canBeFlattened(false), inReg(false), signExt(false),
+        indirectByVal(false), indirectRealign(false), sRetAfterThis(false) {}
 
   static ABIArgInfo getDirect(mlir::Type ty = nullptr, unsigned offset = 0,
                               mlir::Type padding = nullptr,
@@ -94,6 +111,7 @@ public:
     info.setPaddingType(padding);
     info.setDirectOffset(offset);
     info.setDirectAlign(align);
+    info.setCanBeFlattened(canBeFlattened);
     return info;
   }
 
@@ -147,7 +165,10 @@ public:
   bool isDirect() const { return theKind == Direct; }
   bool isExtend() const { return theKind == Extend; }
   bool isIndirect() const { return theKind == Indirect; }
+  bool isIndirectAliased() const { return theKind == IndirectAliased; }
   bool isIgnore() const { return theKind == Ignore; }
+  bool isCoerceAndExpand() const { return theKind == CoerceAndExpand; }
+  bool isInAlloca() const { return theKind == InAlloca; }
 
   bool canHaveCoerceToType() const { return isDirect() || isExtend(); }
 
@@ -165,6 +186,16 @@ public:
   void setDirectAlign(unsigned align) {
     assert((isDirect() || isExtend()) && "Not a direct or extend kind");
     directAttr.align = align;
+  }
+
+  bool getCanBeFlattened() const {
+    assert(isDirect() && "Invalid kind!");
+    return canBeFlattened;
+  }
+
+  void setCanBeFlattened(bool flatten) {
+    assert(isDirect() && "Invalid kind!");
+    canBeFlattened = flatten;
   }
 
   mlir::Type getPaddingType() const {

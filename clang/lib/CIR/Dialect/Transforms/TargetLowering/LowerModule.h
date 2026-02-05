@@ -14,12 +14,17 @@
 #ifndef CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERMODULE_H
 #define CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERMODULE_H
 
-#include "CIRCXXABI.h"
+#include "CIRLowerContext.h"
+#include "LowerTypes.h"
 #include "TargetLoweringInfo.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/PatternMatch.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/MissingFeatures.h"
 #include <memory>
@@ -27,11 +32,15 @@
 namespace cir {
 
 class LowerModule {
+  CIRLowerContext context;
   mlir::ModuleOp module;
   const std::unique_ptr<clang::TargetInfo> target;
-  std::unique_ptr<TargetLoweringInfo> targetLoweringInfo;
+  mutable std::unique_ptr<TargetLoweringInfo> targetLoweringInfo;
   std::unique_ptr<CIRCXXABI> abi;
-  [[maybe_unused]] mlir::PatternRewriter &rewriter;
+
+  LowerTypes types;
+
+  mlir::PatternRewriter &rewriter;
 
 public:
   LowerModule(clang::LangOptions langOpts, clang::CodeGenOptions codeGenOpts,
@@ -39,16 +48,54 @@ public:
               mlir::PatternRewriter &rewriter);
   ~LowerModule() = default;
 
-  clang::TargetCXXABI::Kind getCXXABIKind() const {
-    assert(!cir::MissingFeatures::lowerModuleLangOpts());
-    return target->getCXXABI().getKind();
-  }
-
+  // Trivial getters.
+  LowerTypes &getTypes() { return types; }
+  CIRLowerContext &getContext() { return context; }
   CIRCXXABI &getCXXABI() const { return *abi; }
   const clang::TargetInfo &getTarget() const { return *target; }
   mlir::MLIRContext *getMLIRContext() { return module.getContext(); }
+  mlir::ModuleOp &getModule() { return module; }
+
+  const cir::CIRDataLayout &getDataLayout() const {
+    return types.getDataLayout();
+  }
 
   const TargetLoweringInfo &getTargetLoweringInfo();
+
+  // FIXME(cir): This would be in ASTContext, not CodeGenModule.
+  const clang::TargetInfo &getTargetInfo() const { return *target; }
+
+  // FIXME(cir): This would be in ASTContext, not CodeGenModule.
+  clang::TargetCXXABI::Kind getCXXABIKind() const {
+    auto kind = getTarget().getCXXABI().getKind();
+    cir_cconv_assert(!cir::MissingFeatures::langOpts());
+    return kind;
+  }
+
+  void constructAttributeList(llvm::StringRef Name, const LowerFunctionInfo &FI,
+                              FuncOp CalleeInfo,
+                              FuncOp newFn, unsigned &CallingConv,
+                              bool AttrOnCallSite, bool IsThunk);
+
+  void setCIRFunctionAttributes(FuncOp GD, const LowerFunctionInfo &Info,
+                                FuncOp F, bool IsThunk);
+
+  /// Set function attributes for a function declaration.
+  void setFunctionAttributes(FuncOp oldFn, FuncOp newFn,
+                             bool IsIncompleteFunction, bool IsThunk);
+
+  // Create a CIR FuncOp with with the given signature.
+  FuncOp createCIRFunction(llvm::StringRef MangledName, FuncType Ty, FuncOp D,
+                           bool ForVTable, bool DontDefer = false,
+                           bool IsThunk = false,
+                           llvm::ArrayRef<mlir::Attribute> = {},
+                           bool IsForDefinition = false);
+
+  // Rewrite CIR FuncOp to match the target ABI.
+  llvm::LogicalResult rewriteFunctionDefinition(FuncOp op);
+
+  // Rewrite CIR CallOp to match the target ABI.
+  llvm::LogicalResult rewriteFunctionCall(CallOp callOp, FuncOp funcOp = {});
 };
 
 std::unique_ptr<LowerModule> createLowerModule(mlir::ModuleOp module,

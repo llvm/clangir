@@ -11,21 +11,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerModule.h"
-#include "CIRCXXABI.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/PatternMatch.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
-#include "clang/CIR/MissingFeatures.h"
+
+#include "CIRLowerContext.h"
+#include "LowerFunction.h"
+#include "LowerModule.h"
+#include "TargetInfo.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/PatternMatch.h"
+#include "mlir/Support/LogicalResult.h"
+#include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FileSystem.h"
+
+using MissingFeatures = cir::MissingFeatures;
+using AArch64ABIKind = cir::AArch64ABIKind;
+using X86AVXABILevel = cir::X86AVXABILevel;
 
 namespace cir {
 
-static std::unique_ptr<CIRCXXABI> createCXXABI(LowerModule &lm) {
-  switch (lm.getCXXABIKind()) {
+static CIRCXXABI *createCXXABI(LowerModule &CGM) {
+  switch (CGM.getCXXABIKind()) {
   case clang::TargetCXXABI::AppleARM64:
   case clang::TargetCXXABI::Fuchsia:
   case clang::TargetCXXABI::GenericAArch64:
@@ -36,27 +45,64 @@ static std::unique_ptr<CIRCXXABI> createCXXABI(LowerModule &lm) {
   case clang::TargetCXXABI::GenericItanium:
   case clang::TargetCXXABI::WebAssembly:
   case clang::TargetCXXABI::XL:
-    return createItaniumCXXABI(lm);
+    return CreateItaniumCXXABI(CGM);
   case clang::TargetCXXABI::Microsoft:
-    llvm_unreachable("Windows ABI NYI");
+    cir_cconv_unreachable("Windows ABI NYI");
   }
 
-  llvm_unreachable("invalid C++ ABI kind");
+  cir_cconv_unreachable("invalid C++ ABI kind");
 }
 
 static std::unique_ptr<TargetLoweringInfo>
-createTargetLoweringInfo(LowerModule &lm) {
-  assert(!cir::MissingFeatures::targetLoweringInfo());
-  return std::make_unique<TargetLoweringInfo>();
+createTargetLoweringInfo(LowerModule &LM) {
+  const clang::TargetInfo &Target = LM.getTarget();
+  const llvm::Triple &Triple = Target.getTriple();
+
+  switch (Triple.getArch()) {
+  case llvm::Triple::aarch64_be:
+  case llvm::Triple::aarch64: {
+    AArch64ABIKind Kind = AArch64ABIKind::AAPCS;
+    if (Target.getABI() == "darwinpcs")
+      cir_cconv_unreachable("DarwinPCS ABI NYI");
+    else if (Triple.isOSWindows())
+      cir_cconv_unreachable("Windows ABI NYI");
+    else if (Target.getABI() == "aapcs-soft")
+      cir_cconv_unreachable("AAPCS-soft ABI NYI");
+
+    return createAArch64TargetLoweringInfo(LM, Kind);
+  }
+  case llvm::Triple::amdgcn:
+    return createAMDGPUTargetLoweringInfo(LM);
+  case llvm::Triple::x86_64: {
+    switch (Triple.getOS()) {
+    case llvm::Triple::Win32:
+      cir_cconv_unreachable("Windows ABI NYI");
+    default:
+      return createX86_64TargetLoweringInfo(LM, X86AVXABILevel::None);
+    }
+  }
+  case llvm::Triple::spirv64:
+    return createSPIRVTargetLoweringInfo(LM);
+
+  case llvm::Triple::nvptx:
+  case llvm::Triple::nvptx64:
+    return createNVPTXTargetLoweringInfo(LM);
+
+  default:
+    cir_cconv_unreachable("ABI NYI");
+  }
 }
 
 LowerModule::LowerModule(clang::LangOptions langOpts,
                          clang::CodeGenOptions codeGenOpts,
                          mlir::ModuleOp &module,
-                         std::unique_ptr<clang::TargetInfo> target,
+                         std::unique_ptr<clang::TargetInfo> targetInfo,
                          mlir::PatternRewriter &rewriter)
-    : module(module), target(std::move(target)), abi(createCXXABI(*this)),
-      rewriter(rewriter) {}
+    : context(module, std::move(langOpts), std::move(codeGenOpts)),
+      module(module), target(std::move(targetInfo)), abi(createCXXABI(*this)),
+      types(*this), rewriter(rewriter) {
+  context.initBuiltinTypes(*target);
+}
 
 const TargetLoweringInfo &LowerModule::getTargetLoweringInfo() {
   if (!targetLoweringInfo)
@@ -64,9 +110,136 @@ const TargetLoweringInfo &LowerModule::getTargetLoweringInfo() {
   return *targetLoweringInfo;
 }
 
+void LowerModule::setCIRFunctionAttributes(FuncOp GD,
+                                           const LowerFunctionInfo &Info,
+                                           FuncOp F, bool IsThunk) {
+  unsigned CallingConv;
+  // NOTE(cir): The method below will update the F function in-place with the
+  // proper attributes.
+  constructAttributeList(GD.getName(), Info, GD, F, CallingConv,
+                         /*AttrOnCallSite=*/false, IsThunk);
+  // TODO(cir): Set Function's calling convention.
+}
+
+/// Set function attributes for a function declaration.
+///
+/// This method is based on CodeGenModule::SetFunctionAttributes but it
+/// altered to consider only the ABI/Target-related bits.
+void LowerModule::setFunctionAttributes(FuncOp oldFn, FuncOp newFn,
+                                        bool IsIncompleteFunction,
+                                        bool IsThunk) {
+
+  // TODO(cir): There's some special handling from attributes related to LLVM
+  // intrinsics. Should we do that here as well?
+
+  // Setup target-specific attributes.
+  if (!IsIncompleteFunction)
+    setCIRFunctionAttributes(oldFn, getTypes().arrangeGlobalDeclaration(oldFn),
+                             newFn, IsThunk);
+
+  // TODO(cir): Handle attributes for returned "this" objects.
+
+  // NOTE(cir): Skipping some linkage and other global value attributes here as
+  // it might be better for CIRGen to handle them.
+
+  // TODO(cir): Skipping section attributes here.
+
+  // TODO(cir): Skipping error attributes here.
+
+  // If we plan on emitting this inline builtin, we can't treat it as a builtin.
+  if (MissingFeatures::funcDeclIsInlineBuiltinDeclaration()) {
+    cir_cconv_unreachable("NYI");
+  }
+
+  if (MissingFeatures::funcDeclIsReplaceableGlobalAllocationFunction()) {
+    cir_cconv_unreachable("NYI");
+  }
+
+  if (MissingFeatures::funcDeclIsCXXConstructorDecl() ||
+      MissingFeatures::funcDeclIsCXXDestructorDecl())
+    cir_cconv_unreachable("NYI");
+  else if (MissingFeatures::funcDeclIsCXXMethodDecl())
+    cir_cconv_unreachable("NYI");
+
+  // NOTE(cir) Skipping emissions that depend on codegen options, as well as
+  // sanitizers handling here. Do this in CIRGen.
+
+  if (MissingFeatures::langOpts() && MissingFeatures::openMP())
+    cir_cconv_unreachable("NYI");
+
+  // NOTE(cir): Skipping more things here that depend on codegen options.
+
+  if (MissingFeatures::extParamInfo()) {
+    cir_cconv_unreachable("NYI");
+  }
+}
+
+/// Rewrites an existing function to conform to the ABI.
+///
+/// This method is based on CodeGenModule::EmitGlobalFunctionDefinition but it
+/// considerably simplified as it tries to remove any CodeGen related code.
+llvm::LogicalResult LowerModule::rewriteFunctionDefinition(FuncOp op) {
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPoint(op);
+
+  // Get ABI/target-specific function information.
+  const LowerFunctionInfo &FI = this->getTypes().arrangeGlobalDeclaration(op);
+
+  // Get ABI/target-specific function type.
+  FuncType Ty = this->getTypes().getFunctionType(FI);
+
+  // NOTE(cir): Skipping getAddrOfFunction and getOrCreateCIRFunction methods
+  // here, as they are mostly codegen logic.
+
+  // Create a new function with the ABI-specific types.
+  FuncOp newFn = mlir::cast<FuncOp>(rewriter.cloneWithoutRegions(op));
+  newFn.setType(Ty);
+
+  // NOTE(cir): The clone above will preserve any existing attributes. If there
+  // are high-level attributes that ought to be dropped, do it here.
+
+  // Set up ABI-specific function attributes.
+  setFunctionAttributes(op, newFn, false, /*IsThunk=*/false);
+  if (MissingFeatures::extParamInfo()) {
+    cir_cconv_unreachable("ExtraAttrs are NYI");
+  }
+
+  // Is a function definition: handle the body.
+  if (!op.isDeclaration()) {
+    if (LowerFunction(*this, rewriter, op, newFn)
+            .generateCode(op, newFn, FI)
+            .failed())
+      return llvm::failure();
+  }
+
+  // Erase original ABI-agnostic function.
+  rewriter.eraseOp(op);
+  return llvm::success();
+}
+
+llvm::LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp,
+                                                     FuncOp funcOp) {
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPoint(callOp);
+
+  // Create a new function with the ABI-specific calling convention.
+  if (LowerFunction(*this, rewriter, funcOp, callOp)
+          .rewriteCallOp(callOp)
+          .failed())
+    return llvm::failure();
+
+  return llvm::success();
+}
+
 // TODO: not to create it every time
 std::unique_ptr<LowerModule>
 createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
+  // If the triple is not present, e.g. CIR modules parsed from text, we
+  // cannot init LowerModule properly.
+  assert(!cir::MissingFeatures::makeTripleAlwaysPresent());
+  if (!module->hasAttr(cir::CIRDialect::getTripleAttrName()))
+    return nullptr;
+
   // Fetch target information.
   llvm::Triple triple(mlir::cast<mlir::StringAttr>(
                           module->getAttr(cir::CIRDialect::getTripleAttrName()))
@@ -78,12 +251,12 @@ createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
   // FIXME(cir): This just uses the default language options. We need to account
   // for custom options.
   // Create context.
-  assert(!cir::MissingFeatures::lowerModuleLangOpts());
+  cir_cconv_assert(!cir::MissingFeatures::langOpts());
   clang::LangOptions langOpts;
 
   // FIXME(cir): This just uses the default code generation options. We need to
   // account for custom options.
-  assert(!cir::MissingFeatures::lowerModuleCodeGenOpts());
+  cir_cconv_assert(!cir::MissingFeatures::codeGenOpts());
   clang::CodeGenOptions codeGenOpts;
 
   if (auto optInfo = mlir::cast_if_present<cir::OptInfoAttr>(

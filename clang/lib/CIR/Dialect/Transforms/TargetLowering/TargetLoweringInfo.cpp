@@ -10,16 +10,3 @@
 // clang/lib/CodeGen/TargetInfo.cpp.
 //
 //===----------------------------------------------------------------------===//
-
-#include "TargetLoweringInfo.h"
-
-namespace cir {
-
-TargetLoweringInfo::~TargetLoweringInfo() = default;
-
-std::string
-TargetLoweringInfo::getLLVMSyncScope(cir::SyncScopeKind syncScope) const {
-  return ""; // default sync scope
-}
-
-} // namespace cir
