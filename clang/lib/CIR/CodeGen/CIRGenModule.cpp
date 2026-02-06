@@ -770,6 +770,57 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       CIRGenModule::createGlobalOp(*this, loc, mangledName, ty, isConstant,
                                    /*insertPoint=*/entry.getOperation());
 
+  // If we created a new global to replace an existing one (e.g., when a
+  // tentative definition is completed with a different type), we need to
+  // update all uses of the old global and erase it.
+  if (entry) {
+    assert(entry.getSymName() == gv.getSymName() && "symbol names must match");
+    // If types match, the old entry should have been returned earlier.
+    // If we're here with an entry, types must differ.
+    auto oldTy = entry.getSymType();
+    auto newTy = gv.getSymType();
+    if (oldTy != newTy) {
+      auto oldSymUses = entry.getSymbolUses(theModule.getOperation());
+      if (oldSymUses.has_value()) {
+        for (auto use : *oldSymUses) {
+          auto *userOp = use.getUser();
+          if (auto ggo = dyn_cast<cir::GetGlobalOp>(userOp)) {
+            auto useOpResultValue = ggo.getAddr();
+            useOpResultValue.setType(cir::PointerType::get(newTy));
+
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointAfter(ggo);
+            mlir::Type ptrTy = builder.getPointerTo(oldTy);
+            mlir::Value cast =
+                builder.createBitcast(ggo->getLoc(), useOpResultValue, ptrTy);
+            useOpResultValue.replaceAllUsesExcept(cast, cast.getDefiningOp());
+          } else if (auto glob = dyn_cast<cir::GlobalOp>(userOp)) {
+            // For GlobalOp users, we need to update their initializers if they
+            // contain GlobalViewAttr references to the old global.
+            if (auto init = glob.getInitialValue()) {
+              auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(init.value());
+              if (oldView &&
+                  oldView.getSymbol().getValue() == entry.getSymName()) {
+                // Create new GlobalViewAttr pointing to the new global.
+                // For now, only handle the simple case without indices.
+                auto newPtrTy = cir::PointerType::get(newTy);
+                auto newView = builder.getGlobalViewAttr(newPtrTy, gv);
+                glob.setInitialValueAttr(newView);
+              }
+            }
+          } else {
+            // For other users (ConstantOp), we would need more complex
+            // handling. For now, just assert.
+            assert(!isa<cir::ConstantOp>(userOp) &&
+                   "NYI: global replacement with ConstantOp users");
+          }
+        }
+      }
+    }
+    // Remove old global from the module.
+    entry.erase();
+  }
+
   // This is the first use or definition of a mangled name.  If there is a
   // deferred decl with this name, remember that we need to emit it at the end
   // of the file.
