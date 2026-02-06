@@ -518,11 +518,15 @@ public:
   }
 
   mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
+    if (src.getType() == newTy)
+      return src;
     return createCast(cir::CastKind::bitcast, src, newTy);
   }
 
   mlir::Value createBitcast(mlir::Location loc, mlir::Value src,
                             mlir::Type newTy) {
+    if (src.getType() == newTy)
+      return src;
     return createCast(loc, cir::CastKind::bitcast, src, newTy);
   }
 

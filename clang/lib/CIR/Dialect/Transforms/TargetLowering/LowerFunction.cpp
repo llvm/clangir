@@ -1285,8 +1285,11 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     rewriter.setInsertionPoint(Caller);
     auto val = Caller.getIndirectCall();
     auto ptrTy = PointerType::get(IRFuncTy);
-    auto callee =
-        CastOp::create(rewriter, val.getLoc(), ptrTy, CastKind::bitcast, val);
+    // Only create bitcast if types are different
+    mlir::Value callee = (val.getType() == ptrTy)
+                             ? val
+                             : CastOp::create(rewriter, val.getLoc(), ptrTy,
+                                              CastKind::bitcast, val);
     // For indirect calls, prepend the callee value to operands
     llvm::SmallVector<mlir::Value, 16> indirectArgs{callee};
     indirectArgs.append(IRCallArgs.begin(), IRCallArgs.end());
