@@ -293,6 +293,10 @@ public:
   /// for all calls.
   virtual bool canCallMismatchedFunctionType() const { return true; }
 
+  /// Return true if the given member pointer can be zero-initialized
+  /// (in the C++ sense) with an LLVM zeroinitializer.
+  virtual bool isZeroInitializable(const MemberPointerType *mpt);
+
   /// Gets the mangle context.
   clang::MangleContext &getMangleContext() { return *mangleContext; }
 

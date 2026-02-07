@@ -50,6 +50,8 @@ public:
 
   bool needsVTTParameter(clang::GlobalDecl gd) override;
 
+  bool isZeroInitializable(const MemberPointerType *mpt) override;
+
   AddedStructorArgCounts
   buildStructorSignature(GlobalDecl gd,
                          llvm::SmallVectorImpl<CanQualType> &argTys) override;
@@ -432,6 +434,12 @@ bool CIRGenItaniumCXXABI::needsVTTParameter(GlobalDecl gd) {
     return true;
 
   return false;
+}
+
+/// The Itanium ABI requires non-zero initialization only for data
+/// member pointers, for which '0' is a valid offset.
+bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *mpt) {
+  return mpt->isMemberFunctionPointer();
 }
 
 void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &cgvt,

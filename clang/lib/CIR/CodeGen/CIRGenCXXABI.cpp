@@ -96,3 +96,8 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *e) {
 
   return e->getAllocatedType().isDestructedType();
 }
+
+bool CIRGenCXXABI::isZeroInitializable(const MemberPointerType *mpt) {
+  // Fake answer.
+  return true;
+}
