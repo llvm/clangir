@@ -2044,6 +2044,13 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword("cold").succeeded())
     state.addAttribute(coldNameAttr, parser.getBuilder().getUnitAttr());
 
+  mlir::StringAttr comdatNameAttr = getComdatAttrName(state.name);
+  bool parsedComdatKeyword = false;
+  if (parser.parseOptionalKeyword("comdat").succeeded()) {
+    state.addAttribute(comdatNameAttr, parser.getBuilder().getUnitAttr());
+    parsedComdatKeyword = true;
+  }
+
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
                      GlobalLinkageKindAttr::get(
@@ -2203,6 +2210,13 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   // Parse the rest of the attributes.
   if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
     return failure();
+
+  // Reject attributes that should be specified as keywords, not in the
+  // explicit attribute list.
+  if (!parsedComdatKeyword && state.attributes.get("comdat"))
+    return parser.emitError(loc)
+           << "custom op 'cir.func' attribute 'comdat' should not be "
+              "specified in the explicit attribute list";
 
   // Parse the optional function body.
   auto *body = state.addRegion();
