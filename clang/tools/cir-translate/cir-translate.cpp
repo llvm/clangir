@@ -18,10 +18,12 @@
 #include "mlir/InitAllTranslations.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/All.h"
+#include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Tools/mlir-translate/MlirTranslateMain.h"
 #include "mlir/Tools/mlir-translate/Translation.h"
 
+#include "llvm/IR/DebugProgramInstruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/TargetParser/Host.h"
 
@@ -170,7 +172,30 @@ void registerToLLVMTranslation() {
       });
 }
 
+// Register the standard --mlir-to-llvmir translation with CIR dialect support.
+// This allows cir-translate to be used as a drop-in replacement for
+// mlir-translate when CIR attributes survive lowering to the LLVM dialect.
+void registerMLIRToLLVMIRTranslation() {
+  mlir::TranslateFromMLIRRegistration registration(
+      "mlir-to-llvmir", "Translate MLIR to LLVMIR (with CIR dialect support)",
+      [](mlir::Operation *op, mlir::raw_ostream &output) {
+        llvm::LLVMContext llvmContext;
+        auto llvmModule = mlir::translateModuleToLLVMIR(op, llvmContext);
+        if (!llvmModule)
+          return mlir::failure();
+        llvmModule->removeDebugIntrinsicDeclarations();
+        llvmModule->print(output, nullptr);
+        return mlir::success();
+      },
+      [](mlir::DialectRegistry &registry) {
+        registry.insert<mlir::DLTIDialect, mlir::func::FuncDialect>();
+        mlir::registerAllToLLVMIRTranslations(registry);
+        cir::direct::registerCIRDialectTranslation(registry);
+      });
+}
+
 int main(int argc, char **argv) {
   registerToLLVMTranslation();
+  registerMLIRToLLVMIRTranslation();
   return failed(mlir::mlirTranslateMain(argc, argv, "CIR Translation Tool"));
 }
