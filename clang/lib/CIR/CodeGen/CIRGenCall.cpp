@@ -691,11 +691,9 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &funcInfo,
   bool isInvoke = !cannotThrow && isCatchOrCleanupRequired();
 
   // Create ExtraFuncAttributesAttr from the collected attributes.
-  // Note: side_effect is set directly on the call op, not in extra_attrs.
-  // Remove side_effect from attrs before wrapping in ExtraFuncAttributesAttr.
+  // Note: side_effect and nothrow are set directly on the call op, not in
+  // extra_attrs.
   mlir::NamedAttrList extraAttrsOnly;
-  if (auto nothrow = attrs.getNamed("nothrow"))
-    extraAttrsOnly.set(nothrow->getName(), nothrow->getValue());
   auto extraFnAttrs = cir::ExtraFuncAttributesAttr::get(
       extraAttrsOnly.getDictionary(&cgm.getMLIRContext()));
 
@@ -703,6 +701,9 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &funcInfo,
   cir::CIRCallOpInterface theCall =
       emitCallLikeOp(*this, loc, indirectFuncTy, indirectFuncVal, directFuncOp,
                      cirCallArgs, isInvoke, sideEffect, extraFnAttrs);
+
+  if (cannotThrow)
+    theCall->setAttr("nothrow", mlir::UnitAttr::get(&cgm.getMLIRContext()));
 
   if (callOp)
     *callOp = theCall;
