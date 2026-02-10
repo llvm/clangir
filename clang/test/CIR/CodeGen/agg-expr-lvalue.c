@@ -96,12 +96,12 @@ void test_string_array_in_array(void) {
   
 // CIR-LABEL: cir.func{{.*}} @test_string_array_in_array
 // CIR:   %[[MATRIX:.*]] = cir.alloca !cir.array<!cir.array<!s8i x 6> x 2>, {{.*}}, ["matrix", init]
-// CIR:   %[[CONST:.*]] = cir.const #cir.const_array<[#cir.const_array<[#cir.int<104> : !s8i, #cir.int<101> : !s8i, #cir.int<108> : !s8i, #cir.int<108> : !s8i, #cir.int<111> : !s8i, #cir.int<0> : !s8i]> : !cir.array<!s8i x 6>, #cir.const_array<[#cir.int<119> : !s8i, #cir.int<111> : !s8i, #cir.int<114> : !s8i, #cir.int<108> : !s8i, #cir.int<100> : !s8i, #cir.int<0> : !s8i]> : !cir.array<!s8i x 6>]>
-// CIR:   cir.store{{.*}} %[[CONST]], %[[MATRIX]]
+// CIR:   %[[CONST:.*]] = cir.get_global @__const.test_string_array_in_array.matrix : !cir.ptr<!cir.array<!cir.array<!s8i x 6> x 2>>
+// CIR:   cir.copy %[[CONST]] to %[[MATRIX]] : !cir.ptr<!cir.array<!cir.array<!s8i x 6> x 2>>
 
 // LLVM-LABEL: define{{.*}} @test_string_array_in_array
 // LLVM:   %[[MATRIX:.*]] = alloca [2 x [6 x i8]]
-// LLVM:   store [2 x [6 x i8]] {{\[}}[6 x i8] c"hello\00", [6 x i8] c"world\00"], ptr %[[MATRIX]]
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[MATRIX]], ptr @__const.test_string_array_in_array.matrix, i64 12, i1 false)
 
 // OGCG-LABEL: define{{.*}} @test_string_array_in_array
 // OGCG:   alloca [2 x [6 x i8]]

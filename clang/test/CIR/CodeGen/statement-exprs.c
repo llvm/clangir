@@ -232,8 +232,8 @@ int test3() { return ({ struct S s = {1}; s; }).x; }
 // CIR:     %[[TMP:.+]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"]
 // CIR:     cir.scope {
 // CIR:       %[[S:.+]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init]
-// CIR:       %[[CONST:.*]] = cir.const #cir.const_record<{#cir.int<1> : !s32i}> : !rec_S
-// CIR:       cir.store{{.*}} %[[CONST]], %[[S]] : !rec_S, !cir.ptr<!rec_S>
+// CIR:       %[[CONST:.*]] = cir.get_global @__const.test3.s : !cir.ptr<!rec_S>
+// CIR:       cir.copy %[[CONST]] to %[[S]] : !cir.ptr<!rec_S>
 // CIR:       cir.copy %[[S]] to %[[REF_TMP0]] : !cir.ptr<!rec_S>
 // CIR:     }
 // CIR:     %[[GEP_X_TMP:.+]] = cir.get_member %[[REF_TMP0]][0] {name = "x"} : !cir.ptr<!rec_S> -> !cir.ptr<!s32i>
@@ -252,7 +252,7 @@ int test3() { return ({ struct S s = {1}; s; }).x; }
 // LLVM: [[LBL5]]:
 // LLVM:     br label %[[LBL6:.+]]
 // LLVM: [[LBL6]]:
-// LLVM:     store %struct.S { i32 1 }, ptr %[[VAR3]]
+// LLVM:     call void @llvm.memcpy.p0.p0.i64(ptr %[[VAR3]], ptr @__const.test3.s, i64 4, i1 false)
 // LLVM:     call void @llvm.memcpy.p0.p0.i64(ptr %[[VAR1]], ptr %[[VAR3]], i64 4, i1 false)
 // LLVM:     br label %[[LBL8:.+]]
 // LLVM: [[LBL8]]:

@@ -79,11 +79,11 @@ void foo3() {
 }
 
 // CIR: %[[A_ADDR:.*]] = cir.alloca !cir.vector<4 x !s32i>, !cir.ptr<!cir.vector<4 x !s32i>>, ["a", init]
-// CIR: %[[VEC:.*]] = cir.const #cir.const_vector<[#cir.int<10> : !s32i, #cir.int<20> : !s32i, #cir.int<30> : !s32i, #cir.int<40> : !s32i]> : !cir.vector<4 x !s32i>
-// CIR: cir.store{{.*}} %[[VEC]], %[[A_ADDR]] : !cir.vector<4 x !s32i>, !cir.ptr<!cir.vector<4 x !s32i>>
+// CIR: %[[VEC:.*]] = cir.get_global @__const._Z4foo3v.a : !cir.ptr<!cir.vector<4 x !s32i>>
+// CIR: cir.copy %[[VEC]] to %[[A_ADDR]] : !cir.ptr<!cir.vector<4 x !s32i>>
 
 // LLVM: %[[A_ADDR:.*]] = alloca <4 x i32>, i64 1, align 16
-// LLVM: store <4 x i32> <i32 10, i32 20, i32 30, i32 40>, ptr %[[A_ADDR]], align 16
+// LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[A_ADDR]], ptr @__const._Z4foo3v.a, i64 16, i1 false)
 
 // FIXME: OGCG emits a temporary compound literal in this case because it omits
 //        vector types from the check for aggregate constants in
@@ -107,12 +107,12 @@ void foo4() {
 
 // CIR-LABEL: @_Z4foo4v
 // CIR:   %[[P:.*]] = cir.alloca !rec_Point, !cir.ptr<!rec_Point>, ["p", init]
-// CIR:   %[[CONST:.*]] = cir.const #cir.const_record<{#cir.int<5> : !s32i, #cir.int<10> : !s32i}> : !rec_Point
-// CIR:   cir.store{{.*}} %[[CONST]], %[[P]] : !rec_Point, !cir.ptr<!rec_Point>
+// CIR:   %[[CONST:.*]] = cir.get_global @__const._Z4foo4v.p : !cir.ptr<!rec_Point>
+// CIR:   cir.copy %[[CONST]] to %[[P]] : !cir.ptr<!rec_Point>
 
 // LLVM-LABEL: @_Z4foo4v
 // LLVM:   %[[P:.*]] = alloca %struct.Point
-// LLVM:   store %struct.Point { i32 5, i32 10 }, ptr %[[P]], align 4
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[P]], ptr @__const._Z4foo4v.p, i64 8, i1 false)
 
 // OGCG-LABEL: @_Z4foo4v
 // OGCG:   %[[P:.*]] = alloca %struct.Point
