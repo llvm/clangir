@@ -1022,8 +1022,7 @@ private:
   llvm::StringMap<clang::GlobalDecl, llvm::BumpPtrAllocator> Manglings;
 
   // FIXME: should we use llvm::TrackingVH<mlir::Operation> here?
-  typedef llvm::StringMap<mlir::Operation *> ReplacementsTy;
-  ReplacementsTy Replacements;
+  llvm::MapVector<StringRef, mlir::Operation *> Replacements;
   /// Call replaceAllUsesWith on all pairs in Replacements.
   void applyReplacements();
 
