@@ -24,7 +24,7 @@ struct S { int x; };
 int test3() { return ({ struct S s = {1}; s; }).x; }
 // CHECK: @test3
 // CHECK: cir.scope {
-// CHECK: %[[#REF_TMP:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["ref.tmp0"]
+// CHECK: %[[#REF_TMP:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["ref.tmp0", tmp]
 // CHECK:   cir.scope {
 // CHECK:     %[[#VAR:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 //            [...]

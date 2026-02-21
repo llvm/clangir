@@ -22,7 +22,7 @@ std::vector<const char*> test_nrvo() {
 // CIR:   cir.store{{.*}} %[[FALSE]], %[[NRVO_FLAG]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR:   cir.call @_ZNSt6vectorIPKcEC1Ev(%[[RESULT]]) : (!cir.ptr<![[VEC]]>) -> ()
 // CIR:   cir.scope {
-// CIR:     %[[REF_TMP:.*]] = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["ref.tmp0"]
+// CIR:     %[[REF_TMP:.*]] = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["ref.tmp0", tmp]
 // CIR:     %[[STR:.*]] = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 59>>
 // CIR:     %[[PTR_DECAY:.*]] = cir.cast array_to_ptrdecay %[[STR]] : !cir.ptr<!cir.array<!s8i x 59>> -> !cir.ptr<!s8i>
 // CIR:     cir.store{{.*}} %[[PTR_DECAY]], %[[REF_TMP]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>

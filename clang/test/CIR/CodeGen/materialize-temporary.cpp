@@ -7,7 +7,7 @@ int get_value() { return 42; }
 void test_const_ref_binding() {
   // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_const_ref_bindingv
   const int &x = 5;
-  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
+  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", tmp]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init, const]
   // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.const #cir.int<5> : !s32i
@@ -18,7 +18,7 @@ void test_const_ref_binding() {
 void test_const_ref_expr() {
   // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_const_ref_exprv
   const int &y = get_value();
-  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
+  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", tmp]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["y", init, const]
   // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.call @{{.*}}get_valuev()
@@ -29,7 +29,8 @@ void test_const_ref_arithmetic() {
   // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_const_ref_arithmeticv
   int a = 10;
   const int &z = a + 5;
-  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init]
+  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
+  // CHECK: %{{.*}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", tmp]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["z", init, const]
   // CHECK: cir.scope {
   // CHECK: %{{.*}} = cir.load {{.*}} %{{.*}}
@@ -49,6 +50,6 @@ void test_const_ref_struct() {
   // CHECK-LABEL: cir.func{{.*}} @{{.*}}test_const_ref_structv
   const S &s = make_s();
   // Temporary S object should be materialized
-  // CHECK: %{{.*}} = cir.alloca {{.*}}, !cir.ptr<{{.*}}rec_S{{.*}}>, ["ref.tmp0"]
+  // CHECK: %{{.*}} = cir.alloca {{.*}}, !cir.ptr<{{.*}}rec_S{{.*}}>, ["ref.tmp0", tmp]
   // CHECK: %{{.*}} = cir.alloca !cir.ptr<{{.*}}>, !cir.ptr<!cir.ptr<{{.*}}>>, ["s", init, const]
 }

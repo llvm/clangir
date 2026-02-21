@@ -103,8 +103,8 @@ struct S1 {
 // CHECK: %[[#V1:]] = cir.cast bitcast %[[#V0]] : !cir.ptr<!rec_S1> -> !cir.ptr<!u64i>
 // CHECK: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CHECK: %[[#V2:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["__retval"] {alignment = 4 : i64}
-// CHECK: %[[#V3:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["agg.tmp0"] {alignment = 4 : i64}
-// CHECK: %[[#V4:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["agg.tmp1"] {alignment = 4 : i64}
+// CHECK: %[[#V3:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["agg.tmp0", tmp] {alignment = 4 : i64}
+// CHECK: %[[#V4:]] = cir.alloca !rec_S1, !cir.ptr<!rec_S1>, ["agg.tmp1", tmp] {alignment = 4 : i64}
 S1 s1(S1 arg) {
 
   /// Cast argument and result of the function call to the expected types.
@@ -148,8 +148,8 @@ struct S2 {
 // CHECK: cir.libc.memcpy %[[#F6]] bytes from %[[#F4]] to %[[#F5]]
 S2 s2(S2 arg) {
   // CHECK: %[[#F7:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["__retval"] {alignment = 4 : i64}
-  // CHECK: %[[#F8:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["agg.tmp0"] {alignment = 4 : i64}
-  // CHECK: %[[#F9:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["agg.tmp1"] {alignment = 4 : i64}
+  // CHECK: %[[#F8:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["agg.tmp0", tmp] {alignment = 4 : i64}
+  // CHECK: %[[#F9:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["agg.tmp1", tmp] {alignment = 4 : i64}
   // CHECK: %[[#F10:]] = cir.alloca !rec_anon_struct, !cir.ptr<!rec_anon_struct>, ["tmp"] {alignment = 8 : i64}
   // CHECK: %[[#F11:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["tmp"] {alignment = 4 : i64}
   // CHECK: %[[#F12:]] = cir.alloca !rec_anon_struct, !cir.ptr<!rec_anon_struct>, ["tmp"] {alignment = 8 : i64}

@@ -29,7 +29,7 @@ void t() {
 // be useful at least for the lifetime checker.
 
 // CHECK: cir.func {{.*}} @_Z1tv()
-// CHECK:   %[[#Addr:]] = cir.alloca ![[StdString]], {{.*}} ["ref.tmp0"]
+// CHECK:   %[[#Addr:]] = cir.alloca ![[StdString]], {{.*}} ["ref.tmp0", tmp]
 // CHECK:   %[[#RValStr:]] = cir.call @_Z6getstrv() : () -> ![[StdString]]
 // CHECK:   cir.store{{.*}} %[[#RValStr]], %[[#Addr]]
 // CHECK:   cir.call @_Z7emplaceOSt6string(%[[#Addr]])

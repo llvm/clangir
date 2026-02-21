@@ -112,7 +112,7 @@ void vcall(C1 &c1) {
 // CHECK:   %0 = cir.alloca !cir.ptr<!rec_C1>, !cir.ptr<!cir.ptr<!rec_C1>>, ["c1", init, const] {alignment = 8 : i64}
 // CHECK:   %1 = cir.alloca !rec_buffy, !cir.ptr<!rec_buffy>, ["b"] {alignment = 8 : i64}
 // CHECK:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["e"] {alignment = 4 : i64}
-// CHECK:   %3 = cir.alloca !rec_buffy, !cir.ptr<!rec_buffy>, ["agg.tmp0"] {alignment = 8 : i64}
+// CHECK:   %3 = cir.alloca !rec_buffy, !cir.ptr<!rec_buffy>, ["agg.tmp0", tmp] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_C1>, !cir.ptr<!cir.ptr<!rec_C1>>
 // CHECK:   %4 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_C1>>, !cir.ptr<!rec_C1>
 // CHECK:   %5 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
@@ -143,7 +143,7 @@ public:
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>
 // CHECK:   %1 = cir.load{{.*}} deref %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.scope {
-// CHECK:     %2 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["ref.tmp0"] {alignment = 8 : i64}
+// CHECK:     %2 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["ref.tmp0", tmp] {alignment = 8 : i64}
 // CHECK:     %3 = cir.base_class_addr %1 : !cir.ptr<!rec_B> nonnull [0] -> !cir.ptr<!rec_A>
 
 // Call @A::A(A const&)

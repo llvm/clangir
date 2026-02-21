@@ -305,7 +305,7 @@ void foo() {
 
 // NOFLAT: cir.func {{.*}} @_Z3foov()
 // NOFLAT:   cir.scope {
-// NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0"]
+// NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0", tmp]
 // NOFLAT:     cir.br ^bb1
 // NOFLAT:    ^bb1:
 // NOFLAT:     cir.label "label"

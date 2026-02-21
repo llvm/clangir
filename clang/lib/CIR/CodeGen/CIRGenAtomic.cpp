@@ -263,7 +263,7 @@ private:
 // This function emits any expression (scalar, complex, or aggregate)
 // into a temporary alloca.
 static Address emitValToTemp(CIRGenFunction &CGF, Expr *E) {
-  Address DeclPtr = CGF.CreateMemTemp(
+  Address DeclPtr = CGF.CreateMemTempWithName(
       E->getType(), CGF.getLoc(E->getSourceRange()), ".atomictmp");
   CGF.emitAnyExprToMem(E, DeclPtr, E->getType().getQualifiers(),
                        /*Init*/ true);
@@ -322,7 +322,7 @@ Address AtomicInfo::convertToAtomicIntPointer(Address Addr) const {
 }
 
 Address AtomicInfo::CreateTempAlloca() const {
-  Address TempAlloca = CGF.CreateMemTemp(
+  Address TempAlloca = CGF.CreateMemTempWithName(
       (LVal.isBitField() && ValueSizeInBits > AtomicSizeInBits) ? ValueTy
                                                                 : AtomicTy,
       getAtomicAlignment(), loc, "atomic-temp");
@@ -1031,7 +1031,8 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
     if (ShouldCastToIntPtrTy)
       Dest = Atomics.castToAtomicIntPointer(Dest);
   } else if (E->isCmpXChg())
-    Dest = CreateMemTemp(RValTy, getLoc(E->getSourceRange()), "cmpxchg.bool");
+    Dest = CreateMemTempWithName(RValTy, getLoc(E->getSourceRange()),
+                                 "cmpxchg.bool");
   else if (!RValTy->isVoidType()) {
     Dest = Atomics.CreateTempAlloca();
     if (ShouldCastToIntPtrTy)

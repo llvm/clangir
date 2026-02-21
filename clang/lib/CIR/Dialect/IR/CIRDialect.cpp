@@ -355,6 +355,88 @@ void printGlobalAddressSpaceValue(mlir::AsmPrinter &printer, cir::GlobalOp op,
 // AllocaOp
 //===----------------------------------------------------------------------===//
 
+// Custom parser/printer to allow flags in any order (tmp/init/const) and
+// support single-flag spellings that the compact format can't represent.
+static mlir::ParseResult parseAllocaNameAndFlags(mlir::OpAsmParser &parser,
+                                                 mlir::StringAttr &nameAttr,
+                                                 mlir::UnitAttr &initAttr,
+                                                 mlir::UnitAttr &constAttr,
+                                                 mlir::UnitAttr &tmpAttr) {
+  if (parser.parseLSquare())
+    return mlir::failure();
+  if (parser.parseAttribute(nameAttr))
+    return mlir::failure();
+
+  auto setAttr = [&](llvm::StringRef keyword) -> mlir::ParseResult {
+    if (keyword == "tmp") {
+      if (tmpAttr)
+        return parser.emitError(parser.getCurrentLocation(),
+                                "duplicate 'tmp' flag");
+      tmpAttr = parser.getBuilder().getUnitAttr();
+      return mlir::success();
+    }
+    if (keyword == "init") {
+      if (initAttr)
+        return parser.emitError(parser.getCurrentLocation(),
+                                "duplicate 'init' flag");
+      initAttr = parser.getBuilder().getUnitAttr();
+      return mlir::success();
+    }
+    if (keyword == "const") {
+      if (constAttr)
+        return parser.emitError(parser.getCurrentLocation(),
+                                "duplicate 'const' flag");
+      constAttr = parser.getBuilder().getUnitAttr();
+      return mlir::success();
+    }
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected one of: tmp, init, const");
+  };
+
+  if (succeeded(parser.parseOptionalComma())) {
+    while (true) {
+      llvm::StringRef keyword;
+      if (parser.parseKeyword(&keyword))
+        return mlir::failure();
+      if (failed(setAttr(keyword)))
+        return mlir::failure();
+      if (parser.parseOptionalComma().failed())
+        break;
+    }
+  }
+
+  if (parser.parseRSquare())
+    return mlir::failure();
+  return mlir::success();
+}
+
+static void printAllocaNameAndFlags(mlir::OpAsmPrinter &printer,
+                                    cir::AllocaOp op, mlir::StringAttr nameAttr,
+                                    mlir::UnitAttr initAttr,
+                                    mlir::UnitAttr constAttr,
+                                    mlir::UnitAttr tmpAttr) {
+  printer << "[";
+  printer.printAttribute(nameAttr);
+
+  if (tmpAttr || initAttr || constAttr) {
+    printer << ", ";
+    bool printed = false;
+    auto printFlag = [&](llvm::StringRef name, mlir::UnitAttr attr) {
+      if (!attr)
+        return;
+      printer << (printed ? ", " : "");
+      printer << name;
+      printed = true;
+    };
+
+    printFlag("tmp", tmpAttr);
+    printFlag("init", initAttr);
+    printFlag("const", constAttr);
+  }
+
+  printer << "]";
+}
+
 void cir::AllocaOp::build(::mlir::OpBuilder &odsBuilder,
                           ::mlir::OperationState &odsState, ::mlir::Type addr,
                           ::mlir::Type allocaType, ::llvm::StringRef name,

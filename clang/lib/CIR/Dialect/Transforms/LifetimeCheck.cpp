@@ -981,12 +981,9 @@ bool LifetimeCheckPass::isSkippableTemporary(mlir::Value v) {
   if (!allocaOp)
     return false;
 
-  auto name = allocaOp.getName();
-  // Temporaries have names starting with "ref.tmp"
-  // FIXME: "ref.tmp" naming is not reliable. Consider adding a unit attribute
-  // is_temporary to AllocaOp that is set by CIRGen to definitively mark
-  // temporaries. This would be more robust than string prefix matching.
-  if (!name.starts_with("ref.tmp"))
+  // Check if this allocation is marked as a temporary by CIRGen.
+  // Currently covers ref.tmp*/agg.tmp*; other scratch temps are not marked yet.
+  if (!allocaOp.getTmp())
     return false;
 
   // Don't skip coroutine tasks - they need lifetime tracking even as
@@ -2045,8 +2042,8 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
       ptrsToDeref.insert(arg);
     if (aggregates.count(arg)) {
       int memberIdx = 0;
-      auto sTy =
-          mlir::dyn_cast<RecordType>(mlir::cast<PointerType>(arg.getType()).getPointee());
+      auto sTy = mlir::dyn_cast<RecordType>(
+          mlir::cast<PointerType>(arg.getType()).getPointee());
       assert(sTy && "expected record type");
       for (auto m : sTy.getMembers()) {
         auto ptrMemberAddr = aggregates[arg][memberIdx];

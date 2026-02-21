@@ -27,7 +27,7 @@ void make1() {
 // CIR:   %[[VEC:.*]] = cir.alloca ![[VecType]], !cir.ptr<![[VecType]]>
 // CIR:   cir.call @_ZN3VecC1Ev(%[[VEC]]) : (!cir.ptr<![[VecType]]>)
 // CIR:   cir.scope {
-// CIR:     %[[AGG_TMP:.*]] = cir.alloca ![[S1]], !cir.ptr<![[S1]]>, ["agg.tmp.ensured"]
+// CIR:     %[[AGG_TMP:.*]] = cir.alloca ![[S1]], !cir.ptr<![[S1]]>, ["agg.tmp.ensured", tmp]
 // CIR:     %[[FIELD:.*]] = cir.get_member %[[AGG_TMP]][0] {name = "v"} : !cir.ptr<![[S1]]> -> !cir.ptr<![[VecType]]>
 // CIR:     cir.call @_ZN3VecC1EOS_(%[[FIELD]], %[[VEC]]) : (!cir.ptr<![[VecType]]>, !cir.ptr<![[VecType]]>) -> ()
 // CIR:     cir.call @_ZN2S1D1Ev(%[[AGG_TMP]]) : (!cir.ptr<![[S1]]>) -> ()
@@ -41,7 +41,7 @@ void make1() {
 // Construct v
 // CIR_EH:  cir.call @_ZN3VecC1Ev(%[[VEC]]) : (!cir.ptr<![[VecType]]>) -> ()
 // CIR_EH:  cir.scope {
-// CIR_EH:    %1 = cir.alloca ![[S1]], !cir.ptr<![[S1]]>, ["agg.tmp.ensured"]
+// CIR_EH:    %1 = cir.alloca ![[S1]], !cir.ptr<![[S1]]>, ["agg.tmp.ensured", tmp]
 // CIR_EH:    %2 = cir.get_member %1[0] {name = "v"} : !cir.ptr<![[S1]]> -> !cir.ptr<![[VecType]]>
 // CIR_EH:    cir.try synthetic cleanup {
 

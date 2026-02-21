@@ -77,7 +77,7 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_3]] : !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>
 // CIR:   {{.*}} = cir.scope {
-// CIR:     %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["ref.tmp0"] {alignment = 8 : i64} loc(#loc64)
+// CIR:     %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["ref.tmp0", tmp] {alignment = 8 : i64} loc(#loc64)
 // CIR:     %[[VAL_5:.*]] = cir.load{{.*}} %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
 // CIR:     %[[VAL_6:.*]] = cir.cast int_to_bool %[[VAL_5]] : !u64i -> !cir.bool
 // CIR:     cir.if %[[VAL_6]] {

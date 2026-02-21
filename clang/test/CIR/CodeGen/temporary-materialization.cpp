@@ -10,7 +10,7 @@ int test() {
 
 //      CHECK: cir.func {{.*}} @_Z4testv()
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
-// CHECK-NEXT:   %[[#TEMP_SLOT:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
+// CHECK-NEXT:   %[[#TEMP_SLOT:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", tmp] {alignment = 4 : i64}
 // CHECK-NEXT:   %[[#x:]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init, const] {alignment = 8 : i64}
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     %[[#TEMP_VALUE:]] = cir.call @_Z8make_intv() : () -> !s32i
@@ -32,7 +32,7 @@ int test_scoped() {
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 //      CHECK:   cir.scope {
-// CHECK-NEXT:     %[[#TEMP_SLOT:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
+// CHECK-NEXT:     %[[#TEMP_SLOT:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", tmp] {alignment = 4 : i64}
 // CHECK-NEXT:     %[[#y:]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["y", init, const] {alignment = 8 : i64}
 // CHECK-NEXT:     cir.scope {
 // CHECK-NEXT:       %[[#TEMP_VALUE:]] = cir.call @_Z8make_intv() : () -> !s32i

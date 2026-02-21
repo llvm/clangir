@@ -52,7 +52,7 @@ Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
         // We can't return an RValue here because there might be cleanups at
         // the end of the StmtExpr.  Because of that, we have to emit the result
         // here into a temporary alloca.
-        retAlloca = CreateMemTemp(exprTy, getLoc(E->getSourceRange()));
+        retAlloca = CreateMemTempWithName(exprTy, getLoc(E->getSourceRange()));
         emitAnyExprToMem(E, retAlloca, Qualifiers(),
                          /*IsInit*/ false);
       }

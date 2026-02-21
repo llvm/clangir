@@ -184,9 +184,9 @@ VoidTask silly_task() {
 // holding coroutine handle and the suspend_always struct.
 
 // CHECK: cir.scope {
-// CHECK:   %[[#SuspendAlwaysAddr:]] = cir.alloca ![[SuspendAlways]], {{.*}} ["ref.tmp0"] {alignment = 1 : i64}
-// CHECK:   %[[#CoroHandleVoidAddr:]] = cir.alloca ![[CoroHandleVoid]], {{.*}} ["agg.tmp0"] {alignment = 1 : i64}
-// CHECK:   %[[#CoroHandlePromiseAddr:]] = cir.alloca ![[CoroHandlePromise]], {{.*}} ["agg.tmp1"] {alignment = 1 : i64}
+// CHECK:   %[[#SuspendAlwaysAddr:]] = cir.alloca ![[SuspendAlways]], {{.*}} ["ref.tmp0", tmp] {alignment = 1 : i64}
+// CHECK:   %[[#CoroHandleVoidAddr:]] = cir.alloca ![[CoroHandleVoid]], {{.*}} ["agg.tmp0", tmp] {alignment = 1 : i64}
+// CHECK:   %[[#CoroHandlePromiseAddr:]] = cir.alloca ![[CoroHandlePromise]], {{.*}} ["agg.tmp1", tmp] {alignment = 1 : i64}
 
 // Effectively execute `coawait promise_type::initial_suspend()` by calling initial_suspend() and getting
 // the suspend_always struct to use for cir.await. Note that we return by-value since we defer ABI lowering
@@ -314,7 +314,7 @@ folly::coro::Task<int> go1() {
 
 // The call to go(1) has its own scope due to full-expression rules.
 // CHECK: cir.scope {
-// CHECK:   %[[#OneAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp1", init] {alignment = 4 : i64}
+// CHECK:   %[[#OneAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp1", tmp] {alignment = 4 : i64}
 // CHECK:   %[[#One:]] = cir.const #cir.int<1> : !s32i
 // CHECK:   cir.store{{.*}} %[[#One]], %[[#OneAddr]] : !s32i, !cir.ptr<!s32i>
 // CHECK:   %[[#IntTaskTmp:]] = cir.call @_Z2goRKi(%[[#OneAddr]]) : (!cir.ptr<!s32i>) -> ![[IntTask]]
@@ -356,7 +356,7 @@ folly::coro::Task<int> go4() {
 // CHECK: }
 
 // CHECK: %12 = cir.scope {
-// CHECK:   %17 = cir.alloca !rec_anon2E2, !cir.ptr<!rec_anon2E2>, ["ref.tmp1"] {alignment = 1 : i64}
+// CHECK:   %17 = cir.alloca !rec_anon2E2, !cir.ptr<!rec_anon2E2>, ["ref.tmp1", tmp] {alignment = 1 : i64}
 
 // Get the lambda invoker ptr via `lambda operator folly::coro::Task<int> (*)(int const&)()`
 // CHECK:   %18 = cir.call @_ZZ3go4vENK3$_0cvPFN5folly4coro4TaskIiEERKiEEv(%17) : (!cir.ptr<!rec_anon2E2>) -> !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> ![[IntTask]]>>
@@ -365,7 +365,7 @@ folly::coro::Task<int> go4() {
 // CHECK: }
 // CHECK: cir.store{{.*}} %12, %3 : !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> ![[IntTask]]>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> ![[IntTask]]>>>
 // CHECK: cir.scope {
-// CHECK:   %17 = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp2", init] {alignment = 4 : i64}
+// CHECK:   %17 = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp2", tmp] {alignment = 4 : i64}
 // CHECK:   %18 = cir.load{{.*}} %3 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> ![[IntTask]]>>>, !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> ![[IntTask]]>>
 // CHECK:   %19 = cir.const #cir.int<3> : !s32i
 // CHECK:   cir.store{{.*}} %19, %17 : !s32i, !cir.ptr<!s32i>

@@ -116,13 +116,13 @@ class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
   AggValueSlot EnsureSlot(mlir::Location loc, QualType T) {
     if (!Dest.isIgnored())
       return Dest;
-    return CGF.CreateAggTemp(T, loc, "agg.tmp.ensured");
+    return CGF.CreateAggTempWithName(T, loc, "agg.tmp.ensured");
   }
 
   void EnsureDest(mlir::Location loc, QualType T) {
     if (!Dest.isIgnored())
       return;
-    Dest = CGF.CreateAggTemp(T, loc, "agg.tmp.ensured");
+    Dest = CGF.CreateAggTempWithName(T, loc, "agg.tmp.ensured");
   }
 
 public:
@@ -1198,8 +1198,8 @@ void AggExprEmitter::withReturnValueSlot(
   if (!UseTemp) {
     RetAddr = Dest.getAddress();
   } else {
-    RetAddr = CGF.CreateMemTemp(RetTy, CGF.getLoc(E->getSourceRange()), "tmp",
-                                &RetAddr);
+    RetAddr = CGF.CreateMemTempWithName(RetTy, CGF.getLoc(E->getSourceRange()),
+                                        "tmp", &RetAddr);
     assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers() && "NYI");
   }
 
@@ -1828,7 +1828,8 @@ CIRGenFunction::getOverlapForFieldInit(const FieldDecl *FD) {
 
 LValue CIRGenFunction::emitAggExprToLValue(const Expr *E) {
   assert(hasAggregateEvaluationKind(E->getType()) && "Invalid argument!");
-  Address Temp = CreateMemTemp(E->getType(), getLoc(E->getSourceRange()));
+  Address Temp =
+      CreateMemTempWithName(E->getType(), getLoc(E->getSourceRange()));
   LValue LV = makeAddrLValue(Temp, E->getType());
   emitAggExpr(E, AggValueSlot::forLValue(LV, AggValueSlot::IsNotDestructed,
                                          AggValueSlot::DoesNotNeedGCBarriers,

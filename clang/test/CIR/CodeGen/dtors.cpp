@@ -66,7 +66,7 @@ bool bar() { return foo(1) || foo(2); }
 // CHECK: cir.func {{.*}} @_Z3barv()
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["__retval"] {alignment = 1 : i64}
 // CHECK:   cir.scope {
-// CHECK:     %[[V2:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp0"] {alignment = 4 : i64}
+// CHECK:     %[[V2:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp0", tmp] {alignment = 4 : i64}
 // CHECK:     %[[V3:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:     cir.call @_ZN1XC2Ei(%[[V2]], %[[V3]]) : (!cir.ptr<!rec_X>, !s32i) -> ()
 // CHECK:     %[[V4:.*]] = cir.call @_Z3fooRK1X(%[[V2]]) : (!cir.ptr<!rec_X>) -> !cir.bool
@@ -74,7 +74,7 @@ bool bar() { return foo(1) || foo(2); }
 // CHECK:       %[[V6:.*]] = cir.const #true
 // CHECK:       cir.yield %[[V6]] : !cir.bool
 // CHECK:     }, false {
-// CHECK:       %[[V6:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp1"] {alignment = 4 : i64}
+// CHECK:       %[[V6:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp1", tmp] {alignment = 4 : i64}
 // CHECK:       %[[V7:.*]] = cir.const #cir.int<2> : !s32i
 // CHECK:       cir.call @_ZN1XC2Ei(%[[V6]], %[[V7]]) : (!cir.ptr<!rec_X>, !s32i) -> ()
 // CHECK:       %[[V8:.*]] = cir.call @_Z3fooRK1X(%[[V6]]) : (!cir.ptr<!rec_X>) -> !cir.bool
@@ -185,7 +185,7 @@ void m() { G l(j); }
 // CHECK:   %[[V2:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!cir.ptr<!rec_G>>, !cir.ptr<!rec_G>
 // Trivial default constructor call is lowered away.
 // CHECK:   %[[V3:.*]] = cir.scope {
-// CHECK:     %[[V4:.*]] = cir.alloca !rec_A2, !cir.ptr<!rec_A2>, ["agg.tmp0"] {alignment = 1 : i64}
+// CHECK:     %[[V4:.*]] = cir.alloca !rec_A2, !cir.ptr<!rec_A2>, ["agg.tmp0", tmp] {alignment = 1 : i64}
 // CHECK:     %[[V5:.*]] = cir.load{{.*}} %[[V4]] : !cir.ptr<!rec_A2>, !rec_A2
 // CHECK:     %[[V6:.*]] = cir.call @_ZN1G1kE2A2(%[[V2]], %[[V5]]) : (!cir.ptr<!rec_G>, !rec_A2) -> !s64i
 // CHECK:     cir.call @_ZN2A2D1Ev(%[[V4]]) : (!cir.ptr<!rec_A2>) -> ()

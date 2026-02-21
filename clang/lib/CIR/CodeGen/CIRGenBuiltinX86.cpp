@@ -570,7 +570,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI_mm_setcsr:
   case X86::BI__builtin_ia32_ldmxcsr: {
     Address tmp =
-        CreateMemTemp(E->getArg(0)->getType(), getLoc(E->getExprLoc()));
+        CreateMemTempWithName(E->getArg(0)->getType(), getLoc(E->getExprLoc()));
     builder.createStore(getLoc(E->getExprLoc()), Ops[0], tmp);
     return cir::LLVMIntrinsicCallOp::create(
                builder, getLoc(E->getExprLoc()),
@@ -580,7 +580,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   }
   case X86::BI_mm_getcsr:
   case X86::BI__builtin_ia32_stmxcsr: {
-    Address tmp = CreateMemTemp(E->getType(), getLoc(E->getExprLoc()));
+    Address tmp = CreateMemTempWithName(E->getType(), getLoc(E->getExprLoc()));
     cir::LLVMIntrinsicCallOp::create(builder, getLoc(E->getExprLoc()),
                                      builder.getStringAttr("x86.sse.stmxcsr"),
                                      builder.getVoidTy(), tmp.getPointer())

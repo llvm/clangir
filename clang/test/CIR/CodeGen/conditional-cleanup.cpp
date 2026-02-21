@@ -32,9 +32,9 @@ namespace test7 {
 // CIR-LABEL: _ZN5test74testEv
 // CIR:   %[[RET_VAL:.*]] = cir.alloca !cir.ptr<![[B]]>, !cir.ptr<!cir.ptr<![[B]]>>, ["__retval"] {alignment = 8 : i64}
 // CIR:   cir.scope {
-// CIR:     %[[TMP_A0:.*]] = cir.alloca ![[A]], !cir.ptr<![[A]]>, ["ref.tmp0"] {alignment = 1 : i64}
+// CIR:     %[[TMP_A0:.*]] = cir.alloca ![[A]], !cir.ptr<![[A]]>, ["ref.tmp0", tmp] {alignment = 1 : i64}
 // CIR:     %[[CLEANUP_COND_OUTER:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
-// CIR:     %[[TMP_A1:.*]] = cir.alloca ![[A]], !cir.ptr<![[A]]>, ["ref.tmp1"] {alignment = 1 : i64}
+// CIR:     %[[TMP_A1:.*]] = cir.alloca ![[A]], !cir.ptr<![[A]]>, ["ref.tmp1", tmp] {alignment = 1 : i64}
 // CIR:     %[[CLEANUP_COND_INNER:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
 // CIR:     %[[FALSE0:.*]] = cir.const #false
 // CIR:     %[[TRUE0:.*]] = cir.const #true
@@ -88,10 +88,10 @@ namespace test7 {
 // CIR_EH:           %[[VAL_0:.*]] = cir.alloca !cir.ptr<!rec_test73A3AB>, !cir.ptr<!cir.ptr<!rec_test73A3AB>>, ["__retval"] {alignment = 8 : i64}
 // CIR_EH:           cir.scope {
 // CIR_EH:             %[[VAL_1:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
-// CIR_EH:             %[[VAL_2:.*]] = cir.alloca !rec_test73A3AA, !cir.ptr<!rec_test73A3AA>, ["ref.tmp0"] {alignment = 1 : i64}
+// CIR_EH:             %[[VAL_2:.*]] = cir.alloca !rec_test73A3AA, !cir.ptr<!rec_test73A3AA>, ["ref.tmp0", tmp] {alignment = 1 : i64}
 // CIR_EH:             %[[VAL_3:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
 // CIR_EH:             %[[VAL_4:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
-// CIR_EH:             %[[VAL_5:.*]] = cir.alloca !rec_test73A3AA, !cir.ptr<!rec_test73A3AA>, ["ref.tmp1"] {alignment = 1 : i64}
+// CIR_EH:             %[[VAL_5:.*]] = cir.alloca !rec_test73A3AA, !cir.ptr<!rec_test73A3AA>, ["ref.tmp1", tmp] {alignment = 1 : i64}
 // CIR_EH:             %[[VAL_6:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["cleanup.cond"] {alignment = 1 : i64}
 // CIR_EH:             %[[VAL_7:.*]] = cir.const #[[$ATTR_0]]
 // CIR_EH:             %[[VAL_8:.*]] = cir.const #[[$ATTR_3]]

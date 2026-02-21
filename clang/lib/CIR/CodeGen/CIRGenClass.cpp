@@ -1046,8 +1046,8 @@ void CIRGenFunction::emitLambdaDelegatingInvokeBody(const CXXMethodDecl *MD) {
 
   QualType LambdaType = getContext().getCanonicalTagType(Lambda);
   QualType ThisType = getContext().getPointerType(LambdaType);
-  Address ThisPtr =
-      CreateMemTemp(LambdaType, getLoc(MD->getSourceRange()), "unused.capture");
+  Address ThisPtr = CreateMemTempWithName(
+      LambdaType, getLoc(MD->getSourceRange()), "unused.capture");
   CallArgs.add(RValue::get(ThisPtr.getPointer()), ThisType);
 
   // Add the rest of the parameters.

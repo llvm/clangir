@@ -580,6 +580,12 @@ def CIR_AllocaOp : CIR_Op<"alloca", [
     The presence of the `const` attribute indicates that the local variable is
     declared with C/C++ `const` keyword.
 
+    The presence of the `tmp` attribute indicates that the allocation
+    represents a compiler-generated temporary (e.g., from MaterializeTemporaryExpr,
+    aggregate temporaries, reference binding temporaries). This is used by the
+    lifetime checker to identify temporaries that may be skipped for certain
+    analyses.
+
     The `dynAllocSize` specifies the size to dynamically allocate on the stack
     and ignores the allocation size based on the original type. This is useful
     when handling VLAs and is omitted when declaring regular local variables.
@@ -604,6 +610,7 @@ def CIR_AllocaOp : CIR_Op<"alloca", [
     StrAttr:$name,
     UnitAttr:$init,
     UnitAttr:$constant,
+    UnitAttr:$tmp,
     ConfinedAttr<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment,
     OptionalAttr<ArrayAttr>:$annotations,
     OptionalAttr<ASTVarDeclInterface>:$ast
@@ -637,13 +644,12 @@ def CIR_AllocaOp : CIR_Op<"alloca", [
     bool isDynamic() { return (bool)getDynAllocSize(); }
   }];
 
+  // Custom parse/print allows flags in any order and supports tmp-only or
+  // init/const-only spellings, which the compact format can't express.
   let assemblyFormat = [{
     $allocaType `,` qualified(type($addr)) `,`
     ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
-    `[` $name
-       (`,` `init` $init^)?
-       (`,` `const` $constant^)?
-    `]`
+    custom<AllocaNameAndFlags>($name, $init, $constant, $tmp)
     ($annotations^)?
     (`ast` $ast^)? attr-dict
   }];

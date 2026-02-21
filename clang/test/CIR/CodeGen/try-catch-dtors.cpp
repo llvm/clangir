@@ -83,7 +83,7 @@ void yo2() {
 // CIR:     cir.try {
 // CIR:       cir.call exception @_ZN3VecC1Ev
 // CIR:       cir.scope {
-// CIR:         cir.alloca ![[S1:.*]], !cir.ptr<![[S1:.*]]>, ["agg.tmp.ensured"]
+// CIR:         cir.alloca ![[S1:.*]], !cir.ptr<![[S1:.*]]>, ["agg.tmp.ensured", tmp]
 // CIR:         cir.call exception @_ZN3VecC1EOS_{{.*}} cleanup {
 // CIR:           cir.call @_ZN3VecD1Ev
 // CIR:           cir.yield
@@ -353,7 +353,7 @@ void d() {
 // CIR: %[[V0:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["a"] {alignment = 1 : i64}
 // CIR-NEXT: %[[V1:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["b"] {alignment = 1 : i64}
 // CIR-NEXT: cir.scope {
-// CIR-NEXT:   %[[V2:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["agg.tmp0"] {alignment = 1 : i64}
+// CIR-NEXT:   %[[V2:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["agg.tmp0", tmp] {alignment = 1 : i64}
 // CIR-NEXT:   cir.copy %[[V1]] to %[[V2]] : !cir.ptr<!rec_C>
 // CIR-NEXT:   %[[V3:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!rec_C>, !rec_C
 // CIR-NEXT:   cir.try synthetic cleanup {

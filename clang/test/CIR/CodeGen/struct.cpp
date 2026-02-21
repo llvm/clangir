@@ -150,7 +150,7 @@ void h() { S s; }
 
 // CHECK: cir.func {{.*}} @_Z1hv()
 // CHECK:   %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
-// CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0"] {alignment = 4 : i64}
+// CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0", tmp] {alignment = 4 : i64}
 // CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !rec_A
 // CHECK:   cir.store{{.*}} %2, %1 : !rec_A, !cir.ptr<!rec_A>
 // CHECK:   %3 = cir.load{{.*}} %1 : !cir.ptr<!rec_A>, !rec_A

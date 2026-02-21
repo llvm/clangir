@@ -492,8 +492,8 @@ LValue CIRGenFunction::emitCompoundLiteralLValue(const CompoundLiteralExpr *E) {
     llvm_unreachable("NYI");
   }
 
-  Address DeclPtr = CreateMemTemp(E->getType(), getLoc(E->getSourceRange()),
-                                  ".compoundliteral");
+  Address DeclPtr = CreateMemTempWithName(
+      E->getType(), getLoc(E->getSourceRange()), ".compoundliteral");
   const Expr *InitExpr = E->getInitializer();
   LValue Result = makeAddrLValue(DeclPtr, E->getType(), AlignmentSource::Decl);
 
@@ -722,7 +722,7 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
   // Update the alloca with more info on initialization.
   assert(addr.getPointer() && "expected pointer to exist");
   auto SrcAlloca = addr.getDefiningOp<cir::AllocaOp>();
-  if (currVarDecl && SrcAlloca) {
+  if (currVarDecl && SrcAlloca && !SrcAlloca.getTmpAttr()) {
     const VarDecl *VD = currVarDecl;
     assert(VD && "VarDecl expected");
     SrcAlloca.setInit(VD->hasInit());
@@ -1360,7 +1360,7 @@ LValue CIRGenFunction::emitExtVectorElementExpr(const ExtVectorElementExpr *E) {
 
     // Store the vector to memory (because LValue wants an address).
     QualType BaseTy = E->getBase()->getType();
-    Address VecMem = CreateMemTemp(BaseTy, Vec.getLoc(), "tmp");
+    Address VecMem = CreateMemTempWithName(BaseTy, Vec.getLoc(), "tmp");
     builder.createStore(Vec.getLoc(), Vec, VecMem);
     base = makeAddrLValue(VecMem, BaseTy, AlignmentSource::Decl);
   }
@@ -1550,8 +1550,8 @@ RValue CIRGenFunction::emitAnyExpr(const Expr *E, AggValueSlot aggSlot,
     return RValue::getComplex(emitComplexExpr(E));
   case cir::TEK_Aggregate: {
     if (!ignoreResult && aggSlot.isIgnored())
-      aggSlot = CreateAggTemp(E->getType(), getLoc(E->getSourceRange()),
-                              getCounterAggTmpAsString());
+      aggSlot =
+          CreateAggTempWithAutoName(E->getType(), getLoc(E->getSourceRange()));
     emitAggExpr(E, aggSlot);
     return aggSlot.asRValue();
   }
@@ -2451,8 +2451,8 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
     mlir::OpBuilder::InsertPoint ip;
     if (extDeclAlloca)
       ip = {extDeclAlloca->getBlock(), extDeclAlloca->getIterator()};
-    return CGF.CreateMemTemp(Ty, CGF.getLoc(M->getSourceRange()),
-                             CGF.getCounterRefTmpAsString(), Alloca, ip);
+    return CGF.CreateRefTempWithAutoName(Ty, CGF.getLoc(M->getSourceRange()),
+                                         Alloca, ip);
   }
   case SD_Thread:
   case SD_Static: {
@@ -3056,7 +3056,8 @@ mlir::Value CIRGenFunction::emitOpOnBoolExpr(mlir::Location loc,
 mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
                                        mlir::Location loc, CharUnits alignment,
                                        bool insertIntoFnEntryBlock,
-                                       mlir::Value arraySize) {
+                                       mlir::Value arraySize,
+                                       bool isTemporary) {
   mlir::Block *entryBlock = insertIntoFnEntryBlock
                                 ? getCurFunctionEntryBlock()
                                 : currLexScope->getEntryBlock();
@@ -3072,13 +3073,15 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
   }
 
   return emitAlloca(name, ty, loc, alignment,
-                    builder.getBestAllocaInsertPoint(entryBlock), arraySize);
+                    builder.getBestAllocaInsertPoint(entryBlock), arraySize,
+                    isTemporary);
 }
 
 mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
                                        mlir::Location loc, CharUnits alignment,
                                        mlir::OpBuilder::InsertPoint ip,
-                                       mlir::Value arraySize) {
+                                       mlir::Value arraySize,
+                                       bool isTemporary) {
   // CIR uses its own alloca AS rather than follow the target data layout like
   // original CodeGen. The data layout awareness should be done in the lowering
   // pass instead.
@@ -3091,10 +3094,16 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
     builder.restoreInsertionPoint(ip);
     addr = builder.createAlloca(loc, /*addr type*/ localVarPtrTy,
                                 /*var type*/ ty, name, alignIntAttr, arraySize);
+    auto alloca = addr.getDefiningOp<cir::AllocaOp>();
+
     if (currVarDecl) {
-      auto alloca = addr.getDefiningOp<cir::AllocaOp>();
       alloca.setAstAttr(ASTVarDeclAttr::get(&getMLIRContext(), currVarDecl));
     }
+
+    // Set temporary attribute based on semantic information.
+    // Currently used for ref.tmp*/agg.tmp*; other scratch temps are unmarked.
+    if (isTemporary)
+      alloca.setTmpAttr(builder.getUnitAttr());
   }
   return addr;
 }
@@ -3102,9 +3111,10 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
 mlir::Value CIRGenFunction::emitAlloca(StringRef name, QualType ty,
                                        mlir::Location loc, CharUnits alignment,
                                        bool insertIntoFnEntryBlock,
-                                       mlir::Value arraySize) {
+                                       mlir::Value arraySize,
+                                       bool isTemporary) {
   return emitAlloca(name, convertType(ty), loc, alignment,
-                    insertIntoFnEntryBlock, arraySize);
+                    insertIntoFnEntryBlock, arraySize, isTemporary);
 }
 
 mlir::Value CIRGenFunction::emitLoadOfScalar(LValue lvalue,
@@ -3262,34 +3272,61 @@ void CIRGenFunction::emitUnreachable(SourceLocation Loc) {
 // CIR builder helpers
 //===----------------------------------------------------------------------===//
 
-Address CIRGenFunction::CreateMemTemp(QualType Ty, mlir::Location Loc,
-                                      const Twine &Name, Address *Alloca,
-                                      mlir::OpBuilder::InsertPoint ip) {
+Address CIRGenFunction::CreateMemTempWithName(QualType Ty, mlir::Location Loc,
+                                              const Twine &Name,
+                                              Address *Alloca,
+                                              mlir::OpBuilder::InsertPoint ip,
+                                              bool isTemporary) {
   // FIXME: Should we prefer the preferred type alignment here?
-  return CreateMemTemp(Ty, getContext().getTypeAlignInChars(Ty), Loc, Name,
-                       Alloca, ip);
+  return CreateMemTempWithName(Ty, getContext().getTypeAlignInChars(Ty), Loc,
+                               Name, Alloca, ip, isTemporary);
 }
 
-Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
-                                      mlir::Location Loc, const Twine &Name,
-                                      Address *Alloca,
-                                      mlir::OpBuilder::InsertPoint ip) {
+Address CIRGenFunction::CreateMemTempWithName(
+    QualType Ty, CharUnits Align, mlir::Location Loc, const Twine &Name,
+    Address *Alloca, mlir::OpBuilder::InsertPoint ip, bool isTemporary) {
+  // CreateMemTempWithName may be used for compiler-generated temporaries
+  // (ref.tmp*/agg.tmp*). Other scratch allocas are not marked temporary yet.
   Address Result =
       CreateTempAlloca(convertTypeForMem(Ty), /*destAS=*/{}, Align, Loc, Name,
-                       /*ArraySize=*/nullptr, Alloca, ip);
+                       /*ArraySize=*/nullptr, Alloca, ip, isTemporary);
   if (Ty->isConstantMatrixType()) {
     assert(0 && "NYI");
   }
   return Result;
 }
 
+Address
+CIRGenFunction::CreateRefTempWithAutoName(QualType Ty, mlir::Location Loc,
+                                          Address *Alloca,
+                                          mlir::OpBuilder::InsertPoint ip) {
+  return CreateMemTempWithName(Ty, Loc, getCounterRefTmpAsString(), Alloca, ip,
+                               /*isTemporary=*/true);
+}
+
+Address CIRGenFunction::CreateAggTempAddressWithAutoName(
+    QualType Ty, mlir::Location Loc, Address *Alloca,
+    mlir::OpBuilder::InsertPoint ip) {
+  return CreateMemTempWithName(Ty, Loc, getCounterAggTmpAsString(), Alloca, ip,
+                               /*isTemporary=*/true);
+}
+
+AggValueSlot CIRGenFunction::CreateAggTempWithAutoName(QualType Ty,
+                                                       mlir::Location Loc,
+                                                       Address *Alloca) {
+  return CreateAggTempWithName(Ty, Loc, getCounterAggTmpAsString(), Alloca);
+}
+
 /// This creates a alloca and inserts it into the entry block of the
 /// current region.
 Address CIRGenFunction::CreateTempAllocaWithoutCast(
     mlir::Type Ty, CharUnits Align, mlir::Location Loc, const Twine &Name,
-    mlir::Value ArraySize, mlir::OpBuilder::InsertPoint ip) {
-  auto Alloca = ip.isSet() ? CreateTempAlloca(Ty, Loc, Name, ip, ArraySize)
-                           : CreateTempAlloca(Ty, Loc, Name, ArraySize);
+    mlir::Value ArraySize, mlir::OpBuilder::InsertPoint ip, bool isTemporary) {
+  auto Alloca =
+      ip.isSet()
+          ? CreateTempAlloca(Ty, Loc, Name, ip, ArraySize, isTemporary)
+          : CreateTempAlloca(Ty, Loc, Name, ArraySize,
+                             /*insertIntoFnEntryBlock=*/false, isTemporary);
   Alloca.setAlignmentAttr(CGM.getSize(Align));
   return Address(Alloca, Ty, Align);
 }
@@ -3340,9 +3377,9 @@ Address CIRGenFunction::maybeCastStackAddressSpace(
 Address CIRGenFunction::CreateTempAlloca(
     mlir::Type Ty, mlir::ptr::MemorySpaceAttrInterface destAS, CharUnits Align,
     mlir::Location Loc, const Twine &Name, mlir::Value ArraySize,
-    Address *AllocaAddr, mlir::OpBuilder::InsertPoint ip) {
-  Address Alloca =
-      CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
+    Address *AllocaAddr, mlir::OpBuilder::InsertPoint ip, bool isTemporary) {
+  Address Alloca = CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize,
+                                               ip, isTemporary);
   if (AllocaAddr)
     *AllocaAddr = Alloca;
   return maybeCastStackAddressSpace(Alloca, destAS, ArraySize);
@@ -3352,42 +3389,40 @@ Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
                                          mlir::Location Loc, const Twine &Name,
                                          mlir::Value ArraySize,
                                          Address *AllocaAddr,
-                                         mlir::OpBuilder::InsertPoint ip) {
+                                         mlir::OpBuilder::InsertPoint ip,
+                                         bool isTemporary) {
   return CreateTempAlloca(Ty, /*destAS=*/{}, Align, Loc, Name, ArraySize,
-                          AllocaAddr, ip);
+                          AllocaAddr, ip, isTemporary);
 }
 
 /// This creates an alloca and inserts it into the entry block if \p ArraySize
 /// is nullptr, otherwise inserts it at the current insertion point of the
 /// builder.
-cir::AllocaOp CIRGenFunction::CreateTempAlloca(mlir::Type Ty,
-                                               mlir::Location Loc,
-                                               const Twine &Name,
-                                               mlir::Value ArraySize,
-                                               bool insertIntoFnEntryBlock) {
+cir::AllocaOp CIRGenFunction::CreateTempAlloca(
+    mlir::Type Ty, mlir::Location Loc, const Twine &Name, mlir::Value ArraySize,
+    bool insertIntoFnEntryBlock, bool isTemporary) {
   return emitAlloca(Name.str(), Ty, Loc, CharUnits(), insertIntoFnEntryBlock,
-                    ArraySize)
+                    ArraySize, isTemporary)
       .getDefiningOp<cir::AllocaOp>();
 }
 
 /// This creates an alloca and inserts it into the provided insertion point
-cir::AllocaOp CIRGenFunction::CreateTempAlloca(mlir::Type Ty,
-                                               mlir::Location Loc,
-                                               const Twine &Name,
-                                               mlir::OpBuilder::InsertPoint ip,
-                                               mlir::Value ArraySize) {
+cir::AllocaOp CIRGenFunction::CreateTempAlloca(
+    mlir::Type Ty, mlir::Location Loc, const Twine &Name,
+    mlir::OpBuilder::InsertPoint ip, mlir::Value ArraySize, bool isTemporary) {
   assert(ip.isSet() && "Insertion point is not set");
-  return emitAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize)
+  return emitAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize,
+                    isTemporary)
       .getDefiningOp<cir::AllocaOp>();
 }
 
 /// Just like CreateTempAlloca above, but place the alloca into the function
 /// entry basic block instead.
 cir::AllocaOp CIRGenFunction::CreateTempAllocaInFnEntryBlock(
-    mlir::Type Ty, mlir::Location Loc, const Twine &Name,
-    mlir::Value ArraySize) {
+    mlir::Type Ty, mlir::Location Loc, const Twine &Name, mlir::Value ArraySize,
+    bool isTemporary) {
   return CreateTempAlloca(Ty, Loc, Name, ArraySize,
-                          /*insertIntoFnEntryBlock=*/true);
+                          /*insertIntoFnEntryBlock=*/true, isTemporary);
 }
 
 /// Given an object of the given canonical type, can we safely copy a

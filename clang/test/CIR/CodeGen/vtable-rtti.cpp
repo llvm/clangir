@@ -55,7 +55,7 @@ public:
 //
 // CHECK: cir.func {{.*}} @_Z3foov()
 // CHECK:   cir.scope {
-// CHECK:     %0 = cir.alloca !rec_B, !cir.ptr<!rec_B>, ["agg.tmp.ensured"] {alignment = 8 : i64}
+// CHECK:     %0 = cir.alloca !rec_B, !cir.ptr<!rec_B>, ["agg.tmp.ensured", tmp] {alignment = 8 : i64}
 // CHECK:     %1 = cir.const #cir.zero : ![[ClassB]]
 // CHECK:     cir.store{{.*}} %1, %0 : ![[ClassB]], !cir.ptr<![[ClassB]]>
 // CHECK:     cir.call @_ZN1BC2Ev(%0) : (!cir.ptr<![[ClassB]]>) -> ()

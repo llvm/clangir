@@ -51,7 +51,7 @@ void init(unsigned numImages) {
 // CHECK:       %12 = cir.call @_ZNK17__vector_iteratorI6triplePS0_RS0_EdeEv(%5) : (!cir.ptr<![[VEC_IT]]>) -> !cir.ptr<!rec_triple>
 // CHECK:       cir.store{{.*}} %12, %7 : !cir.ptr<!rec_triple>, !cir.ptr<!cir.ptr<!rec_triple>>
 // CHECK:       cir.scope {
-// CHECK:         %13 = cir.alloca !rec_triple, !cir.ptr<!rec_triple>, ["ref.tmp0"] {alignment = 8 : i64}
+// CHECK:         %13 = cir.alloca !rec_triple, !cir.ptr<!rec_triple>, ["ref.tmp0", tmp] {alignment = 8 : i64}
 // CHECK:         %14 = cir.const #cir.zero : !rec_triple
 // CHECK:         cir.store{{.*}} %14, %13 : !rec_triple, !cir.ptr<!rec_triple>
 // CHECK:         %15 = cir.get_member %13[0] {name = "type"} : !cir.ptr<!rec_triple> -> !cir.ptr<!u32i>

@@ -499,7 +499,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       // FIXME: Avoid the conversion through memory if possible.
       Address Src = Address::invalid();
       if (!I->isAggregate()) {
-        Src = CreateMemTemp(I->Ty, loc, "coerce");
+        Src = CreateMemTempWithName(I->Ty, loc, "coerce");
         I->copyInto(*this, Src, loc);
       } else {
         Src = I->hasLValue() ? I->getKnownLValue().getAddress()
@@ -698,7 +698,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
       bool DestIsVolatile = ReturnValue.isVolatile();
 
       if (!DestPtr.isValid()) {
-        DestPtr = CreateMemTemp(RetTy, callLoc, getCounterAggTmpAsString());
+        DestPtr = CreateAggTempAddressWithAutoName(RetTy, callLoc);
         DestIsVolatile = false;
       }
 
@@ -721,7 +721,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
         Address DestPtr = ReturnValue.getValue();
 
         if (!DestPtr.isValid())
-          DestPtr = CreateMemTemp(RetTy, callLoc, "tmp.try.call.res");
+          DestPtr = CreateMemTempWithName(RetTy, callLoc, "tmp.try.call.res");
 
         return getRValueThroughMemory(callLoc, builder, Results[0], DestPtr);
       }
@@ -832,8 +832,8 @@ RValue CIRGenFunction::emitAnyExprToTemp(const Expr *E) {
   AggValueSlot AggSlot = AggValueSlot::ignored();
 
   if (hasAggregateEvaluationKind(E->getType()))
-    AggSlot = CreateAggTemp(E->getType(), getLoc(E->getSourceRange()),
-                            getCounterAggTmpAsString());
+    AggSlot =
+        CreateAggTempWithAutoName(E->getType(), getLoc(E->getSourceRange()));
 
   return emitAnyExpr(E, AggSlot);
 }
@@ -1413,7 +1413,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
 RValue CallArg::getRValue(CIRGenFunction &CGF, mlir::Location loc) const {
   if (!HasLV)
     return RV;
-  LValue Copy = CGF.makeAddrLValue(CGF.CreateMemTemp(Ty, loc), Ty);
+  LValue Copy = CGF.makeAddrLValue(CGF.CreateMemTempWithName(Ty, loc), Ty);
   CGF.emitAggregateCopy(Copy, LV, Ty, AggValueSlot::DoesNotOverlap,
                         LV.isVolatile());
   IsUsed = true;

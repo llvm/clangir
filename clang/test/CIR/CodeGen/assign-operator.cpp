@@ -83,7 +83,7 @@ int main() {
 // CHECK:       %5 = cir.cast array_to_ptrdecay %4 : !cir.ptr<!cir.array<!s8i x 3>> -> !cir.ptr<!s8i>
 // CHECK:       cir.call @_ZN6StringC2EPKc(%3, %5) : (!cir.ptr<!rec_String>, !cir.ptr<!s8i>) -> ()
 // CHECK:       cir.scope {
-// CHECK:         %6 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["ref.tmp0"] {alignment = 8 : i64}
+// CHECK:         %6 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["ref.tmp0", tmp] {alignment = 8 : i64}
 // CHECK:         cir.call @_ZN10StringViewC2ERK6String(%6, %3) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_String>) -> ()
 // CHECK:         %7 = cir.call @_ZN10StringViewaSEOS_(%1, %6) : (!cir.ptr<!rec_StringView>, !cir.ptr<!rec_StringView>) -> !cir.ptr<!rec_StringView>
 // CHECK:       }

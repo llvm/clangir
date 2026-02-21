@@ -24,8 +24,8 @@ void f() {
 // Trivial default constructor call is lowered away.
 // CIR-NEXT: cir.func {{.*}} @_Z1fv() {{.*}} {
 // CIR-NEXT:   cir.scope {
-// CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
-// CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0"] {alignment = 1 : i64}
+// CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["agg.tmp.ensured", tmp] {alignment = 1 : i64}
+// CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0", tmp] {alignment = 1 : i64}
 // CIR-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!rec_E>) -> !rec_E
 // CIR-NEXT:     cir.store{{.*}} %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
 // CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
@@ -35,7 +35,7 @@ void f() {
 // CIR-NEXT: }
 
 // CIR_EH-LABEL: @_Z1fv
-// CIR_EH: %[[AGG_TMP:.*]] = cir.alloca {{.*}} ["agg.tmp.ensured"]
+// CIR_EH: %[[AGG_TMP:.*]] = cir.alloca {{.*}} ["agg.tmp.ensured", tmp]
 // CIR_EH: cir.try synthetic cleanup {
 // CIR_EH:   %[[RVAL:.*]] = cir.call exception {{.*}} cleanup {
 // CIR_EH:     cir.call @_ZN1ED1Ev

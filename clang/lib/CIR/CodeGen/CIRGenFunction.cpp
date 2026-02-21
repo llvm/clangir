@@ -276,7 +276,8 @@ void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
       ++NumReturnExprs;
   } else {
     Address allocaAddr = Address::invalid();
-    ReturnValue = CreateMemTemp(ty, alignment, loc, "__retval", &allocaAddr);
+    ReturnValue =
+        CreateMemTempWithName(ty, alignment, loc, "__retval", &allocaAddr);
     FnRetAlloca = allocaAddr.getPointer();
 
     // Tell the epilog emitter to autorelease the result. We do this now so
@@ -296,8 +297,8 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   Address allocaAddr = Address::invalid();
-  Address result =
-      CreateMemTemp(ty, alignment, loc, namedVar->getName(), &allocaAddr);
+  Address result = CreateMemTempWithName(ty, alignment, loc,
+                                         namedVar->getName(), &allocaAddr);
   addr = result.getPointer();
 
   if (auto allocaOp = result.getAllocaOp()) {
