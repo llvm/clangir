@@ -42,7 +42,7 @@ CIRGenFunction::CIRGenFunction(CIRGenModule &cgm, CIRGenBuilderTy &builder,
                                bool suppressNewContext)
     : CIRGenTypeCache(cgm), CGM{cgm}, builder(builder),
       SanOpts(cgm.getLangOpts().Sanitize), CurFPFeatures(cgm.getLangOpts()),
-      ShouldEmitLifetimeMarkers(false) {
+      ShouldEmitLifetimeMarkers(false), insertPointSet(true) {
   if (!suppressNewContext)
     cgm.getCXXABI().getMangleContext().startNewFunction();
   EHStack.setCGF(this);
@@ -859,6 +859,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
       llvm_unreachable("no definition for emitted function");
     }
 
+    ensureInsertPoint();
     assert(builder.getInsertionBlock() && "Should be valid");
 
     if (mlir::failed(fn.verifyBody()))

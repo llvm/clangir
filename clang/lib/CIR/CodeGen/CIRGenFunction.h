@@ -527,6 +527,10 @@ public:
   /// the constructor, but could be overwrriten to true if this is a coroutine.
   bool ShouldEmitLifetimeMarkers;
 
+  /// True if an insertion point is defined. If not, this indicates that the
+  /// current code being emitted is unreachable.
+  bool insertPointSet;
+
   /// True if there are any operations in the body of the function that are
   /// likely to throw an exception.
   bool mayThrow = false;
@@ -614,11 +618,20 @@ public:
 
   /// True if an insertion point is defined. If not, this indicates that the
   /// current code being emitted is unreachable.
-  /// FIXME(cir): we need to inspect this and perhaps use a cleaner mechanism
-  /// since we don't yet force null insertion point to designate behavior (like
-  /// LLVM's codegen does) and we probably shouldn't.
-  bool HaveInsertPoint() const {
-    return builder.getInsertionBlock() != nullptr;
+  /// In LLVM's codegen, forcing null insertion points is used to designate
+  /// behavior. In CIR, we use the `insertPointSet` flag as a mechanism to
+  /// implement the same behavior, since we don't force null insert points.
+  bool HaveInsertPoint() const { return insertPointSet; }
+
+  /// ensureInsertPoint - Ensure that an insertion point is defined so that
+  /// emitted IR has a place to go. Note that by definition, if this function
+  /// creates a block then that block is unreachable; callers may do better to
+  /// detect when no insertion point is defined and simply skip IR generation.
+  void ensureInsertPoint() {
+    if (!HaveInsertPoint())
+      insertPointSet = true;
+
+    assert(builder.getInsertionBlock() && "expected an insertion block");
   }
 
   /// Whether any type-checking sanitizers are enabled. If \c false, calls to
@@ -1280,6 +1293,7 @@ public:
       assert(CGF.OutermostConditional != nullptr);
       if (CGF.OutermostConditional == this)
         CGF.OutermostConditional = nullptr;
+      CGF.ensureInsertPoint();
     }
 
     /// Returns the insertion point which will be executed prior to each

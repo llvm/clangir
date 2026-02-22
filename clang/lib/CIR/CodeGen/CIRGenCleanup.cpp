@@ -65,7 +65,7 @@ cir::BrOp CIRGenFunction::emitBranchThroughCleanup(mlir::Location Loc,
     Fixup.destinationIndex = Dest.getDestIndex();
     Fixup.initialBranch = brOp;
     Fixup.optimisticBranchBlock = nullptr;
-    // FIXME(cir): should we clear insertion point here?
+    insertPointSet = false;
     return brOp;
   }
 
@@ -889,7 +889,15 @@ void EHScopeStack::deallocate(size_t Size) {
 void EHScopeStack::popNullFixups() {
   // We expect this to only be called when there's still an innermost
   // normal cleanup;  otherwise there really shouldn't be any fixups.
-  llvm_unreachable("NYI");
+  assert(hasNormalCleanups());
+
+  EHScopeStack::iterator it = find(InnermostNormalCleanup);
+  unsigned minSize = cast<EHCleanupScope>(*it).getFixupDepth();
+  assert(BranchFixups.size() >= minSize && "fixup stack out of order");
+
+  while (BranchFixups.size() > minSize &&
+         BranchFixups.back().destination == nullptr)
+    BranchFixups.pop_back();
 }
 
 bool EHScopeStack::requiresLandingPad() const {
