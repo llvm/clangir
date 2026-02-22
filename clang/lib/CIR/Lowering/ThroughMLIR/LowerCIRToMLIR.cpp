@@ -543,6 +543,12 @@ using CIRATanOpLowering =
 using CIRACosOpLowering =
     CIRUnaryMathOpLowering<cir::ACosOp, mlir::math::AcosOp>;
 using CIRTanOpLowering = CIRUnaryMathOpLowering<cir::TanOp, mlir::math::TanOp>;
+using CIRCoshOpLowering =
+    CIRUnaryMathOpLowering<cir::CoshOp, mlir::math::CoshOp>;
+using CIRSinhOpLowering =
+    CIRUnaryMathOpLowering<cir::SinhOp, mlir::math::SinhOp>;
+using CIRTanhOpLowering =
+    CIRUnaryMathOpLowering<cir::TanhOp, mlir::math::TanhOp>;
 
 class CIRShiftOpLowering : public mlir::OpConversionPattern<cir::ShiftOp> {
 public:
@@ -1916,7 +1922,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRIfOpLowering, CIRScopeOpLowering, CIRVectorCreateLowering,
            CIRVectorInsertLowering, CIRVectorExtractLowering,
            CIRVectorCmpOpLowering, CIRACosOpLowering, CIRASinOpLowering,
-           CIRUnreachableOpLowering, CIRTrapOpLowering, CIRCopyOpLowering>(
+           CIRUnreachableOpLowering, CIRTrapOpLowering, CIRCopyOpLowering,
+           CIRCoshOpLowering, CIRSinhOpLowering, CIRTanhOpLowering>(
           converter, patterns.getContext());
 }
 

@@ -843,7 +843,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_coshf16:
     case Builtin::BI__builtin_coshl:
     case Builtin::BI__builtin_coshf128:
-      llvm_unreachable("Builtin::BIcosh like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::CoshOp>(*this, *E);
 
     case Builtin::BIexp:
     case Builtin::BIexpf:
@@ -1071,7 +1072,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_sinhf16:
     case Builtin::BI__builtin_sinhl:
     case Builtin::BI__builtin_sinhf128:
-      llvm_unreachable("Builtin::BIsinh like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::SinhOp>(*this, *E);
 
     case Builtin::BI__builtin_sincospi:
     case Builtin::BI__builtin_sincospif:
@@ -1118,7 +1120,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_tanhf16:
     case Builtin::BI__builtin_tanhl:
     case Builtin::BI__builtin_tanhf128:
-      llvm_unreachable("Builtin::BItanh like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::TanhOp>(*this, *E);
 
     case Builtin::BItrunc:
     case Builtin::BItruncf:
@@ -1706,7 +1709,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_elementwise_cos:
     return emitUnaryFPBuiltin<cir::CosOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_cosh:
-    llvm_unreachable("BI__builtin_elementwise_cosh NYI");
+    return emitUnaryFPBuiltin<cir::CoshOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_floor:
     return emitUnaryFPBuiltin<cir::FloorOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_popcount:
@@ -1722,13 +1725,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_elementwise_sin:
     return emitUnaryFPBuiltin<cir::SinOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_sinh:
-    llvm_unreachable("BI__builtin_elementwise_sinh NYI");
+    return emitUnaryFPBuiltin<cir::SinhOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_sqrt:
     return emitUnaryFPBuiltin<cir::SqrtOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_tan:
     return emitUnaryFPBuiltin<cir::TanOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_tanh:
-    llvm_unreachable("BI__builtin_elementwise_tanh NYI");
+    return emitUnaryFPBuiltin<cir::TanhOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_trunc:
     return emitUnaryFPBuiltin<cir::TruncOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_canonicalize:
